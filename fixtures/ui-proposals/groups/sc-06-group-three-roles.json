@@ -1,0 +1,32 @@
+{
+  "scenario_id": "sc-06",
+  "title": "组内三角色任务链",
+  "description": "规划→执行→复核链式协作。验证意图轨（ROUTE_TASK）与状态轨（Run/Task）分离渲染。",
+  "ui_surfaces": ["协作时间线", "项目概览"],
+  "snapshot": {
+    "cursor": 4100,
+    "spaces": [
+      { "id": "sp_core", "projectId": "proj_atlas", "name": "核心实现组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 9 }
+    ],
+    "roles": [
+      { "id": "r_lin", "spaceId": "sp_core", "name": "林岚", "status": "ACTIVE", "harness": "codex", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "HANDED_OFF", "currentTaskSummary": "登录模块拆解", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 6 },
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "RUNNING", "currentTaskSummary": "登录接口实现", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 8 },
+      { "id": "r_chen", "spaceId": "sp_core", "name": "陈复核", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "queuedTasksCount": 1, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 4 }
+    ],
+    "tasks": [
+      { "id": "t_plan", "spaceId": "sp_core", "assigneeRoleId": "r_lin", "summary": "登录模块拆解", "state": "HANDED_OFF", "acceptance": "ACCEPTED", "completionTargetLabel": "周实现", "createdAtMs": 1788927000000, "updatedAtMs": 1788929400000, "revision": 4 },
+      { "id": "t_impl", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "登录接口实现", "state": "ACTIVE", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "陈复核", "createdAtMs": 1788929400000, "updatedAtMs": 1788930000000, "revision": 3 },
+      { "id": "t_review", "spaceId": "sp_core", "requesterRoleId": "r_zhou", "assigneeRoleId": "r_chen", "summary": "登录接口复核", "state": "QUEUED", "acceptance": "PENDING", "completionTargetLabel": "用户", "createdAtMs": 1788930000000, "updatedAtMs": 1788930000000, "queuePosition": 1, "revision": 1 }
+    ],
+    "runs": [
+      { "id": "run_412", "roleId": "r_zhou", "taskId": "t_impl", "harness": "pi", "state": "RUNNING", "startedAtMs": 1788930000000, "nativeSessionDisplay": "pi session #88", "reconciliationRequired": false, "revision": 2 }
+    ]
+  },
+  "expected_ui": [
+    "时间线意图轨显示：林岚 → 周实现『登录接口实现』→（完成后）陈复核『登录接口复核』",
+    "状态轨显示：周实现 ●Run#412 运行中；陈复核 ⧉队列位置 1 —— 禁止渲染为『复核正在进行』",
+    "林岚任务 t_plan 显示『已交接』(HANDED_OFF) 且验收 ACCEPTED",
+    "组卡『最近交接』显示 林岚→周实现",
+    "t_review 的 completionTargetLabel=用户：时间线标注复核结论将交给用户"
+  ]
+}

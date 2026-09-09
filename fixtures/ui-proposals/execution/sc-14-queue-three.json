@@ -1,0 +1,24 @@
+{
+  "scenario_id": "sc-14",
+  "title": "三项排队",
+  "description": "周实现空闲但积压三项排队任务。角色展示态=有任务排队（优先级 7）；派发抽屉提示位置。",
+  "ui_surfaces": ["角色详情", "项目概览", "派发任务抽屉"],
+  "snapshot": {
+    "cursor": 4550,
+    "roles": [
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "queuedTasksCount": 3, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 11 }
+    ],
+    "tasks": [
+      { "id": "t_q1", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "订单查询接口", "state": "QUEUED", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "陈复核", "createdAtMs": 1788931000000, "updatedAtMs": 1788931000000, "queuePosition": 1, "revision": 1 },
+      { "id": "t_q2", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "退款状态机", "state": "QUEUED", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "陈复核", "createdAtMs": 1788931100000, "updatedAtMs": 1788931100000, "queuePosition": 2, "revision": 1 },
+      { "id": "t_q3", "spaceId": "sp_core", "assigneeRoleId": "r_zhou", "summary": "补充订单接口测试", "state": "QUEUED", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "用户", "createdAtMs": 1788931200000, "updatedAtMs": 1788931200000, "queuePosition": 3, "revision": 1 }
+    ]
+  },
+  "expected_ui": [
+    "角色展示态=有任务排队（⧉ 灰蓝，优先级 7），标签『3 项排队』",
+    "角色详情队列区块按 queuePosition 1/2/3 排序展示，每项可取消（task.cancel）",
+    "打开派发抽屉时提示『此任务将进入队列，位置 4』，按钮文案为『派发到队列』",
+    "排队任务显示来源（林岚派发/用户派发）与完成去向",
+    "普通通知（unreadNoticesCount）不影响排队展示也不唤醒角色"
+  ]
+}

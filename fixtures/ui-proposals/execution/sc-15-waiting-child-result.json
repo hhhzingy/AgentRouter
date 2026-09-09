@@ -1,0 +1,24 @@
+{
+  "scenario_id": "sc-15",
+  "title": "等待下属结果",
+  "description": "林岚派给周实现后等待其结果。角色展示态=等待输入/下属结果（优先级 6）。",
+  "ui_surfaces": ["角色详情", "协作时间线", "项目概览"],
+  "snapshot": {
+    "cursor": 4600,
+    "roles": [
+      { "id": "r_lin", "spaceId": "sp_core", "name": "林岚", "status": "ACTIVE", "harness": "codex", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "WAITING_INPUT", "currentTaskSummary": "登录模块整体交付", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 7 },
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "RUNNING", "currentTaskSummary": "登录接口实现", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 8 }
+    ],
+    "tasks": [
+      { "id": "t_parent", "spaceId": "sp_core", "assigneeRoleId": "r_lin", "summary": "登录模块整体交付", "state": "WAITING_INPUT", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "用户", "createdAtMs": 1788927000000, "updatedAtMs": 1788929400000, "blockedReason": "等待 周实现『登录接口实现』结果", "revision": 5 },
+      { "id": "t_impl", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "登录接口实现", "state": "ACTIVE", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "林岚", "createdAtMs": 1788929400000, "updatedAtMs": 1788930000000, "revision": 3 }
+    ]
+  },
+  "expected_ui": [
+    "林岚展示态=等待输入/下属结果（◐ 灰蓝，优先级 6），不是『空闲』也不是『正在执行』",
+    "任务卡 blockedReason 显示依赖对象并链接到 t_impl",
+    "时间线意图轨：t_parent（林岚，等待中）→ 依赖 → t_impl（周实现，运行中）",
+    "周实现交付 ROUTE_RESULT 后，t_parent 回到 ACTIVE 并唤醒林岚（结果交付是唤醒源，普通通知不是）",
+    "等待中的任务在组重构队列处置中列为『不能静默迁移』类（sc-23 关联）"
+  ]
+}

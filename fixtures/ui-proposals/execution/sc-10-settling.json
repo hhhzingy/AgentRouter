@@ -1,0 +1,25 @@
+{
+  "scenario_id": "sc-10",
+  "title": "SETTLING 正在收尾",
+  "description": "Run 进入 SETTLING。红线：绝不显示『完成』；完成只认 SUCCEEDED + 显式 Result。",
+  "ui_surfaces": ["项目概览", "角色详情", "协作时间线"],
+  "snapshot": {
+    "cursor": 4350,
+    "roles": [
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "SETTLING", "currentTaskSummary": "登录接口实现", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 9 }
+    ],
+    "tasks": [
+      { "id": "t_impl", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "登录接口实现", "state": "ACTIVE", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "陈复核", "createdAtMs": 1788929400000, "updatedAtMs": 1788931600000, "revision": 4 }
+    ],
+    "runs": [
+      { "id": "run_412", "roleId": "r_zhou", "taskId": "t_impl", "harness": "pi", "state": "SETTLING", "startedAtMs": 1788930000000, "reconciliationRequired": false, "revision": 3 }
+    ]
+  },
+  "expected_ui": [
+    "角色展示态=正在收尾（◍ 蓝，优先级 5）",
+    "Run 卡标签为『正在收尾』，全界面（含 Tooltip、时间线、aria-label）不出现『完成/已完成』字样",
+    "任务 t_impl 仍显示 ACTIVE『进行中』",
+    "产物区不出现该任务产物（收尾屏障未过，无显式交付）",
+    "SETTLING 持续时活跃 Run 计数不减少"
+  ]
+}

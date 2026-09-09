@@ -1,0 +1,36 @@
+{
+  "scenario_id": "sc-20",
+  "title": "权限请求超出",
+  "description": "AI 请求了项目策略外路径与全量网络：超界项标红默认剔除，实际权限只能收窄。",
+  "ui_surfaces": ["Role Plan Review", "PermissionComparePanel"],
+  "snapshot": { "cursor": 5020 },
+  "x_proposal": {
+    "ccr": ["CCR-UI-03", "CCR-UI-07"],
+    "requested_permissions": {
+      "workspace_access": "read_write",
+      "allowed_paths": ["packages", "apps/core-service", "../secrets", "/etc"],
+      "tool_profiles": ["build", "test", "deploy_prod"],
+      "network_profile": "custom_request",
+      "notes": "需要访问生产监控与公网文档"
+    },
+    "policy_caps": {
+      "project_allowed_paths": ["packages", "apps"],
+      "harness_tool_profiles": ["build", "test"],
+      "network_profiles_allowed": ["none", "provider_only", "project_allowlist"]
+    },
+    "computed_effective": {
+      "workspace_access": "read_write",
+      "allowed_paths": ["packages", "apps/core-service"],
+      "tool_profiles": ["build", "test"],
+      "network_profile": "project_allowlist"
+    }
+  },
+  "expected_ui": [
+    "超界项标红并默认从实际权限剔除：『../secrets』『/etc』『deploy_prod』",
+    "network_profile=custom_request 降级提示重选为 project_allowlist，notes 保留供用户参考",
+    "对照区显示公式『AI 请求 ∩ 项目允许 ∩ Harness 支持 ∩ 用户确认 = 实际权限』",
+    "实际权限编辑控件只能收窄（如 read_write→read_only），无放宽控件",
+    "每条剔除项在 Review 风险列表中列明，需逐项确认后才能 Apply",
+    "界面不出现『凭据』『API Key』输入或展示位"
+  ]
+}

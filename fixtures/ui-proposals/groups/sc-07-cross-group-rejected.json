@@ -1,0 +1,32 @@
+{
+  "scenario_id": "sc-07",
+  "title": "跨组直接通信被 Core 拒绝",
+  "description": "周实现（sp_core）的 Adapter 尝试向苏界面（sp_ui）发起 Route，Core 拒绝并产生结构化 Issue。",
+  "ui_surfaces": ["审批与问题", "角色详情对话流", "协作时间线"],
+  "snapshot": {
+    "cursor": 4150,
+    "spaces": [
+      { "id": "sp_core", "projectId": "proj_atlas", "name": "核心实现组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 9 },
+      { "id": "sp_ui", "projectId": "proj_atlas", "name": "UI 组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 7 }
+    ],
+    "issues": [
+      { "id": "iss_77", "code": "CROSS_GROUP_ROUTE_DENIED", "state": "OPEN", "projectId": "proj_atlas", "spaceId": "sp_core", "roleId": "r_zhou", "taskId": "t_impl", "runId": "run_412", "messageKey": "issue.cross_group_route_denied", "createdAtMs": 1788931500000, "revision": 1 }
+    ],
+    "conversation": [
+      { "id": "ci_901", "cursor": 901, "kind": "SYSTEM_EVENT", "roleId": "r_zhou", "runId": "run_412", "taskId": "t_impl", "occurredAtMs": 1788931500000, "title": "跨组通信被拒绝", "body": "尝试向『苏界面』（UI 组）派发任务被拒绝：组隔离由 Core 强制。如需协作，请通过用户或组重构。", "state": "DENIED", "replay": false, "sensitive": false }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-13"],
+    "issue_codes": {
+      "CROSS_GROUP_ROUTE_DENIED": { "severity": "warning", "label": "跨组通信被拒绝", "hint": "协作组是通信边界；跨组协作请由用户转述或发起组重构" }
+    }
+  },
+  "expected_ui": [
+    "周实现对话流出现 SYSTEM_EVENT 卡『跨组通信被拒绝』，文案含『由 Core 强制』，不提供任何绕过指引",
+    "问题中心出现 iss_77，code 映射为中文标签与图标（severity=warning），可跳转到周实现 Run#412",
+    "时间线该事件归为『系统』类型，不渲染为角色间消息",
+    "UI 任何位置不出现『提示词让 AI 绕过』类建议",
+    "问题确认（issue.acknowledge）后从待介入计数移除，但事件卡保留"
+  ]
+}
