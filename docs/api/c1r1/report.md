@@ -1,6 +1,6 @@
 # C1R1 阶段报告
 
-基线：18c259c9c21f1750b275b27f5d1ed315c7e04f35。分支：feat/contract-c1r1。阶段：C1R1 合同修订，待复核；未进入 W11。
+基线：18c259c9c21f1750b275b27f5d1ed315c7e04f35。合同实现提交：211cc1e1c095aa09c2a703247b368c4a88873124。分支：feat/contract-c1r1。阶段：C1R1 合同修订，待复核；未进入 W11。
 
 已实现：新增 21 方法、要求的 ViewModel 和原 VM 可选扩展；Role Plan 输入校验/原子 Apply/幂等、章程版本及 Bootstrap、六个未验证模型 seed、统一组重构、工作区元数据、项目摘要、C1 协商投影。具体方法和边界见 methods.md、compatibility.md、UIAI-只读指南.md。
 
@@ -18,7 +18,7 @@
 | CR1-12 | 显式队列和会话选择；旧任务保留并关联后继；无自动唤醒 |
 | CR1-13 | Workspace VM/API 及 Mock 元数据；无真实 Git 操作 |
 | CR1-14 | 原 C1 transport 的真实离线连接与闭合旧 Schema 校验 |
-| CR1-15 | 本地冻结/安全与远端 CI 状态记录于 test-evidence.json；未完成项不算通过 |
+| CR1-15 | 本地冻结/敏感扫描 PASS；Windows CI 34361224896 全部门禁 PASS，证据见 test-evidence.json |
 
 真实测试：仅 Windows 本机离线软件测试，SQLite 预编译模块内存查询成功。真实 Harness 支持仍为 0；未读取日常凭据、未使用真实账号。账号联调按用户指示留待后续。
 
@@ -29,3 +29,5 @@
 工作区完整性：本轮 Git 管理目录在提交前缺失，仅恢复 contract-c1r1 的 admin、branch 和基线 index；没有改动主仓库工作文件/index 或 UI 工作树。主仓库原 feat/contract-c1 引用无法解析的现状不属于本轮修复范围。
 
 UIAI 所需文件：见 UIAI-只读指南.md。下一步：提交冻结候选后停止，等待用户复核；不自行推进 W11。
+
+远端证据：[Windows CI 34361224896](https://github.com/hhhzingy/AgentRouter/actions/runs/34361224896)，对应合同实现提交 211cc1e；后续证据提交仅更新本报告和测试记录。

@@ -28,7 +28,56 @@
     },
     "diff_check": "PASS"
   },
-  "ci": "PENDING_PUSH",
+  "ci": {
+    "status": "PASS",
+    "run_id": 34361224896,
+    "source_commit": "211cc1e1c095aa09c2a703247b368c4a88873124",
+    "url": "https://github.com/hhhzingy/AgentRouter/actions/runs/34361224896",
+    "jobs": [
+      {
+        "name": "c1",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install exact dependencies",
+            "conclusion": "success"
+          },
+          {
+            "name": "Frozen source and sensitive-content gate",
+            "conclusion": "success"
+          },
+          {
+            "name": "Type and regression tests (no account, no SSH)",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ]
+  },
   "real_harness_support": 0,
   "not_tested": [
     "real accounts (user deferred)",
