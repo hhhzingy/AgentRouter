@@ -7,3 +7,6 @@ node_modules/
 packages/protocol/adapter-contract.d.ts
 packages/protocol/*.json
 tools/pi-install-lock.json
+
+packages/client-contract/generated.ts
+docs/api/methods.c1.md
