@@ -1,0 +1,21 @@
+# 真实账号联调安全 Gate 检查单
+
+- [ ] 未在 Prompt、聊天、Issue、PR 或文档中粘贴真实 Secret
+- [ ] `.gitignore` 不再允许 raw live logs
+- [ ] 原始日志位于仓库外
+- [ ] 结构化日志采用 allowlist，不仅依赖正则脱敏
+- [ ] Secret 扫描覆盖 Git 历史、工作树、构建、evidence、崩溃转储
+- [ ] 测试账号与日常账号隔离
+- [ ] 测试额度和权限最低
+- [ ] 凭据目录在项目/worktree 外
+- [ ] Codex 权限明确 deny 凭据、SSH 和 `.env`
+- [ ] Agent Shell 默认无网络
+- [ ] Web/Browser/Connector/MCP 分别限制
+- [ ] Mock Provider 捕获验证 Prompt 不含 Secret
+- [ ] canary 读取测试被系统拒绝
+- [ ] 账号身份通过非模型接口核验
+- [ ] UI/Client API 不返回 Secret
+- [ ] 诊断导出无 Secret
+- [ ] 联调后已撤销或轮换
+- [ ] 联调后再次完成全盘扫描
+- [ ] 证据明确写出环境、版本和剩余风险

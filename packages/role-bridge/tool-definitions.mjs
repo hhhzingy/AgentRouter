@@ -3,7 +3,13 @@ const object = (properties) => ({ type: 'object', properties, additionalProperti
 export const toolDefinitions = [
   {
     name: 'route_context',
-    inputSchema: object({ section: { enum: ['all', 'roles', 'task', 'policy', 'results'] } }),
+    inputSchema: object({
+      section: {
+        enum: ['identity', 'roles', 'task', 'child_results', 'policy', 'notices', 'all', 'results'],
+      },
+      after_cursor: { type: 'integer', minimum: 0 },
+      limit: { type: 'integer', minimum: 1, maximum: 100 },
+    }),
   },
   {
     name: 'route_send',

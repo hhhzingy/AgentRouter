@@ -1,7 +1,8 @@
+import { diagnosticSummary } from '../packages/security/diagnostics.mjs';
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-const lock = JSON.parse(readFileSync('compatibility-lock.json', 'utf8'));
+const lock = JSON.parse(readFileSync('.local/runtime-locations.json', 'utf8'));
 const envBase = Object.fromEntries(
   ['SystemRoot', 'WINDIR', 'ComSpec', 'PATH', 'PATHEXT', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA']
     .filter((k) => process.env[k])
@@ -128,7 +129,14 @@ async function probe(h) {
     p.stdin.on('error', () => {});
     p.stdin.write(JSON.stringify(request) + '\n');
   });
-  writeFileSync(`evidence/M00/${h.id}-handshake.json`, JSON.stringify(output, null, 2) + '\n');
-  console.log(h.id, JSON.stringify(output));
+  const summary = diagnosticSummary({
+    test: h.id.toUpperCase(),
+    at: output.at,
+    status: output.received_handshake ? 'PASS' : 'FAIL',
+    exit_code: output.exit_code,
+    event_count: output.responses.length,
+  });
+  writeFileSync(`evidence/M00/${h.id}-handshake.json`, JSON.stringify(summary, null, 2));
+  console.log(JSON.stringify(summary));
 }
 for (const h of lock.harnesses) await probe(h);

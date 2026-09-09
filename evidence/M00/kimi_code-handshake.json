@@ -1,91 +1,9 @@
 {
-  "harness": "kimi_code",
+  "redacted": true,
+  "marker": "REDACTED",
+  "source_sha256": "bbd89146f891cd6dec8cd2bd137b971a497be91873e20d10f4c0ad26357b8f7a",
   "at": "2026-09-09T07:15:13.155Z",
-  "mode": "PROBED_NO_ACCOUNT_NO_MODEL",
-  "request": {
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "initialize",
-    "params": {
-      "protocolVersion": 1,
-      "clientCapabilities": {
-        "fs": {
-          "readTextFile": false,
-          "writeTextFile": false
-        },
-        "terminal": false
-      },
-      "clientInfo": {
-        "name": "agentrouter",
-        "version": "1.0.0"
-      }
-    }
-  },
-  "responses": [
-    {
-      "jsonrpc": "2.0",
-      "id": 1,
-      "result": {
-        "protocolVersion": 1,
-        "agentCapabilities": {
-          "loadSession": true,
-          "promptCapabilities": {
-            "image": true,
-            "audio": false,
-            "embeddedContext": true
-          },
-          "sessionCapabilities": {
-            "list": {},
-            "resume": {},
-            "close": {},
-            "delete": {},
-            "fork": {},
-            "additionalDirectories": {}
-          },
-          "mcpCapabilities": {
-            "http": true,
-            "sse": true
-          },
-          "auth": {
-            "logout": {}
-          }
-        },
-        "authMethods": [
-          {
-            "id": "login",
-            "type": "terminal",
-            "name": "Login with Kimi account",
-            "description": "Open the device-code login flow in a terminal.",
-            "args": [
-              "--login"
-            ],
-            "env": {
-              "KIMI_CODE_HOME": "E:\\AgentRouter\\.local\\probes\\kimi_code"
-            },
-            "_meta": {
-              "terminal-auth": {
-                "type": "terminal",
-                "label": "Login with Kimi account",
-                "command": "C:\\Users\\hap_p\\.kimi-code\\bin\\kimi.exe",
-                "args": [
-                  "login"
-                ],
-                "env": {
-                  "KIMI_CODE_HOME": "E:\\AgentRouter\\.local\\probes\\kimi_code"
-                }
-              }
-            }
-          }
-        ],
-        "agentInfo": {
-          "name": "Kimi Code CLI",
-          "version": "0.41.0"
-        }
-      }
-    }
-  ],
   "exit_code": 0,
-  "timeout": false,
   "received_handshake": true,
-  "stderr_bytes": 0
+  "mode": "PROBED_NO_ACCOUNT_NO_MODEL"
 }

@@ -16,42 +16,59 @@
       "version": "13.0.3"
     },
     "sqlite_runtime": "3.53.4",
-    "windows_build": "10.0.26200"
+    "windows_build": "10.0.26200",
+    "sqlite_policy": {
+      "minimum_safe": "3.53.4",
+      "verified_ranges": [
+        {
+          "min": "3.53.4",
+          "max_exclusive": "3.53.5"
+        }
+      ],
+      "unknown_safe": "DIAGNOSTIC_ONLY",
+      "auth_unit_max_active_runs": 1
+    }
   },
   "harnesses": [
     {
       "id": "codex",
-      "binary_path": "C:\\Users\\hap_p\\AppData\\Local\\OpenAI\\Codex\\bin\\8e5b6932251c2c1c\\codex.exe",
+      "binary_path": "%USERPROFILE%\\AppData\\Local\\OpenAI\\Codex\\bin\\8e5b6932251c2c1c\\codex.exe",
       "sha256": "e5aa76d19c7c94e2e9ef9b707d590206a73ac0e97c8ddc8382181242494bef75",
       "version": "codex-cli 0.153.4",
       "protocol": "app-server",
       "capabilities": {},
       "status": "PROBED",
-      "evidence": ["evidence/M00/environment.json"],
+      "evidence": [
+        "evidence/M00/environment.json"
+      ],
       "live_test_status": "BLOCKED_ENV",
       "certified": false
     },
     {
       "id": "kimi_code",
-      "binary_path": "C:\\Users\\hap_p\\.kimi-code\\bin\\kimi.exe",
+      "binary_path": "%USERPROFILE%\\.kimi-code\\bin\\kimi.exe",
       "sha256": "285debb7c882704fd942b70a3a116804d9955f39bff3428a0f6a64559e4a56a1",
       "version": "0.41.0",
       "protocol": "acp-negotiated",
       "capabilities": {},
       "status": "PROBED",
-      "evidence": ["evidence/M00/environment.json"],
+      "evidence": [
+        "evidence/M00/environment.json"
+      ],
       "live_test_status": "BLOCKED_ENV",
       "certified": false
     },
     {
       "id": "pi",
-      "binary_path": "C:\\Users\\hap_p\\AppData\\Roaming\\npm\\node_modules\\@earendil-works\\pi-coding-agent\\dist\\bundle\\cli.js",
+      "binary_path": "%USERPROFILE%\\AppData\\Roaming\\npm\\node_modules\\@earendil-works\\pi-coding-agent\\dist\\bundle\\cli.js",
       "sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
       "version": "0.85.1",
       "protocol": "rpc",
       "capabilities": {},
       "status": "PROBED",
-      "evidence": ["evidence/M00/environment.json"],
+      "evidence": [
+        "evidence/M00/environment.json"
+      ],
       "live_test_status": "BLOCKED_ENV",
       "certified": false,
       "installation_scope": "Windows user: %APPDATA%/npm"

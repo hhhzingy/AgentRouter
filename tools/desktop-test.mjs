@@ -77,7 +77,7 @@ try {
     coreConnected: true,
   });
 } catch (e) {
-  Object.assign(report, { error: String(e) });
+  Object.assign(report, { code: 'CHECK_FAILED', redacted: true });
   process.exitCode = 1;
 } finally {
   await app?.close();

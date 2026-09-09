@@ -12,4 +12,12 @@ auth.json
 *.db-wal
 *.db-shm
 *.log
-!evidence/**/*.log
+# 只提交 allowlist 脱敏摘要；忽略规则不自动取消旧跟踪。
+evidence/raw/
+evidence/live-raw/
+**/auth.json
+**/*token*
+**/*secret*
+**/.env*
+
+.vitest/

@@ -21,7 +21,13 @@
     "build:win": "node tools/build-win.mjs",
     "test:packaged": "node tools/packaged-test.mjs",
     "db:verify": "node tools/db-verify.mjs",
-    "pi": "node tools/run-pi.mjs"
+    "pi": "node tools/run-pi.mjs",
+    "contract:generate": "node tools/generate-client-contract.mjs",
+    "contract:check": "node tools/generate-client-contract.mjs --check",
+    "security:check": "node tools/check-sensitive.mjs --staged",
+    "security:history": "node tools/check-sensitive.mjs --history",
+    "test:c1": "vitest run tests/contract/client-c1.test.ts tests/contract/security-c1.test.mjs tests/integration/w10.test.ts",
+    "mock:c1": "node tools/run-c1-mock.mjs"
   },
   "dependencies": {
     "ajv": "8.20.0",

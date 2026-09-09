@@ -1,0 +1,41 @@
+name: C1 contract and offline gates
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  c1:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.14.0'
+      - name: Install exact dependencies
+        shell: pwsh
+        run: |
+          $env:npm_config_cache = "$pwd/.local/npm-cache"
+          npm install --prefix .local/ci-tools --ignore-scripts pnpm@11.19.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node .local/ci-tools/node_modules/pnpm/bin/pnpm.cjs install --frozen-lockfile
+          exit $LASTEXITCODE
+      - name: Frozen source and sensitive-content gate
+        shell: pwsh
+        run: |
+          node tools/generate-client-contract.mjs --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/check-client-freeze.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/check-sensitive.mjs --staged
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/check-sensitive.mjs --history
+          exit $LASTEXITCODE
+      - name: Type and regression tests (no account, no SSH)
+        shell: pwsh
+        run: |
+          node node_modules/typescript/bin/tsc --noEmit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node node_modules/vitest/vitest.mjs run tests/unit tests/integration tests/contract tests/chaos
+          exit $LASTEXITCODE

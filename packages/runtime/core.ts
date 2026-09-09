@@ -437,6 +437,7 @@ export class Core {
       const resources = [`workspace:${ws.canonical_path}`];
       if (b.auth_unit_id) {
         const au = this.one('select * from auth_units where id=?', b.auth_unit_id);
+        if (au?.max_active_runs !== 1) return this.blocked(roleId, 'auth_concurrency_unsupported');
         if (au?.state !== 'READY') return this.blocked(roleId, 'auth_unavailable');
         resources.push(`auth:${b.auth_unit_id}`);
       }
@@ -654,32 +655,94 @@ export class Core {
       throw new RouteError('ARTIFACT_CORRUPTED', 'AMBIGUOUS');
     return bytes;
   }
-  context(p: Identity, input: Data = {}) {
+  /** 被动收件：分页读取不改变任务、投递或业务回执。 */
+  notices(p: Identity, after = 0, limit = 50) {
     this.identity(p, true);
     if (
-      Object.keys(input).some((k) => k !== 'section') ||
-      (input.section && !['all', 'roles', 'task', 'policy', 'results'].includes(input.section))
+      !Number.isSafeInteger(after) ||
+      after < 0 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    )
+      throw new RouteError('INVALID_NOTICE_PAGE');
+    const rows = this.all(
+      "select seq,id,from_role_id,payload_json,created_at_ms from messages where kind='notice' and space_id=? and to_kind='role' and to_role_id=? and seq>? order by seq limit ?",
+      p.spaceId,
+      p.roleId,
+      after,
+      limit + 1,
+    );
+    const page = rows.slice(0, limit);
+    return {
+      items: page.map(({ payload_json, ...row }) => ({ ...row, notice: JSON.parse(payload_json) })),
+      next_cursor: page.at(-1)?.seq ?? after,
+      has_more: rows.length > limit,
+    };
+  }
+  context(p: Identity, input: Data = {}) {
+    const binding = this.identity(p, true);
+    const section = input.section ?? 'identity';
+    if (
+      Object.keys(input).some((k) => !['section', 'after_cursor', 'limit'].includes(k)) ||
+      ![
+        'identity',
+        'roles',
+        'task',
+        'child_results',
+        'policy',
+        'notices',
+        'all',
+        'results',
+      ].includes(section) ||
+      (section !== 'notices' && ('after_cursor' in input || 'limit' in input))
     )
       throw new RouteError('INVALID_CONTEXT_QUERY');
-    return {
-      identity: { role_id: p.roleId, space_id: p.spaceId, project_id: p.projectId },
-      roles: this.all('select id,name,status from roles where space_id=?', p.spaceId),
-      task: p.taskId
-        ? this.one('select id,summary,state,request_json from tasks where id=?', p.taskId)
-        : null,
-      children: p.taskId
-        ? this.all(
-            'select id,assignee_role_id,completion_json,state from tasks where parent_task_id=?',
-            p.taskId,
-          )
-        : [],
-      results: p.taskId
-        ? this.all(
-            'select r.id,r.summary,r.body,r.outputs_json from continuations c join results r on r.id=c.result_id where c.parent_task_id=?',
-            p.taskId,
-          )
-        : [],
+    const task = () =>
+      p.taskId
+        ? this.one('select id,summary,state,request_json,policy_id from tasks where id=?', p.taskId)
+        : null;
+    const sections: Record<string, () => unknown> = {
+      identity: () => ({ role_id: p.roleId, space_id: p.spaceId, project_id: p.projectId }),
+      roles: () => this.all('select id,name,status from roles where space_id=?', p.spaceId),
+      task: () => {
+        const t = task();
+        return t
+          ? { id: t.id, summary: t.summary, state: t.state, request: JSON.parse(t.request_json) }
+          : null;
+      },
+      child_results: () =>
+        p.taskId
+          ? this.all(
+              "select r.id,r.summary,r.body,r.outputs_json from continuations c join results r on r.id=c.result_id where c.parent_task_id=? and r.publication_state='PUBLISHED'",
+              p.taskId,
+            ).map(({ outputs_json, ...r }) => ({ ...r, outputs: JSON.parse(outputs_json) }))
+          : [],
+      policy: () => {
+        const policyId = task()?.policy_id ?? binding.last_synced_policy_id;
+        const policy = policyId
+          ? this.one(
+              'select id,revision,protocol_version,content_json,content_hash from policies where id=? and project_id=?',
+              policyId,
+              p.projectId,
+            )
+          : undefined;
+        if (!policy) throw new RouteError('POLICY_REQUIRED');
+        return {
+          id: policy.id,
+          revision: policy.revision,
+          protocol_version: policy.protocol_version,
+          content_hash: policy.content_hash,
+          rules: JSON.parse(policy.content_json),
+        };
+      },
+      notices: () => this.notices(p, input.after_cursor, input.limit),
     };
+    // 显式 all/results 作为旧调用别名保留；默认只披露 identity。
+    if (section === 'all')
+      return Object.fromEntries(Object.entries(sections).map(([k, fn]) => [k, fn()]));
+    if (section === 'results') return { results: sections.child_results() };
+    return { [section]: sections[section]() };
   }
   registerArtifact(p: Identity, op: string, input: Data) {
     if (

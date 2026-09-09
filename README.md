@@ -18,3 +18,5 @@ Windows 本地多 Harness 协作工作台，目标版本 V1.0。
 运行 `pnpm build:win` 后，从 `release/AgentRouter-preview/electron.exe` 启动。GPU 受限环境可先设置 `AGENTROUTER_SOFTWARE_RENDERING=1`。这是受测开发机上的便携预览目录，不是干净 Windows 安装认证。
 
 本私人仓库不授权公开再分发（UNLICENSED）。第三方软件遵循各自许可证，正式发行前仍需完成许可清单审查。
+
+本轮 W10/C1 已形成待复核合同基线，详见 [交付报告](docs/reports/W10-C1.md) 与 [UIAI 接入指南](docs/api/README.md)。C1 Mock 不是生产 Core，真实 Harness 支持仍为0。

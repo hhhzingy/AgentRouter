@@ -1,0 +1,11 @@
+{
+  "redacted": true,
+  "marker": "REDACTED",
+  "exit_code": 0,
+  "test_count": 6,
+  "passed_count": 6,
+  "failed_count": 0,
+  "status": "PASS",
+  "test": "UNIT",
+  "at": "2026-09-09T11:47:40.586Z"
+}

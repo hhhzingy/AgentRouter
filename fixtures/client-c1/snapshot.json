@@ -1,0 +1,126 @@
+{
+  "cursor": 0,
+  "revision": 1,
+  "projects": [
+    {
+      "id": "project_demo",
+      "name": "离线示例",
+      "status": "ACTIVE",
+      "hostLabel": "MOCK / Linux",
+      "displayRoot": "受控项目目录",
+      "spacesCount": 1,
+      "activeRunsCount": 1,
+      "issuesCount": 1,
+      "revision": 1
+    }
+  ],
+  "spaces": [
+    {
+      "id": "space_demo",
+      "projectId": "project_demo",
+      "name": "主协作空间",
+      "status": "ACTIVE",
+      "rolesCount": 2,
+      "queuedTasksCount": 1,
+      "revision": 1
+    }
+  ],
+  "roles": [
+    {
+      "id": "role_reviewer",
+      "spaceId": "space_demo",
+      "name": "reviewer",
+      "description": "UI 合同夹具，非真实 Harness",
+      "status": "ACTIVE",
+      "harness": "pi",
+      "harnessSupport": "PROBED",
+      "workspaceLabel": "受控工作区",
+      "runState": "UNKNOWN",
+      "queuedTasksCount": 1,
+      "unreadNoticesCount": 1,
+      "pendingApprovalsCount": 0,
+      "revision": 1
+    },
+    {
+      "id": "role_worker",
+      "spaceId": "space_demo",
+      "name": "worker",
+      "description": "UI 合同夹具，非真实 Harness",
+      "status": "ACTIVE",
+      "harness": "pi",
+      "harnessSupport": "PROBED",
+      "workspaceLabel": "受控工作区",
+      "runState": "WAITING_APPROVAL",
+      "queuedTasksCount": 1,
+      "unreadNoticesCount": 1,
+      "pendingApprovalsCount": 1,
+      "revision": 1
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_queued",
+      "spaceId": "space_demo",
+      "assigneeRoleId": "role_worker",
+      "summary": "独立任务等待 FIFO",
+      "state": "QUEUED",
+      "acceptance": "PENDING",
+      "completionTargetLabel": "用户",
+      "createdAtMs": 1,
+      "updatedAtMs": 1,
+      "queuePosition": 1,
+      "revision": 1
+    }
+  ],
+  "runs": [
+    {
+      "id": "run_unknown",
+      "roleId": "role_reviewer",
+      "harness": "pi",
+      "state": "UNKNOWN",
+      "reconciliationRequired": true,
+      "revision": 1
+    },
+    {
+      "id": "run_wait",
+      "roleId": "role_worker",
+      "harness": "pi",
+      "state": "WAITING_APPROVAL",
+      "reconciliationRequired": false,
+      "revision": 1
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_unknown",
+      "code": "EXECUTION_UNKNOWN",
+      "state": "OPEN",
+      "runId": "run_unknown",
+      "messageKey": "issues.execution_unknown",
+      "createdAtMs": 1,
+      "revision": 1
+    }
+  ],
+  "approvals": [
+    {
+      "id": "approval_wait",
+      "runId": "run_wait",
+      "state": "PENDING",
+      "title": "等待受控审批",
+      "riskLevel": "HIGH",
+      "requestedAtMs": 1,
+      "revision": 1
+    }
+  ],
+  "results": [
+    {
+      "id": "result_held",
+      "taskId": "task_queued",
+      "summary": "原生收尾前不可投递",
+      "acceptance": "PENDING",
+      "delivery": "HELD",
+      "artifactIds": [],
+      "revision": 1
+    }
+  ]
+}

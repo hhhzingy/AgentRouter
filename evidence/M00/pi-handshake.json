@@ -1,50 +1,9 @@
 {
-  "harness": "pi",
+  "redacted": true,
+  "marker": "REDACTED",
+  "source_sha256": "94f74ad8e0ec5a267a8fa8bd7d00679e92d983dd50aca3628b9bd9e8f2d7669a",
   "at": "2026-09-09T07:15:15.010Z",
-  "mode": "PROBED_NO_ACCOUNT_NO_MODEL",
-  "request": {
-    "id": "1",
-    "type": "get_state"
-  },
-  "responses": [
-    {
-      "id": "1",
-      "type": "response",
-      "command": "get_state",
-      "success": true,
-      "data": {
-        "model": {
-          "id": "unknown",
-          "name": "unknown",
-          "api": "unknown",
-          "provider": "unknown",
-          "baseUrl": "",
-          "reasoning": false,
-          "input": [],
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "contextWindow": 0,
-          "maxTokens": 0
-        },
-        "thinkingLevel": "off",
-        "isStreaming": false,
-        "isCompacting": false,
-        "steeringMode": "one-at-a-time",
-        "followUpMode": "one-at-a-time",
-        "sessionFile": "E:\\AgentRouter\\.local\\probes\\pi\\sessions\\2026-09-09T07-15-15-501Z_01a08505-59a9-7562-af99-4e8877a0b88b.jsonl",
-        "sessionId": "01a08505-59a9-7562-af99-4e8877a0b88b",
-        "autoCompactionEnabled": true,
-        "messageCount": 0,
-        "pendingMessageCount": 0
-      }
-    }
-  ],
   "exit_code": 0,
-  "timeout": false,
   "received_handshake": true,
-  "stderr_bytes": 0
+  "mode": "PROBED_NO_ACCOUNT_NO_MODEL"
 }

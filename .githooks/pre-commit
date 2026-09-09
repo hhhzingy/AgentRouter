@@ -1,0 +1,4 @@
+#!/bin/sh
+node tools/generate-client-contract.mjs --check || exit 1
+node tools/check-client-freeze.mjs --staged || exit 1
+node tools/check-sensitive.mjs --staged || exit 1

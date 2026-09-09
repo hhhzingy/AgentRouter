@@ -29,7 +29,7 @@ try {
   const response = await new Promise((res, rej) => {
     const timer = setTimeout(() => rej(Error('TIMEOUT')), 10000);
     child.on('error', rej);
-    child.stderr.on('data', (b) => rej(Error(b.toString())));
+    child.stderr.on('data', (b) => rej(Error('CHILD_DIAGNOSTIC')));
     child.stdout.once('data', (b) => {
       clearTimeout(timer);
       res(JSON.parse(b.toString()));
@@ -48,7 +48,7 @@ try {
     sqlite: response.result.runtime.sqlite,
   });
 } catch (e) {
-  Object.assign(report, { error: String(e) });
+  Object.assign(report, { code: 'CHECK_FAILED', redacted: true });
   process.exitCode = 1;
 } finally {
   child.kill();

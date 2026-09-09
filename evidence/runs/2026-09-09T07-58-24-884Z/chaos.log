@@ -1,3 +1,0 @@
-$ D:\Software\nodejs\node.exe node_modules/vitest/vitest.mjs run tests/chaos --reporter=json --outputFile=E:\AgentRouter\evidence\runs\2026-09-09T07-58-24-884Z/chaos.json
-JSON report written to E:/AgentRouter/evidence/runs/2026-09-09T07-58-24-884Z/chaos.json
-

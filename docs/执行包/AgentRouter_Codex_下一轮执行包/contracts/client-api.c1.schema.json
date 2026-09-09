@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentrouter:client-api:c1",
+  "title": "AgentRouter Client API C1 frame",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    },
+    {
+      "$ref": "#/$defs/event"
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$"
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "category": {
+          "enum": [
+            "VALIDATION",
+            "AUTHORIZATION",
+            "UNAVAILABLE",
+            "CONFLICT",
+            "AMBIGUOUS",
+            "INCOMPATIBLE",
+            "INTERNAL"
+          ]
+        },
+        "message_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "trace_id": {
+          "$ref": "#/$defs/id"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "message_key",
+        "retryable",
+        "trace_id",
+        "details"
+      ],
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "method": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*\\.[A-Za-z][A-Za-z0-9]*$",
+          "maxLength": 120
+        },
+        "operation_id": {
+          "$ref": "#/$defs/id"
+        },
+        "params": {}
+      },
+      "required": [
+        "v",
+        "id",
+        "method",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "result": {},
+        "error": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "required": [
+        "v",
+        "id"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "result"
+          ]
+        },
+        {
+          "required": [
+            "error"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "event": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9]*)+$",
+          "maxLength": 160
+        },
+        "cursor": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "v",
+        "event",
+        "cursor",
+        "occurred_at_ms",
+        "payload"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

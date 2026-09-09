@@ -1,3 +1,4 @@
+import { classifySqlite } from './compatibility.ts';
 import Database from 'better-sqlite3';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -9,13 +10,14 @@ export function openStore(
   mkdirSync(dirname(path), { recursive: true });
   const db = new Database(path);
   try {
+    const version = (db.prepare('select sqlite_version() as version').get() as { version: string })
+      .version;
+    const status = classifySqlite(version);
+    if (status !== 'VERIFIED') throw new SqliteCompatibilityError(version, status);
     db.pragma('foreign_keys = ON');
     db.pragma('journal_mode = WAL');
     db.pragma('synchronous = FULL');
     db.pragma('busy_timeout = 5000');
-    const version = (db.prepare('select sqlite_version() as version').get() as { version: string })
-      .version;
-    if (version !== '3.53.4') throw Error(`SQLITE_UNVERIFIED:${version}`);
     const sql = readFileSync(migration, 'utf8');
     const checksum = createHash('sha256').update(sql).digest('hex');
     if (!db.prepare("select name from sqlite_master where name='schema_migrations'").get())
@@ -40,5 +42,31 @@ export function openStore(
   } catch (error) {
     db.close();
     throw error;
+  }
+}
+
+export class SqliteCompatibilityError extends Error {
+  readonly version: string;
+  readonly status: 'UNSAFE' | 'DIAGNOSTIC_ONLY';
+  constructor(version: string, status: 'UNSAFE' | 'DIAGNOSTIC_ONLY') {
+    super(`SQLITE_${status}`);
+    this.version = version;
+    this.status = status;
+  }
+}
+/** 未验证引擎用此入口只读诊断，不执行迁移、WAL 或调度。 */
+export function inspectStore(path: string) {
+  const db = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    db.pragma('query_only = ON');
+    const version = (db.prepare('select sqlite_version() as version').get() as { version: string })
+      .version;
+    return {
+      version,
+      compatibility: classifySqlite(version),
+      integrity: db.pragma('integrity_check', { simple: true }),
+    };
+  } finally {
+    db.close();
   }
 }
