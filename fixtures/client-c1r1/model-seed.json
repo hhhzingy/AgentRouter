@@ -1,0 +1,172 @@
+[
+  {
+    "id": "model_deepseek_deepseek_v4_pro",
+    "harness": "pi",
+    "provider_id": "deepseek",
+    "provider_profile_id": "profile_mock_deepseek",
+    "model_id": "deepseek-v4-pro",
+    "display_name": "DeepSeek V4 Pro",
+    "source": "SEED",
+    "availability": "UNVERIFIED",
+    "modalities": [
+      "text"
+    ],
+    "tool_support": "VERIFY_AT_RUNTIME",
+    "reasoning": {
+      "control": "reasoning_effort",
+      "levels": [
+        "low",
+        "high",
+        "max"
+      ],
+      "default": "high"
+    },
+    "compatibility_notes": [
+      "执行包提供的未验证种子；不是实时可用性证明",
+      "Runtime Probe 优先",
+      "reasoning_effort 与 thinking_budget 互斥"
+    ]
+  },
+  {
+    "id": "model_deepseek_deepseek_v4_flash",
+    "harness": "pi",
+    "provider_id": "deepseek",
+    "provider_profile_id": "profile_mock_deepseek",
+    "model_id": "deepseek-v4-flash",
+    "display_name": "DeepSeek V4 Flash",
+    "source": "SEED",
+    "availability": "UNVERIFIED",
+    "modalities": [
+      "text"
+    ],
+    "tool_support": "VERIFY_AT_RUNTIME",
+    "reasoning": {
+      "control": "reasoning_effort",
+      "levels": [
+        "low",
+        "high",
+        "max"
+      ],
+      "default": "high"
+    },
+    "compatibility_notes": [
+      "执行包提供的未验证种子；不是实时可用性证明",
+      "Runtime Probe 优先",
+      "reasoning_effort 与 thinking_budget 互斥"
+    ]
+  },
+  {
+    "id": "model_zai_glm_5_3",
+    "harness": "pi",
+    "provider_id": "zai",
+    "provider_profile_id": "profile_mock_zai",
+    "model_id": "glm-5.3",
+    "display_name": "GLM-5.3",
+    "source": "SEED",
+    "availability": "UNVERIFIED",
+    "modalities": [
+      "text"
+    ],
+    "tool_support": "VERIFY_AT_RUNTIME",
+    "reasoning": {
+      "control": "reasoning_effort",
+      "levels": [
+        "low",
+        "high",
+        "max"
+      ],
+      "default": "max"
+    },
+    "compatibility_notes": [
+      "执行包提供的未验证种子；不是实时可用性证明",
+      "Runtime Probe 优先",
+      "reasoning_effort 与 thinking_budget 互斥"
+    ]
+  },
+  {
+    "id": "model_zai_glm_5_3_flash",
+    "harness": "pi",
+    "provider_id": "zai",
+    "provider_profile_id": "profile_mock_zai",
+    "model_id": "glm-5.3-flash",
+    "display_name": "GLM-5.3 Flash",
+    "source": "SEED",
+    "availability": "UNVERIFIED",
+    "modalities": [
+      "text"
+    ],
+    "tool_support": "VERIFY_AT_RUNTIME",
+    "reasoning": {
+      "control": "reasoning_effort",
+      "levels": [
+        "low",
+        "high",
+        "max"
+      ],
+      "default": "max"
+    },
+    "compatibility_notes": [
+      "执行包提供的未验证种子；不是实时可用性证明",
+      "Runtime Probe 优先",
+      "reasoning_effort 与 thinking_budget 互斥"
+    ]
+  },
+  {
+    "id": "model_dashscope_qwen3_8_max",
+    "harness": "pi",
+    "provider_id": "dashscope",
+    "provider_profile_id": "profile_mock_dashscope",
+    "model_id": "qwen3.8-max",
+    "display_name": "Qwen3.8 Max",
+    "source": "SEED",
+    "availability": "UNVERIFIED",
+    "modalities": [
+      "text"
+    ],
+    "tool_support": "VERIFY_AT_RUNTIME",
+    "reasoning": {
+      "control": "reasoning_effort",
+      "levels": [
+        "none",
+        "low",
+        "medium",
+        "xhigh"
+      ],
+      "default": "xhigh"
+    },
+    "compatibility_notes": [
+      "执行包提供的未验证种子；不是实时可用性证明",
+      "Runtime Probe 优先",
+      "reasoning_effort 与 thinking_budget 互斥"
+    ]
+  },
+  {
+    "id": "model_dashscope_qwen3_8_flash",
+    "harness": "pi",
+    "provider_id": "dashscope",
+    "provider_profile_id": "profile_mock_dashscope",
+    "model_id": "qwen3.8-flash",
+    "display_name": "Qwen3.8 Flash",
+    "source": "SEED",
+    "availability": "UNVERIFIED",
+    "modalities": [
+      "text"
+    ],
+    "tool_support": "VERIFY_AT_RUNTIME",
+    "reasoning": {
+      "control": "reasoning_effort",
+      "levels": [
+        "none",
+        "low",
+        "medium",
+        "xhigh"
+      ],
+      "default": "xhigh"
+    },
+    "compatibility_notes": [
+      "执行包提供的未验证种子；不是实时可用性证明",
+      "Runtime Probe 优先",
+      "reasoning_effort 与 thinking_budget 互斥"
+    ]
+  }
+]

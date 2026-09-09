@@ -1,0 +1,347 @@
+{
+  "schema_version": "agentrouter-role-plan/1",
+  "project_id": "project_example",
+  "title": "两个隔离并行组示例",
+  "source": "external_ai",
+  "goals": [
+    "并行完成核心实现与桌面 UI 设计，并在人工集成阶段汇合。"
+  ],
+  "non_goals": [
+    "不允许两个组直接修改同一个工作区。"
+  ],
+  "assumptions": [
+    "Core 合同已经冻结。"
+  ],
+  "groups": [
+    {
+      "group_key": "core_group",
+      "display_name": "核心实现组",
+      "purpose": "Core、协议、SSH 和稳定性。",
+      "communication_boundary": "within_group_only",
+      "workspace_strategy": "dedicated_worktree",
+      "workspace_ref": "workspace_core",
+      "rules": {
+        "handoff_requirements": [
+          "结果必须带提交和测试证据。"
+        ],
+        "completion_definition": [
+          "合同测试和集成测试通过。"
+        ],
+        "parallelism_notes": "不得修改 UIAI 拥有的 Renderer 文件。"
+      }
+    },
+    {
+      "group_key": "ui_group",
+      "display_name": "UI 组",
+      "purpose": "产品信息架构、Renderer 和 UI 测试。",
+      "communication_boundary": "within_group_only",
+      "workspace_strategy": "dedicated_worktree",
+      "workspace_ref": "workspace_ui",
+      "rules": {
+        "handoff_requirements": [
+          "需要接口变化时提交 CCR。"
+        ],
+        "completion_definition": [
+          "Mock E2E 和可访问性通过。"
+        ],
+        "parallelism_notes": "只使用生成合同，不读取 SQLite。"
+      }
+    }
+  ],
+  "roles": [
+    {
+      "role_key": "rolekey_0_0",
+      "group_key": "core_group",
+      "display_name": "Core 实现 1",
+      "role_kind": "executor",
+      "mission": "实现 AgentRouter Core。",
+      "responsibilities": [
+        "实现合同和核心服务。"
+      ],
+      "out_of_scope": [
+        "不设计最终 UI。"
+      ],
+      "accepted_inputs": [
+        "冻结合同。"
+      ],
+      "required_outputs": [
+        "提交、测试和风险报告。"
+      ],
+      "default_completion_target": {
+        "type": "user"
+      },
+      "problem_target": {
+        "type": "user"
+      },
+      "workspace_ref": "workspace_core",
+      "requested_permissions": {
+        "workspace_access": "read_write",
+        "allowed_paths": [
+          "packages",
+          "apps/core-service"
+        ],
+        "tool_profiles": [
+          "build",
+          "test"
+        ],
+        "network_profile": "provider_only",
+        "notes": "权限由用户审核。"
+      },
+      "runtime": {
+        "harness": "pi",
+        "provider_profile_id": "profile_mock_deepseek",
+        "model_id": "deepseek-v4-pro",
+        "reasoning_effort": "high",
+        "selection_source": "seed"
+      },
+      "bootstrap_notes": "严格遵守 C1R1。"
+    },
+    {
+      "role_key": "rolekey_0_1",
+      "group_key": "core_group",
+      "display_name": "Core 实现 2",
+      "role_kind": "executor",
+      "mission": "实现 AgentRouter Core。",
+      "responsibilities": [
+        "实现合同和核心服务。"
+      ],
+      "out_of_scope": [
+        "不设计最终 UI。"
+      ],
+      "accepted_inputs": [
+        "冻结合同。"
+      ],
+      "required_outputs": [
+        "提交、测试和风险报告。"
+      ],
+      "default_completion_target": {
+        "type": "user"
+      },
+      "problem_target": {
+        "type": "user"
+      },
+      "workspace_ref": "workspace_core",
+      "requested_permissions": {
+        "workspace_access": "read_write",
+        "allowed_paths": [
+          "packages",
+          "apps/core-service"
+        ],
+        "tool_profiles": [
+          "build",
+          "test"
+        ],
+        "network_profile": "provider_only",
+        "notes": "权限由用户审核。"
+      },
+      "runtime": {
+        "harness": "pi",
+        "provider_profile_id": "profile_mock_deepseek",
+        "model_id": "deepseek-v4-flash",
+        "reasoning_effort": "high",
+        "selection_source": "seed"
+      },
+      "bootstrap_notes": "严格遵守 C1R1。"
+    },
+    {
+      "role_key": "rolekey_0_2",
+      "group_key": "core_group",
+      "display_name": "Core 实现 3",
+      "role_kind": "executor",
+      "mission": "实现 AgentRouter Core。",
+      "responsibilities": [
+        "实现合同和核心服务。"
+      ],
+      "out_of_scope": [
+        "不设计最终 UI。"
+      ],
+      "accepted_inputs": [
+        "冻结合同。"
+      ],
+      "required_outputs": [
+        "提交、测试和风险报告。"
+      ],
+      "default_completion_target": {
+        "type": "user"
+      },
+      "problem_target": {
+        "type": "user"
+      },
+      "workspace_ref": "workspace_core",
+      "requested_permissions": {
+        "workspace_access": "read_write",
+        "allowed_paths": [
+          "packages",
+          "apps/core-service"
+        ],
+        "tool_profiles": [
+          "build",
+          "test"
+        ],
+        "network_profile": "provider_only",
+        "notes": "权限由用户审核。"
+      },
+      "runtime": {
+        "harness": "pi",
+        "provider_profile_id": "profile_mock_zai",
+        "model_id": "glm-5.3",
+        "reasoning_effort": "max",
+        "selection_source": "seed"
+      },
+      "bootstrap_notes": "严格遵守 C1R1。"
+    },
+    {
+      "role_key": "rolekey_1_0",
+      "group_key": "ui_group",
+      "display_name": "UI 设计与实现 1",
+      "role_kind": "designer_executor",
+      "mission": "设计并实现面向人类的桌面 UI。",
+      "responsibilities": [
+        "信息架构、组件、Renderer 和 UI 测试。"
+      ],
+      "out_of_scope": [
+        "不修改 Core、SQLite、SSH 和 Harness。"
+      ],
+      "accepted_inputs": [
+        "C1R1 生成类型和 Mock。"
+      ],
+      "required_outputs": [
+        "UX 文档、代码、E2E 和截图。"
+      ],
+      "default_completion_target": {
+        "type": "user"
+      },
+      "problem_target": {
+        "type": "user"
+      },
+      "workspace_ref": "workspace_ui",
+      "requested_permissions": {
+        "workspace_access": "read_write",
+        "allowed_paths": [
+          "apps/desktop/renderer",
+          "packages/ui",
+          "docs/ui",
+          "tests/ui"
+        ],
+        "tool_profiles": [
+          "frontend-build",
+          "ui-test"
+        ],
+        "network_profile": "none",
+        "notes": "禁止访问凭据。"
+      },
+      "runtime": {
+        "harness": "pi",
+        "provider_profile_id": "profile_mock_zai",
+        "model_id": "glm-5.3-flash",
+        "reasoning_effort": "max",
+        "selection_source": "seed"
+      },
+      "bootstrap_notes": "旧 GUI 不是设计基线。"
+    },
+    {
+      "role_key": "rolekey_1_1",
+      "group_key": "ui_group",
+      "display_name": "UI 设计与实现 2",
+      "role_kind": "designer_executor",
+      "mission": "设计并实现面向人类的桌面 UI。",
+      "responsibilities": [
+        "信息架构、组件、Renderer 和 UI 测试。"
+      ],
+      "out_of_scope": [
+        "不修改 Core、SQLite、SSH 和 Harness。"
+      ],
+      "accepted_inputs": [
+        "C1R1 生成类型和 Mock。"
+      ],
+      "required_outputs": [
+        "UX 文档、代码、E2E 和截图。"
+      ],
+      "default_completion_target": {
+        "type": "user"
+      },
+      "problem_target": {
+        "type": "user"
+      },
+      "workspace_ref": "workspace_ui",
+      "requested_permissions": {
+        "workspace_access": "read_write",
+        "allowed_paths": [
+          "apps/desktop/renderer",
+          "packages/ui",
+          "docs/ui",
+          "tests/ui"
+        ],
+        "tool_profiles": [
+          "frontend-build",
+          "ui-test"
+        ],
+        "network_profile": "none",
+        "notes": "禁止访问凭据。"
+      },
+      "runtime": {
+        "harness": "pi",
+        "provider_profile_id": "profile_mock_dashscope",
+        "model_id": "qwen3.8-max",
+        "reasoning_effort": "xhigh",
+        "selection_source": "seed"
+      },
+      "bootstrap_notes": "旧 GUI 不是设计基线。"
+    },
+    {
+      "role_key": "rolekey_1_2",
+      "group_key": "ui_group",
+      "display_name": "UI 设计与实现 3",
+      "role_kind": "designer_executor",
+      "mission": "设计并实现面向人类的桌面 UI。",
+      "responsibilities": [
+        "信息架构、组件、Renderer 和 UI 测试。"
+      ],
+      "out_of_scope": [
+        "不修改 Core、SQLite、SSH 和 Harness。"
+      ],
+      "accepted_inputs": [
+        "C1R1 生成类型和 Mock。"
+      ],
+      "required_outputs": [
+        "UX 文档、代码、E2E 和截图。"
+      ],
+      "default_completion_target": {
+        "type": "user"
+      },
+      "problem_target": {
+        "type": "user"
+      },
+      "workspace_ref": "workspace_ui",
+      "requested_permissions": {
+        "workspace_access": "read_write",
+        "allowed_paths": [
+          "apps/desktop/renderer",
+          "packages/ui",
+          "docs/ui",
+          "tests/ui"
+        ],
+        "tool_profiles": [
+          "frontend-build",
+          "ui-test"
+        ],
+        "network_profile": "none",
+        "notes": "禁止访问凭据。"
+      },
+      "runtime": {
+        "harness": "pi",
+        "provider_profile_id": "profile_mock_dashscope",
+        "model_id": "qwen3.8-flash",
+        "reasoning_effort": "xhigh",
+        "selection_source": "seed"
+      },
+      "bootstrap_notes": "旧 GUI 不是设计基线。"
+    }
+  ],
+  "review": {
+    "requires_user_confirmation": true,
+    "known_risks": [
+      "两个组最终合并代码仍需要专门集成与复核。"
+    ]
+  }
+}

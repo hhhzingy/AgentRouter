@@ -1,0 +1,85 @@
+{
+  "baseline": "18c259c",
+  "files": [
+    {
+      "path": "00_使用说明与执行顺序.md",
+      "status": "PASS"
+    },
+    {
+      "path": "01_C1复核与产品变更决定.md",
+      "status": "PASS"
+    },
+    {
+      "path": "codex/08_Codex_C1R1与W11执行包.md",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/role-plan.two-groups.example.json",
+      "status": "PASS"
+    },
+    {
+      "path": "prompts/CODEX_C1R1.txt",
+      "status": "PASS"
+    },
+    {
+      "path": "prompts/UIAI_PHASE_A.txt",
+      "status": "MISSING_IN_CODEX_PACKAGE"
+    },
+    {
+      "path": "prompts/UIAI_PHASE_B.txt",
+      "status": "MISSING_IN_CODEX_PACKAGE"
+    },
+    {
+      "path": "schemas/agentrouter-role-plan.v1.schema.json",
+      "status": "PASS"
+    },
+    {
+      "path": "seeds/pi-model-catalog.v1.json",
+      "status": "PASS"
+    },
+    {
+      "path": "shared/02_项目_协作组_角色产品模型.md",
+      "status": "PASS"
+    },
+    {
+      "path": "shared/03_协作组合并拆分协议.md",
+      "status": "PASS"
+    },
+    {
+      "path": "shared/04_AI编排方案与角色章程.md",
+      "status": "PASS"
+    },
+    {
+      "path": "shared/05_模型目录与推理强度.md",
+      "status": "PASS"
+    },
+    {
+      "path": "shared/06_UI产品信息架构.md",
+      "status": "MISSING_IN_CODEX_PACKAGE"
+    },
+    {
+      "path": "shared/07_并行开发与Worktree方案.md",
+      "status": "PASS"
+    },
+    {
+      "path": "shared/11_新一轮验收矩阵.md",
+      "status": "PASS"
+    },
+    {
+      "path": "templates/AI角色规划者指南.md",
+      "status": "PASS"
+    },
+    {
+      "path": "templates/Contract_Change_Request.md",
+      "status": "PASS"
+    },
+    {
+      "path": "uiai/09_UIAI_PhaseA_产品设计执行包.md",
+      "status": "MISSING_IN_CODEX_PACKAGE"
+    },
+    {
+      "path": "uiai/10_UIAI_PhaseB_Renderer执行包.md",
+      "status": "MISSING_IN_CODEX_PACKAGE"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "recorded_at": "2026-09-09T14:03:37.949896+00:00",
+  "baseline": "18c259c9c21f1750b275b27f5d1ed315c7e04f35",
+  "branch": "feat/contract-c1r1",
+  "phase": "C1R1_CONTRACT_ONLY",
+  "tests": {
+    "total": 91,
+    "passed": 91,
+    "failed": 0,
+    "success": true,
+    "command": "node node_modules/vitest/vitest.mjs run tests/unit tests/integration tests/contract tests/chaos"
+  },
+  "checks": {
+    "c1_generation": "PASS",
+    "c1_freeze": "PASS",
+    "c1r1_generation_and_embedded_plan": "PASS",
+    "typecheck": "PASS",
+    "spec_and_dependency_lint": "PASS",
+    "c1_staged_freeze": "PASS",
+    "c1r1_staged_freeze": "PASS",
+    "sensitive_staged": {
+      "status": "PASS",
+      "files": 1304
+    },
+    "sensitive_history": {
+      "status": "PASS",
+      "files": 1322
+    },
+    "diff_check": "PASS"
+  },
+  "ci": "PENDING_PUSH",
+  "real_harness_support": 0,
+  "not_tested": [
+    "real accounts (user deferred)",
+    "real Harness bootstrap/native finalization/model discovery",
+    "production DB reconfiguration transaction and restart durability",
+    "SSH/Linux",
+    "Renderer integration and UIAI review"
+  ],
+  "workspace_metadata_repair": "Own missing worktree admin directory/branch restored at exact baseline; main files/index and UI worktree not modified."
+}

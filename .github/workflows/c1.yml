@@ -1,4 +1,4 @@
-name: C1 contract and offline gates
+name: C1 and C1R1 contract and offline gates
 on: [push, pull_request]
 permissions:
   contents: read
@@ -27,6 +27,10 @@ jobs:
           node tools/generate-client-contract.mjs --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tools/check-client-freeze.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/generate-client-c1r1.mjs --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/check-client-c1r1-freeze.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tools/check-sensitive.mjs --staged
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

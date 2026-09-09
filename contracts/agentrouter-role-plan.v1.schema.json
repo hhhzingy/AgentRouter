@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentrouter:role-plan:1",
+  "title": "AgentRouter Role Plan V1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "agentrouter-role-plan/1"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "source": {
+      "enum": [
+        "human",
+        "external_ai",
+        "agentrouter_setup_session"
+      ]
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "minItems": 1,
+      "maxItems": 32
+    },
+    "non_goals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "maxItems": 32
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "maxItems": 32
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/group"
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "$ref": "#/$defs/role"
+      }
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "requires_user_confirmation": {
+          "const": true
+        },
+        "known_risks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "maxItems": 32
+        }
+      },
+      "required": [
+        "requires_user_confirmation",
+        "known_risks"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "title",
+    "source",
+    "goals",
+    "non_goals",
+    "assumptions",
+    "groups",
+    "roles",
+    "review"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+    },
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "user"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "role_key"
+            },
+            "role_key": {
+              "$ref": "#/$defs/key"
+            }
+          },
+          "required": [
+            "type",
+            "role_key"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "model_selection": {
+      "type": "object",
+      "properties": {
+        "harness": {
+          "enum": [
+            "codex",
+            "kimi_code",
+            "pi"
+          ]
+        },
+        "provider_profile_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "account_profile_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "reasoning_effort": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "selection_source": {
+          "enum": [
+            "runtime",
+            "verified_cache",
+            "seed"
+          ]
+        }
+      },
+      "required": [
+        "harness",
+        "model_id",
+        "reasoning_effort",
+        "selection_source"
+      ],
+      "additionalProperties": false
+    },
+    "requested_permissions": {
+      "type": "object",
+      "properties": {
+        "workspace_access": {
+          "enum": [
+            "read_only",
+            "read_write"
+          ]
+        },
+        "allowed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "maxItems": 64
+        },
+        "tool_profiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "uniqueItems": true,
+          "maxItems": 32
+        },
+        "network_profile": {
+          "enum": [
+            "none",
+            "provider_only",
+            "project_allowlist",
+            "custom_request"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "workspace_access",
+        "allowed_paths",
+        "tool_profiles",
+        "network_profile"
+      ],
+      "additionalProperties": false
+    },
+    "group": {
+      "type": "object",
+      "properties": {
+        "group_key": {
+          "$ref": "#/$defs/key"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "communication_boundary": {
+          "const": "within_group_only"
+        },
+        "workspace_strategy": {
+          "enum": [
+            "shared_read_only",
+            "shared_serial_write",
+            "dedicated_worktree",
+            "custom"
+          ]
+        },
+        "workspace_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "rules": {
+          "type": "object",
+          "properties": {
+            "handoff_requirements": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "maxItems": 32
+            },
+            "completion_definition": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "minItems": 1,
+              "maxItems": 32
+            },
+            "parallelism_notes": {
+              "type": "string",
+              "maxLength": 8192
+            }
+          },
+          "required": [
+            "handoff_requirements",
+            "completion_definition",
+            "parallelism_notes"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "group_key",
+        "display_name",
+        "purpose",
+        "communication_boundary",
+        "workspace_strategy",
+        "rules"
+      ],
+      "additionalProperties": false
+    },
+    "role": {
+      "type": "object",
+      "properties": {
+        "role_key": {
+          "$ref": "#/$defs/key"
+        },
+        "group_key": {
+          "$ref": "#/$defs/key"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "role_kind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "mission": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "responsibilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "minItems": 1,
+          "maxItems": 32
+        },
+        "out_of_scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "minItems": 1,
+          "maxItems": 32
+        },
+        "accepted_inputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "minItems": 1,
+          "maxItems": 32
+        },
+        "required_outputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "minItems": 1,
+          "maxItems": 32
+        },
+        "default_completion_target": {
+          "$ref": "#/$defs/target"
+        },
+        "problem_target": {
+          "$ref": "#/$defs/target"
+        },
+        "workspace_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "requested_permissions": {
+          "$ref": "#/$defs/requested_permissions"
+        },
+        "runtime": {
+          "$ref": "#/$defs/model_selection"
+        },
+        "bootstrap_notes": {
+          "type": "string",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "role_key",
+        "group_key",
+        "display_name",
+        "role_kind",
+        "mission",
+        "responsibilities",
+        "out_of_scope",
+        "accepted_inputs",
+        "required_outputs",
+        "default_completion_target",
+        "problem_target",
+        "workspace_ref",
+        "requested_permissions",
+        "runtime",
+        "bootstrap_notes"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
