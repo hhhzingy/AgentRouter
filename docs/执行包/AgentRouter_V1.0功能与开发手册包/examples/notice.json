@@ -1,0 +1,10 @@
+{
+  "kind": "notice",
+  "to": {
+    "type": "user"
+  },
+  "summary": "发现一项不阻塞工作的环境差异",
+  "body": "仅供知悉，不请求启动模型。",
+  "inputs": [],
+  "project_data": {}
+}

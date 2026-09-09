@@ -1,0 +1,200 @@
+{
+  "scope": "Offline specification / examples / SQL declared constraints only; not application tests",
+  "checked_at_utc": "2026-09-09T06:43:01.938408+00:00",
+  "python": "3.13.5",
+  "sqlite_used_for_syntax_check": "3.46.1",
+  "sqlite_runtime_is_production_certified": false,
+  "planned_acceptance_cases": 81,
+  "passed": 36,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "Draft2020-12 schema valid",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:finish_handoff.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:finish_partial.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:invalid_failed_handoff.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:invalid_missing_completion.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:invalid_spoofed_sender.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:notice.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:task_request_handoff.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:task_request_to_user.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:validation_error.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "example:wait.json",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "handoff recipient agreement",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "V1.0 exact harness scope",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "silent success and no sender copy",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "settled barrier enabled",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "external management not enabled",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "quota/auth conservative default",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "project template is an unapproved draft",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "no invented live compatibility evidence",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "all 26 functional IDs mapped",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "all 10 milestones mapped",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "planned acceptance is not reported as tested",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "all cited source IDs exist",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "all required manuals exist",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL migration baseline parses",
+      "status": "PASS",
+      "detail": "Cursor completed"
+    },
+    {
+      "name": "SQL seed valid linked records",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL duplicate operation rejected",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL second current binding rejected",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL second live run rejected",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL second active task rejected",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL forged recipient shape rejected",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL missing foreign identity rejected",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL atomic rollback of invalid held outbox",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL stores result and HELD outbox together",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL foreign_key_check clean",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "SQL integrity_check clean",
+      "status": "PASS",
+      "detail": null
+    }
+  ],
+  "not_performed": [
+    "Real Codex/Kimi/pi calls",
+    "Actual account switching and quota",
+    "Windows process/Job Objects tests",
+    "Packaged Electron/Node tests",
+    "Real scheduler and crash/power-loss tests",
+    "Security audit"
+  ]
+}

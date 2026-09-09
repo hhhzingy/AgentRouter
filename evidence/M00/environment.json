@@ -1,0 +1,45 @@
+{
+  "at": "2026-09-09T07:55:27.947Z",
+  "scope": "无模型调用、无凭据读取的版本检测",
+  "os": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26200"
+  },
+  "node": {
+    "path": "D:\\Software\\nodejs\\node.exe",
+    "version": "v24.14.0",
+    "sha256": "63c259c81e5d472b5f11c8d506070130cb04a1ecf84b80377a34ed6ec9048088"
+  },
+  "git": {
+    "exit_code": 0,
+    "stdout": "git version 2.53.0.windows.2",
+    "stderr": ""
+  },
+  "harnesses": [
+    {
+      "id": "codex",
+      "path": "C:\\Users\\hap_p\\AppData\\Local\\OpenAI\\Codex\\bin\\8e5b6932251c2c1c\\codex.exe",
+      "sha256": "e5aa76d19c7c94e2e9ef9b707d590206a73ac0e97c8ddc8382181242494bef75",
+      "exit_code": 0,
+      "stdout": "codex-cli 0.153.4",
+      "stderr": ""
+    },
+    {
+      "id": "kimi_code",
+      "path": "C:\\Users\\hap_p\\.kimi-code\\bin\\kimi.exe",
+      "sha256": "285debb7c882704fd942b70a3a116804d9955f39bff3428a0f6a64559e4a56a1",
+      "exit_code": 0,
+      "stdout": "0.41.0",
+      "stderr": ""
+    },
+    {
+      "id": "pi",
+      "path": "C:\\Users\\hap_p\\AppData\\Roaming\\npm\\node_modules\\@earendil-works\\pi-coding-agent\\dist\\bundle\\cli.js",
+      "sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+      "exit_code": 0,
+      "stdout": "0.85.1",
+      "stderr": ""
+    }
+  ]
+}

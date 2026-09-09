@@ -1,0 +1,4 @@
+{
+  "waiting_for": "child_results",
+  "reason": "等待当前任务明确返还给本角色的关联子任务结果。"
+}

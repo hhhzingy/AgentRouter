@@ -1,0 +1,9 @@
+docs/执行包/
+fixtures/
+evidence/
+.local/
+release/
+node_modules/
+packages/protocol/adapter-contract.d.ts
+packages/protocol/*.json
+tools/pi-install-lock.json

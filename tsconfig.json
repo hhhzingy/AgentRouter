@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2023", "module": "NodeNext", "moduleResolution": "NodeNext",
+    "strict": true, "noEmit": true, "allowImportingTsExtensions": true,
+    "resolveJsonModule": true, "esModuleInterop": true, "skipLibCheck": true,
+    "jsx": "react-jsx", "types": ["node"]
+  },
+  "include": ["packages/**/*.ts", "apps/**/*.ts", "apps/**/*.tsx", "tests/**/*.ts"],
+  "exclude": ["packages/pi-extension", "fixtures", "node_modules"]
+}

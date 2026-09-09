@@ -1,0 +1,1245 @@
+[
+  {
+    "id": "T001",
+    "features": [
+      "F01"
+    ],
+    "milestone": "M00",
+    "category": "现场/打包",
+    "action": "在干净 Windows 上检测三家路径、版本、Shell、Git 和工具能力",
+    "expected": "缺失项明确；不得把源码版本或模拟适配器计为受测安装",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T002",
+    "features": [
+      "F01",
+      "F05"
+    ],
+    "milestone": "M00",
+    "category": "契约",
+    "action": "给探测器不支持版本或缺少必要能力的样本",
+    "expected": "显示阻断原因；不静默改用抓屏或私有数据库",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T003",
+    "features": [
+      "F02"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "新建项目、移动源目录后重新定位、归档和卸载",
+    "expected": "项目 ID 保留；源文件不删除；失效路径暂停派发",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T004",
+    "features": [
+      "F02",
+      "F13"
+    ],
+    "milestone": "M06",
+    "category": "Windows",
+    "action": "用大小写、短路径、符号链接/目录联接指向同一目录",
+    "expected": "识别同一物理工作区或保守拒绝；不绕过写资源限制",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T005",
+    "features": [
+      "F03"
+    ],
+    "milestone": "M07",
+    "category": "桌面",
+    "action": "建立两个协作空间并分别暂停、归档",
+    "expected": "角色和记录按空间隔离；归档不清除证据",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T006",
+    "features": [
+      "F04"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "同名角色、改名、停用后仍有待投递消息",
+    "expected": "ID 不变、不猜收件人；停用角色消息保留并显示原因",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T007",
+    "features": [
+      "F05"
+    ],
+    "milestone": "M03",
+    "category": "Codex现场",
+    "action": "查询模型与推理选项并使用一项受支持组合",
+    "expected": "保存实际配置；不支持组合拒绝或要求用户确认，不伪造选项",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T008",
+    "features": [
+      "F05"
+    ],
+    "milestone": "M04",
+    "category": "Kimi现场",
+    "action": "协商配置项并选择模型，模拟字段不支持",
+    "expected": "依据真实能力启用；不把其他 Harness 的推理等级硬映射",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T009",
+    "features": [
+      "F05",
+      "F20"
+    ],
+    "milestone": "M05",
+    "category": "pi现场",
+    "action": "查询提供商/模型/思考等级，切换合法与非法组合",
+    "expected": "选择与原生配置一致；非法组合给出可解释错误",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T010",
+    "features": [
+      "F06"
+    ],
+    "milestone": "M03",
+    "category": "现场",
+    "action": "两个 Codex 角色分别建立会话并恢复",
+    "expected": "线程映射和历史不串；共享认证并发按受测能力限制",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T011",
+    "features": [
+      "F06"
+    ],
+    "milestone": "M04",
+    "category": "现场",
+    "action": "Kimi 历史回放包含旧发信工具调用",
+    "expected": "只补显示，不再次产生任务或结果",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T012",
+    "features": [
+      "F06",
+      "F15"
+    ],
+    "milestone": "M05",
+    "category": "现场",
+    "action": "pi 读取历史并在断线后恢复可得记录",
+    "expected": "已观测内容保留；不可补记录显示缺口，不生成虚假历史",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T013",
+    "features": [
+      "F07"
+    ],
+    "milestone": "M06",
+    "category": "集成/现场",
+    "action": "Codex→Kimi→原 Codex，期间修改项目规则和产物",
+    "expected": "旧会话保留；补齐变化；原生恢复不支持时明确新会话交接",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T014",
+    "features": [
+      "F07",
+      "F23"
+    ],
+    "milestone": "M06",
+    "category": "故障",
+    "action": "旧进程未停且旧绑定迟到提交结果",
+    "expected": "拒绝过时代次影响现态；工作区仍隔离，不只依赖 DB 拒收",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T015",
+    "features": [
+      "F08"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "项目已有 AGENTS.md 时发布 Route 入口",
+    "expected": "仅受控区块更新；原规范不覆盖；公共文件不指定所有角色为负责人",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T016",
+    "features": [
+      "F08"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "多 worktree 发布规则 v2，而任务按 v1 已启动",
+    "expected": "任务固定 v1；新任务用 v2；镜像版本明确，身份仍来自 Core",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T017",
+    "features": [
+      "F08",
+      "F25"
+    ],
+    "milestone": "M01",
+    "category": "安全",
+    "action": "项目规则携带代码、远程 $ref 或无界正则",
+    "expected": "拒绝执行性规则；只允许声明式白名单",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T018",
+    "features": [
+      "F09"
+    ],
+    "milestone": "M01",
+    "category": "Schema",
+    "action": "有效、缺失 completion、伪造 from、超大包提交",
+    "expected": "合法通过；错误字段/原因明确；UTF-8 字节限制额外校验",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T019",
+    "features": [
+      "F09"
+    ],
+    "milestone": "M02",
+    "category": "集成",
+    "action": "成功发送一次任务并观察发送者模型启动计数",
+    "expected": "持久化后工具正常结束；无业务收货回执、无额外唤醒",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T020",
+    "features": [
+      "F09",
+      "F23"
+    ],
+    "milestone": "M02",
+    "category": "故障",
+    "action": "提交前数据库满/只读/事务失败",
+    "expected": "工具返回存储错误而非成功；不建议用户修改业务措辞",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T021",
+    "features": [
+      "F09",
+      "F23"
+    ],
+    "milestone": "M02",
+    "category": "集成",
+    "action": "同 operation_id 相同内容重放，再改内容重放",
+    "expected": "相同内容仅一项写操作；同 ID 不同内容冲突",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T022",
+    "features": [
+      "F10"
+    ],
+    "milestone": "M02",
+    "category": "集成",
+    "action": "A 委托 B，正常结果直接给用户",
+    "expected": "仅用户结果收件箱得到交付；A 不自动唤醒",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T023",
+    "features": [
+      "F10"
+    ],
+    "milestone": "M02",
+    "category": "集成",
+    "action": "A→B 实现，B→C 复核，C→用户",
+    "expected": "每段独立 task_id；结果去向严格遵守；无默认抄送",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T024",
+    "features": [
+      "F10"
+    ],
+    "milestone": "M02",
+    "category": "故障",
+    "action": "finish 保存结果后但原生未结束",
+    "expected": "结果 STAGED、outbox HELD；下游不能派发",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T025",
+    "features": [
+      "F10",
+      "F23"
+    ],
+    "milestone": "M02",
+    "category": "故障",
+    "action": "finish 后原生崩溃，再重启 Core",
+    "expected": "固定结果保留；待核对；不自动发布成功路径",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T026",
+    "features": [
+      "F10"
+    ],
+    "milestone": "M01",
+    "category": "契约",
+    "action": "partial/failed/cancelled 附成功下一阶段任务",
+    "expected": "拒绝不一致包；问题去向明确；不伪造成功交接",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T027",
+    "features": [
+      "F10"
+    ],
+    "milestone": "M02",
+    "category": "集成",
+    "action": "无 route_finish，仅正文“已完成”后正常原生结束",
+    "expected": "任务待明确处置；不自动成功，不无限追加纠正轮次",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T028",
+    "features": [
+      "F10",
+      "F17"
+    ],
+    "milestone": "M07",
+    "category": "桌面",
+    "action": "已交付结果标记验收通过/驳回",
+    "expected": "运行、交付与业务验收分开；保留指定版本和决定者",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T029",
+    "features": [
+      "F11"
+    ],
+    "milestone": "M02",
+    "category": "集成",
+    "action": "发送普通通知和系统状态改变",
+    "expected": "存储展示；无独立模型唤醒；背景注入有界",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T030",
+    "features": [
+      "F12"
+    ],
+    "milestone": "M02",
+    "category": "调度",
+    "action": "三个角色同时给同一忙碌角色发新任务",
+    "expected": "按入库序号排队；每原生会话仅一个运行",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T031",
+    "features": [
+      "F12"
+    ],
+    "milestone": "M02",
+    "category": "竞态",
+    "action": "A 等 B 结果，C 的独立任务已排在队中",
+    "expected": "B 的可信关联结果续办 A；C 不插入 A 的执行上下文",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T032",
+    "features": [
+      "F12"
+    ],
+    "milestone": "M02",
+    "category": "竞态",
+    "action": "子结果先于 route_wait 到达，或同时提交",
+    "expected": "等待注册与现有结果检查原子；不丢唤醒",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T033",
+    "features": [
+      "F12",
+      "F25"
+    ],
+    "milestone": "M02",
+    "category": "安全",
+    "action": "非关联角色伪造 parent/resume 关系",
+    "expected": "Core 拒绝；不能靠模型字段获得优先执行",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T034",
+    "features": [
+      "F12"
+    ],
+    "milestone": "M02",
+    "category": "调度",
+    "action": "等待用户、循环依赖、队首长期阻塞",
+    "expected": "释放原生轮次；任务状态可见；允许人工挂起/取消，不空转",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T035",
+    "features": [
+      "F13"
+    ],
+    "milestone": "M06",
+    "category": "现场",
+    "action": "两个角色分别在独立 worktree 并行修改",
+    "expected": "并行可观察；基础提交、产物和工作区映射独立",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T036",
+    "features": [
+      "F13"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "两空间对同一共享工作区申请写入",
+    "expected": "共享资源原子争用；仅一个获准，另一项排队",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T037",
+    "features": [
+      "F13"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "两个角色竞争端口/设备等同名资源",
+    "expected": "统一有序获取，失败释放已获资源；不永久占锁等待",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T038",
+    "features": [
+      "F13"
+    ],
+    "milestone": "M06",
+    "category": "Git",
+    "action": "worktree 脏文件存在时删除、归档或集成",
+    "expected": "明确提示和审批；不自动清理/重置/删除用户修改",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T039",
+    "features": [
+      "F14"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "冻结文件后原路径覆盖，接收者读取原索引",
+    "expected": "读到发送版本；哈希和大小可核查",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T040",
+    "features": [
+      "F14"
+    ],
+    "milestone": "M06",
+    "category": "故障",
+    "action": "产物写入中断或文件存在而 DB 引用事务失败",
+    "expected": "不发布缺失内容；孤立文件安全回收；不损害有效产物",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T041",
+    "features": [
+      "F14"
+    ],
+    "milestone": "M06",
+    "category": "Git",
+    "action": "删除开发分支并执行 Git 清理后读取交付版本",
+    "expected": "受管保留引用可达；不可达明确报错而非读取 HEAD",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T042",
+    "features": [
+      "F14",
+      "F25"
+    ],
+    "milestone": "M06",
+    "category": "安全",
+    "action": "路径穿越、UNC、符号链接逃逸、源文件读取中变化",
+    "expected": "拒绝或隔离；边界检查落在最终物理路径与冻结过程",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T043",
+    "features": [
+      "F14"
+    ],
+    "milestone": "M06",
+    "category": "集成",
+    "action": "外部 URL/仓库地址仅作为引用提交",
+    "expected": "无自动带凭据请求；来源未验证明确标记",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T044",
+    "features": [
+      "F15"
+    ],
+    "milestone": "M07",
+    "category": "桌面",
+    "action": "持续大输出时滚动、输入、分页、停止",
+    "expected": "界面可用；输出背压；未支持内部信息不虚构",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T045",
+    "features": [
+      "F15"
+    ],
+    "milestone": "M07",
+    "category": "桌面",
+    "action": "忙碌角色人工输入补充或新任务",
+    "expected": "明确当前续办/队列策略；立即打断需显式选择",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T046",
+    "features": [
+      "F16"
+    ],
+    "milestone": "M07",
+    "category": "投影",
+    "action": "已委托但未运行、等待审批、运行结束待交付",
+    "expected": "任务意图和真实运行分开；不靠正文关键词猜状态",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T047",
+    "features": [
+      "F16",
+      "F23"
+    ],
+    "milestone": "M07",
+    "category": "事件",
+    "action": "UI 重连、事件重复/缺号/乱序",
+    "expected": "按全局游标补取/去重；缺口标记；不二次派发",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T048",
+    "features": [
+      "F17"
+    ],
+    "milestone": "M07",
+    "category": "桌面",
+    "action": "未知目标、身份过期、无法读取资料、结果未知",
+    "expected": "问题中心可追踪；错误不会因静默成功策略消失",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T049",
+    "features": [
+      "F18"
+    ],
+    "milestone": "M08",
+    "category": "Codex现场",
+    "action": "申请切号时当前认证单元有运行",
+    "expected": "仅相关角色暂停；显示对象；征询关闭授权，不热覆盖",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T050",
+    "features": [
+      "F18"
+    ],
+    "milestone": "M08",
+    "category": "Codex现场",
+    "action": "旧账号运行刷新凭据后切出再切回",
+    "expected": "保存和使用最新凭据；不覆盖成导入初始副本",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T051",
+    "features": [
+      "F18"
+    ],
+    "milestone": "M08",
+    "category": "故障",
+    "action": "认证切换每个日志阶段强制退出",
+    "expected": "恢复到安全暂停/可核验状态；旧新账号不混认；无盲目续跑",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T052",
+    "features": [
+      "F18"
+    ],
+    "milestone": "M08",
+    "category": "Codex现场",
+    "action": "目标凭据合法但实际身份与目标档案不同",
+    "expected": "核验失败，不继续；记录非秘密诊断",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T053",
+    "features": [
+      "F19"
+    ],
+    "milestone": "M08",
+    "category": "Kimi现场",
+    "action": "两个 Profile 切换，分别测试原生恢复和不支持情形",
+    "expected": "明确 native resume 或 new-session handover；历史不删除",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T054",
+    "features": [
+      "F18",
+      "F19"
+    ],
+    "milestone": "M08",
+    "category": "额度",
+    "action": "成功、缓存过期、HTTP 成功但业务错误、超时",
+    "expected": "UNKNOWN/STALE/ERROR 正确；不把失败当零或无限",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T055",
+    "features": [
+      "F18",
+      "F19"
+    ],
+    "milestone": "M08",
+    "category": "认证并发",
+    "action": "额度服务与活跃运行可能刷新同份凭据",
+    "expected": "经证实安全才并发，否则安全窗口查询；不能绕过认证互斥",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T056",
+    "features": [
+      "F20"
+    ],
+    "milestone": "M05",
+    "category": "pi现场",
+    "action": "展示 token/成本以及没有统一套餐接口的提供商",
+    "expected": "成本估计与剩余额度分开，缺失能力明确",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T057",
+    "features": [
+      "F21"
+    ],
+    "milestone": "M02",
+    "category": "可控时钟",
+    "action": "时间窗边界前后密集发送请求",
+    "expected": "使用滑动窗口；请求保存，超限暂停启动，不丢队列",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T058",
+    "features": [
+      "F21"
+    ],
+    "milestone": "M02",
+    "category": "可控时钟",
+    "action": "低频循环超过链累计/持续上限，时钟回拨",
+    "expected": "仍会停止自动接力；重启不无条件重置预算",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T059",
+    "features": [
+      "F21"
+    ],
+    "milestone": "M02",
+    "category": "调度",
+    "action": "限流期间发生结果保存、取消和错误",
+    "expected": "控制操作及结果入库不被新轮次限流阻断",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T060",
+    "features": [
+      "F22"
+    ],
+    "milestone": "M07",
+    "category": "Windows",
+    "action": "关闭主窗口选后台继续，重开两次",
+    "expected": "Core/桥/会话存活；不重启相同任务；状态恢复",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T061",
+    "features": [
+      "F22"
+    ],
+    "milestone": "M07",
+    "category": "Windows",
+    "action": "选择本轮后暂停，当前轮次提交下一任务",
+    "expected": "当前收尾；下一任务留队，不继续自动启动",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T062",
+    "features": [
+      "F22"
+    ],
+    "milestone": "M07",
+    "category": "Windows",
+    "action": "子进程产生孙进程且忽略软取消",
+    "expected": "受测 Job 对整组停止；无遗留写进程；不误杀用户独立进程",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T063",
+    "features": [
+      "F22",
+      "F25"
+    ],
+    "milestone": "M07",
+    "category": "Windows",
+    "action": "后台收到审批/输入请求，再取消运行",
+    "expected": "等待用户；绝不默认同意；迟到批准失效",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T064",
+    "features": [
+      "F23"
+    ],
+    "milestone": "M02",
+    "category": "故障",
+    "action": "发送首字节后失联，是否执行无法证明",
+    "expected": "UNKNOWN/NEEDS_ATTENTION；无自动重复副作用",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T065",
+    "features": [
+      "F23"
+    ],
+    "milestone": "M02",
+    "category": "故障",
+    "action": "旧 binding epoch 结果、重复原生事件、重复 RunSettled",
+    "expected": "记录但不覆盖新状态；释放和发布最多一次",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T066",
+    "features": [
+      "F23"
+    ],
+    "milestone": "M00",
+    "category": "打包",
+    "action": "读取实际 SQLite 版本、WAL/FULL 设置",
+    "expected": "版本包含修复且受认证；不只看依赖包名称",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T067",
+    "features": [
+      "F23"
+    ],
+    "milestone": "M09",
+    "category": "Windows故障",
+    "action": "崩溃/重启/磁盘错误/受控断电或等效存储故障",
+    "expected": "已确认关键事务保存语义有证据；未知外部执行待核对",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T068",
+    "features": [
+      "F24"
+    ],
+    "milestone": "M08",
+    "category": "存储",
+    "action": "在线备份后在新临时位置完整恢复",
+    "expected": "数据库一致、资产可达、版本吻合；不只复制 .db 主文件",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T069",
+    "features": [
+      "F24"
+    ],
+    "milestone": "M08",
+    "category": "安全",
+    "action": "导出诊断、历史和备份，扫描秘密种子",
+    "expected": "普通诊断不含 token/auth/桥秘密；用户内容导出明确警示",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T070",
+    "features": [
+      "F24"
+    ],
+    "milestone": "M09",
+    "category": "打包",
+    "action": "升级迁移失败，再执行恢复；卸载",
+    "expected": "保留可恢复备份；用户源项目不受删改",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T071",
+    "features": [
+      "F25"
+    ],
+    "milestone": "M01",
+    "category": "安全",
+    "action": "使用另一个绑定 token、越项目投递、UI 未授权 API",
+    "expected": "范围/epoch/能力校验拒绝；渲染层无直接 Node/DB 权限",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T072",
+    "features": [
+      "F25"
+    ],
+    "milestone": "M05",
+    "category": "pi安全",
+    "action": "工作区放第三方扩展和隐式 subagent/队列插件",
+    "expected": "仅加载受控允许扩展；不能以信任开关宣称 OS 沙箱",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T073",
+    "features": [
+      "F25"
+    ],
+    "milestone": "M07",
+    "category": "Web边界",
+    "action": "网页探测 localhost 桥、伪造 Origin/Host、重放过期 token",
+    "expected": "默认无 CORS 开放；校验目标与能力；旧 token 失效",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T074",
+    "features": [
+      "F26"
+    ],
+    "milestone": "M09",
+    "category": "架构/安全",
+    "action": "检查外部编排、创建角色和任意 API 代理入口",
+    "expected": "仅内部核心契约；无未授权外部管理监听器或任意请求代理",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T075",
+    "features": [
+      "F05",
+      "F15",
+      "F23"
+    ],
+    "milestone": "M05",
+    "category": "pi契约",
+    "action": "LF 分帧包含 UTF-8 半字符、U+2028/U+2029、超长行和 stderr",
+    "expected": "只按协议 LF 解析；无半字符破坏、内存无界或日志串流",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T076",
+    "features": [
+      "F10",
+      "F12"
+    ],
+    "milestone": "M05",
+    "category": "pi现场",
+    "action": "agent_end 后重试/压缩续办，最终 agent_settled",
+    "expected": "只在受测 settled 且资源清理后释放完成屏障",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T077",
+    "features": [
+      "F05",
+      "F12"
+    ],
+    "milestone": "M04",
+    "category": "ACP契约",
+    "action": "协商版本不同，prompt 返回或结束原因不同",
+    "expected": "按锁定版本解释，不把任意返回 Promise 当完成",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T078",
+    "features": [
+      "F09",
+      "F25"
+    ],
+    "milestone": "M03",
+    "category": "Codex现场",
+    "action": "两个线程/工具连接交错发信",
+    "expected": "发送者来自受控连接；不会复用角色无关身份",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T079",
+    "features": [
+      "F01",
+      "F22",
+      "F24"
+    ],
+    "milestone": "M09",
+    "category": "打包",
+    "action": "带空格/中文路径、非开发账户、无系统 Node",
+    "expected": "私有运行时和 helper 可执行，许可/校验完备",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T080",
+    "features": [
+      "F09",
+      "F12",
+      "F15",
+      "F23"
+    ],
+    "milestone": "M09",
+    "category": "压力",
+    "action": "受测机 12 角色/3 并发/10k 记录/持续输出",
+    "expected": "报告实测 p95、内存和停止响应；不降低持久性冒充达标",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  },
+  {
+    "id": "T081",
+    "features": [
+      "F01",
+      "F05",
+      "F25"
+    ],
+    "milestone": "M09",
+    "category": "供应链",
+    "action": "对比锁文件、Harness 哈希与实际执行路径",
+    "expected": "漂移阻断或重新认证；禁止运行时追随 latest",
+    "status": "NOT_RUN",
+    "actual": null,
+    "exit_code": null,
+    "evidence": [],
+    "tested_at": null
+  }
+]

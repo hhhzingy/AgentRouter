@@ -1,0 +1,46 @@
+{
+  "application": "AgentRouter",
+  "product_version": "V1.0",
+  "protocol_version": "agentrouter/1.0",
+  "research_date": "2026-09-09",
+  "tested_at": null,
+  "runtime": {
+    "node": null,
+    "electron": null,
+    "driver": null,
+    "sqlite_runtime": null,
+    "windows_build": null
+  },
+  "harnesses": [
+    {
+      "id": "codex",
+      "binary_path": null,
+      "sha256": null,
+      "version": null,
+      "protocol": "app-server",
+      "capabilities": {},
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "kimi_code",
+      "binary_path": null,
+      "sha256": null,
+      "version": null,
+      "protocol": "acp-negotiated",
+      "capabilities": {},
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "pi",
+      "binary_path": null,
+      "sha256": null,
+      "version": null,
+      "protocol": "rpc",
+      "capabilities": {},
+      "status": "NOT_RUN",
+      "evidence": []
+    }
+  ]
+}

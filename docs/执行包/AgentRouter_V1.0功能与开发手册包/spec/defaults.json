@@ -1,0 +1,32 @@
+{
+  "protocol_version": "agentrouter/1.0",
+  "harnesses": [
+    "codex",
+    "kimi_code",
+    "pi"
+  ],
+  "global_concurrency": 3,
+  "role_window": {
+    "seconds": 60,
+    "max_auto_starts": 5
+  },
+  "space_window": {
+    "seconds": 300,
+    "max_auto_starts": 30
+  },
+  "chain": {
+    "max_auto_starts": 100,
+    "max_wall_seconds": 28800
+  },
+  "limits": {
+    "body_utf8_bytes": 65536,
+    "packet_utf8_bytes": 262144,
+    "artifact_bytes": 20971520,
+    "reference_count": 64
+  },
+  "unverified_refresh_auth_concurrency": 1,
+  "release_after_run_settled": true,
+  "success_business_receipt": false,
+  "notify_originator_by_default": false,
+  "external_management_enabled": false
+}

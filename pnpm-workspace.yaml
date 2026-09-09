@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+  - packages/adapters/*
+storeDir: .local/pnpm-store
+cacheDir: .local/pnpm-cache
+stateDir: .local/pnpm-state
+saveExact: true
+minimumReleaseAgeExclude:
+  - electron@44.3.0
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true

@@ -1,0 +1,44 @@
+{
+  "name": "agentrouter",
+  "version": "1.0.0-dev.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": "24.14.0"
+  },
+  "scripts": {
+    "spec:check": "node tools/spec-check.mjs",
+    "doctor": "node tools/doctor.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "node tools/lint.mjs",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:contract": "vitest run tests/contract",
+    "test:chaos": "vitest run tests/chaos",
+    "test:desktop": "node tools/desktop-test.mjs",
+    "build:win": "node tools/build-win.mjs",
+    "test:packaged": "node tools/packaged-test.mjs",
+    "db:verify": "node tools/db-verify.mjs",
+    "pi": "node tools/run-pi.mjs"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "better-sqlite3": "13.0.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "electron": "44.3.0",
+    "esbuild": "0.28.2",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

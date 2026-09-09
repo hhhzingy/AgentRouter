@@ -1,0 +1,30 @@
+{
+  "kind": "task.request",
+  "to": {
+    "type": "role",
+    "id": "role_reviewer_demo"
+  },
+  "summary": "复核指定补丁，将结论交给用户",
+  "body": "核对约定范围、需求和验证证据。不改动被复核的权威产物。",
+  "inputs": [
+    {
+      "kind": "artifact",
+      "artifact_id": "artifact_patch_demo"
+    }
+  ],
+  "expected": [
+    "复核结论",
+    "问题与证据"
+  ],
+  "completion": {
+    "mode": "result",
+    "to": {
+      "type": "user"
+    },
+    "instruction": "直接交给用户，不默认抄送上游。"
+  },
+  "on_problem": {
+    "type": "user"
+  },
+  "project_data": {}
+}

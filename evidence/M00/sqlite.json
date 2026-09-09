@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-09T07:58:31.250Z",
+  "node": "v24.14.0",
+  "sqlite": {
+    "version": "3.53.4"
+  },
+  "journal_mode": "wal",
+  "synchronous": 2,
+  "foreign_keys": 1,
+  "integrity_check": "ok",
+  "foreign_key_check": [],
+  "exit_code": 0,
+  "scope": "开发机真实 better-sqlite3 加载与数据库探针，非断电/干净目标机认证"
+}

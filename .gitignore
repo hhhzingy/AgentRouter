@@ -1,0 +1,15 @@
+node_modules/
+.local/
+.worktrees/
+dist/
+release/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+auth.json
+*.db
+*.db-wal
+*.db-shm
+*.log
+!evidence/**/*.log

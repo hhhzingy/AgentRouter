@@ -1,0 +1,15 @@
+$ D:\Software\nodejs\node.exe tools/desktop-test.mjs
+{
+  at: '2026-09-09T07:58:36.342Z',
+  status: 'PASS',
+  exit_code: 0,
+  scope: '开发机打包 Electron 窗口与隔离检查；非完整桌面验收',
+  projectCreated: true,
+  roleCreated: true,
+  rolePaused: true,
+  backgroundCorePreserved: true,
+  directoryDialog: 'stubbed with isolated fixture',
+  rendererNodeDisabled: true,
+  coreConnected: true
+}
+

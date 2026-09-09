@@ -1,0 +1,225 @@
+:root {
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  color: #e6eaf0;
+  background: #10151d;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+aside {
+  width: 240px;
+  background: #141b25;
+  border-right: 1px solid #293240;
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 48px;
+}
+.brand > b {
+  display: grid;
+  place-items: center;
+  background: #4bc7b5;
+  color: #102a2c;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+.brand span {
+  font-weight: 650;
+}
+.brand small {
+  display: block;
+  color: #8996a6;
+  font-weight: 400;
+  font-size: 12px;
+  margin-top: 5px;
+}
+nav {
+  display: grid;
+  gap: 8px;
+}
+nav button {
+  background: none;
+  border: 0;
+  color: #a6b0bf;
+  text-align: left;
+  padding: 13px 16px;
+  border-radius: 8px;
+}
+.selected {
+  background: #243f40 !important;
+  color: #7ce0cf !important;
+}
+.foot {
+  margin-top: auto;
+  color: #8493a7;
+  font-size: 12px;
+  line-height: 1.8;
+}
+main {
+  margin-left: 240px;
+  padding: 40px 48px;
+  width: calc(100% - 240px);
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 38px;
+}
+h1 {
+  font-size: 30px;
+  margin: 10px 0;
+}
+h2 {
+  font-size: 19px;
+  line-height: 1.6;
+}
+.eyebrow {
+  font-size: 11px;
+  color: #8596ad;
+  letter-spacing: 1.5px;
+}
+.badge {
+  border: 1px solid #315b54;
+  color: #8ce0c9;
+  padding: 8px 14px;
+  border-radius: 24px;
+  font-size: 12px;
+}
+.intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px;
+  background: linear-gradient(120deg, #1c3034, #1b2330);
+  border: 1px solid #2f454b;
+  border-radius: 14px;
+  margin-bottom: 28px;
+}
+p {
+  color: #a1adbd;
+  font-size: 14px;
+  line-height: 1.9;
+}
+.primary {
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 20px;
+  background: #6bd4be;
+  color: #10372f;
+  white-space: nowrap;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+article {
+  background: #19212c;
+  border: 1px solid #2b3645;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 18px;
+}
+article small {
+  display: block;
+  color: #77869b;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.secondary {
+  margin-top: 22px;
+  color: #b8c6d4;
+  background: #263344;
+  border: 1px solid #36485d;
+  border-radius: 6px;
+  padding: 8px 18px;
+}
+.path {
+  overflow-wrap: anywhere;
+}
+.empty {
+  text-align: center;
+  padding: 75px 25px;
+  border: 1px dashed #344252;
+  border-radius: 14px;
+  color: #9cabbc;
+  margin-top: 24px;
+}
+.empty p {
+  max-width: 500px;
+  margin: auto;
+}
+.warn {
+  color: #edc184;
+  font-size: 12px;
+}
+.error {
+  padding: 14px;
+  color: #ffb4b4;
+  background: #492a32;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: #98a8bc;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.role-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.role-form label {
+  display: grid;
+  gap: 8px;
+  color: #aab8c8;
+  font-size: 13px;
+}
+.role-form input,
+.role-form select,
+.role-form textarea {
+  font: inherit;
+  color: #e6eaf0;
+  background: #101821;
+  border: 1px solid #3a495b;
+  border-radius: 6px;
+  padding: 10px;
+}
+.role-form textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+.role-form button {
+  align-self: end;
+  justify-self: start;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

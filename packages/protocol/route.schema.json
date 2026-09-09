@@ -1,0 +1,512 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentrouter:schema:1.0",
+  "title": "AgentRouter V1.0 role-tool payloads",
+  "description": "Core semantic validation remains mandatory. maxLength measures characters; service must separately check UTF-8 byte size.",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*_[A-Za-z0-9_-]+$",
+      "maxLength": 160
+    },
+    "roleTarget": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "role"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*_[A-Za-z0-9_-]+$",
+          "maxLength": 160
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "userTarget": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "user"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "role"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*_[A-Za-z0-9_-]+$",
+              "maxLength": 160
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "user"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "reference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "artifact"
+            },
+            "artifact_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*_[A-Za-z0-9_-]+$",
+              "maxLength": 160
+            }
+          },
+          "required": [
+            "kind",
+            "artifact_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "git"
+            },
+            "repository_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*_[A-Za-z0-9_-]+$",
+              "maxLength": 160
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          "required": [
+            "kind",
+            "repository_id",
+            "commit",
+            "path"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "live"
+            },
+            "workspace_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*_[A-Za-z0-9_-]+$",
+              "maxLength": 160
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          "required": [
+            "kind",
+            "workspace_id",
+            "path"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "external"
+            },
+            "uri": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "kind",
+            "uri",
+            "description"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "completion": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "const": "result"
+            },
+            "to": {
+              "$ref": "#/$defs/target"
+            },
+            "instruction": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          },
+          "required": [
+            "mode",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "const": "handoff"
+            },
+            "to": {
+              "$ref": "#/$defs/roleTarget"
+            },
+            "instruction": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          },
+          "required": [
+            "mode",
+            "to",
+            "instruction"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "task.request"
+        },
+        "to": {
+          "$ref": "#/$defs/roleTarget"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          },
+          "maxItems": 64
+        },
+        "expected": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "minItems": 1,
+          "maxItems": 32
+        },
+        "completion": {
+          "$ref": "#/$defs/completion"
+        },
+        "on_problem": {
+          "$ref": "#/$defs/target"
+        },
+        "project_data": {
+          "type": "object",
+          "maxProperties": 64
+        }
+      },
+      "required": [
+        "kind",
+        "to",
+        "summary",
+        "body",
+        "inputs",
+        "expected",
+        "completion"
+      ],
+      "additionalProperties": false
+    },
+    "notice": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "notice"
+        },
+        "to": {
+          "$ref": "#/$defs/target"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          },
+          "maxItems": 64
+        },
+        "project_data": {
+          "type": "object",
+          "maxProperties": 64
+        }
+      },
+      "required": [
+        "kind",
+        "to",
+        "summary",
+        "body",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
+    "finish": {
+      "type": "object",
+      "properties": {
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "partial",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          },
+          "maxItems": 64
+        },
+        "next_request": {
+          "$ref": "#/$defs/request"
+        }
+      },
+      "required": [
+        "outcome",
+        "summary",
+        "body",
+        "outputs"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "partial",
+                  "failed",
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "next_request"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "wait": {
+      "type": "object",
+      "properties": {
+        "waiting_for": {
+          "enum": [
+            "child_results",
+            "user_input",
+            "external_condition"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "child_task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*_[A-Za-z0-9_-]+$",
+            "maxLength": 160
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "waiting_for",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "waiting_for": {
+                "enum": [
+                  "user_input",
+                  "external_condition"
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "child_task_ids"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "category": {
+          "enum": [
+            "VALIDATION",
+            "AUTHORIZATION",
+            "UNAVAILABLE",
+            "CONFLICT",
+            "AMBIGUOUS"
+          ]
+        },
+        "field": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "suggestion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "trace_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "field",
+        "message",
+        "suggestion",
+        "retryable",
+        "trace_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/notice"
+    },
+    {
+      "$ref": "#/$defs/finish"
+    },
+    {
+      "$ref": "#/$defs/wait"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ]
+}

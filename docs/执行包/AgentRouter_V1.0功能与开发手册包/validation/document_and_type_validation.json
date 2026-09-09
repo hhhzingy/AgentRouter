@@ -1,0 +1,30 @@
+{
+  "checked_at_utc": "2026-09-09T06:44:06.444647+00:00",
+  "scope": "Document layout / OOXML links / standalone TypeScript declaration syntax only",
+  "documents": [
+    {
+      "file": "AgentRouter_V1.0_功能手册.docx",
+      "rendered_pages": 16,
+      "all_pages_visually_reviewed": true,
+      "internal_links_checked": 23,
+      "missing_bookmark_targets": [],
+      "font_files_embedded": false
+    },
+    {
+      "file": "AgentRouter_V1.0_开发手册.docx",
+      "rendered_pages": 25,
+      "all_pages_visually_reviewed": true,
+      "internal_links_checked": 31,
+      "missing_bookmark_targets": [],
+      "font_files_embedded": false
+    }
+  ],
+  "functional_final_render_matches_reviewed_pages": true,
+  "typescript": {
+    "command": "tsc --noEmit --strict --lib ES2022,DOM spec/adapter-contract.d.ts",
+    "compiler": "Version 5.8.3",
+    "exit_code": 0,
+    "output": ""
+  },
+  "not_application_or_windows_validation": true
+}

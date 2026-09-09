@@ -1,0 +1,29 @@
+{
+  "kind": "task.request",
+  "to": {
+    "type": "role",
+    "id": "role_executor_demo"
+  },
+  "summary": "按批准方案完成修改，并交给复核角色",
+  "body": "只修改约定范围。完成后提供固定版本和验证证据；请复核角色将结论直接交给用户。",
+  "inputs": [
+    {
+      "kind": "artifact",
+      "artifact_id": "artifact_plan_demo"
+    }
+  ],
+  "expected": [
+    "固定版本的修改",
+    "实际验证记录",
+    "已知限制"
+  ],
+  "on_problem": {
+    "type": "user"
+  },
+  "project_data": {
+    "allowed_paths": [
+      "src/module"
+    ],
+    "verification": "project-defined"
+  }
+}

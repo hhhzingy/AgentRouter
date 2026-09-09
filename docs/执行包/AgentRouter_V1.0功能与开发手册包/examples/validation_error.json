@@ -1,0 +1,9 @@
+{
+  "code": "INVALID_COMPLETION_TARGET",
+  "category": "VALIDATION",
+  "field": "completion.to.id",
+  "message": "该角色不在当前协作空间有效目录中。",
+  "suggestion": "查询 route_context，使用真实 ID；交用户则使用 type=user。",
+  "retryable": false,
+  "trace_id": "trace_demo"
+}

@@ -1,0 +1,4 @@
+* text=auto eol=lf
+/docs/执行包/** -text
+*.png binary
+*.docx binary

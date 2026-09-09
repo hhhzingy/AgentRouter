@@ -1,0 +1,57 @@
+# AgentRouter V1.0 项目规则草案模板。null 必须由用户/指定 AI 填充后发布。
+# 本文件不包含密钥，不执行脚本，不自动创建真实角色。
+protocol_version: agentrouter/1.0
+status: DRAFT
+project_id: null
+policy_revision: null
+prepared_by_role_id: null
+approved_by: null
+purpose:
+  goal: null
+  non_goals: []
+  constraints: []
+  completion_criteria: []
+  approved_decisions: []
+  assumptions_to_verify: []
+roles: []
+# roles 每项建议字段：role_id、responsibility、workspace_id、inputs、deliverables、usual_contacts。
+# role_id/workspace_id 必须来自 Route 当前注册信息；不得自行编造。
+workspace_policy:
+  base_commit: null
+  shared_write_mode: exclusive_by_default
+  parallel_conditions: []
+  named_resources: []
+  integration_role_id: null
+  integration_checks: []
+inputs:
+  authoritative_sources: []
+  permitted_reference_kinds: [git, artifact, live, external]
+  fixed_version_required_for_review: true
+  external_addresses_are_verified_by_default: false
+outputs:
+  required_artifacts: []
+  required_evidence: []
+  report_format: null
+  retain_failure_evidence: true
+routing:
+  success_receipts: false
+  default_copy_to_originator: false
+  require_explicit_completion_target: true
+  default_problem_target: {type: user}
+  request_project_fields: []
+# 项目扩展仅在 task.request.project_data 内；限定字段名、类型、required、枚举与长度。
+acceptance:
+  tasks_requiring_confirmation: []
+  accepted_decision_makers: []
+  rejection_and_rework_rules: null
+security:
+  allowed_providers: []
+  allowed_data_classes: []
+  prohibited_data: [authentication_credentials, private_keys, bridge_tokens]
+  additional_approval_rules: []
+# 系统授权来自用户与 Core；此模板不能扩大目录/工具/账号权限。
+publication:
+  created_at: null
+  approved_at: null
+  change_summary: null
+  applies_to: new_tasks_after_publication
