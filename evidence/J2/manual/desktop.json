@@ -1,0 +1,65 @@
+{
+  "mode": "REAL_ELECTRON_LOCAL_CORE",
+  "realHarnessSupport": 0,
+  "nativeDialogs": "CONTROLLED_RETURN_MANUAL_NOT_RUN",
+  "checks": [
+    {
+      "id": "J2_MANUAL_TWO_GROUPS_THREE_ROLES_ATOMIC",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_RELOAD_SAVED_UNVERIFIED_NOT_STARTED",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_ADD_EXISTING_GROUP_ROLE",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_IMPORT_EXPLICIT_PROJECT_WORKSPACE_MAPPING",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-empty-home.png",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-manual-editor.png",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-two-groups.png",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    }
+  ]
+}

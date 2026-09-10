@@ -7,7 +7,7 @@ export class PendingStore {
  list():PendingRecord[]{const rows=JSON.parse(this.storage.getItem(this.key)??'[]') as PendingRecord[];if(!Array.isArray(rows))throw Error('PENDING_STORAGE_INVALID');return rows.filter(r=>JSON.stringify(r.identity)===JSON.stringify(this.identity));}
  private write(rows:PendingRecord[]){const data=JSON.stringify(rows);if(data.length>1048576||rows.length>1000)throw Error('PENDING_STORAGE_FULL');this.storage.setItem(this.key,data);}
  prepare(method:Method,params:unknown,revision:number,scope:Scope){
-  const rows=this.list(), old=rows.find(r=>r.method===method&&JSON.stringify(r.params)===JSON.stringify(params));if(old)return old;
+  const rows=this.list(), old=rows.find(r=>r.method===method&&JSON.stringify(r.params)===JSON.stringify(params)&&JSON.stringify(r.scope)===JSON.stringify(scope));if(old)return old;
   const record:PendingRecord={recordId:crypto.randomUUID(),identity:this.identity,method,params,operationId:'op_'+crypto.randomUUID(),expectedRevision:revision,scope,createdAt:Date.now(),state:'submitting'};
   this.write([...rows,record]);return record;
  }

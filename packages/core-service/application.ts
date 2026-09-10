@@ -53,6 +53,7 @@ const methods: Method[] = [
   'model.get',
   'model.refresh',
   'provider.listProfiles',
+  'role.createFromSpec',
   'rolePlan.validate',
   'rolePlan.apply',
   'rolePlan.list',
@@ -894,6 +895,7 @@ export class ApplicationService extends Plans {
         .run(uid('policy'), project, 1, 'agentrouter/1.0', '{}', digest({}), this.clock());
       return this.snapshot().projects.find((x) => x.id === project);
     }
+    if(m==='role.createFromSpec')return this.createRoleFromSpec(p,scope.project_id!,scope.space_id!);
     if (m === 'rolePlan.apply') return this.apply(p, scope.project_id!, c.principal);
     if (m === 'project.archive') {
       if (p.id !== scope.project_id) throw new C1R1Error('SCOPE_DENIED');

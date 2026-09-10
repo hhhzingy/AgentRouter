@@ -1,3 +1,4 @@
+import type {Scope} from '../../../packages/client-contract/c1r1p1/generated.ts';
 import {PendingStore,type PendingRecord} from './pending.ts';
 import {failureState,errorMessage} from './action-state.ts';
 /**
@@ -55,6 +56,7 @@ export interface WorkbenchStore {
   call<M extends Method>(
     method: M,
     params: MethodMap[M]['params'],
+    explicitScope?:Scope,
   ): Promise<MethodMap[M]['result']>;
   refresh: () => Promise<void>;
   acquireControl: () => Promise<void>;
@@ -173,6 +175,7 @@ export function StoreProvider({
     async <M extends Method>(
       method: M,
       params: MethodMap[M]['params'],
+      explicitScope?:Scope,
     ): Promise<MethodMap[M]['result']> => {
       if (!supported(method)) throw Error('CAPABILITY_UNAVAILABLE');
       if (!methodMetadata[method].mutation) return session.request(method, params);
@@ -180,7 +183,7 @@ export function StoreProvider({
         throw Error('CONTROL_LEASE_REQUIRED');
       const snap = await session.request('system.snapshot', {});
       const records=await getPending();
-      const command=records.prepare(method,params,snap.revision,scopeFor(method,params,snap));
+      const command=records.prepare(method,params,snap.revision,explicitScope??scopeFor(method,params,snap));
       setPendingOperations(records.list());
 
       try {
@@ -205,7 +208,7 @@ export function StoreProvider({
     const state = hello.connectionState;
     return {
       pendingOperations,pendingIdentity,
-      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');await call(record.method,record.params as MethodMap[Method]['params']);},
+      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
       removePending:async(id)=>{const records=await getPending();records.remove(id);setPendingOperations(records.list());},
       hello,
       snapshot,

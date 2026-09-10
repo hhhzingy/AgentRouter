@@ -1,0 +1,78 @@
+import {_electron as electron,expect} from '@playwright/test';
+import {mkdirSync,mkdtempSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {startCore} from '../w11-process-support.ts';
+mkdirSync('.local/j2-tests',{recursive:true});mkdirSync('evidence/J2/screenshots',{recursive:true});
+const gui=mkdtempSync(resolve('.local/j2-tests/gui-')),data=resolve(gui,'core'),projectPath=resolve(gui,'手工协作项目');mkdirSync(data);mkdirSync(projectPath);
+let core!:Awaited<ReturnType<typeof startCore>>,app:any,page:any;
+const checks:Array<{id:string;status:string}>=[],screenshots:any[]=[],errors:string[]=[];
+const pass=(id:string)=>{checks.push({id,status:'PASS'});console.log(id);};
+async function shot(name:string){const path=`evidence/J2/screenshots/LOCAL_CORE-1440x900-100-${name}.png`;await page.screenshot({path,fullPage:true,scale:'css'});screenshots.push({path,mode:'LOCAL_CORE',viewport:await page.evaluate(()=>({width:innerWidth,height:innerHeight,dpr:devicePixelRatio})),zoom:await app.evaluate(({BrowserWindow}:any)=>BrowserWindow.getAllWindows()[0].webContents.getZoomFactor())});}
+try{
+ core=await startCore(data);
+ await core.session.request('control.release',{lease_id:core.lease.leaseId},{operationId:'op_j2_release',expectedRevision:(await core.session.request('system.snapshot',{})).revision,scope:{}});
+ app=await electron.launch({executablePath:resolve('node_modules/electron/dist/electron.exe'),args:[resolve('.local/desktop-w11/p1-main.mjs')],env:{SystemRoot:process.env.SystemRoot!,WINDIR:process.env.WINDIR!,PATH:process.env.PATH!,TEMP:gui,TMP:gui,AGENTROUTER_DATA:gui,AGENTROUTER_MODE:'LOCAL_CORE'}});
+ page=await app.firstWindow();page.on('pageerror',(e:Error)=>errors.push(e.message));
+ await app.evaluate(({BrowserWindow}:any)=>{const win=BrowserWindow.getAllWindows()[0];win.setContentSize(1440,900);win.webContents.setZoomFactor(1);});
+ await expect(page.getByRole('heading',{name:'项目',exact:true})).toBeVisible();await shot('empty-home');
+ await page.getByRole('button',{name:'申请控制'}).click();
+ await app.evaluate(({dialog}:any,path:string)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[path]});},projectPath);
+ await page.getByRole('button',{name:'选择目录…'}).click();
+ await expect(page.locator('[data-page="project"]')).toBeVisible();
+ const project=(await core.session.request('system.snapshot',{})).projects[0];
+ await page.getByRole('button',{name:/编排角色|添加角色/}).first().click();
+ await page.getByRole('button',{name:'新建空白方案'}).click();
+ await expect(page.getByRole('button',{name:'校验并审阅'})).toBeDisabled();
+ await page.getByRole('button',{name:'为小组 1 添加角色'}).click();
+ await page.getByLabel('角色 1 名称',{exact:true}).fill('资料分析');
+ await page.getByRole('button',{name:'为小组 1 添加角色'}).click();
+ await page.getByLabel('角色 2 名称',{exact:true}).fill('实现复核');
+ await page.getByRole('button',{name:'添加小组',exact:true}).click();
+ await page.getByLabel('小组 2 名称',{exact:true}).fill('独立研究');
+ await page.getByRole('button',{name:'为小组 2 添加角色'}).click();
+ await page.getByLabel('角色 3 名称',{exact:true}).fill('证据检查');
+ await shot('manual-editor');
+ await page.getByRole('button',{name:'校验并审阅'}).click();
+ await expect(page.locator('[data-stage="review"]')).toBeVisible();
+ await expect(page.getByText('服务器校验通过',{exact:false})).toBeVisible();
+ await shot('review');
+ await page.getByRole('button',{name:'返回编辑',exact:true}).click();
+ await page.getByLabel('角色 1 职责',{exact:true}).fill('读取资料、核对来源并给出证据充分的结论');
+ await expect(page.locator('[data-stage="review"]')).toHaveCount(0);
+ await page.getByRole('button',{name:'校验并审阅'}).click();
+ await expect(page.locator('[data-stage="review"]')).toBeVisible();
+ for(const input of await page.locator('.confirm-row input').all())await input.check();
+ await page.getByRole('button',{name:'确认并应用',exact:true}).click();
+ await expect(page.locator('[data-stage="applied"]')).toBeVisible();
+ let snap=await core.session.request('system.snapshot',{});expect(snap.spaces).toHaveLength(2);expect(snap.roles).toHaveLength(3);expect(snap.roles.every(r=>r.bootstrapState==='PENDING')).toBe(true);expect(snap.runs).toHaveLength(0);
+ pass('J2_MANUAL_TWO_GROUPS_THREE_ROLES_ATOMIC');
+ await page.getByRole('button',{name:'返回项目',exact:true}).click();await shot('two-groups');
+ await page.reload();await expect(page.locator('[data-page="project"]')).toBeVisible();
+ snap=await core.session.request('system.snapshot',{});expect(snap.roles).toHaveLength(3);expect(snap.runs).toHaveLength(0);pass('J2_RELOAD_SAVED_UNVERIFIED_NOT_STARTED');
+ await page.getByRole('button',{name:'申请控制'}).click();
+ await page.getByRole('button',{name:/编排角色|添加角色/}).first().click();
+ await page.getByLabel('添加到现有小组',{exact:true}).selectOption(snap.spaces[0].id);
+ await expect(page.locator('[data-stage="draft"]')).toBeVisible();
+ await page.getByRole('button',{name:'为小组 1 添加角色'}).click();
+ await page.getByLabel('角色 1 名称',{exact:true}).fill('补充分析');
+ await page.getByRole('button',{name:'校验并审阅'}).click();await expect(page.locator('[data-stage="review"]')).toBeVisible();
+ for(const input of await page.locator('.confirm-row input').all())await input.check();
+ await page.getByRole('button',{name:'确认并应用',exact:true}).click();await expect(page.locator('[data-stage="applied"]')).toBeVisible();
+ expect((await core.session.request('system.snapshot',{})).roles).toHaveLength(4);pass('J2_ADD_EXISTING_GROUP_ROLE');
+ await page.getByRole('button',{name:'返回项目',exact:true}).click();await page.getByRole('button',{name:/编排角色|添加角色/}).first().click();
+ const imported=structuredClone((await core.session.request('rolePlan.list',{project_id:project.id})).items[0].sourcePlan);
+ imported.project_id='external_project';for(const g of imported.groups){g.workspace_ref='external_workspace';g.display_name='导入'+g.display_name;}for(const r of imported.roles)r.workspace_ref='external_workspace';
+ await page.getByLabel('粘贴协作方案 JSON').fill(JSON.stringify(imported));await page.getByRole('button',{name:'校验粘贴方案'}).click();
+ await expect(page.locator('[data-stage="mapping"]')).toBeVisible();await expect(page.getByRole('button',{name:'确认映射并校验'})).toBeDisabled();
+ await page.getByLabel('映射工作区 external_workspace',{exact:true}).selectOption((await core.session.request('workspace.list',{project_id:project.id})).items[0].id);
+ await page.getByLabel('我确认项目与工作区映射').check();await page.getByRole('button',{name:'确认映射并校验'}).click();await expect(page.locator('[data-stage="review"]')).toBeVisible();
+ for(const input of await page.locator('.confirm-row input').all())await input.check();
+ await page.getByRole('button',{name:'确认并应用',exact:true}).click();await expect(page.locator('[data-stage="applied"]')).toBeVisible();
+ expect((await core.session.request('system.snapshot',{})).roles).toHaveLength(7);pass('J2_IMPORT_EXPLICIT_PROJECT_WORKSPACE_MAPPING');
+ await page.getByRole('button',{name:'返回项目',exact:true}).click();
+ expect(errors).toEqual([]);
+}catch(e){console.error(e);console.error(await page?.locator('body').innerText().catch(()=>''));process.exitCode=1;checks.push({id:'J2_DESKTOP',status:'FAIL'});if(page)await shot('failure').catch(()=>{});}
+finally{
+ if(app){const child=app.process();await app.evaluate(({BrowserWindow}:any)=>BrowserWindow.getAllWindows()[0]?.close()).catch(()=>{});if(child.exitCode===null&&child.signalCode===null)await new Promise(r=>child.once('exit',r));}
+ await core?.stop();writeFileSync('evidence/J2/desktop.json',JSON.stringify({mode:'REAL_ELECTRON_LOCAL_CORE',realHarnessSupport:0,nativeDialogs:'CONTROLLED_RETURN_MANUAL_NOT_RUN',checks,screenshots},null,2)+'\n');
+}

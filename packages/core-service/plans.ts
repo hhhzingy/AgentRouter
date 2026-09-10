@@ -9,6 +9,7 @@ import {
   type PlanRequestedPermissions,
   type RolePlanValidationVM,
   type RolePlanApplyParams,
+  type RoleCreateFromSpecParams,
 } from '../client-contract/c1r1p1/index.ts';
 import { Management } from '../runtime/management.ts';
 import { Projection } from './projection.ts';
@@ -40,6 +41,9 @@ export class Plans extends Projection {
       roles = new Map(p.roles.map((r) => [r.role_key, r]));
     if (groups.size !== p.groups.length) bad('DUPLICATE_GROUP_KEY', 'groups');
     if (roles.size !== p.roles.length) bad('DUPLICATE_ROLE_KEY', 'roles');
+    if(new Set(p.groups.map(g=>g.display_name.trim().toLocaleLowerCase())).size!==p.groups.length)bad('DUPLICATE_GROUP_NAME','groups');
+    if(new Set(p.roles.map(r=>r.group_key+':'+r.display_name.trim().toLocaleLowerCase())).size!==p.roles.length)bad('DUPLICATE_ROLE_NAME','roles');
+
     for (const r of p.roles) {
       if (!groups.has(r.group_key)) bad('UNKNOWN_GROUP_KEY', r.role_key);
       if (
@@ -63,12 +67,13 @@ export class Plans extends Projection {
         'select descriptor_json from model_catalog where model_id=?',
         r.runtime.model_id,
       ).map((m) => JSON.parse(m.descriptor_json));
-      const model = rows.find(
+      const candidates = rows.filter(
         (m) =>
           m.harness === r.runtime.harness &&
           (!r.runtime.provider_profile_id ||
             m.provider_profile_id === r.runtime.provider_profile_id),
       );
+      const model=candidates.length===1?candidates[0]:undefined;
       if (!model || model.availability !== 'AVAILABLE')
         warnings.push({ code: 'MODEL_UNVERIFIED', field: r.role_key });
       if (
@@ -176,6 +181,23 @@ export class Plans extends Projection {
       );
     return this.charter(this.one('select * from role_charters where id=?', id));
   }
+  createRoleFromSpec(p:RoleCreateFromSpecParams,project:string,space:string){
+    const group=this.one("select * from spaces where id=? and project_id=? and status='ACTIVE'",space,project);
+    if(!group)throw new C1R1Error('SCOPE_DENIED');
+    const rule=this.one('select * from space_rules where space_id=? order by revision desc limit 1',space);
+    if(!rule || p.spec.group_key!==rule.group_key)throw new C1R1Error('PLAN_INVALID');
+    if(this.one('select id from roles where space_id=? and lower(name)=lower(?)',space,p.spec.display_name))throw new C1R1Error('PLAN_INVALID');
+    if(this.one("select a.id from initialization_attempts a join roles r on r.id=a.role_id where r.space_id=? and a.state in ('STARTING','RUNNING','UNKNOWN')",space)||this.one("select x.id from runs x join roles r on r.id=x.role_id where r.space_id=? and x.state in ('CREATED','STARTING','RUNNING','WAITING_APPROVAL','SETTLING','UNKNOWN')",space))throw new C1R1Error('RECONFIGURATION_BLOCKED');
+    const members=this.all('select c.role_id,c.permissions_json,c.spec_json from role_charters c join roles r on r.id=c.role_id where r.space_id=? and c.revision=(select max(revision) from role_charters where role_id=r.id)',space);
+    const existing=members.map(r=>JSON.parse(r.spec_json) as PlanRole);
+    const plan:RolePlanInput={schema_version:'agentrouter-role-plan/1',project_id:project,title:'添加角色',source:'human',goals:['向现有小组添加经审阅角色'],non_goals:[],assumptions:[],groups:[{group_key:rule.group_key,display_name:group.name,purpose:rule.purpose,communication_boundary:'within_group_only',workspace_strategy:'shared_read_only',rules:JSON.parse(rule.rules_json)}],roles:[...existing,p.spec],review:{requires_user_confirmation:true,known_risks:[]}};
+    if(!this.validate(plan).valid)throw new C1R1Error('PLAN_INVALID');
+    const created=new Management(this.db).createRole({spaceId:space,name:p.spec.display_name,description:p.spec.mission,harness:p.spec.runtime.harness,workspaceId:p.spec.workspace_ref,model:p.spec.runtime});
+    this.db.prepare('insert into role_membership_history values(?,?,?,?,?)').run(uid('membership'),created.role,space,this.clock(),null);
+    this.publish(created.role,p.spec,p.permissions);
+    for(const member of members)this.publish(member.role_id,JSON.parse(member.spec_json),JSON.parse(member.permissions_json));
+    return this.snapshot().roles.find(r=>r.id===created.role)!;
+  }
   apply(p: RolePlanApplyParams, project: string, actor: string) {
     if (p.plan.project_id !== project) throw new C1R1Error('SCOPE_DENIED');
     const v = this.validate(p.plan);
@@ -186,6 +208,7 @@ export class Plans extends Projection {
       p.permission_grants.some((g) => !p.plan.roles.some((r) => r.role_key === g.role_key))
     )
       throw new C1R1Error('PLAN_INVALID');
+    if(p.plan.groups.some(g=>this.one('select id from spaces where project_id=? and lower(name)=lower(?)',project,g.display_name)))throw new C1R1Error('PLAN_INVALID');
     const groups = new Map<string, string>(),
       roleIds: string[] = [];
     const now = this.clock(),

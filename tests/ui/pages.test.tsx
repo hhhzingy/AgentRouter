@@ -109,7 +109,7 @@ describe('角色详情', () => {
 describe('Role Plan', () => {
   it('能力不足时 AI 生成入口禁用并说明', () => {
     const html = page(controller, <RolePlanPage projectId="proj_atlas" />);
-    expect(html).toContain('当前没有已认证且可建会话的 Harness');
+    expect(html).toContain('当前没有内部设置会话处理器');
     expect(html).toContain('导入方案');
     expect(html).toContain('手工创建');
   });

@@ -492,3 +492,21 @@ it('J2 项目范围先过滤再分页，150 条无 role 事件不串项目且游
   expect(f.server.desktopContext(connection).dataId).toMatch(/^dataset_/);
  }finally{await f.close();}
 });
+
+it('J2 现有组增员事务更新名单，保留暂停及最小权限；重名和故障均不留半成品',async()=>{
+ const f=await fixture();try{
+  const v=await f.s.request('rolePlan.validate',{plan:f.plan});await f.write('rolePlan.apply',{plan:f.plan,plan_hash:v.planHash,confirmed:true,permission_grants:[]},{project_id:f.project.id});
+  const snap=await f.s.request('system.snapshot',{}),space=snap.spaces[0],role=snap.roles.find(r=>r.spaceId===space.id)!;
+  const charter=await f.s.request('roleCharter.get',{project_id:f.project.id,role_id:role.id});
+  await f.write('role.updateStatus',{id:role.id,status:'PAUSED'},{project_id:f.project.id,space_id:space.id});
+  const spec={...charter.spec,role_key:'j2_new_role',display_name:'新增资料角色',requested_permissions:{...charter.spec.requested_permissions,allowed_paths:['docs']}};
+  const params={spec,confirmed:true as const,permissions:{...spec.requested_permissions,allowed_paths:['docs','not_requested']}};
+  const scope={project_id:f.project.id,space_id:space.id};
+  f.server.failNextCommit=true;await expect(f.write('role.createFromSpec',params,scope)).rejects.toThrow('INTERNAL_ERROR');expect((await f.s.request('system.snapshot',{})).roles).toHaveLength(6);
+  const created=await f.write('role.createFromSpec',params,scope) as any;
+  const latest=await f.s.request('roleCharter.get',{project_id:f.project.id,role_id:role.id});expect(latest.directory.some(r=>r.roleId===created.id)).toBe(true);expect(latest.revision).toBe(charter.revision+1);
+  const granted=await f.s.request('roleCharter.get',{project_id:f.project.id,role_id:created.id});expect(granted.effectivePermissions.allowed_paths).toEqual(['docs']);expect(granted.effectivePermissions.workspace_access).toBe('read_only');
+  expect((await f.s.request('role.get',{id:role.id,scope})).status).toBe('PAUSED');
+  await expect(f.write('role.createFromSpec',{...params,spec:{...spec,role_key:'other_key'}},scope)).rejects.toThrow('PLAN_INVALID');expect((await f.s.request('system.snapshot',{})).roles).toHaveLength(7);
+ }finally{await f.close();}
+});
