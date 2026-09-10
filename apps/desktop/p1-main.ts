@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { connectLocalCore } from './local-core-launcher.ts';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadP1Scenario } from '../../packages/core-api/mock-p1-scenario.ts';
@@ -23,9 +24,10 @@ const mock = mode === 'PREVIEW_MOCK' ? new MockP1Server() : undefined;
 async function close() {
   unsubscribe?.();
   unsubscribe = undefined;
-  await transport?.close();
+  const previous = transport;
   transport = undefined;
   session = undefined;
+  await previous?.close();
 }
 function guard(sender: Electron.WebContents) {
   if (!win || sender !== win.webContents) throw Error('SCOPE_DENIED');
@@ -40,9 +42,18 @@ app.whenReady().then(async () => {
     await close();
     if (options.mode && options.mode !== mode) throw Error('BACKEND_MODE_MISMATCH');
     generation = g;
-    if (!mock) throw Error('CAPABILITY_UNAVAILABLE');
-    transport = new P1MemoryTransport(mock);
-    session = await transport.connect(options);
+    if (mock) {
+      transport = new P1MemoryTransport(mock);
+      session = await transport.connect(options);
+    } else {
+      const connected = await connectLocalCore(
+        resolve(app.getPath('userData'), 'core'),
+        dir,
+        options,
+      );
+      transport = connected.transport;
+      session = connected.session;
+    }
     unsubscribe = session.subscribe((event) => {
       if (!e.sender.isDestroyed()) e.sender.send('p1:event', { generation: g, event });
     });

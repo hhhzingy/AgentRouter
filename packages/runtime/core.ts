@@ -28,7 +28,12 @@ export class Core {
   constructor(
     readonly db: Database.Database,
     readonly clock = () => Date.now(),
-    readonly options: { allowMock?: boolean } = {},
+    readonly options: {
+      allowMock?: boolean;
+      fixtureAuthorization?: (bindingId: string) => boolean;
+      beforeDispatch?: (roleId: string) => string | null;
+      kindForTask?: (taskId: string) => string;
+    } = {},
   ) {}
   private one(sql: string, ...args: any[]): Data | undefined {
     return this.db.prepare(sql).get(...args) as Data | undefined;
@@ -268,6 +273,95 @@ export class Core {
       }
     });
   }
+  submitFromUser(
+    scope: { projectId: string; spaceId: string },
+    input: unknown,
+    operationRow: number,
+  ) {
+    validatePayload(input);
+    if (input.kind !== 'task.request') throw new RouteError('WRONG_TOOL_PAYLOAD');
+    for (const target of [input.to, input.completion.to, input.on_problem ?? { type: 'user' }])
+      if (
+        target.type === 'role' &&
+        !this.one('select id from roles where id=? and space_id=?', target.id, scope.spaceId)
+      )
+        throw new RouteError('CROSS_SPACE_DENIED', 'AUTHORIZATION');
+    if (
+      !this.one('select id from spaces where id=? and project_id=?', scope.spaceId, scope.projectId)
+    )
+      throw new RouteError('SCOPE_DENIED', 'AUTHORIZATION');
+    for (const ref of input.inputs) {
+      if (
+        ref.type === 'artifact' &&
+        !this.one(
+          "select id from artifacts where id=? and project_id=? and state='AVAILABLE'",
+          ref.id,
+          scope.projectId,
+        )
+      )
+        throw new RouteError('ARTIFACT_SCOPE', 'AUTHORIZATION');
+      if (!['artifact', 'external'].includes(ref.type))
+        throw new RouteError('REFERENCE_UNSUPPORTED');
+    }
+    const chain = id('chain'),
+      task = id('task'),
+      message = id('message'),
+      now = this.clock();
+    const policy = this.one(
+      'select id from policies where project_id=? order by revision desc limit 1',
+      scope.projectId,
+    );
+    if (!policy) throw new RouteError('POLICY_REQUIRED');
+    this.exec(
+      'insert into chains values(?,?,?,?,?,?,?)',
+      chain,
+      scope.spaceId,
+      id('operation'),
+      now,
+      100,
+      28800000,
+      'ACTIVE',
+    );
+    this.exec(
+      'insert into tasks(id,space_id,assignee_role_id,chain_id,policy_id,summary,body,request_json,completion_json,problem_target_json,state,acceptance,created_at_ms,updated_at_ms) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      task,
+      scope.spaceId,
+      input.to.id,
+      chain,
+      policy.id,
+      input.summary,
+      input.body,
+      JSON.stringify(input),
+      JSON.stringify(input.completion),
+      JSON.stringify(input.on_problem ?? { type: 'user' }),
+      'QUEUED',
+      'PENDING',
+      now,
+      now,
+    );
+    this.exec(
+      'insert into messages(id,space_id,task_id,kind,from_kind,to_kind,to_role_id,payload_json,operation_row_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?)',
+      message,
+      scope.spaceId,
+      task,
+      'task.request',
+      'user',
+      'role',
+      input.to.id,
+      JSON.stringify(input),
+      operationRow,
+      now,
+    );
+    this.exec(
+      'insert into outbox(id,message_id,state,updated_at_ms) values(?,?,?,?)',
+      id('outbox'),
+      message,
+      'QUEUED',
+      now,
+    );
+    this.event('UserTaskStored', { messageId: message }, null, task);
+    return task;
+  }
   private transition(task: string, to: string) {
     const t = this.one('select state from tasks where id=?', task)!;
     assertTransition(t.state, to);
@@ -374,8 +468,14 @@ export class Core {
       const p = this.management(roleId),
         b = this.identity(p);
       const caps = JSON.parse(b.capability_json);
-      if (!(this.options.allowMock && caps.fixture === 'mock') && caps.status !== 'LIVE_TESTED')
+      if (
+        !(this.options.allowMock && caps.fixture === 'mock') &&
+        !this.options.fixtureAuthorization?.(b.id) &&
+        caps.status !== 'LIVE_TESTED'
+      )
         return this.blocked(roleId, 'harness_unverified');
+      const blocked = this.options.beforeDispatch?.(roleId);
+      if (blocked) return this.blocked(roleId, blocked);
       const role = this.one(
         'select r.status,s.status as space_status,p.status as project_status from roles r join spaces s on s.id=r.space_id join projects p on p.id=s.project_id where r.id=?',
         roleId,
@@ -404,6 +504,7 @@ export class Core {
           roleId,
         );
       if (!task) return null;
+      if (kind === 'TASK') kind = this.options.kindForTask?.(task.id) ?? kind;
       const now = this.clock();
       const latest = this.one('select max(started_at_ms) as t from auto_starts')?.t;
       if (latest && latest > now) return this.blocked(roleId, 'clock_rollback');
@@ -485,7 +586,7 @@ export class Core {
         chain.id,
         now,
       );
-      if (kind === 'TASK')
+      if (kind === 'TASK' || kind === 'RESULT_HANDLING')
         this.exec(
           "update outbox set state='DISPATCHING',claimed_run_id=?,attempt_count=attempt_count+1,updated_at_ms=? where message_id in (select id from messages where task_id=? and kind='task.request')",
           run,

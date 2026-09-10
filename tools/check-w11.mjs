@@ -19,6 +19,7 @@ const commands = [
   ],
   ['tools/build-w11.mjs'],
   ['tools/test-b0-desktop.mjs'],
+  ['tools/test-w11-desktop.mjs'],
 ];
 for (const args of commands) {
   const r = spawnSync(process.execPath, args, { stdio: 'inherit', windowsHide: true });

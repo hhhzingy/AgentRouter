@@ -1,8 +1,12 @@
 import { build } from 'esbuild';
-import { mkdirSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, copyFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+await import('./build-w11-core.mjs');
 const out = resolve('.local/desktop-w11');
 mkdirSync(out, { recursive: true });
+const nodeCopy = resolve(out, 'core-node.exe');
+if (!existsSync(nodeCopy) || !readFileSync(nodeCopy).equals(readFileSync(process.execPath)))
+  copyFileSync(process.execPath, nodeCopy);
 await build({
   entryPoints: ['apps/desktop/p1-main.ts'],
   outfile: resolve(out, 'p1-main.mjs'),
@@ -33,7 +37,11 @@ if (existsSync('apps/desktop/workbench.tsx')) {
 writeFileSync(
   resolve(out, 'workbench.html'),
   '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'"><title>AgentRouter</title><body><div id="backend-mode"></div><div id="root"></div><script src="mode.js"></script>' +
-    (existsSync(resolve(out, 'workbench.js')) ? '<script src="workbench.js"></script>' : '') +
+    (existsSync('apps/desktop/workbench.tsx')
+      ? (existsSync(resolve(out, 'workbench.css'))
+          ? '<link rel="stylesheet" href="workbench.css">'
+          : '') + '<script src="workbench.js"></script>'
+      : '') +
     '</body></html>',
 );
 writeFileSync(
