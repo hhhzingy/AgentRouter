@@ -1,0 +1,74 @@
+import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  ClientTransport,
+  ClientSession,
+  RequestOptions,
+} from '../../packages/client-transport/p1/types.ts';
+import type {
+  Event,
+  ConnectionState,
+  LeaseVM,
+} from '../../packages/client-contract/c1r1p1/generated.ts';
+let generation = 0,
+  state: ConnectionState = 'DISCONNECTED',
+  expires = 0;
+const handlers = new Set<(event: Event) => void>();
+ipcRenderer.on('p1:event', (_e, envelope: { generation: number; event: Event }) => {
+  if (envelope.generation !== generation) return;
+  for (const h of handlers) h(envelope.event);
+});
+const client: ClientTransport = {
+  async connect(options) {
+    handlers.clear();
+    const current = ++generation;
+    state = 'CONNECTING';
+    try {
+      const hello = await ipcRenderer.invoke('p1:connect', options, current);
+      state = hello.connectionState;
+      return {
+        hello,
+        async request(method, params, opts: RequestOptions = {}) {
+          if (generation !== current || state === 'DISCONNECTED') throw Error('CONNECTION_LOST');
+          if (opts.signal?.aborted) throw Error('REQUEST_CANCELLED');
+          const { signal, ...serializable } = opts;
+          const reply = await ipcRenderer.invoke(
+            'p1:request',
+            current,
+            method,
+            params,
+            serializable,
+          );
+          if (reply.error) throw Object.assign(new Error(reply.error.code), reply.error);
+          if (method === 'control.acquire' || method === 'control.renew') {
+            expires = (reply.result as LeaseVM).expiresAtMs;
+            state = 'CONNECTED_CONTROLLER';
+          }
+          if (method === 'control.release') state = 'CONNECTED_OBSERVER';
+          return reply.result;
+        },
+        subscribe(fn) {
+          handlers.add(fn);
+          return () => {
+            handlers.delete(fn);
+          };
+        },
+        connectionState() {
+          if (state === 'CONNECTED_CONTROLLER' && expires <= Date.now())
+            state = 'CONNECTED_OBSERVER';
+          return state;
+        },
+      } as ClientSession;
+    } catch (e) {
+      state = 'DISCONNECTED';
+      throw e;
+    }
+  },
+  async close() {
+    ++generation;
+    handlers.clear();
+    state = 'DISCONNECTED';
+    expires = 0;
+    await ipcRenderer.invoke('p1:close');
+  },
+};
+contextBridge.exposeInMainWorld('agentrouterClient', client);
