@@ -1,0 +1,41 @@
+{
+  "observedAt": "2026-09-10T08:22:57.799967+00:00",
+  "platform": "Windows 11 Home Chinese 10.0.26200 x64",
+  "powershell": "7.6.5",
+  "node": "24.14.0",
+  "ssh": "OpenSSH_for_Windows_9.5p2 LibreSSL 3.8.2",
+  "harnesses": [
+    {
+      "name": "Codex npm PATH wrapper",
+      "version": "0.134.0",
+      "status": "VERSION_ONLY"
+    },
+    {
+      "name": "Codex desktop bundled CLI",
+      "version": "0.153.4",
+      "sha256": "ccdc9eb9dd71fbcfb03ad42c4eca2b0d6ff6fbd32ebe9416550e6244561e559b",
+      "status": "BINARY_DRIFT_REPROBE_REQUIRED"
+    },
+    {
+      "name": "Kimi Code",
+      "version": "0.41.0",
+      "sha256": "285debb7c882704fd942b70a3a116804d9955f39bff3428a0f6a64559e4a56a1",
+      "status": "VERSION_ONLY"
+    },
+    {
+      "name": "pi user-global",
+      "version": "0.85.1",
+      "sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+      "status": "VERSION_ONLY"
+    }
+  ],
+  "credentialsRead": false,
+  "realModelCalls": 0,
+  "sshConnections": 0,
+  "productionCertifiedCombinations": 0,
+  "environmentLimitations": [
+    "真实账号/预算/SSH授权及干净环境待 H-01",
+    "未验证 OS 级秘密隔离",
+    "同版本 Codex 二进制 hash 与历史锁不同，不继承认证"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "request_id": "H-01",
+  "status": "WAITING_USER",
+  "source_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+  "known": {
+    "windows": "Windows11 10.0.26200 x64",
+    "ubuntu": "用户RV1126B Ubuntu20.04；工具中有ubuntu-codex连接名，Windows SSH alias待确认",
+    "codex_path_version": "0.134.0",
+    "kimi_version": "0.41.0",
+    "pi_version": "0.85.1"
+  },
+  "requested": [
+    "Codex/Kimi各两个账号代号与隔离登录切换范围",
+    "pi Provider/模型",
+    "总预算/单次上限/时段",
+    "SSH alias/已核对指纹状态/允许用户级部署与测试目录",
+    "原生界面/IME/睡眠/试用时间及干净Windows条件"
+  ],
+  "secrets_requested": false,
+  "authorization": {
+    "real_accounts": false,
+    "paid_calls": false,
+    "remote_deploy": false,
+    "main_tag_release": false
+  },
+  "unblocked_work": "只读审计、确定性测试、无秘密夹具、生产接口与安全实现"
+}

@@ -1,0 +1,1414 @@
+{
+  "schema": "agentrouter-j3-acceptance-plan/1",
+  "artifact_type": "PLAN_NOT_TEST_RESULT",
+  "baseline_evidence_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+  "original_count": 81,
+  "canonical_source": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+  "tests": [
+    {
+      "test_id": "T001",
+      "feature_ids": [
+        "F01"
+      ],
+      "owner_work_package": "J3-11",
+      "summary_zh": "Windows 干净环境检测三家路径、版本、Shell、Git 与工具能力",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T002",
+      "feature_ids": [
+        "F01",
+        "F05"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "不支持版本或缺必要能力明确阻断，不抓屏或读取私有数据库兜底",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T003",
+      "feature_ids": [
+        "F02"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "项目创建、重新定位、归档与移除保持身份和源文件",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T004",
+      "feature_ids": [
+        "F02",
+        "F13"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "Windows 大小写、短路径、符号链接和 junction 的同物理目录写互斥",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T005",
+      "feature_ids": [
+        "F03"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "两协作空间分别暂停归档，角色记录隔离并保留证据",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T006",
+      "feature_ids": [
+        "F04"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "角色同名、改名、停用后投递仍按固定 ID 和明确状态",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T007",
+      "feature_ids": [
+        "F05"
+      ],
+      "owner_work_package": "J3-03",
+      "summary_zh": "Codex 实际模型和推理选项查询及合法组合执行",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T008",
+      "feature_ids": [
+        "F05"
+      ],
+      "owner_work_package": "J3-04",
+      "summary_zh": "Kimi 实际配置协商与模型选择，拒绝不支持字段",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T009",
+      "feature_ids": [
+        "F05",
+        "F20"
+      ],
+      "owner_work_package": "J3-05",
+      "summary_zh": "pi Provider、模型和思考等级合法与非法组合验证",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T010",
+      "feature_ids": [
+        "F06"
+      ],
+      "owner_work_package": "J3-03",
+      "summary_zh": "两个 Codex 角色独立会话与恢复，共享认证并发受控",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T011",
+      "feature_ids": [
+        "F06"
+      ],
+      "owner_work_package": "J3-04",
+      "summary_zh": "Kimi 历史旧工具调用只回放显示，不再次派发",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T012",
+      "feature_ids": [
+        "F06",
+        "F15"
+      ],
+      "owner_work_package": "J3-05",
+      "summary_zh": "pi 历史及断线恢复，可得内容与缺口明确",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T013",
+      "feature_ids": [
+        "F07"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "Codex 到 Kimi 再回原 Codex，规则产物更新与显式交接",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T014",
+      "feature_ids": [
+        "F07",
+        "F23"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "旧进程未停和旧 epoch 迟到提交不能污染新态或绕过物理隔离",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T015",
+      "feature_ids": [
+        "F08"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "已有 AGENTS.md 仅更新受控 Route 区块，不覆盖原规范",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T016",
+      "feature_ids": [
+        "F08"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "多 worktree 规则新旧版本发布，运行任务固定启动版本",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T017",
+      "feature_ids": [
+        "F08",
+        "F25"
+      ],
+      "owner_work_package": "J3-02",
+      "summary_zh": "规则执行代码、远程引用和无界正则被白名单规则拒绝",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T018",
+      "feature_ids": [
+        "F09"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "任务 schema、completion、伪造 from 与 UTF-8 字节上限",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T019",
+      "feature_ids": [
+        "F09"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "任务持久化成功后工具结束，无业务回执或额外发送者唤醒",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T020",
+      "feature_ids": [
+        "F09",
+        "F23"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "数据库满、只读或事务失败不返回持久化成功",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T021",
+      "feature_ids": [
+        "F09",
+        "F23"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "相同 operation_id 内容相同去重，内容不同冲突",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T022",
+      "feature_ids": [
+        "F10"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "A 委托 B 后结果只给用户，不自动唤醒 A",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T023",
+      "feature_ids": [
+        "F10"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "A 到 B 实现到 C 复核到用户，独立 task_id 和明确结果去向",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T024",
+      "feature_ids": [
+        "F10"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "finish 保存但原生未结束，STAGED/HELD 不派下游",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T025",
+      "feature_ids": [
+        "F10",
+        "F23"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "finish 后原生崩溃与 Core 重启，保留结果并待核对",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T026",
+      "feature_ids": [
+        "F10"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "partial、failed、cancelled 不携带成功下一阶段请求",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T027",
+      "feature_ids": [
+        "F10"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "只有正文完成与原生正常结束不能代替 route_finish",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T028",
+      "feature_ids": [
+        "F10",
+        "F17"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "用户接受驳回与运行、交付状态分离，保存版本与决定者",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T029",
+      "feature_ids": [
+        "F11"
+      ],
+      "owner_work_package": "J3-01",
+      "summary_zh": "普通通知和状态变动仅存储展示，不单独唤醒模型",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T030",
+      "feature_ids": [
+        "F12"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "三发送者向忙角色发独立任务，FIFO 且同会话一轮运行",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T031",
+      "feature_ids": [
+        "F12"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "可信子结果续办父任务，无关独立队列不混入活跃上下文",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T032",
+      "feature_ids": [
+        "F12"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "结果先到或与等待并发，原子检查防止丢失唤醒",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T033",
+      "feature_ids": [
+        "F12",
+        "F25"
+      ],
+      "owner_work_package": "J3-02",
+      "summary_zh": "伪造 parent 或 resume 关系不能获取续办优先级",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T034",
+      "feature_ids": [
+        "F12"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "用户等待、循环依赖、队首阻塞可见并可挂起取消，不空转",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T035",
+      "feature_ids": [
+        "F13"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "两个真实独立 worktree 并行修改与版本映射",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T036",
+      "feature_ids": [
+        "F13"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "两空间同一共享工作区原子争用，仅一个写者",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T037",
+      "feature_ids": [
+        "F13"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "命名端口或设备资源有序获取，失败释放已获资源",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T038",
+      "feature_ids": [
+        "F13"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "脏 worktree 删除归档集成需显式处置，不自动 reset 或清理",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T039",
+      "feature_ids": [
+        "F14"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "冻结文件后覆盖原路径，仍读取发送版本和 hash",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T040",
+      "feature_ids": [
+        "F14"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "产物写中断或 DB 引用失败不发布缺失内容、不伤有效产物",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T041",
+      "feature_ids": [
+        "F14"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "开发分支删除与 Git GC 后交付版本仍由保留引用可达",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T042",
+      "feature_ids": [
+        "F14",
+        "F25"
+      ],
+      "owner_work_package": "J3-02",
+      "summary_zh": "路径穿越、UNC、符号链接和读取竞态边界按最终物理路径检查",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T043",
+      "feature_ids": [
+        "F14"
+      ],
+      "owner_work_package": "J3-07",
+      "summary_zh": "external 引用不自动发起带凭据请求，来源未验证显式标注",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T044",
+      "feature_ids": [
+        "F15"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "持续大输出下滚动、输入、分页和停止可用且有背压",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T045",
+      "feature_ids": [
+        "F15"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "忙角色输入补充和新任务明确区分，立即打断须显式选择",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T046",
+      "feature_ids": [
+        "F16"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "委托、运行、审批和交付状态独立，不依赖正文猜测",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T047",
+      "feature_ids": [
+        "F16",
+        "F23"
+      ],
+      "owner_work_package": "J3-08",
+      "summary_zh": "重连、事件重复缺号乱序按游标恢复，不二次派发",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T048",
+      "feature_ids": [
+        "F17"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "未知目标、过期身份、不可读资料和未知执行进入问题中心",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T049",
+      "feature_ids": [
+        "F18"
+      ],
+      "owner_work_package": "J3-06",
+      "summary_zh": "Codex 运行中切号只暂停相关认证单元，停止由用户授权",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T050",
+      "feature_ids": [
+        "F18"
+      ],
+      "owner_work_package": "J3-06",
+      "summary_zh": "切出切回保存并使用刷新后的最新凭据，不覆盖为旧副本",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T051",
+      "feature_ids": [
+        "F18"
+      ],
+      "owner_work_package": "J3-06",
+      "summary_zh": "账号切换各日志阶段退出后恢复为安全暂停或可核验状态",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T052",
+      "feature_ids": [
+        "F18"
+      ],
+      "owner_work_package": "J3-06",
+      "summary_zh": "目标凭据合法但实际身份不匹配时拒绝继续",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T053",
+      "feature_ids": [
+        "F19"
+      ],
+      "owner_work_package": "J3-06",
+      "summary_zh": "Kimi 两 Profile 切换，原生恢复与新会话交接分别明示",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T054",
+      "feature_ids": [
+        "F18",
+        "F19"
+      ],
+      "owner_work_package": "J3-06",
+      "summary_zh": "额度成功、过期、HTTP 成功业务失败及超时分别正确展示",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T055",
+      "feature_ids": [
+        "F18",
+        "F19"
+      ],
+      "owner_work_package": "J3-06",
+      "summary_zh": "额度服务与活跃运行刷新同份凭据时遵守认证互斥",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T056",
+      "feature_ids": [
+        "F20"
+      ],
+      "owner_work_package": "J3-05",
+      "summary_zh": "pi token 和成本展示与套餐剩余额度区分",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T057",
+      "feature_ids": [
+        "F21"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "滑动时间窗口限流保留已收请求与队列",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T058",
+      "feature_ids": [
+        "F21"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "低频循环累计与持续预算、时钟回拨和重启不重置保护",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T059",
+      "feature_ids": [
+        "F21"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "限流不阻断结果保存、取消和错误处理等控制操作",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T060",
+      "feature_ids": [
+        "F22"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "Windows 后台继续并两次重开，Core 桥会话存活且不重复任务",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T061",
+      "feature_ids": [
+        "F22"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "当前轮次后暂停时收尾可完成、后继任务不自动启动",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T062",
+      "feature_ids": [
+        "F22"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "Windows 子孙进程忽略软取消时受测 Job 停止整组，不误杀独立进程",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T063",
+      "feature_ids": [
+        "F22",
+        "F25"
+      ],
+      "owner_work_package": "J3-09",
+      "summary_zh": "后台审批输入请求不默认批准，取消后迟到批准失效",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T064",
+      "feature_ids": [
+        "F23"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "发送首字节后失联无法证明执行结果时 UNKNOWN，不重复副作用",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T065",
+      "feature_ids": [
+        "F23"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "旧 epoch、重复原生事件或 RunSettled 不覆盖新态，发布释放至多一次",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T066",
+      "feature_ids": [
+        "F23"
+      ],
+      "owner_work_package": "J3-11",
+      "summary_zh": "检查实际 SQLite runtime、WAL/FULL 及受认证修复范围",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T067",
+      "feature_ids": [
+        "F23"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "崩溃重启磁盘错误受控断电或等效存储故障验证持久性边界",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T068",
+      "feature_ids": [
+        "F24"
+      ],
+      "owner_work_package": "J3-11",
+      "summary_zh": "在线备份后新临时位置完整恢复，数据库资产版本均一致",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T069",
+      "feature_ids": [
+        "F24"
+      ],
+      "owner_work_package": "J3-02",
+      "summary_zh": "诊断历史备份导出扫描秘密种子，用户内容导出明确警示",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T070",
+      "feature_ids": [
+        "F24"
+      ],
+      "owner_work_package": "J3-11",
+      "summary_zh": "升级迁移失败可恢复，卸载不删改用户源项目",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T071",
+      "feature_ids": [
+        "F25"
+      ],
+      "owner_work_package": "J3-02",
+      "summary_zh": "其他绑定 token、越项目投递与 UI 越权拒绝，Renderer 无 Node/DB 权限",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T072",
+      "feature_ids": [
+        "F25"
+      ],
+      "owner_work_package": "J3-05",
+      "summary_zh": "pi 工作区第三方扩展和隐藏 subagent 队列不加载，不冒称 OS 沙箱",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T073",
+      "feature_ids": [
+        "F25"
+      ],
+      "owner_work_package": "J3-02",
+      "summary_zh": "localhost 桥 Origin/Host/过期 token 防护，不开放宽松 CORS",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T074",
+      "feature_ids": [
+        "F26"
+      ],
+      "owner_work_package": "J3-02",
+      "summary_zh": "仅内部核心契约，无未授权外部编排、创建角色或任意 API 代理",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T075",
+      "feature_ids": [
+        "F05",
+        "F15",
+        "F23"
+      ],
+      "owner_work_package": "J3-05",
+      "summary_zh": "pi LF 分帧处理 UTF-8 半字符、U+2028/U+2029、长行和 stderr",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T076",
+      "feature_ids": [
+        "F10",
+        "F12"
+      ],
+      "owner_work_package": "J3-05",
+      "summary_zh": "pi agent_end 后重试或压缩，最终 settled 及清理后才释放屏障",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T077",
+      "feature_ids": [
+        "F05",
+        "F12"
+      ],
+      "owner_work_package": "J3-04",
+      "summary_zh": "ACP 协商版本和 prompt 终止语义按锁定版本解释",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T078",
+      "feature_ids": [
+        "F09",
+        "F25"
+      ],
+      "owner_work_package": "J3-03",
+      "summary_zh": "两个 Codex 线程工具交错发信，发送者受连接作用域约束",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T079",
+      "feature_ids": [
+        "F01",
+        "F22",
+        "F24"
+      ],
+      "owner_work_package": "J3-11",
+      "summary_zh": "中文空格路径、非开发账户、无系统 Node，私有 runtime/helper 可执行",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T080",
+      "feature_ids": [
+        "F09",
+        "F12",
+        "F15",
+        "F23"
+      ],
+      "owner_work_package": "J3-10",
+      "summary_zh": "12 角色3并发10k记录持续输出，报告 p95、内存和停止响应",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    },
+    {
+      "test_id": "T081",
+      "feature_ids": [
+        "F01",
+        "F05",
+        "F25"
+      ],
+      "owner_work_package": "J3-11",
+      "summary_zh": "锁文件、Harness hash 与实际执行路径一致，漂移阻断或重认证",
+      "definition_authority": "S10: original pinned matrix; summary is an index, not a replacement",
+      "source_url": "https://github.com/hhhzingy/AgentRouter/blob/62b2e187285aeb0fd73926cdc47c8d830502fb97/docs/执行包/AgentRouter_V1.0功能与开发手册包/04_验收与追踪矩阵.md",
+      "required": true,
+      "status": "NOT_RUN",
+      "subruns": [],
+      "actual_result": null,
+      "candidate_source_sha": null,
+      "evidence": [],
+      "execution_note": "依原始用例区分确定性、真实原生、Windows/Ubuntu、用户观察子记录；一项所需子记录缺失不得整体 PASS。"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "sourceSha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+  "command": "node tools/check-w11.mjs",
+  "exitCode": 0,
+  "scope": "OFFLINE_FIXTURE_REGRESSION",
+  "realHarnessSupport": 0,
+  "log": "baseline-gates.log",
+  "historicalEvidenceRestored": true,
+  "initialFailure": "FROZEN_CONTRACT_CHANGED:docs/api/README.md",
+  "fix": "恢复冻结文件原字节；新增 docs/api/J3-current.md；未改冻结 hash"
+}

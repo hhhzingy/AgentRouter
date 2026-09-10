@@ -1,0 +1,12 @@
+C1 generation verified
+file:///E:/AgentRouter/.local/w11a/integration/tools/check-client-freeze.mjs:18
+    throw Error('FROZEN_CONTRACT_CHANGED:' + path);
+          ^
+
+Error: FROZEN_CONTRACT_CHANGED:docs/api/README.md
+    at file:///E:/AgentRouter/.local/w11a/integration/tools/check-client-freeze.mjs:18:11
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.14.0
