@@ -1,0 +1,63 @@
+{
+  "stage": "J1",
+  "status": "PASS_STOP_FOR_REVIEW",
+  "integrationBranch": "integration/v1.0-next",
+  "J1_INTEGRATION_SHA": "21359316b9ff42d0968c5d91e403ea13b2bc6639",
+  "coreBaseline": "59942b21654997540da0ea04f2cda4d9611cb39d",
+  "uiBaseline": "6ef799f837df279ebc848a5665af31fc9ee0b68c",
+  "uiBranch": "feat/ui-b1-final",
+  "uiTag": "ui-baseline-v1",
+  "mainUnchanged": "16370d3971740c80ca9ccec7a6d9b3553e896545",
+  "repository": "https://github.com/hhhzingy/AgentRouter",
+  "visibility": "PRIVATE",
+  "local": {
+    "command": "node tools/check-w11.mjs",
+    "exitCode": 0,
+    "testFiles": 26,
+    "testsPassed": 199,
+    "uiTestsActual": 74,
+    "uiTestsUpstreamClaim": 83,
+    "J1ElectronLocalChecks": 12,
+    "priorB0Checks": 2,
+    "priorW11ElectronLocalChecks": 4,
+    "windows": "10.0.26200 x64",
+    "node": "24.14.0",
+    "electron": "44.3.0",
+    "sqlitePackage": "13.0.3",
+    "packageManifestFilesPassed": 7,
+    "stagedSensitiveScan": "PASS",
+    "historySensitiveScan": "PASS"
+  },
+  "githubActions": [
+    {
+      "conclusion": "success",
+      "databaseId": 34439108755,
+      "headSha": "21359316b9ff42d0968c5d91e403ea13b2bc6639",
+      "status": "completed",
+      "url": "https://github.com/hhhzingy/AgentRouter/actions/runs/34439108755",
+      "workflowName": "W11 integration and P1 gates"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 34439108746,
+      "headSha": "21359316b9ff42d0968c5d91e403ea13b2bc6639",
+      "status": "completed",
+      "url": "https://github.com/hhhzingy/AgentRouter/actions/runs/34439108746",
+      "workflowName": "C1 contract and offline gates"
+    }
+  ],
+  "runtimeEvidence": "REAL_ELECTRON_LOCAL_CORE",
+  "executionFixture": "SIMULATED_PROCESS",
+  "realHarnessSupport": 0,
+  "nativeDialogs": "CONTROLLED_MAIN_RETURN; MANUAL_OS_INTERACTION_NOT_RUN",
+  "notRun": [
+    "真实账号",
+    "真实 Harness",
+    "真实 SSH/Linux",
+    "干净 Windows 安装卸载",
+    "系统退出/断电与长期压力"
+  ],
+  "ownership": "UIAI 已停止；Codex 为后续唯一代码负责人",
+  "nextStage": "STOP_FOR_J1_REVIEW; W11B_NOT_STARTED",
+  "evidenceRule": "本文件后续文档提交不能冒充上述精确实现 SHA 的 CI 验证；以各 run 的 headSha 为准。"
+}
