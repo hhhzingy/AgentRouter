@@ -53,7 +53,7 @@
     "id": "J3-02",
     "owner": "integration-lead",
     "branch": "feat/v1-finalization-j3",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
     "test_ids": [
       "T017",
@@ -76,7 +76,8 @@
       "packages/platform/",
       "packages/security/",
       "tools/",
-      "tests/"
+      "tests/",
+      "native/windows-supervisor/"
     ]
   },
   {

@@ -1,12 +1,16 @@
 using System;
 using System.Text;
+using System.Diagnostics;
+using System.Threading;
 using System.Runtime.InteropServices;
-// Narrow development supervisor: spawn suspended, assign to Job, then resume.
+// Lifecycle supervisor: spawn suspended, assign to Job, then resume.
+// This is NOT an OS credential sandbox. Parent exit alone is not a tree-stop proof.
 // No credentials, routing, shell parsing, or process-name termination.
 public static class Supervisor {
  [StructLayout(LayoutKind.Sequential)] struct STARTUPINFO { public int cb; public string reserved,desktop,title; public int x,y,xSize,ySize,xChars,yChars,fill,flags; public short show,reserved2; public IntPtr reservedPtr,input,output,error; }
  [StructLayout(LayoutKind.Sequential)] struct PROCESS_INFORMATION {public IntPtr process,thread;public uint pid,tid;}
  [StructLayout(LayoutKind.Sequential)] struct BASIC_LIMIT {public long perProcess,perJob;public uint flags;public UIntPtr min,max;public uint active;public UIntPtr affinity;public uint priority,scheduling;}
+ [StructLayout(LayoutKind.Sequential)] struct BASIC_ACCOUNTING {public long userTime,kernelTime,periodUserTime,periodKernelTime;public uint faults,totalProcesses,activeProcesses,terminatedProcesses;}
  [StructLayout(LayoutKind.Sequential)] struct IO_COUNTERS {public ulong a,b,c,d,e,f;}
  [StructLayout(LayoutKind.Sequential)] struct EXTENDED_LIMIT {public BASIC_LIMIT basic;public IO_COUNTERS io;public UIntPtr processMemory,jobMemory,peakProcess,peakJob;}
  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateJobObject(IntPtr attributes,string name);
@@ -16,6 +20,8 @@ public static class Supervisor {
  [DllImport("kernel32.dll",SetLastError=true)] static extern uint ResumeThread(IntPtr thread);
  [DllImport("kernel32.dll")] static extern uint WaitForSingleObject(IntPtr handle,uint ms);
  [DllImport("kernel32.dll")] static extern bool GetExitCodeProcess(IntPtr process,out uint code);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool QueryInformationJobObject(IntPtr job,int type,out BASIC_ACCOUNTING info,int length,IntPtr returned);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateJobObject(IntPtr job,uint code);
  [DllImport("kernel32.dll")] static extern bool TerminateProcess(IntPtr process,uint code);
  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
  [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int type);
@@ -36,7 +42,19 @@ public static class Supervisor {
    if(!CreateProcess(args[1],command,IntPtr.Zero,IntPtr.Zero,true,0x4|0x08000000,IntPtr.Zero,args[0],ref si,out pi))throw new Exception("CREATE_PROCESS:"+Marshal.GetLastWin32Error());
    if(!AssignProcessToJobObject(job,pi.process)){TerminateProcess(pi.process,125);throw new Exception("ASSIGN_JOB:"+Marshal.GetLastWin32Error());}
    if(ResumeThread(pi.thread)==0xffffffff){TerminateProcess(pi.process,125);throw new Exception("RESUME_FAILED");}
-   WaitForSingleObject(pi.process,0xffffffff);uint code;GetExitCodeProcess(pi.process,out code);return unchecked((int)code);
+   if(WaitForSingleObject(pi.process,0xffffffff)!=0)throw new Exception("WAIT_PROCESS_FAILED");
+   uint code;if(!GetExitCodeProcess(pi.process,out code))throw new Exception("EXIT_CODE_FAILED");
+   // End all descendants before reporting completion. Job closure by itself is asynchronous.
+   if(!TerminateJobObject(job,125))throw new Exception("TERMINATE_JOB:"+Marshal.GetLastWin32Error());
+   var deadline=Stopwatch.StartNew();
+   while(true){
+    BASIC_ACCOUNTING accounting;
+    if(!QueryInformationJobObject(job,1,out accounting,Marshal.SizeOf(typeof(BASIC_ACCOUNTING)),IntPtr.Zero))throw new Exception("QUERY_JOB:"+Marshal.GetLastWin32Error());
+    if(accounting.activeProcesses==0)break;
+    if(deadline.ElapsedMilliseconds>=10000)throw new Exception("TREE_STOP_UNPROVEN");
+    Thread.Sleep(10);
+   }
+   return unchecked((int)code);
   }catch(Exception e){Console.Error.WriteLine(e.Message);return 125;}
   finally{if(job!=IntPtr.Zero)CloseHandle(job);if(pi.thread!=IntPtr.Zero)CloseHandle(pi.thread);if(pi.process!=IntPtr.Zero)CloseHandle(pi.process);if(si.input!=IntPtr.Zero)CloseHandle(si.input);if(si.output!=IntPtr.Zero)CloseHandle(si.output);if(si.error!=IntPtr.Zero)CloseHandle(si.error);}
  }
