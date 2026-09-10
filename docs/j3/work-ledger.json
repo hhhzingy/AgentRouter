@@ -77,14 +77,15 @@
       "packages/security/",
       "tools/",
       "tests/",
-      "native/windows-supervisor/"
+      "native/windows-supervisor/",
+      "native/windows-isolation/"
     ]
   },
   {
     "id": "J3-03",
     "owner": "integration-lead",
     "branch": "feat/v1-finalization-j3",
-    "status": "PLANNED",
+    "status": "IN_PROGRESS",
     "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
     "test_ids": [
       "T007",
