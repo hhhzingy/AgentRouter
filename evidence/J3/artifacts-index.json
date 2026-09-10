@@ -1,0 +1,277 @@
+{
+  "sourceSha": "794d4519a09dce9c33454ff039c3eee4638cb4d5",
+  "files": [
+    {
+      "path": "evidence/J3/J3-00/baseline-gates.txt",
+      "sha256": "eacefd907b5a285898f43db0f60ea3186ef5e06b0d5de08dde9be4ccdea20c72"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J1/screenshots/01-plan-review.png",
+      "sha256": "4ed5e01c2241e5a2596edd0eb259b430dc4639aef09ddcb5fd7a37b62a39ed2b"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J1/screenshots/02-two-groups.png",
+      "sha256": "86b97b3f443c8a104900dc3b1599c6956c5787fe31d3032f75b92714367d52e9"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J1/screenshots/03-settling.png",
+      "sha256": "9b78485da28c1662dffbbca66e918307b47bf4429f8d84f44847869137562d3f"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J1/screenshots/04-unknown.png",
+      "sha256": "f19d732c59e9c0ffb9e36673a368c6a2a3a253afbee7730900b3efaff76d5881"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J1/screenshots/05-home-restarted-1280.png",
+      "sha256": "bed78f7b7b9a1903176bc598e365432baf187f9642534c9eb0a916c3e0c0c906"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/desktop.json",
+      "sha256": "0412b0593f2b05aa4b2978d40184c53e01cf2d1b4b572bdb0ab7a51a70bcb2ec"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+      "sha256": "7628321b7011c103c604729040f7f63abde7bfefa9865ec61e235588464ab67a"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+      "sha256": "25c06a4220bb157a779d2212ab9763ae755353ee86948f1ceb9f7dc2f886e0c9"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+      "sha256": "7b005eb37495c84063c43a67484517684fcd2d2b1686195b92a83d0ac0e3d4c0"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-150.png",
+      "sha256": "c12f7620dcbfbaf4882fb9b328b6add01c3e9393756e908ed799e3576d44fc92"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+      "sha256": "260500fd20329ee20d2cee39992429dfd39e6ededd001eaf1ccd9b0499eca472"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+      "sha256": "4964cb7bc25333c88dee681ef51d10ad060e5b0717f857b7be4aefd421b4c92e"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+      "sha256": "89d9b359eb43cd43d5edc5ec0c072db71e4f0aa5ba61a354c8307bd5d7031c9b"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+      "sha256": "af8f7d54dfa60e98d3bda91d953aa669ffa9d49a6747531356725829c6348c78"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+      "sha256": "ba89af50f1497f38c2a09cbf1ccfcf0222a1fa2a8691cb5f3eb9e0d729858ffa"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+      "sha256": "0d1d38221a27642b8f97fcee5e1949c2aa6d69f66a447d1e76cdb59421ea9c2f"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+      "sha256": "6c12888627799500aec0cd331a6d558235e36993c5f1bbb2df7d61cdf071ae53"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline-result.json",
+      "sha256": "658b5920e0c6fa1f18e3f1a8b388fe26504d942b5041f206346009a64c34faf4"
+    },
+    {
+      "path": "evidence/J3/J3-00/baseline.json",
+      "sha256": "4d5e6924033b917076994e53105567064e1f61b03e53b66f322a28b0dc554608"
+    },
+    {
+      "path": "evidence/J3/J3-00/environment.json",
+      "sha256": "e6bcbbb62ef76251f030c49e7e89fca7e921c7ed7b22fff59e649420f5fbef5b"
+    },
+    {
+      "path": "evidence/J3/J3-00/frozen-entry-failure.txt",
+      "sha256": "d7d787f7cf9bd87b2c9152b3b286822d5e591d7454321d4f72087983419023c4"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-gates.txt",
+      "sha256": "af945499179886c0f9b35885b8f502fc929c4f21f73e625af8ba04ad0ecd8804"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J1/desktop.json",
+      "sha256": "d442c59592cf69cf55569429050638cf05e2c52a630b02772033121e14b0b294"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J1/screenshots/01-plan-review.png",
+      "sha256": "6bc55bc31fdac99be69e878355bb249b763e9b1d6a54b2fa80e74b3657cc2210"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J1/screenshots/02-two-groups.png",
+      "sha256": "3cd0fee1f483a64b6a1b63b1669d81a9734ec40f2b3e5b21bc46e277c1b605f4"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J1/screenshots/03-settling.png",
+      "sha256": "8689f366be1c712f7d08f4c1e167c7ed065165684d890d0f22484cba7c36306d"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J1/screenshots/04-unknown.png",
+      "sha256": "9cc847cb7b3c0a7656dc3e746bff956421a5633814a718bef8ec2c8f724e8a73"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J1/screenshots/05-home-restarted-1280.png",
+      "sha256": "b826e5bedf815ebda388853abee45697f3cbc04ecbdea543d78e267e78466754"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/contrast.json",
+      "sha256": "cc07bc3dcfabcc9ac8394ad19ca0d90ea345891682693783ecd7694181e87b1c"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/desktop.json",
+      "sha256": "9053cd54f8b0a8962c9cecf4e0a8a479405532be03a0aaea460511d64036cb64"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+      "sha256": "a15e6c6b9e0792bb260db23a4e1e570dc8bfca1dbd8ec63cd4e800c499808ceb"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+      "sha256": "edc5b43a408f6afe0fc1577ccec59b0917c92914c54c87085e0a9f25df8e3f2e"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+      "sha256": "0dfc9b2f46d2499439553901a30e94b3c6ec84855df6075bd6712834b783853e"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-disconnected-readonly.png",
+      "sha256": "eae08848db35ec8dbb319ad54b61c3517ae9f00ff7da683c407ab8d1b63f5507"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-empty-home.png",
+      "sha256": "a092a2f5a9a0694418f1cdd3dc7f70a09e695031eb97dc74566e0373dad03985"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-failed-keeps-input.png",
+      "sha256": "b8d6dca96e7157ac24838592557c76ab8b89a688074120a03734b7894f4aa272"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-history-150.png",
+      "sha256": "c12f7620dcbfbaf4882fb9b328b6add01c3e9393756e908ed799e3576d44fc92"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+      "sha256": "260500fd20329ee20d2cee39992429dfd39e6ededd001eaf1ccd9b0499eca472"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-manual-editor.png",
+      "sha256": "f48d78d755934311d5f6009d0e2e7cff87cbb0de9497b70b5dae67af1e11e74b"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+      "sha256": "79765052af92413d35dc68f9bdfbc1d17dfec6761bc32d3aea3c7deff8ff18bd"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+      "sha256": "861ed340bcc32ea48faaf95a4ec926bd8a8af6037bf820db431c35bf3713fc77"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+      "sha256": "e77d741a5299edb6cadfcc32a6859c75989142accab4ffbefb17e030da817694"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+      "sha256": "4026b1e6c73d00cf861d6691c3b847398e7aa6b2a3cbc253e590da60d41a6924"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+      "sha256": "d2d19b1db0e92466317af2e4a842b70452d2c6169a64faa1082f4b5cbfe373b3"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+      "sha256": "8e9f1446544a2d078f290a1b908c9becf100967e3de889bbcc20b073db2e786e"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-two-groups.png",
+      "sha256": "1212aa928f2bcbc747bdbe329c9297499a46e65e3a04c4aa0afc5a639ba020df"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-rerun/J2/screenshots/LOCAL_CORE-1440x900-100-uncertain-edited-draft.png",
+      "sha256": "0bde32a4c53bfc89eea4b93e731df2b93e5c1cc272f9b8ef7730ea885c47fbb0"
+    },
+    {
+      "path": "evidence/J3/J3-01/committed-result.json",
+      "sha256": "bdae3bbe42ecfe5941428702ee2725ea7d68367ca4ae7b8b57fd2119fbf21d0d"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/01-plan-review.png",
+      "sha256": "9336950e4b7f6ae71d8f8f05f36f3331c3c5393532e2773d83ce686371c08334"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/02-two-groups.png",
+      "sha256": "468dc0bbc38c0cf5655e75089c5c63852bf6bf0ce5a77fd2b8d08015593664d0"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/03-settling.png",
+      "sha256": "b5f7f399d18af1f7dbfad738c46670debb12d39614fc27e272a70a50a6d2ba39"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/04-unknown.png",
+      "sha256": "b0a2814c0ff2e882fb702082ab97dc67b2ba627319f3f550b60b2b2e3eb7e6e1"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/05-home-restarted-1280.png",
+      "sha256": "c5ac2dec8810eb3932e5a9c014565263968c09b882a1129bc475ed0f4bb16235"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/desktop.json",
+      "sha256": "a61b2641d70952fbd666be6a5f3558a75a6e22b20d67ab93cca5b45d443e7d1a"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+      "sha256": "44f33e4a1b0c80c359eea833cab194e36e2d7a1e5cbbd8b054970d59b81f2506"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+      "sha256": "5de35e5091f4a469c4321ba5f7341fab59f1d78006b018510cb07ef07749f6df"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+      "sha256": "38bd88514ea212bc3ed76169b2a338cc61a7f6130ac4b6900a1ae991255a0216"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+      "sha256": "260500fd20329ee20d2cee39992429dfd39e6ededd001eaf1ccd9b0499eca472"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+      "sha256": "a69643fda929e10c45d1eaa8e981641f6c1107c6c97be82067be0be031aabb34"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+      "sha256": "6a269b85fbe07ad585fa78ca389b614cdee1978922184b6e719b8916727ece2c"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+      "sha256": "67c4d06eef48ef8cc004f2ee14e0e37cbc4e7b397edfbac34502310dfef81e2d"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+      "sha256": "54aae2dcc9a031f59abea96c40fed143a309aff8f27c0cdf94cca3e436cff44f"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+      "sha256": "d03e487713d120da92d1a8081b6cd4cca232dfaa30247a6d548844db77082080"
+    },
+    {
+      "path": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+      "sha256": "e762a93ddff3a4bcc7e46f8a409f58d8436015f584561ebadba07d9018627fea"
+    },
+    {
+      "path": "evidence/J3/J3-01/preserved-generated-files.json",
+      "sha256": "9c71b0d8a83150c571bff2bda0db4a589b9aa06d31c7cff34177605a62f9c1d1"
+    },
+    {
+      "path": "evidence/J3/J3-02/windows-supervisor.json",
+      "sha256": "290b3fb25f5f1fd806f5c2094568309f88502b30411c2f44e578ed25046818c0"
+    },
+    {
+      "path": "evidence/J3/J3-03/schema-export.json",
+      "sha256": "92d82d54120f192fcd67fd0ac300ce82079be9a04206c74be18b99c7eca6184f"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "sourceSha": "794d4519a09dce9c33454ff039c3eee4638cb4d5",
+  "sourceDirty": false,
+  "command": "AGENTROUTER_TEST_EVIDENCE_ROOT=evidence/J3/J3-01/committed-rerun node tools/check-w11.mjs",
+  "exitCode": 0,
+  "tests": 230,
+  "electronChecks": 38,
+  "realHarnessSupport": 0,
+  "scope": "OFFLINE_FIXTURE_REGRESSION",
+  "manualDialogs": "NOT_RUN",
+  "historicalEvidenceUnchanged": true
+}

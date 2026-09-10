@@ -1,0 +1,98 @@
+[
+  {
+    "path": "evidence/J1/screenshots/01-plan-review.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/01-plan-review.png",
+    "current_sha256": "9336950e4b7f6ae71d8f8f05f36f3331c3c5393532e2773d83ce686371c08334",
+    "historical_sha256": "02c6e6826478b1edc0ae8531ce767ffbcd5af7c358a2e35b2e70ef9296f7a855"
+  },
+  {
+    "path": "evidence/J1/screenshots/02-two-groups.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/02-two-groups.png",
+    "current_sha256": "468dc0bbc38c0cf5655e75089c5c63852bf6bf0ce5a77fd2b8d08015593664d0",
+    "historical_sha256": "2279d8388f2fe4c48bac370c8edb1e6fa943b966505a7fdb773c9b8d659f73e0"
+  },
+  {
+    "path": "evidence/J1/screenshots/03-settling.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/03-settling.png",
+    "current_sha256": "b5f7f399d18af1f7dbfad738c46670debb12d39614fc27e272a70a50a6d2ba39",
+    "historical_sha256": "2ea7d7465f94645cda113a9a7a5a329f3f691ee7926658e2264463f0dcf53a92"
+  },
+  {
+    "path": "evidence/J1/screenshots/04-unknown.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/04-unknown.png",
+    "current_sha256": "b0a2814c0ff2e882fb702082ab97dc67b2ba627319f3f550b60b2b2e3eb7e6e1",
+    "historical_sha256": "582d42f4b20718606bed844965ae9cb878defc8d40c4df150fc80f18bb15aa93"
+  },
+  {
+    "path": "evidence/J1/screenshots/05-home-restarted-1280.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J1/screenshots/05-home-restarted-1280.png",
+    "current_sha256": "c5ac2dec8810eb3932e5a9c014565263968c09b882a1129bc475ed0f4bb16235",
+    "historical_sha256": "f8a6d1e27db5e1f7f961f334d622c30da8e791965404916d933081b14689e08b"
+  },
+  {
+    "path": "evidence/J2/desktop.json",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/desktop.json",
+    "current_sha256": "a61b2641d70952fbd666be6a5f3558a75a6e22b20d67ab93cca5b45d443e7d1a",
+    "historical_sha256": "05f34d5b653ef9974ef8737c17c9b2ccbf2440ea5ec494326e874399392f55f5"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+    "current_sha256": "44f33e4a1b0c80c359eea833cab194e36e2d7a1e5cbbd8b054970d59b81f2506",
+    "historical_sha256": "cb70aaf94fb07c48c29a2b8196db108cb1d61e7a6368e977c19ce3cf16ee03fe"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+    "current_sha256": "5de35e5091f4a469c4321ba5f7341fab59f1d78006b018510cb07ef07749f6df",
+    "historical_sha256": "ae2df8d2f923de0e316fe2e1b5bc9e268f84850e7b92a990d0be89c42b18e2e8"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+    "current_sha256": "38bd88514ea212bc3ed76169b2a338cc61a7f6130ac4b6900a1ae991255a0216",
+    "historical_sha256": "bb98b9a01071a5b03667467859eb4912587d89d956b9cac11f1a97a9f4d23b73"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+    "current_sha256": "260500fd20329ee20d2cee39992429dfd39e6ededd001eaf1ccd9b0499eca472",
+    "historical_sha256": "604ab00b97e98c5ecaa744f78df1a0b145d33ef0b7ac2c76134c963b7a799425"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+    "current_sha256": "a69643fda929e10c45d1eaa8e981641f6c1107c6c97be82067be0be031aabb34",
+    "historical_sha256": "c8a95df87037aa1ea17d705517b50641c3c73d7855fdeb8dcd1ee713ce5315c1"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+    "current_sha256": "6a269b85fbe07ad585fa78ca389b614cdee1978922184b6e719b8916727ece2c",
+    "historical_sha256": "743c33966ee1368920172b8a816bd740d7b23d0c513b18d62eb7876bddcbaedc"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+    "current_sha256": "67c4d06eef48ef8cc004f2ee14e0e37cbc4e7b397edfbac34502310dfef81e2d",
+    "historical_sha256": "3efd365afcf6da4ddca2c7dbbca1f016a29ba1bd64b6a8bc0be979d4689d7b40"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+    "current_sha256": "54aae2dcc9a031f59abea96c40fed143a309aff8f27c0cdf94cca3e436cff44f",
+    "historical_sha256": "36a1aa2ee627b505eea4b393163024ac796bb1beb732921d92520387ac52c0c3"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+    "current_sha256": "d03e487713d120da92d1a8081b6cd4cca232dfaa30247a6d548844db77082080",
+    "historical_sha256": "914c0f04e04bf4ef850a14c93097d51892eff301e37ecc4b36dd80959a0ce494"
+  },
+  {
+    "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+    "archive": "evidence/J3/J3-01/precommit-rerun/evidence/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+    "current_sha256": "e762a93ddff3a4bcc7e46f8a409f58d8436015f584561ebadba07d9018627fea",
+    "historical_sha256": "63e7c291f1625c6ba2df762f36b2267ac5b7568c55f98dd83d23b625ddce883c"
+  }
+]
