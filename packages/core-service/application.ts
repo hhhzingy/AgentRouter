@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { realpathSync, statSync, readdirSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 import type Database from 'better-sqlite3';
+import { inspectArtifact } from './artifacts.ts';
 import { Core } from '../runtime/core.ts';
 import { Management } from '../runtime/management.ts';
 import { RouteError } from '../protocol/index.ts';
@@ -74,6 +75,10 @@ const methods: Method[] = [
   'issue.list',
   'approval.list',
   'inbox.list',
+  'artifact.list',
+  'artifact.get',
+  'artifact.download',
+  'artifact.verify',
   'result.accept',
   'result.reject',
   'runtime.pauseDispatch',
@@ -464,6 +469,17 @@ export class ApplicationService extends Plans {
     if (this.lease.connection !== id || this.lease.id !== lease)
       throw new C1R1Error('CONTROL_LEASE_REQUIRED');
   }
+  /** 仅认证的本机 Main 原生选目录后调用，不在 Renderer Client API 方法表。 */
+  grantSelectedDirectory(connection: string, path: string) {
+    const c = this.connection(connection);
+    if (!c.authorized || c.mode !== 'controller') throw new C1R1Error('SCOPE_DENIED');
+    this.checkLease(connection, this.lease?.id ?? '');
+    if (path.startsWith('\\\\')) throw new C1R1Error('SCOPE_DENIED');
+    const real = realpathSync(path);
+    if (!statSync(real).isDirectory()) throw new C1R1Error('SCOPE_DENIED');
+    if (!this.roots.includes(real)) this.roots.push(real);
+    return this.grant(connection, real);
+  }
   private grant(connection: string, path: string) {
     const real = realpathSync(path);
     if (
@@ -591,6 +607,39 @@ export class ApplicationService extends Plans {
         );
       if (!rows.length) throw new C1R1Error('NOT_FOUND');
       return this.charter(rows.at(-1));
+    }
+    if (m.startsWith('artifact.')) {
+      if (m === 'artifact.list')
+        return this.page(
+          this.all('select * from artifacts order by created_at_ms,id')
+            .filter((row) => this.matches(c, p.scope ?? {}, row.project_id))
+            .map((row) => inspectArtifact(this.db.name, row, this.rev(row.id)).view),
+          p,
+        );
+      const row = this.one('select * from artifacts where id=?', p.id);
+      if (!row) throw new C1R1Error('NOT_FOUND');
+      this.authorize(c, { project_id: row.project_id });
+      if (!this.matches(c, p.scope ?? {}, row.project_id)) throw new C1R1Error('SCOPE_DENIED');
+      const value = inspectArtifact(this.db.name, row, this.rev(row.id));
+      if (m === 'artifact.download') {
+        if (value.view.state !== 'AVAILABLE' || !value.bytes)
+          throw new C1R1Error('CAPABILITY_UNAVAILABLE');
+        const offset = p.offset_bytes ?? 0;
+        if (offset > value.bytes.length) throw new C1R1Error('INVALID_PARAMS');
+        const bytes = value.bytes.subarray(
+          offset,
+          offset + Math.min(p.limit_bytes ?? 65536, 65536),
+        );
+        return {
+          artifactId: row.id,
+          offset,
+          byteSize: bytes.length,
+          encoding: 'base64',
+          content: bytes.toString('base64'),
+          hasMore: offset + bytes.length < value.bytes.length,
+        };
+      }
+      return value.view;
     }
     if (m === 'conversation.read') return this.conversation(c, p);
     const snapshot = this.snapshot();

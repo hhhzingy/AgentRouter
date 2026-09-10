@@ -1,5 +1,8 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts';
 import { connectLocalCore } from './local-core-launcher.ts';
+import { createHash } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadP1Scenario } from '../../packages/core-api/mock-p1-scenario.ts';
@@ -37,6 +40,62 @@ if (process.env.AGENTROUTER_DATA) app.setPath('userData', process.env.AGENTROUTE
 app.whenReady().then(async () => {
   if (mock && process.env.AGENTROUTER_PREVIEW_SCENARIO)
     await loadP1Scenario(mock, process.env.AGENTROUTER_PREVIEW_SCENARIO);
+  ipcMain.handle('desktop:choose-project-directory', async (e) => {
+    guard(e.sender);
+    if (!session || session.connectionState() !== 'CONNECTED_CONTROLLER')
+      throw Error('CONTROL_LEASE_REQUIRED');
+    const selected = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory'],
+      title: '选择项目目录',
+    });
+    if (selected.canceled || !selected.filePaths[0]) return null;
+    if (!(transport instanceof LocalCoreTransport)) throw Error('CAPABILITY_UNAVAILABLE');
+    return transport.grantSelectedDirectory(selected.filePaths[0]);
+  });
+  ipcMain.handle('desktop:save-artifact', async (e, id: string) => {
+    guard(e.sender);
+    if (!session || session.connectionState() !== 'CONNECTED_CONTROLLER')
+      throw Error('CONTROL_LEASE_REQUIRED');
+    const current = session;
+    const artifact = await current.request('artifact.verify', { id });
+    if (artifact.state !== 'AVAILABLE' || artifact.byteSize > 20971520)
+      throw Error('ARTIFACT_UNAVAILABLE');
+    const selected = await dialog.showSaveDialog(win, {
+      title: '保存已校验产物',
+      defaultPath: 'artifact-' + id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100) + '.bin',
+    });
+    if (selected.canceled || !selected.filePath) return { saved: false };
+    const chunks: Buffer[] = [];
+    let offset = 0;
+    do {
+      const chunk = await current.request('artifact.download', {
+        id,
+        offset_bytes: offset,
+        limit_bytes: 65536,
+      });
+      const bytes = Buffer.from(chunk.content, 'base64');
+      if (
+        chunk.offset !== offset ||
+        bytes.length !== chunk.byteSize ||
+        offset + bytes.length > artifact.byteSize
+      )
+        throw Error('ARTIFACT_TRANSFER_INVALID');
+      chunks.push(bytes);
+      offset += bytes.length;
+      if (!chunk.hasMore) break;
+      if (bytes.length === 0) throw Error('ARTIFACT_TRANSFER_INVALID');
+    } while (offset < artifact.byteSize);
+    const bytes = Buffer.concat(chunks);
+    if (
+      bytes.length !== artifact.byteSize ||
+      createHash('sha256').update(bytes).digest('hex') !== artifact.sha256
+    )
+      throw Error('ARTIFACT_CHECKSUM_FAILED');
+    if (session !== current || current.connectionState() !== 'CONNECTED_CONTROLLER')
+      throw Error('CONTROL_LEASE_REQUIRED');
+    writeFileSync(selected.filePath, bytes);
+    return { saved: true, artifactId: id, byteSize: bytes.length };
+  });
   ipcMain.handle('p1:connect', async (e, options: ConnectOptions, g: number) => {
     guard(e.sender);
     await close();
@@ -101,8 +160,8 @@ app.whenReady().then(async () => {
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
-  win.webContents.on('did-start-navigation', () => {
-    void close();
+  win.webContents.on('did-start-navigation', (details) => {
+    if (details.isMainFrame && !details.isSameDocument) void close();
   });
   win.webContents.on('render-process-gone', () => {
     void close();

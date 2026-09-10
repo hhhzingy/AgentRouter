@@ -38,7 +38,13 @@ const client: ClientTransport = {
             params,
             serializable,
           );
-          if (reply.error) throw Object.assign(new Error(reply.error.code), reply.error);
+          if (reply.error) {
+            if (['CONNECTION_LOST', 'CORE_CONNECT_TIMEOUT'].includes(reply.error.code)) {
+              state = 'DISCONNECTED';
+              expires = 0;
+            }
+            throw Object.assign(new Error(reply.error.code), reply.error);
+          }
           if (method === 'control.acquire' || method === 'control.renew') {
             expires = (reply.result as LeaseVM).expiresAtMs;
             state = 'CONNECTED_CONTROLLER';
@@ -72,3 +78,7 @@ const client: ClientTransport = {
   },
 };
 contextBridge.exposeInMainWorld('agentrouterClient', client);
+contextBridge.exposeInMainWorld('agentrouterDesktop', {
+  chooseProjectDirectory: () => ipcRenderer.invoke('desktop:choose-project-directory'),
+  saveArtifact: (id: string) => ipcRenderer.invoke('desktop:save-artifact', id),
+});

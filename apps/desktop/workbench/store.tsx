@@ -12,6 +12,11 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
+import {
+  methodMetadata,
+  type LeaseVM,
+} from '../../../packages/client-contract/c1r1p1/generated.ts';
+import { scopeFor } from './requests.ts';
 import type { ClientSession } from '../../../packages/client-transport/p1/types.ts';
 import type {
   AccountProfileVM,
@@ -28,7 +33,7 @@ import type {
 export interface WorkbenchStore {
   hello: CoreHelloVM;
   snapshot: SnapshotVM;
-  /** 全量时间线（message.listTimeline），按 scope 过滤由页面完成。 */
+  /** 首批时间线（conversation.read）；角色详情按游标继续读取。 */
   timeline: ConversationItemVM[];
   /** 账号 Profile（脱敏）与额度快照，随 refresh 更新。 */
   accounts: AccountProfileVM[];
@@ -41,7 +46,10 @@ export interface WorkbenchStore {
   /** 冻结时刻：断线时展示"数据截至"。 */
   frozenAtMs: number;
   now: () => number;
-  call<M extends Method>(method: M, params: MethodMap[M]['params']): Promise<MethodMap[M]['result']>;
+  call<M extends Method>(
+    method: M,
+    params: MethodMap[M]['params'],
+  ): Promise<MethodMap[M]['result']>;
   refresh: () => Promise<void>;
   acquireControl: () => Promise<void>;
   releaseControl: () => Promise<void>;
@@ -76,49 +84,130 @@ export function StoreProvider({
   const [quotas, setQuotas] = useState<QuotaVM[]>([]);
   const [frozenAtMs, setFrozenAtMs] = useState<number>(() => (now ?? Date.now)());
   const clock = now ?? Date.now;
-  const refreshing = useRef(false);
-
+  const refreshing = useRef(false),
+    rerun = useRef(false);
+  const lease = useRef<LeaseVM | null>(session.hello.lease);
+  const [problem, setProblem] = useState<string | null>(null);
+  const supported = (m: Method) =>
+    hello.capabilities.methods.includes(m) ||
+    (hello.capabilities.mock && hello.capabilities.methods.length === 0);
   const refresh = useCallback(async () => {
-    if (refreshing.current) return;
+    if (refreshing.current) {
+      rerun.current = true;
+      return;
+    }
     refreshing.current = true;
     try {
       const snap = await session.request('system.snapshot', {});
-      const tl = await session.request('message.listTimeline', { limit: 200 } as never);
       setSnapshot(snap);
-      setTimeline((tl as { items: ConversationItemVM[] }).items);
-      const accts = await session.request('account.listProfiles', {} as never).catch(() => null);
-      const qts = await session.request('quota.listSnapshots', {} as never).catch(() => null);
-      if (accts) setAccounts((accts as { items: AccountProfileVM[] }).items);
-      if (qts) setQuotas((qts as { items: QuotaVM[] }).items);
-      setHello((h) => ({ ...h, connectionState: session.connectionState() }));
       setFrozenAtMs(clock());
-    } catch {
-      // 断线：保留最后已知快照，仅更新连接状态（"最后已知状态"语义）。
+      setProblem(null);
+      const caps = session.hello.capabilities;
+      const timelineMethod = caps.methods.includes('conversation.read')
+        ? 'conversation.read'
+        : caps.mock
+          ? 'message.listTimeline'
+          : null;
+      if (timelineMethod) {
+        const tl = await session.request(timelineMethod, { scope: {}, limit: 100 } as never);
+        setTimeline(tl.items);
+      }
+      if (caps.methods.includes('account.listProfiles'))
+        setAccounts((await session.request('account.listProfiles', {} as never)).items);
+      if (caps.methods.includes('quota.listSnapshots'))
+        setQuotas((await session.request('quota.listSnapshots', {} as never)).items);
+      setHello((h) => ({ ...h, connectionState: session.connectionState() }));
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
       setHello((h) => ({ ...h, connectionState: session.connectionState() }));
     } finally {
       refreshing.current = false;
+      if (rerun.current) {
+        rerun.current = false;
+        queueMicrotask(() => void refresh());
+      }
     }
   }, [session, clock]);
-
+  const control = useCallback(
+    async (method: 'control.acquire' | 'control.renew' | 'control.release') => {
+      const snap = await session.request('system.snapshot', {});
+      const result = await session.request(
+        method,
+        (method === 'control.acquire' ? {} : { lease_id: lease.current?.leaseId }) as never,
+        { operationId: 'op_' + crypto.randomUUID(), expectedRevision: snap.revision, scope: {} },
+      );
+      lease.current = method === 'control.release' ? null : (result as LeaseVM);
+      setHello((h) => ({ ...h, lease: lease.current, connectionState: session.connectionState() }));
+    },
+    [session],
+  );
   useEffect(() => {
     void refresh();
-    const unsubscribe = session.subscribe(() => void refresh());
-    const timer = setInterval(() => void refresh(), 5000);
+    const off = session.subscribe(() => void refresh());
+    const timer = setInterval(() => {
+      if (lease.current && lease.current.expiresAtMs - Date.now() < 15000)
+        void control('control.renew').catch((e) => {
+          lease.current = null;
+          setProblem(e.message);
+        });
+      void refresh();
+    }, 5000);
     return () => {
-      unsubscribe();
+      off();
       clearInterval(timer);
     };
-  }, [refresh, session]);
-
+  }, [refresh, session, control]);
   const call = useCallback(
-    async <M extends Method>(method: M, params: MethodMap[M]['params']) => {
-      const result = await session.request(method, params);
-      await refresh();
-      return result;
+    async <M extends Method>(
+      method: M,
+      params: MethodMap[M]['params'],
+    ): Promise<MethodMap[M]['result']> => {
+      if (!supported(method)) throw Error('CAPABILITY_UNAVAILABLE');
+      if (!methodMetadata[method].mutation) return session.request(method, params);
+      if (!lease.current && session.connectionState() !== 'CONNECTED_CONTROLLER')
+        throw Error('CONTROL_LEASE_REQUIRED');
+      const snap = await session.request('system.snapshot', {});
+      const namespace =
+        'agentrouter.pending:' + session.hello.serverInstanceId.replace(/_[0-9a-f-]{36}$/, '');
+      const records = JSON.parse(localStorage.getItem(namespace) ?? '{}');
+      const key = JSON.stringify({ method, params });
+      const command = records[key] ?? {
+        operationId: 'op_' + crypto.randomUUID(),
+        expectedRevision: snap.revision,
+        scope: scopeFor(method, params, snap),
+      };
+      records[key] = command;
+      localStorage.setItem(namespace, JSON.stringify(records));
+      try {
+        const result = await session.request(method, params, {
+          ...command,
+          leaseId: lease.current?.leaseId,
+        });
+        const remaining = JSON.parse(localStorage.getItem(namespace) ?? '{}');
+        delete remaining[key];
+        localStorage.setItem(namespace, JSON.stringify(remaining));
+        await refresh();
+        return result;
+      } catch (e) {
+        const error = e as { category?: string; message?: string };
+        if (
+          error.category !== 'AMBIGUOUS' &&
+          !['CONNECTION_LOST', 'REQUEST_TIMEOUT'].includes(error.message ?? '')
+        ) {
+          const remaining = JSON.parse(localStorage.getItem(namespace) ?? '{}');
+          delete remaining[key];
+          localStorage.setItem(namespace, JSON.stringify(remaining));
+        }
+        setProblem(
+          error.category === 'AMBIGUOUS'
+            ? '提交结果待核对；再次提交相同内容会复用原操作 ID'
+            : (error.message ?? '请求失败'),
+        );
+        throw e;
+      }
     },
-    [session, refresh],
+    [session, refresh, hello.capabilities],
   );
-
   const value = useMemo<WorkbenchStore | null>(() => {
     if (!snapshot) return null;
     const state = hello.connectionState;
@@ -141,17 +230,37 @@ export function StoreProvider({
       now: clock,
       call,
       refresh,
-      acquireControl: async () => {
-        await session.request('control.acquire', {});
-        setHello((h) => ({ ...h, connectionState: session.connectionState() }));
-      },
-      releaseControl: async () => {
-        await session.request('control.release', { lease_id: session.hello.lease?.leaseId ?? 'lease-preview' } as never);
-        setHello((h) => ({ ...h, connectionState: session.connectionState() }));
-      },
+      acquireControl: () => control('control.acquire'),
+      releaseControl: () => control('control.release'),
     };
-  }, [hello, snapshot, timeline, accounts, quotas, frozenAtMs, call, refresh, session, clock]);
+  }, [
+    hello,
+    snapshot,
+    timeline,
+    accounts,
+    quotas,
+    frozenAtMs,
+    call,
+    refresh,
+    session,
+    clock,
+    control,
+  ]);
 
-  if (!value) return <div className="boot">正在连接 Core…</div>;
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  if (!value)
+    return (
+      <div className="boot" role={problem ? 'alert' : undefined}>
+        {problem ? `无法读取 Core：${problem}` : '正在连接 Core…'}
+      </div>
+    );
+  return (
+    <Ctx.Provider value={value}>
+      {problem && (
+        <div role="alert" className="hint tone-warning">
+          {problem}
+        </div>
+      )}
+      {children}
+    </Ctx.Provider>
+  );
 }

@@ -60,6 +60,22 @@ const server = createServer((socket) => {
               send(socket, { attached: true });
               return;
             }
+            if (typeof frame.desktop_directory === 'string') {
+              try {
+                send(socket, {
+                  v: 1,
+                  id: frame.id,
+                  result: application.grantSelectedDirectory(connection, frame.desktop_directory),
+                });
+              } catch {
+                send(socket, {
+                  v: 1,
+                  id: frame.id,
+                  error: { code: 'SCOPE_DENIED', category: 'AUTHORIZATION' },
+                });
+              }
+              return;
+            }
             const response = await application.handle(connection, frame);
             if (dropNext && frame.operation_id && !String(frame.method).startsWith('control.')) {
               dropNext = false;
@@ -67,7 +83,10 @@ const server = createServer((socket) => {
             }
             send(socket, response);
           })
-          .catch(() => {
+          .catch((error) => {
+            process.stderr.write(
+              'LOCAL_REQUEST_REJECTED:' + String(error?.code ?? 'INVALID_REQUEST') + '\n',
+            );
             socket.destroy();
           });
     } catch {
@@ -185,6 +204,39 @@ process.on('message', async (message: any) => {
         })
         .immediate();
       result = { id };
+    } else if (message.action === 'createFixtureArtifact') {
+      const resultRow = application.one(
+        "select r.*,t.space_id,s.project_id from results r join tasks t on t.id=r.task_id join spaces s on s.id=t.space_id where r.publication_state='PUBLISHED' order by r.created_at_ms desc limit 1",
+      );
+      if (!resultRow) throw Error('FIXTURE_RESULT_REQUIRED');
+      const bytes = Buffer.from('J1 isolated artifact\n'),
+        sha = createHash('sha256').update(bytes).digest('hex'),
+        id = 'artifact_' + randomUUID();
+      mkdirSync(resolve(data, 'artifacts'), { recursive: true });
+      writeFileSync(resolve(data, 'artifacts', sha), bytes);
+      application.db
+        .transaction(() => {
+          application.db
+            .prepare('insert into artifacts values(?,?,?,?,?,?,?,?,?)')
+            .run(
+              id,
+              resultRow.project_id,
+              sha,
+              sha,
+              bytes.length,
+              'text/plain',
+              JSON.stringify({ path: 'j1-result.txt', source: 'SIMULATED' }),
+              'AVAILABLE',
+              Date.now(),
+            );
+          application.db
+            .prepare('update results set outputs_json=? where id=?')
+            .run(JSON.stringify([{ type: 'artifact', id }]), resultRow.id);
+          application.event(resultRow.project_id, 'FixtureArtifact', id);
+        })
+        .immediate();
+      application.notify();
+      result = { id, sha256: sha, byteSize: bytes.length };
     } else if (message.action === 'dropNextReply') {
       dropNext = true;
     } else if (message.action === 'failNextCommit') {

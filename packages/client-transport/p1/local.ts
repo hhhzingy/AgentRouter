@@ -6,6 +6,13 @@ import { P1MemoryTransport } from './memory.ts';
 import type { ClientSession, ClientTransport, ConnectOptions } from './types.ts';
 export class LocalCoreTransport implements ClientTransport {
   private transport?: P1MemoryTransport;
+  private proxy?: StdioServerProxy;
+  async grantSelectedDirectory(path: string) {
+    if (!this.proxy) throw Error('CONNECTION_LOST');
+    const reply = (await this.proxy.grantSelectedDirectory(path)) as any;
+    if (reply.error) throw Error(reply.error.code);
+    return reply.result;
+  }
   constructor(readonly data: string) {}
   async connect(options: ConnectOptions): Promise<ClientSession> {
     await this.close();
@@ -49,6 +56,7 @@ export class LocalCoreTransport implements ClientTransport {
       });
     });
     const proxy = new StdioServerProxy(socket, socket);
+    this.proxy = proxy;
     this.transport = new P1MemoryTransport(proxy);
     socket.resume();
     return this.transport.connect(options);

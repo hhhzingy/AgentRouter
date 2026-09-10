@@ -77,6 +77,7 @@ export class P1MemoryTransport implements ClientTransport {
             }
           : {}),
       };
+      validateFrame(frame, revision);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const result = await Promise.race([

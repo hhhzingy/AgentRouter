@@ -1,5 +1,5 @@
 /** 角色详情：Charter / 当前任务与 Run / 完整对话 / 权限与工作区 / UNKNOWN 对账。 */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Avatar,
   Badge,
@@ -12,10 +12,17 @@ import {
   RUN_STATE_LABEL,
 } from '../../../packages/ui/index.ts';
 import type {
+  ConversationItemVM,
   RoleCharterVM,
   RoleVM,
 } from '../../../packages/client-contract/c1r1p1/generated.ts';
-import { Composer, ConversationView, ReconcilePanel, RoleStateBadges, TaskRow } from './composites.tsx';
+import {
+  Composer,
+  ConversationView,
+  ReconcilePanel,
+  RoleStateBadges,
+  TaskRow,
+} from './composites.tsx';
 import { useStore } from './store.tsx';
 
 export function RolePage({ roleId }: { roleId: string }) {
@@ -37,8 +44,38 @@ export function RolePage({ roleId }: { roleId: string }) {
       .then((c) => setCharter(c as RoleCharterVM))
       .catch(() => setCharterUnavailable(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleId, s.capabilities.role_charters]);
+  }, [roleId, s.capabilities.role_charters, role?.charterRevision, role?.bootstrapState]);
 
+  const [history, setHistory] = useState<ConversationItemVM[] | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const cursor = useRef<string | undefined>(undefined),
+    historyRole = useRef(roleId);
+  async function readHistory() {
+    if (!role || !s.capabilities.methods.includes('conversation.read')) return;
+    const projectId = s.snapshot.spaces.find((x) => x.id === role.spaceId)?.projectId;
+    if (!projectId) return;
+    const currentRole = roleId;
+    const page = await s.call('conversation.read', {
+      role_id: roleId,
+      scope: { project_id: projectId, space_id: role.spaceId },
+      limit: 100,
+      ...(cursor.current ? { after_id: cursor.current } : {}),
+    });
+    if (historyRole.current !== currentRole) return;
+    setHistory((old) => [
+      ...new Map([...(old ?? []), ...page.items].map((x) => [x.id, x])).values(),
+    ]);
+    if (page.items.length) cursor.current = page.next_id ?? undefined;
+    setHasMore(page.has_more);
+  }
+  useEffect(() => {
+    if (historyRole.current !== roleId) {
+      historyRole.current = roleId;
+      cursor.current = undefined;
+      setHistory(undefined);
+    }
+    void readHistory().catch(() => {});
+  }, [roleId, s.snapshot.cursor]);
   if (!role) return <EmptyState title="角色不存在" body="可能已归档，或当前 Core 上没有该角色。" />;
 
   const space = s.snapshot.spaces.find((sp) => sp.id === role.spaceId);
@@ -49,8 +86,10 @@ export function RolePage({ roleId }: { roleId: string }) {
   const activeRun = runs.find((r) =>
     ['CREATED', 'STARTING', 'RUNNING', 'WAITING_APPROVAL', 'SETTLING'].includes(r.state),
   );
-  const conversation = s.timeline.filter((it) => it.roleId === role.id);
-  const workspace = (s.snapshot.workspaces ?? []).find((w) => role.workspaceLabel.includes(w.label));
+  const conversation = history ?? s.timeline.filter((it) => it.roleId === role.id);
+  const workspace = (s.snapshot.workspaces ?? []).find((w) =>
+    role.workspaceLabel.includes(w.label),
+  );
 
   return (
     <div className="page page-role" data-page="role">
@@ -94,7 +133,8 @@ export function RolePage({ roleId }: { roleId: string }) {
                 <KeyValue k="原生会话" v={activeRun.nativeSessionDisplay ?? '未上报'} />
                 {activeRun.state === 'SETTLING' && (
                   <p className="hint tone-warning">
-                    Run 正在收尾：原生进程已结束，Core 正在归集结果。此时不能视为"完成"。
+                    Run
+                    正在收尾：等待原生结束与资源停止确认。结果暂存不代表已交付，此时不能视为"完成"。
                   </p>
                 )}
               </div>
@@ -113,6 +153,7 @@ export function RolePage({ roleId }: { roleId: string }) {
           <Card>
             <h3>对话（完整可见）</h3>
             <ConversationView items={conversation} now={s.now()} />
+            {hasMore && <Button onClick={() => void readHistory()}>加载更多对话</Button>}
             <Composer role={role} spaceId={role.spaceId} />
           </Card>
         </div>
@@ -198,7 +239,7 @@ export function RolePage({ roleId }: { roleId: string }) {
                 </Badge>
               }
             />
-            <KeyValue k="模型" v={role.modelLabel ?? '未选择'} />
+            <KeyValue k="模型" v={role.modelLabel ?? role.modelSelection?.model_id ?? '未选择'} />
             {workspace && (
               <>
                 <h4>工作区（文件边界）</h4>
@@ -220,9 +261,14 @@ export function RolePage({ roleId }: { roleId: string }) {
               <div data-testid="effective-permissions">
                 <KeyValue
                   k="工作区"
-                  v={charter.effectivePermissions.workspace_access === 'read_write' ? '读写' : '只读'}
+                  v={
+                    charter.effectivePermissions.workspace_access === 'read_write' ? '读写' : '只读'
+                  }
                 />
-                <KeyValue k="工具" v={charter.effectivePermissions.tool_profiles.join('、') || '无'} />
+                <KeyValue
+                  k="工具"
+                  v={charter.effectivePermissions.tool_profiles.join('、') || '无'}
+                />
                 <KeyValue k="网络" v={charter.effectivePermissions.network_profile} />
               </div>
             ) : (

@@ -18,6 +18,14 @@ import { ReconfigurePage } from './workbench/pages-reconfigure.tsx';
 
 declare global {
   interface Window {
+    agentrouterDesktop?: {
+      saveArtifact(id: string): Promise<{ saved: boolean }>;
+      chooseProjectDirectory(): Promise<{
+        name: string;
+        displayPath: string;
+        pathHandle: string;
+      } | null>;
+    };
     agentrouterClient?: {
       connect(options: {
         clientId: string;
@@ -44,7 +52,8 @@ function useHashRoute(): string {
 function Routes() {
   const hash = useHashRoute();
   const parts = hash.replace(/^#\//, '').split('/').filter(Boolean);
-  if (parts[0] === 'project' && parts[1]) return <ProjectPage projectId={parts[1]} tab={parts[2]} />;
+  if (parts[0] === 'project' && parts[1])
+    return <ProjectPage projectId={parts[1]} tab={parts[2]} />;
   if (parts[0] === 'role' && parts[1]) return <RolePage roleId={parts[1]} />;
   if (parts[0] === 'roleplan' && parts[1]) return <RolePlanPage projectId={parts[1]} />;
   if (parts[0] === 'reconfigure' && parts[1]) return <ReconfigurePage projectId={parts[1]} />;
@@ -64,6 +73,11 @@ async function connect(): Promise<ClientSession> {
     });
   }
   // 静态预览：固定时钟，保证截图可复现。
+  if (
+    params.get('mode') === 'LOCAL_CORE' ||
+    (params.get('mode') !== 'PREVIEW_MOCK' && !params.has('scenario'))
+  )
+    throw Error('DESKTOP_BRIDGE_REQUIRED');
   const scenario = params.get('scenario') ?? 'full';
   return connectPreview(scenario);
 }

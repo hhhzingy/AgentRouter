@@ -30,9 +30,7 @@ export function Badge({
 }
 
 export function StatusDot({ tone, label }: { tone: DisplayTone; label: string }) {
-  return (
-    <span className={`status-dot tone-${tone}`} role="img" aria-label={label} title={label} />
-  );
+  return <span className={`status-dot tone-${tone}`} role="img" aria-label={label} title={label} />;
 }
 
 export function Avatar({ name, tone = 'neutral' }: { name: string; tone?: DisplayTone }) {
@@ -144,6 +142,50 @@ export function Tabs({
   );
 }
 
+function useModal<T extends HTMLElement>(onClose: () => void) {
+  const ref = React.useRef<T | null>(null),
+    close = React.useRef(onClose);
+  close.current = onClose;
+  React.useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const items = () =>
+      Array.from(
+        ref.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],[tabindex="0"]',
+        ) ?? [],
+      ).filter((x) => x.getClientRects().length && !x.closest('fieldset[disabled]'));
+    items()[0]?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close.current();
+      }
+      if (e.key === 'Tab') {
+        const nodes = items(),
+          first = nodes[0],
+          last = nodes.at(-1);
+        if (!first) {
+          e.preventDefault();
+          return;
+        }
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('keydown', key);
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
+  return ref;
+}
+
 export function Dialog({
   title,
   children,
@@ -155,9 +197,11 @@ export function Dialog({
   footer?: ReactNode;
   onClose: () => void;
 }) {
+  const ref = useModal<HTMLDivElement>(onClose);
   return (
     <div className="overlay" onClick={onClose}>
       <div
+        ref={ref}
         className="dialog"
         role="dialog"
         aria-modal="true"
@@ -188,9 +232,11 @@ export function Drawer({
   footer?: ReactNode;
   onClose: () => void;
 }) {
+  const ref = useModal<HTMLElement>(onClose);
   return (
     <div className="overlay" onClick={onClose}>
       <aside
+        ref={ref}
         className="drawer"
         role="complementary"
         aria-label={title}
@@ -222,9 +268,14 @@ export function CapabilityGate({
   if (available) return <>{children}</>;
   return (
     <span className="capability-blocked" title={unavailableReason}>
-      <span className="capability-blocked-inner" aria-disabled="true">
+      <fieldset
+        disabled
+        className="capability-blocked-inner"
+        aria-disabled="true"
+        style={{ border: 0, padding: 0, margin: 0 }}
+      >
         {children}
-      </span>
+      </fieldset>
       <span className="capability-reason">{unavailableReason}</span>
     </span>
   );

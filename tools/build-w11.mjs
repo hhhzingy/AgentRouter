@@ -29,10 +29,13 @@ if (existsSync('apps/desktop/workbench.tsx')) {
     outfile: resolve(out, 'workbench.js'),
     bundle: true,
     platform: 'browser',
+    jsx: 'automatic',
     format: 'iife',
     metafile: true,
   }).then((r) => writeFileSync(resolve(out, 'renderer-meta.json'), JSON.stringify(r.metafile)));
 }
+if (existsSync('apps/desktop/workbench.css'))
+  copyFileSync('apps/desktop/workbench.css', resolve(out, 'workbench.css'));
 // B0 测试壳不是最终 Renderer；UIAI 提供 workbench.tsx 后由同一壳加载。
 writeFileSync(
   resolve(out, 'workbench.html'),

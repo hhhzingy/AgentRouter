@@ -50,6 +50,10 @@ export class StdioServerProxy implements ClientServer {
     this.pending.clear();
     this.handlers.clear();
   }
+  /** Main-only authenticated local gateway extension; never a Client API method. */
+  grantSelectedDirectory(path: string) {
+    return this.handle(this.id!, { id: 'desktop_' + randomUUID(), desktop_directory: path });
+  }
   open() {
     if (this.id || this.closed) throw new C1R1Error('CONNECTION_LOST');
     return (this.id = 'connection_' + randomUUID());

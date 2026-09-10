@@ -36,7 +36,9 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
   const [dispatchRole, setDispatchRole] = useState<RoleVM | null>(null);
   if (!project) return <EmptyState title="项目不存在" body="可能已归档或连接的是另一个 Core。" />;
 
-  const spaces = s.snapshot.spaces.filter((sp) => sp.projectId === projectId && sp.status !== 'ARCHIVED');
+  const spaces = s.snapshot.spaces.filter(
+    (sp) => sp.projectId === projectId && sp.status !== 'ARCHIVED',
+  );
   const roles = s.snapshot.roles.filter((r) => spaces.some((sp) => sp.id === r.spaceId));
   const roleIds = roles.map((r) => r.id);
   const tasks = s.snapshot.tasks.filter((t) => spaces.some((sp) => sp.id === t.spaceId));
@@ -44,7 +46,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
   const issues = s.snapshot.issues.filter((i) => i.projectId === projectId);
   const approvals = s.snapshot.approvals.filter((a) => runs.some((r) => r.id === a.runId));
   const results = s.snapshot.results.filter((r) => tasks.some((t) => t.id === r.taskId));
-  const artifacts = s.snapshot.results
+  const artifacts = results
     .flatMap((r) => r.artifactIds)
     .map((id) => ({ id }))
     .filter((v, i, a) => a.findIndex((x) => x.id === v.id) === i);
@@ -52,7 +54,9 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
   const tabBadges: Record<string, number | undefined> = {
     inbox: results.filter((r) => r.acceptance === 'PENDING').length,
-    issues: issues.filter((i) => i.state !== 'RESOLVED').length + approvals.filter((a) => a.state === 'PENDING').length,
+    issues:
+      issues.filter((i) => i.state !== 'RESOLVED').length +
+      approvals.filter((a) => a.state === 'PENDING').length,
   };
 
   return (
@@ -85,10 +89,15 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
           <CapabilityGate
             available={s.capabilities.space_reconfiguration !== false && !s.readOnly}
             unavailableReason={
-              s.capabilities.space_reconfiguration === false ? '当前 Core 不支持组重构' : '观察者只读'
+              s.capabilities.space_reconfiguration === false
+                ? '当前 Core 不支持组重构'
+                : '观察者只读'
             }
           >
-            <Button variant="secondary" onClick={() => (location.hash = `#/reconfigure/${projectId}`)}>
+            <Button
+              variant="secondary"
+              onClick={() => (location.hash = `#/reconfigure/${projectId}`)}
+            >
               组重构
             </Button>
           </CapabilityGate>
@@ -107,7 +116,13 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             <KeyValue k="角色" v={roles.length} />
             <KeyValue
               k="活跃 Run"
-              v={runs.filter((r) => ['CREATED', 'STARTING', 'RUNNING', 'WAITING_APPROVAL', 'SETTLING'].includes(r.state)).length}
+              v={
+                runs.filter((r) =>
+                  ['CREATED', 'STARTING', 'RUNNING', 'WAITING_APPROVAL', 'SETTLING'].includes(
+                    r.state,
+                  ),
+                ).length
+              }
             />
             <KeyValue k="排队任务" v={tasks.filter((t) => t.state === 'QUEUED').length} />
             <KeyValue k="未解决问题" v={issues.filter((i) => i.state !== 'RESOLVED').length} />
@@ -123,13 +138,16 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
           )}
           <Card>
             <h3>进行中的任务</h3>
-            {tasks.filter((t) => ['ACTIVE', 'QUEUED', 'WAITING_INPUT', 'NEEDS_ATTENTION'].includes(t.state)).length ===
-            0 ? (
+            {tasks.filter((t) =>
+              ['ACTIVE', 'QUEUED', 'WAITING_INPUT', 'NEEDS_ATTENTION'].includes(t.state),
+            ).length === 0 ? (
               <p className="muted">当前没有进行中的任务。</p>
             ) : (
               <ul className="task-rows">
                 {tasks
-                  .filter((t) => ['ACTIVE', 'QUEUED', 'WAITING_INPUT', 'NEEDS_ATTENTION'].includes(t.state))
+                  .filter((t) =>
+                    ['ACTIVE', 'QUEUED', 'WAITING_INPUT', 'NEEDS_ATTENTION'].includes(t.state),
+                  )
                   .map((t) => (
                     <TaskRow key={t.id} task={t} />
                   ))}
@@ -191,10 +209,16 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                   {r.acceptance === 'PENDING' && (
                     <div className="inbox-actions">
                       <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
-                        <Button variant="primary" onClick={() => void s.call('result.accept', { id: r.id } as never)}>
+                        <Button
+                          variant="primary"
+                          onClick={() => void s.call('result.accept', { id: r.id } as never)}
+                        >
                           接受
                         </Button>
-                        <Button variant="secondary" onClick={() => void s.call('result.reject', { id: r.id } as never)}>
+                        <Button
+                          variant="secondary"
+                          onClick={() => void s.call('result.reject', { id: r.id } as never)}
+                        >
                           拒绝
                         </Button>
                       </CapabilityGate>
@@ -217,23 +241,63 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
               <ul className="approval-list">
                 {approvals.map((a) => (
                   <li key={a.id}>
-                    <Badge tone={a.riskLevel === 'HIGH' ? 'danger' : a.riskLevel === 'MEDIUM' ? 'warning' : 'neutral'}>
-                      {a.riskLevel === 'HIGH' ? '高风险' : a.riskLevel === 'MEDIUM' ? '中风险' : '低风险'}
+                    <Badge
+                      tone={
+                        a.riskLevel === 'HIGH'
+                          ? 'danger'
+                          : a.riskLevel === 'MEDIUM'
+                            ? 'warning'
+                            : 'neutral'
+                      }
+                    >
+                      {a.riskLevel === 'HIGH'
+                        ? '高风险'
+                        : a.riskLevel === 'MEDIUM'
+                          ? '中风险'
+                          : '低风险'}
                     </Badge>{' '}
                     <b>{a.title}</b>
                     <span className="muted">
                       {' '}
-                      · {RUN_STATE_LABEL[s.snapshot.runs.find((r) => r.id === a.runId)?.state ?? 'CREATED']} ·{' '}
-                      {formatDateTime(a.requestedAtMs)}
+                      ·{' '}
+                      {
+                        RUN_STATE_LABEL[
+                          s.snapshot.runs.find((r) => r.id === a.runId)?.state ?? 'CREATED'
+                        ]
+                      }{' '}
+                      · {formatDateTime(a.requestedAtMs)}
                       {a.expiresAtMs ? ` · ${formatDateTime(a.expiresAtMs)} 过期` : ''}
                     </span>
                     {a.state === 'PENDING' && (
                       <span className="inbox-actions">
-                        <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
-                          <Button variant="primary" onClick={() => void s.call('approval.decide', { id: a.id, decision: 'APPROVE' } as never)}>
+                        <CapabilityGate
+                          available={
+                            !s.readOnly && s.capabilities.methods.includes('approval.decide')
+                          }
+                          unavailableReason={
+                            s.readOnly ? s.readOnlyReason : '当前 Core 未开放此操作'
+                          }
+                        >
+                          <Button
+                            variant="primary"
+                            onClick={() =>
+                              void s.call('approval.decide', {
+                                id: a.id,
+                                decision: 'APPROVE',
+                              } as never)
+                            }
+                          >
                             批准
                           </Button>
-                          <Button variant="danger" onClick={() => void s.call('approval.decide', { id: a.id, decision: 'DENY' } as never)}>
+                          <Button
+                            variant="danger"
+                            onClick={() =>
+                              void s.call('approval.decide', {
+                                id: a.id,
+                                decision: 'DENY',
+                              } as never)
+                            }
+                          >
                             拒绝
                           </Button>
                         </CapabilityGate>
@@ -254,7 +318,11 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                 {issues.map((i) => (
                   <li key={i.id}>
                     <Badge tone={i.state === 'OPEN' ? 'danger' : 'warning'}>
-                      {i.state === 'OPEN' ? '待介入' : i.state === 'ACKNOWLEDGED' ? '已知悉' : '已解决'}
+                      {i.state === 'OPEN'
+                        ? '待介入'
+                        : i.state === 'ACKNOWLEDGED'
+                          ? '已知悉'
+                          : '已解决'}
                     </Badge>{' '}
                     <b>{i.messageKey}</b>
                     <span className="muted">
@@ -264,8 +332,18 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                     </span>
                     {i.state === 'OPEN' && (
                       <span className="inbox-actions">
-                        <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
-                          <Button variant="secondary" onClick={() => void s.call('issue.acknowledge', { id: i.id } as never)}>
+                        <CapabilityGate
+                          available={
+                            !s.readOnly && s.capabilities.methods.includes('issue.acknowledge')
+                          }
+                          unavailableReason={
+                            s.readOnly ? s.readOnlyReason : '当前 Core 未开放此操作'
+                          }
+                        >
+                          <Button
+                            variant="secondary"
+                            onClick={() => void s.call('issue.acknowledge', { id: i.id } as never)}
+                          >
                             知悉
                           </Button>
                         </CapabilityGate>
@@ -300,7 +378,8 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             <KeyValue k="根路径（来自 Core）" v={project.displayRoot} />
             <KeyValue k="数据修订" v={`r${project.revision}`} />
             <p className="muted">
-              项目没有独立的"暂停派发"开关；派发暂停是全局动作（运行时 pauseDispatch），不会在项目页伪装成项目开关。
+              项目没有独立的"暂停派发"开关；派发暂停是全局动作（运行时
+              pauseDispatch），不会在项目页伪装成项目开关。
             </p>
           </Card>
         </div>
@@ -313,27 +392,63 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
 function ArtifactList({ ids }: { ids: string[] }) {
   const s = useStore();
+  const [artifactMessage, setArtifactMessage] = useState<string | null>(null);
   const [items, setItems] = useState<
     Array<{ id: string; mediaType: string; byteSize: number; displaySource: string; state: string }>
   >([]);
   React.useEffect(() => {
     void Promise.all(ids.map((id) => s.call('artifact.get', { id, scope: {} } as never))).then(
       (rows) => setItems(rows as never),
+      (e) => setArtifactMessage(e.message),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids.join(',')]);
   return (
-    <ul className="artifact-list">
-      {items.map((a) => (
-        <li key={a.id}>
-          <b>{a.displaySource}</b>
-          <span className="muted">
-            {' '}
-            · {a.mediaType} · {formatBytes(a.byteSize)} · {a.state}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div>
+      {artifactMessage && <p role="status">{artifactMessage}</p>}
+      <ul className="artifact-list">
+        {items.map((a) => (
+          <li key={a.id}>
+            <b>{a.displaySource}</b>
+            <span className="muted">
+              {' '}
+              · {a.mediaType} · {formatBytes(a.byteSize)} · {a.state}
+            </span>
+            <Button
+              disabled={s.readOnly || !s.capabilities.methods.includes('artifact.verify')}
+              onClick={() =>
+                void s
+                  .call('artifact.verify', { id: a.id })
+                  .then((v) => {
+                    setItems((rows) => rows.map((x) => (x.id === v.id ? v : x)));
+                    setArtifactMessage('校验状态：' + v.state);
+                  })
+                  .catch((e) => setArtifactMessage(e.message))
+              }
+            >
+              校验
+            </Button>
+            <Button
+              disabled={
+                s.readOnly ||
+                a.state !== 'AVAILABLE' ||
+                !s.capabilities.methods.includes('artifact.download') ||
+                typeof window === 'undefined' ||
+                !window.agentrouterDesktop
+              }
+              onClick={() =>
+                void window.agentrouterDesktop
+                  ?.saveArtifact(a.id)
+                  .then((v) => setArtifactMessage(v.saved ? '已保存并校验' : '已取消保存'))
+                  .catch((e) => setArtifactMessage(e.message))
+              }
+            >
+              保存产物…
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -347,7 +462,13 @@ export function ModelsTab() {
     SEED: '种子目录',
   };
   const availTone = (a: string) =>
-    a === 'AVAILABLE' ? 'ok' : a === 'REQUIRES_LOGIN' ? 'warning' : a === 'RETIRED' ? 'neutral' : 'danger';
+    a === 'AVAILABLE'
+      ? 'ok'
+      : a === 'REQUIRES_LOGIN'
+        ? 'warning'
+        : a === 'RETIRED'
+          ? 'neutral'
+          : 'danger';
   const availLabel: Record<string, string> = {
     AVAILABLE: '可用',
     REQUIRES_LOGIN: '需登录验证',
@@ -362,9 +483,7 @@ export function ModelsTab() {
       </Card>
       <Card>
         <h3>模型目录</h3>
-        <p className="muted">
-          种子目录与未验证模型不显示为"可运行"；可用性以 Core 报告为准。
-        </p>
+        <p className="muted">种子目录与未验证模型不显示为"可运行"；可用性以 Core 报告为准。</p>
         {catalog.length === 0 ? (
           <EmptyState title="模型目录不可用" body="当前 Core 未提供模型目录能力。" />
         ) : (
@@ -388,19 +507,35 @@ export function ModelsTab() {
                   </td>
                   <td>{m.harness}</td>
                   <td>
-                    <Badge tone={m.source === 'RUNTIME' ? 'ok' : m.source === 'VERIFIED_CACHE' ? 'queue' : 'warning'}>
+                    <Badge
+                      tone={
+                        m.source === 'RUNTIME'
+                          ? 'ok'
+                          : m.source === 'VERIFIED_CACHE'
+                            ? 'queue'
+                            : 'warning'
+                      }
+                    >
                       {sourceLabel[m.source] ?? m.source}
                     </Badge>
                   </td>
                   <td>
-                    <Badge tone={availTone(m.availability)}>{availLabel[m.availability] ?? m.availability}</Badge>
+                    <Badge tone={availTone(m.availability)}>
+                      {availLabel[m.availability] ?? m.availability}
+                    </Badge>
                   </td>
                   <td>
                     {m.reasoning.levels.length > 0
                       ? `${m.reasoning.levels.join('/')}（默认 ${m.reasoning.default ?? '—'}）`
                       : '不可调'}
                   </td>
-                  <td>{m.tool_support === 'SUPPORTED' ? '支持' : m.tool_support === 'UNSUPPORTED' ? '不支持' : '运行时确认'}</td>
+                  <td>
+                    {m.tool_support === 'SUPPORTED'
+                      ? '支持'
+                      : m.tool_support === 'UNSUPPORTED'
+                        ? '不支持'
+                        : '运行时确认'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -437,13 +572,21 @@ function AccountsBlock() {
             </Badge>
             <Badge tone={q?.status === 'OK' ? 'ok' : 'warning'} title="额度以 Core 观测为准">
               额度：
-              {q?.remainingPercent != null ? `剩余 ${q.remainingPercent}%` : q?.status === 'STALE' ? '数据过期' : '未知'}
+              {q?.remainingPercent != null
+                ? `剩余 ${q.remainingPercent}%`
+                : q?.status === 'STALE'
+                  ? '数据过期'
+                  : '未知'}
             </Badge>
             <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
               <Button
                 variant="secondary"
                 title="切换账号期间新派发会被阻断；凭据由 Core 管理，界面不提供输入框"
-                onClick={() => void s.call('account.switch', { auth_unit_id: a.label, profile_id: a.id } as never).catch(() => {})}
+                onClick={() =>
+                  void s
+                    .call('account.switch', { auth_unit_id: a.label, profile_id: a.id } as never)
+                    .catch(() => {})
+                }
               >
                 切换到此账号
               </Button>

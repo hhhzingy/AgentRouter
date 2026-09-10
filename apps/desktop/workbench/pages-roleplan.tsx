@@ -56,7 +56,9 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
       const parsed = JSON.parse(await file.text()) as RolePlanInput;
       if (parsed.schema_version !== 'agentrouter-role-plan/1')
         throw new Error('schema_version 必须是 agentrouter-role-plan/1');
-      const v = (await s.call('rolePlan.validate', { plan: parsed } as never)) as RolePlanValidationVM;
+      const v = (await s.call('rolePlan.validate', {
+        plan: parsed,
+      } as never)) as RolePlanValidationVM;
       setPlan(parsed);
       setValidation(v);
       setConfirmed(new Set());
@@ -73,14 +75,21 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
       const vm = (await s.call('rolePlan.apply', {
         plan,
         plan_hash: validation.planHash,
-        confirmed: [...confirmed],
+        confirmed: true,
         permission_grants: plan.roles.map((r) => ({
           role_key: r.role_key,
-          permissions: r.requested_permissions,
+          permissions: {
+            workspace_access: 'read_only',
+            tool_profiles: [],
+            network_profile: 'none',
+            allowed_paths: [],
+          },
         })),
-      } as never)) as { id: string; state: string };
+      })) as { id: string; state: string };
       setApplied(vm);
       setStage('applied');
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -99,7 +108,8 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
           </div>
           <h1>Role Plan</h1>
           <p>
-            AI 只能<b>请求</b>权限；最终权限由 Core 与你共同确定。应用（Apply）成功 ≠ Bootstrap 完成。
+            AI 只能<b>请求</b>权限；最终权限由 Core 与你共同确定。应用（Apply）成功 ≠ Bootstrap
+            完成。
           </p>
         </div>
       </header>
@@ -158,7 +168,13 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
                   review: { requires_user_confirmation: true, known_risks: [] },
                 };
                 setPlan(blank);
-                setValidation({ valid: true, planHash: 'manual', errors: [], warnings: [], requiredConfirmations: [] });
+                setValidation({
+                  valid: true,
+                  planHash: 'manual',
+                  errors: [],
+                  warnings: [],
+                  requiredConfirmations: [],
+                });
                 setConfirmed(new Set());
                 setStage('review');
               }}
@@ -196,7 +212,9 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
           </Card>
 
           <Card>
-            <h3>组与角色（{plan.groups.length} 组 / {plan.roles.length} 角色）</h3>
+            <h3>
+              组与角色（{plan.groups.length} 组 / {plan.roles.length} 角色）
+            </h3>
             {plan.groups.length === 0 && <p className="muted">空白方案：请继续编辑组与角色。</p>}
             {plan.groups.map((g) => (
               <section key={g.group_key} className="plan-group">
@@ -208,14 +226,22 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
                     .filter((r) => r.group_key === g.group_key)
                     .map((r) => {
                       const model = catalog.find((m) => m.model_id === r.runtime.model_id);
-                      const runnable = model && model.availability === 'AVAILABLE' && model.source !== 'SEED';
+                      const runnable =
+                        model && model.availability === 'AVAILABLE' && model.source !== 'SEED';
                       return (
                         <li key={r.role_key} className="plan-role" data-role-key={r.role_key}>
                           <b>{r.display_name}</b> — {r.mission}
                           <div className="plan-role-meta">
-                            <Badge tone={runnable ? 'ok' : 'warning'} title={runnable ? '' : '种子/未验证模型不能显示为可运行'}>
+                            <Badge
+                              tone={runnable ? 'ok' : 'warning'}
+                              title={runnable ? '' : '种子/未验证模型不能显示为可运行'}
+                            >
                               {r.runtime.model_id} · {r.runtime.reasoning_effort}
-                              {runnable ? ' · 可用' : model?.availability === 'REQUIRES_LOGIN' ? ' · 需登录验证' : ' · 未验证'}
+                              {runnable
+                                ? ' · 可用'
+                                : model?.availability === 'REQUIRES_LOGIN'
+                                  ? ' · 需登录验证'
+                                  : ' · 未验证'}
                             </Badge>
                             <Badge tone="queue">工作区 {r.workspace_ref}</Badge>
                           </div>
@@ -246,12 +272,12 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
                   <tr key={r.role_key}>
                     <td>{r.display_name}</td>
                     <td>
-                      {r.requested_permissions.workspace_access === 'read_write' ? '读写' : '只读'} →{' '}
-                      <b>{r.requested_permissions.workspace_access === 'read_write' ? '读写' : '只读'}</b>
+                      {r.requested_permissions.workspace_access === 'read_write' ? '读写' : '只读'}{' '}
+                      → <b>只读（当前 Core 上限）</b>
                     </td>
-                    <td>{r.requested_permissions.tool_profiles.join('、') || '无'}</td>
+                    <td>{r.requested_permissions.tool_profiles.join('、') || '无'} → 无</td>
                     <td>
-                      {r.requested_permissions.network_profile}
+                      {r.requested_permissions.network_profile} → none
                       {r.requested_permissions.network_profile === 'custom_request' && (
                         <Badge tone="danger">需逐项确认</Badge>
                       )}
@@ -288,7 +314,11 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
               返回
             </Button>
             <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
-              <Button variant="primary" disabled={!allConfirmed || busy} onClick={() => void apply()}>
+              <Button
+                variant="primary"
+                disabled={!allConfirmed || busy}
+                onClick={() => void apply()}
+              >
                 确认并应用
               </Button>
             </CapabilityGate>
@@ -297,16 +327,18 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
       )}
 
       {stage === 'applied' && applied && (
-        <div data-stage="applied"><Card>
-          <h3>已应用（APPLIED）</h3>
-          <p>
-            方案 {applied.id} 已创建组与角色。<b>Apply 完成 ≠ Bootstrap 完成</b>
-            ：每个新角色仍需完成 Charter Bootstrap 才能接收首个任务，请在角色详情查看初始化状态。
-          </p>
-          <Button variant="primary" onClick={() => (location.hash = `#/project/${projectId}`)}>
-            返回项目
-          </Button>
-        </Card></div>
+        <div data-stage="applied">
+          <Card>
+            <h3>已应用（APPLIED）</h3>
+            <p>
+              方案 {applied.id} 已创建组与角色。<b>Apply 完成 ≠ Bootstrap 完成</b>
+              ：每个新角色仍需完成 Charter Bootstrap 才能接收首个任务，请在角色详情查看初始化状态。
+            </p>
+            <Button variant="primary" onClick={() => (location.hash = `#/project/${projectId}`)}>
+              返回项目
+            </Button>
+          </Card>
+        </div>
       )}
     </div>
   );

@@ -26,8 +26,12 @@ export function Shell({ children }: { children: ReactNode }) {
           </span>
         </a>
         <div className="wb-topbar-status">
+          {snap.runs.some((r) => r.nativeSessionDisplay === 'SIMULATED') && (
+            <Badge tone="warning">模拟执行器 · 真实 Harness 支持 0</Badge>
+          )}
           <Badge tone={s.hello.health === 'OK' ? 'ok' : 'warning'} title="Core 健康状态">
-            Core {s.hello.health === 'OK' ? '正常' : s.hello.health === 'DEGRADED' ? '降级' : '仅诊断'}
+            Core{' '}
+            {s.hello.health === 'OK' ? '正常' : s.hello.health === 'DEGRADED' ? '降级' : '仅诊断'}
           </Badge>
           <Badge tone="active" title="活跃 Run（不含 UNKNOWN）">
             ▶ {activeRuns} 运行
@@ -41,20 +45,15 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
         <div className="wb-topbar-conn">
           <Badge
-            tone={
-              disconnected
-                ? 'danger'
-                : reconnecting
-                  ? 'warning'
-                  : observer
-                    ? 'queue'
-                    : 'ok'
-            }
+            tone={disconnected ? 'danger' : reconnecting ? 'warning' : observer ? 'queue' : 'ok'}
           >
             {CONNECTION_LABEL[s.connectionState] ?? s.connectionState}
           </Badge>
           {observer && (
-            <button className="btn btn-secondary btn-sm" onClick={() => void s.acquireControl()}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => void s.acquireControl().catch(() => {})}
+            >
               申请控制
             </button>
           )}
@@ -62,7 +61,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <button
               className="btn btn-ghost btn-sm"
               title="释放控制租约，转为只读观察者"
-              onClick={() => void s.releaseControl()}
+              onClick={() => void s.releaseControl().catch(() => {})}
             >
               转为只读
             </button>
@@ -76,8 +75,8 @@ export function Shell({ children }: { children: ReactNode }) {
       )}
       {disconnected && (
         <div className="wb-banner tone-danger" role="alert">
-          与 Core 的连接已断开。页面展示最后已知状态（{formatAsOf(s.frozenAtMs)}），
-          远端 Run 是否继续无法从界面确认。写操作已禁用。
+          与 Core 的连接已断开。页面展示最后已知状态（{formatAsOf(s.frozenAtMs)}）， 远端 Run
+          是否继续无法从界面确认。写操作已禁用。
         </div>
       )}
       {reconnecting && (
@@ -88,7 +87,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <main className="wb-main">{children}</main>
       <footer className="wb-footer">
         <span>
-          关闭窗口仅退出界面；本地 Core 与远程 Core 的运行不受窗口影响。
+          关闭窗口仅退出界面，本地 Core 独立运行；远程状态需重新连接确认。
           {s.hello.capabilities.mock && ' · 预览数据（Mock）'}
         </span>
         <span>V1.0 UI Baseline</span>

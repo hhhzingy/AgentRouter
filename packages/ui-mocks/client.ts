@@ -2,10 +2,7 @@
  * 预览 Mock Client：实现与 window.agentrouterClient 相同的 ClientSession 接口。
  * 仅用于静态预览、截图与组件测试；不读取 SQLite、不启动 Harness、不含 Secret。
  */
-import type {
-  ClientSession,
-  ConnectOptions,
-} from '../client-transport/p1/types.ts';
+import type { ClientSession, ConnectOptions } from '../client-transport/p1/types.ts';
 import type {
   Capabilities,
   ConnectionState,
@@ -40,14 +37,75 @@ export const SCENARIOS: PreviewScenario[] = [
   {
     id: 'production-caps',
     label: '生产能力（无组重构/RolePlan）',
-    capabilityFlags: { role_plans: false, role_charters: false, space_reconfiguration: false, model_catalog: false, workspaces: false },
+    capabilityFlags: {
+      role_plans: false,
+      role_charters: false,
+      space_reconfiguration: false,
+      model_catalog: false,
+      workspaces: false,
+    },
   },
   { id: 'empty', label: '空首页', empty: true },
 ];
 
 export function baseCapabilities(flags: Partial<Capabilities> = {}): Capabilities {
   return {
-    methods: [],
+    methods: [
+      'system.ping',
+      'system.snapshot',
+      'runtime.getActiveWork',
+      'events.catchup',
+      'control.acquire',
+      'control.release',
+      'project.list',
+      'project.get',
+      'space.list',
+      'space.get',
+      'role.list',
+      'role.get',
+      'task.list',
+      'task.get',
+      'run.list',
+      'run.get',
+      'approval.list',
+      'issue.list',
+      'inbox.list',
+      'artifact.list',
+      'artifact.get',
+      'account.listProfiles',
+      'account.getStatus',
+      'quota.listSnapshots',
+      'provider.listProfiles',
+      'model.list',
+      'model.get',
+      'workspace.list',
+      'message.listTimeline',
+      'conversation.read',
+      'conversation.sendUserInput',
+      'task.submitFromUser',
+      'task.createFromUser',
+      'rolePlan.validate',
+      'rolePlan.apply',
+      'rolePlan.list',
+      'roleCharter.get',
+      'roleCharter.listHistory',
+      'space.reconfigure.preview',
+      'space.reconfigure.commit',
+      'space.reconfigure.get',
+      'space.reconfigure.abort',
+      'approval.decide',
+      'issue.acknowledge',
+      'issue.resolve',
+      'inbox.markRead',
+      'result.accept',
+      'result.reject',
+      'account.switch',
+      'run.reconcile',
+      'role.updateStatus',
+      'space.updateStatus',
+      'runtime.pauseDispatch',
+      'runtime.resumeDispatch',
+    ],
     remote_filesystem: false,
     event_stream: true,
     controller_lease: true,
@@ -104,7 +162,12 @@ export class PreviewClient implements ClientSession {
       upgradeRequired: false,
       lease:
         state === 'CONNECTED_CONTROLLER'
-          ? { leaseId: 'lease-preview', clientId: options.clientId, expiresAtMs: this.clock() + 60000, generation: 1 }
+          ? {
+              leaseId: 'lease-preview',
+              clientId: options.clientId,
+              expiresAtMs: this.clock() + 60000,
+              generation: 1,
+            }
           : null,
     };
   }
@@ -142,7 +205,20 @@ export class PreviewClient implements ClientSession {
 
   private snapshot(): SnapshotVM {
     if (this.scenario.empty)
-      return { cursor: this.cursor, revision: this.revision, projects: [], spaces: [], roles: [], tasks: [], runs: [], issues: [], approvals: [], results: [], workspaces: [], modelCatalog: D.modelCatalog };
+      return {
+        cursor: this.cursor,
+        revision: this.revision,
+        projects: [],
+        spaces: [],
+        roles: [],
+        tasks: [],
+        runs: [],
+        issues: [],
+        approvals: [],
+        results: [],
+        workspaces: [],
+        modelCatalog: D.modelCatalog,
+      };
     return {
       cursor: this.cursor,
       revision: this.revision,
@@ -173,11 +249,21 @@ export class PreviewClient implements ClientSession {
       case 'runtime.getActiveWork':
         return this.snapshot() as never;
       case 'events.catchup':
-        return { events: [], next_cursor: this.cursor, has_more: false, server_instance_id: 'preview-core-01' } as never;
+        return {
+          events: [],
+          next_cursor: this.cursor,
+          has_more: false,
+          server_instance_id: 'preview-core-01',
+        } as never;
       case 'control.acquire':
         this.requireConnected();
         this.hello.connectionState = 'CONNECTED_CONTROLLER';
-        return { leaseId: 'lease-preview', clientId: 'workbench', expiresAtMs: this.clock() + 60000, generation: 1 } as never;
+        return {
+          leaseId: 'lease-preview',
+          clientId: 'workbench',
+          expiresAtMs: this.clock() + 60000,
+          generation: 1,
+        } as never;
       case 'control.release':
         this.hello.connectionState = 'CONNECTED_OBSERVER';
         return {} as never;
@@ -186,11 +272,19 @@ export class PreviewClient implements ClientSession {
       case 'project.get':
         return this.snapshot().projects.find((x) => x.id === p.project_id) as never;
       case 'space.list':
-        return page(D.spaces.filter((s) => !p.scope || (p.scope as { project_id?: string }).project_id === s.projectId));
+        return page(
+          D.spaces.filter(
+            (s) => !p.scope || (p.scope as { project_id?: string }).project_id === s.projectId,
+          ),
+        );
       case 'space.get':
         return D.spaces.find((s) => s.id === p.space_id) as never;
       case 'role.list':
-        return page(D.roles.filter((r) => !p.scope || (p.scope as { space_id?: string }).space_id === r.spaceId));
+        return page(
+          D.roles.filter(
+            (r) => !p.scope || (p.scope as { space_id?: string }).space_id === r.spaceId,
+          ),
+        );
       case 'role.get':
         return D.roles.find((r) => r.id === p.role_id) as never;
       case 'task.list':
@@ -248,21 +342,28 @@ export class PreviewClient implements ClientSession {
         this.emit(String(p.role_id ?? ''), {});
         return { entityId: String(p.role_id ?? ''), revision: ++this.revision } as never;
       }
+      case 'task.submitFromUser':
       case 'task.createFromUser': {
         this.requireController();
         this.requireConnected();
-        const role = D.roles.find((r) => r.id === p.role_id);
+        const role = D.roles.find((r) => r.id === ((p.request as any)?.to?.id ?? p.role_id));
         if (!role) err('NOT_FOUND', 'VALIDATION');
-        const busy = D.tasks.some((t) => t.assigneeRoleId === role.id && (t.state === 'ACTIVE' || t.state === 'WAITING_INPUT'));
+        const busy = D.tasks.some(
+          (t) =>
+            t.assigneeRoleId === role.id && (t.state === 'ACTIVE' || t.state === 'WAITING_INPUT'),
+        );
         const queued = D.tasks.filter((t) => t.assigneeRoleId === role.id && t.state === 'QUEUED');
         const task = {
           id: `task_new_${this.sentInputs.length}`,
           spaceId: role.spaceId,
           assigneeRoleId: role.id,
-          summary: String(p.summary ?? '新任务'),
+          summary: String((p.request as any)?.summary ?? p.summary ?? '新任务'),
           state: busy || role.status === 'PAUSED' ? 'QUEUED' : 'ACTIVE',
           acceptance: 'PENDING',
-          completionTargetLabel: '用户',
+          completionTargetLabel:
+            (p.request as any)?.completion?.to?.type === 'role'
+              ? (D.roles.find((r) => r.id === (p.request as any).completion.to.id)?.name ?? '角色')
+              : '用户',
           createdAtMs: this.clock(),
           updatedAtMs: this.clock(),
           queuePosition: busy || role.status === 'PAUSED' ? queued.length + 1 : undefined,
@@ -321,13 +422,13 @@ export class PreviewClient implements ClientSession {
         return page(this.appliedPlans.map((x) => ({ id: x.id })));
       case 'roleCharter.get': {
         this.requireCapability('role_charters');
-        const role = D.roles.find((r) => r.id === p.role_id);
+        const role = D.roles.find((r) => r.id === ((p.request as any)?.to?.id ?? p.role_id));
         if (!role) err('NOT_FOUND', 'VALIDATION');
         return D.charterFor(role) as never;
       }
       case 'roleCharter.listHistory': {
         this.requireCapability('role_charters');
-        const role = D.roles.find((r) => r.id === p.role_id);
+        const role = D.roles.find((r) => r.id === ((p.request as any)?.to?.id ?? p.role_id));
         return page(role ? [D.charterFor(role)] : []);
       }
       case 'space.reconfigure.preview':
@@ -339,15 +440,39 @@ export class PreviewClient implements ClientSession {
         this.requireConnected();
         this.requireCapability('space_reconfiguration');
         if (D.reconfigPreview.blockers.length > 0) err('RECONFIGURATION_BLOCKED', 'CONFLICT');
-        return { id: 'rcfg_01', state: 'COMMITTED', preview: D.reconfigPreview, newSpaceIds: ['sp_merged'], transitionPackets: [], auditId: 'audit_01', revision: 1 } as never;
+        return {
+          id: 'rcfg_01',
+          state: 'COMMITTED',
+          preview: D.reconfigPreview,
+          newSpaceIds: ['sp_merged'],
+          transitionPackets: [],
+          auditId: 'audit_01',
+          revision: 1,
+        } as never;
       }
       case 'space.reconfigure.get':
         this.requireCapability('space_reconfiguration');
-        return { id: 'rcfg_01', state: 'PREVIEW', preview: D.reconfigPreview, newSpaceIds: [], transitionPackets: [], auditId: 'audit_01', revision: 1 } as never;
+        return {
+          id: 'rcfg_01',
+          state: 'PREVIEW',
+          preview: D.reconfigPreview,
+          newSpaceIds: [],
+          transitionPackets: [],
+          auditId: 'audit_01',
+          revision: 1,
+        } as never;
       case 'space.reconfigure.abort':
         this.requireController();
         this.requireCapability('space_reconfiguration');
-        return { id: 'rcfg_01', state: 'ABORTED', preview: D.reconfigPreview, newSpaceIds: [], transitionPackets: [], auditId: 'audit_01', revision: 1 } as never;
+        return {
+          id: 'rcfg_01',
+          state: 'ABORTED',
+          preview: D.reconfigPreview,
+          newSpaceIds: [],
+          transitionPackets: [],
+          auditId: 'audit_01',
+          revision: 1,
+        } as never;
       case 'approval.decide':
         this.requireController();
         this.requireConnected();

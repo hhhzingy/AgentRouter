@@ -96,8 +96,7 @@ export function roleDisplayStates(input: {
           : '模型未验证';
     states.push({ key: 'intervention', label, tone: 'danger', priority: 1 });
   }
-  if (unknownRun)
-    states.push({ key: 'unknown', label: '状态未知', tone: 'danger', priority: 2 });
+  if (unknownRun) states.push({ key: 'unknown', label: '状态未知', tone: 'danger', priority: 2 });
   if (attentionTask || openIssue)
     states.push({ key: 'attention', label: '需要介入', tone: 'danger', priority: 3 });
   if (pendingApproval)
@@ -111,8 +110,7 @@ export function roleDisplayStates(input: {
         states.push({ key: 'wait-approval', label: '等待审批', tone: 'warning', priority: 6 });
     } else states.push({ key: 'running', label: '执行中', tone: 'active', priority: 7 });
   }
-  if (waitingTask)
-    states.push({ key: 'waiting', label: '等待输入', tone: 'queue', priority: 8 });
+  if (waitingTask) states.push({ key: 'waiting', label: '等待输入', tone: 'queue', priority: 8 });
   if (queuedCount > 0)
     states.push({
       key: 'queued',
@@ -146,7 +144,12 @@ export function summaryTone(counts: {
   if ((counts.approvals ?? 0) > 0)
     return { key: 'approvals', label: `待审批 ${counts.approvals}`, tone: 'warning', priority: 3 };
   if ((counts.activeRuns ?? 0) > 0)
-    return { key: 'running', label: `${counts.activeRuns} 个活跃 Run`, tone: 'active', priority: 4 };
+    return {
+      key: 'running',
+      label: `${counts.activeRuns} 个活跃 Run`,
+      tone: 'active',
+      priority: 4,
+    };
   if ((counts.queued ?? 0) > 0)
     return { key: 'queued', label: `排队 ${counts.queued}`, tone: 'queue', priority: 5 };
   return { key: 'idle', label: '空闲', tone: 'neutral', priority: 9 };
@@ -166,3 +169,5 @@ export const CONNECTION_LABEL: Record<string, string> = {
 export function isReadOnly(connectionState: string): boolean {
   return connectionState !== 'CONNECTED_CONTROLLER';
 }
+
+export const STAGED_RESULT_LABEL = '结果已暂存';

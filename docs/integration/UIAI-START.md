@@ -1,4 +1,6 @@
-# UIAI B1 交接入口
+# UIAI B1 交接入口（历史）
+
+2026-09-10 更新：UIAI 已交付并停止，Codex 已按固定 SHA 接管；当前状态见 [J1 报告](J1-report.md)。下文保留原 B1 交接上下文，不再作为新 UIAI 开工指令。
 
 请先读 `E:/AgentRouter/docs/执行包/AgentRouter_UIAI_B1_执行包/prompts/UIAI_START.txt` 和该执行包。UIAI 负责新 Renderer 全部视觉、布局、页面和交互，不继续设计旧 GUI。
 

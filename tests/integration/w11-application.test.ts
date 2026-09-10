@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
 import { Management } from '../../packages/runtime/management.ts';
 import { it, expect } from 'vitest';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { ApplicationService } from '../../packages/core-service/application.ts';
@@ -363,6 +364,111 @@ it('角色对话分页先过滤再分页，错误组写入拒绝且不改变角�
     ).rejects.toThrow('SCOPE_DENIED');
     expect((await f.s.request('role.get', { id: a.id, scope })).name).toBe(a.name);
   } finally {
+    await f.close();
+  }
+});
+
+it('J1 产物按项目授权、分块一致性、缺失与损坏拒绝下载', async () => {
+  const f = await fixture();
+  const restricted = new P1MemoryTransport({
+    open: () => f.server.open('human_restricted', true, new Set()),
+    handle: (c, r) => f.server.handle(c, r),
+    subscribe: (c, h) => f.server.subscribe(c, h),
+    disconnect: (c) => f.server.disconnect(c),
+  });
+  try {
+    const bytes = Buffer.alloc(70000, 74),
+      sha = createHash('sha256').update(bytes).digest('hex');
+    mkdirSync(resolve(f.dir, 'artifacts'));
+    writeFileSync(resolve(f.dir, 'artifacts', sha), bytes);
+    f.db
+      .prepare('insert into artifacts values(?,?,?,?,?,?,?,?,?)')
+      .run(
+        'artifact_j1',
+        f.project.id,
+        sha,
+        sha,
+        bytes.length,
+        'text/plain',
+        JSON.stringify({ name: 'synthetic.txt' }),
+        'AVAILABLE',
+        Date.now(),
+      );
+    expect((await f.s.request('artifact.verify', { id: 'artifact_j1' })).state).toBe('AVAILABLE');
+    const first = await f.s.request('artifact.download', { id: 'artifact_j1', limit_bytes: 65536 });
+    const second = await f.s.request('artifact.download', {
+      id: 'artifact_j1',
+      offset_bytes: first.byteSize,
+    });
+    expect(first.hasMore).toBe(true);
+    expect(second.hasMore).toBe(false);
+    expect(
+      Buffer.concat([Buffer.from(first.content, 'base64'), Buffer.from(second.content, 'base64')]),
+    ).toEqual(bytes);
+    await expect(
+      f.s.request('artifact.download', { id: 'artifact_j1', offset_bytes: 70001 }),
+    ).rejects.toThrow('INVALID_PARAMS');
+    const other = new Management(f.db).createProject('无关项目', f.dir);
+    await expect(
+      f.s.request('artifact.get', { id: 'artifact_j1', scope: { project_id: other.project } }),
+    ).rejects.toThrow('SCOPE_DENIED');
+    const denied = await restricted.connect({
+      clientId: 'client_restricted',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'observer',
+    });
+    expect((await denied.request('artifact.list', {})).items).toHaveLength(0);
+    await expect(denied.request('artifact.get', { id: 'artifact_j1', scope: {} })).rejects.toThrow(
+      'SCOPE_DENIED',
+    );
+    writeFileSync(resolve(f.dir, 'artifacts', sha), 'damaged');
+    expect((await f.s.request('artifact.verify', { id: 'artifact_j1' })).state).toBe('QUARANTINED');
+    await expect(f.s.request('artifact.download', { id: 'artifact_j1' })).rejects.toThrow(
+      'CAPABILITY_UNAVAILABLE',
+    );
+    f.db
+      .prepare('update artifacts set storage_key=? where id=?')
+      .run('0'.repeat(64), 'artifact_j1');
+    expect((await f.s.request('artifact.verify', { id: 'artifact_j1' })).state).toBe('MISSING');
+    await expect(f.s.request('artifact.download', { id: 'artifact_j1' })).rejects.toThrow(
+      'CAPABILITY_UNAVAILABLE',
+    );
+    f.db.prepare('update artifacts set storage_key=? where id=?').run('../escape', 'artifact_j1');
+    await expect(f.s.request('artifact.get', { id: 'artifact_j1', scope: {} })).rejects.toThrow(
+      'INVALID_PARAMS',
+    );
+  } finally {
+    await restricted.close();
+    await f.close();
+  }
+});
+it('J1 Main 目录授权受控制租约限制，句柄不能跨连接使用', async () => {
+  const f = await fixture();
+  const t = new P1MemoryTransport(f.server, 'human_test');
+  try {
+    const c = (f.transport as unknown as { connection: string }).connection;
+    const selected = mkdtempSync(resolve('.local/w11-tests/selected-'));
+    const grant = f.server.grantSelectedDirectory(c, selected);
+    expect(
+      (await f.s.request('filesystem.validateProjectRoot', { path_handle: grant.pathHandle }))
+        .items[0].displayPath,
+    ).toBe(selected);
+    const observer = await t.connect({
+      clientId: 'client_observer',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'observer',
+    });
+    const observerId = (t as unknown as { connection: string }).connection;
+    expect(() => f.server.grantSelectedDirectory(observerId, selected)).toThrow('SCOPE_DENIED');
+    await expect(
+      observer.request('filesystem.validateProjectRoot', { path_handle: grant.pathHandle }),
+    ).rejects.toThrow('SCOPE_DENIED');
+    expect(() => f.server.grantSelectedDirectory(c, '\\\\server\\share')).toThrow('SCOPE_DENIED');
+    const file = resolve(selected, 'file.txt');
+    writeFileSync(file, 'fixture');
+    expect(() => f.server.grantSelectedDirectory(c, file)).toThrow('SCOPE_DENIED');
+  } finally {
+    await t.close();
     await f.close();
   }
 });
