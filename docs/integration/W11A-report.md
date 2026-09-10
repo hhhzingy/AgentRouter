@@ -51,3 +51,11 @@ J1：尚无 UIAI B1 已提交 SHA；未运行最终新 GUI 的联合验收、四
 ## 各阶段
 
 G0/S0：既有证据通过，旧 Git 异常保全，根因 UNKNOWN_CAUSE。B0：已有固定提交及远端 Windows CI 通过。W11A：上述本地门禁通过，远端和集成 SHA 由集成交接记录补充。B1/J1：等待 UIAI，不合 main，不宣称 V1.0 已完成。
+
+## 固定提交与远端结果
+
+Core：`59942b21654997540da0ea04f2cda4d9611cb39d`；集成合并：`51e4c7a9dda935192387e0528a11665161425c88`；完整验证集成树：`ba846a79e06925e57121dabe414670890782b628`。集成副本复跑同一门禁，退出 0，123/123。
+
+Core 的 [合同/离线 CI](https://github.com/hhhzingy/AgentRouter/actions/runs/34427776085) 与 [W11 CI](https://github.com/hhhzingy/AgentRouter/actions/runs/34427776101) 均 success。集成的 [合同/离线 CI](https://github.com/hhhzingy/AgentRouter/actions/runs/34427890012) 与 [W11 CI](https://github.com/hhhzingy/AgentRouter/actions/runs/34427890016) 均 success。
+
+此记录提交仅追加证据，不冒称这些 CI 运行在其自身提交。J1 仍 NOT_RUN，B1 SHA 尚缺。main 核验为 `16370d3971740c80ca9ccec7a6d9b3553e896545`，未合并。
