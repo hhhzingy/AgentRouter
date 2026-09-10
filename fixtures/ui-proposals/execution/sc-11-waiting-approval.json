@@ -1,0 +1,28 @@
+{
+  "scenario_id": "sc-11",
+  "title": "WAITING_APPROVAL 等待审批",
+  "description": "Run 等待高风险命令审批。角色展示态=等待审批（优先级 2，压过执行中）。",
+  "ui_surfaces": ["角色详情", "审批与问题", "顶栏"],
+  "snapshot": {
+    "cursor": 4400,
+    "roles": [
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "WAITING_APPROVAL", "currentTaskSummary": "数据库迁移脚本", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 1, "revision": 10 }
+    ],
+    "tasks": [
+      { "id": "t_migrate", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "数据库迁移脚本", "state": "ACTIVE", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "陈复核", "createdAtMs": 1788928000000, "updatedAtMs": 1788931700000, "revision": 2 }
+    ],
+    "runs": [
+      { "id": "run_416", "roleId": "r_zhou", "taskId": "t_migrate", "harness": "pi", "state": "WAITING_APPROVAL", "startedAtMs": 1788931000000, "reconciliationRequired": false, "revision": 2 }
+    ],
+    "approvals": [
+      { "id": "ap_31", "runId": "run_416", "state": "PENDING", "title": "执行 db migrate（影响 3 张表）", "riskLevel": "HIGH", "requestedAtMs": 1788931700000, "expiresAtMs": 1788935400000, "revision": 1 }
+    ]
+  },
+  "expected_ui": [
+    "角色展示态=等待审批（⏸! 琥珀，优先级 2）；即使 runState 含执行语义也不显示『正在执行』",
+    "审批卡显示标题、风险 HIGH、过期时间倒计时；Controller 可批准/拒绝，Observer 按钮禁用",
+    "顶栏待审批计数 +1；项目页签『审批与问题』红点",
+    "审批决定（approval.decide）后卡片进入已决状态并保留审计记录",
+    "过期未决的审批以『已过期』呈现，不自动批准"
+  ]
+}

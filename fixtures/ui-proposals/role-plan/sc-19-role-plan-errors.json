@@ -1,0 +1,36 @@
+{
+  "scenario_id": "sc-19",
+  "title": "Role Plan 校验错误",
+  "description": "导入含多类错误的方案：逐条定位、不可 Apply。",
+  "ui_surfaces": ["编排页", "PlanImportEditor"],
+  "snapshot": { "cursor": 5010 },
+  "x_proposal": {
+    "ccr": ["CCR-UI-03"],
+    "invalid_plan_excerpt": {
+      "schema_version": "agentrouter-role-plan/1",
+      "project_id": "proj_atlas",
+      "title": "错误示例",
+      "source": "external_ai",
+      "groups": [ { "group_key": "CoreGroup", "display_name": "核心组" } ],
+      "roles": [
+        { "role_key": "ok_role", "group_key": "ghost_group", "display_name": "悬空角色" },
+        { "role_key": "bad role!", "group_key": "CoreGroup" }
+      ]
+    },
+    "validation_result": [
+      { "level": "error", "path": "groups[0].group_key", "message": "『CoreGroup』不符合 ^[a-z][a-z0-9_-]{0,79}$（须小写）", "line": 7 },
+      { "level": "error", "path": "groups[0]", "message": "缺少必填字段 purpose / communication_boundary / workspace_strategy / rules", "line": 7 },
+      { "level": "error", "path": "roles[0].group_key", "message": "引用了不存在的组『ghost_group』", "line": 12 },
+      { "level": "error", "path": "roles[1].role_key", "message": "『bad role!』含非法字符", "line": 18 },
+      { "level": "error", "path": "roles[0]", "message": "缺少必填字段 mission/responsibilities/out_of_scope 等 11 项", "line": 12 },
+      { "level": "error", "path": "review", "message": "缺少必填字段 review（含 requires_user_confirmation 与 known_risks）", "line": 1 }
+    ]
+  },
+  "expected_ui": [
+    "错误列表按行号排序，每条含 路径 + 原因 + 修复建议；点击定位到编辑器对应行",
+    "全部 error 未修复前『进入 Review』按钮禁用",
+    "warning 级（如与现有角色重名）单独分组，不阻断但需确认",
+    "粘贴含真实 role_id 字段的方案时给出专门错误：『AI 方案不得携带真实 role_id，真实 ID 由 Router 生成』",
+    "编辑器不离页保留用户已粘贴内容"
+  ]
+}

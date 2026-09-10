@@ -1,0 +1,28 @@
+{
+  "scenario_id": "sc-26",
+  "title": "Observer 只读连接",
+  "description": "无控制租约的连接：写入口全局禁用+原因；提供『获取控制』；租约冲突显示持有者。另含角色 PAUSED 展示态断言。",
+  "ui_surfaces": ["顶栏", "项目页", "角色详情", "审批与问题"],
+  "snapshot": {
+    "cursor": 5400,
+    "hello": {
+      "serverInstanceId": "core-prod-01:a91f",
+      "protocol": "agentrouter-client/1",
+      "schemaVersion": 1,
+      "platform": "linux",
+      "connectionState": "CONNECTED_OBSERVER",
+      "health": "OK",
+      "capabilities": { "remote_filesystem": true, "event_stream": true, "controller_lease": true, "mock": true }
+    },
+    "roles": [
+      { "id": "r_he", "spaceId": "sp_ui", "name": "何文档", "status": "PAUSED", "harness": "kimi_code", "harnessSupport": "MOCK", "workspaceLabel": "wt:ui", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 3 }
+    ]
+  },
+  "expected_ui": [
+    "顶栏连接徽标『◐⌁ 已连接 · Observer』，旁边提供『获取控制』（control.acquire）",
+    "派发/取消/审批决定/对账/重构/应用方案/全局暂停按钮全部禁用，Tooltip 统一为『当前为只读连接』",
+    "获取控制冲突（CONTROL_LEASE_BUSY）时显示当前持有者信息与租约剩余时间，不弹裸错误框",
+    "所有只读视图（对话/时间线/产物/目录）功能完整",
+    "附加状态断言：何文档 status=PAUSED → 展示态『已暂停』（⏸ 灰，优先级 8），无其他信号时不显示空闲"
+  ]
+}

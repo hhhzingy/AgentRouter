@@ -1,0 +1,26 @@
+{
+  "scenario_id": "sc-21",
+  "title": "模型需登录验证",
+  "description": "未登录 Provider：seed 目录可选但标『需登录验证』；禁止启动，可存草稿。",
+  "ui_surfaces": ["角色创建表单", "模型与账号"],
+  "snapshot": {
+    "cursor": 5030,
+    "accounts": [
+      { "id": "acc_none", "harness": "pi", "label": "（未配置）", "status": "REQUIRES_LOGIN", "quotaStatus": "UNKNOWN", "revision": 1 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-02"],
+    "model_catalog": [
+      { "harness": "pi", "provider_id": "deepseek", "model_id": "deepseek-v4-pro", "display_name": "DeepSeek V4 Pro", "source": "SEED", "availability": "REQUIRES_LOGIN", "reasoning": { "control": "reasoning_effort", "levels": ["low", "high", "max"], "default": "high" } },
+      { "harness": "pi", "provider_id": "zai", "model_id": "glm-5.3", "display_name": "GLM-5.3", "source": "SEED", "availability": "REQUIRES_LOGIN", "reasoning": { "control": "reasoning_effort", "levels": ["low", "high", "max"], "default": "max" } }
+    ]
+  },
+  "expected_ui": [
+    "模型条目显示 SEED 徽标 + 『需登录验证』琥珀标签；不显示『可用』",
+    "选中后推理档位按 levels 渲染（deepseek: low/high/max，默认 high）",
+    "『应用并启动』禁用并提示『该模型需登录验证』；『保存草稿』可用",
+    "提供『去登录』跳转账号区；登录并 model.refresh 后若模型不存在，禁止启动并提示重新选择",
+    "登录后目录从 SEED 升级为 RUNTIME 来源并覆盖档位（runtime probe 优先）"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "scenario_id": "sc-25",
+  "title": "SSH 断线",
+  "description": "SSH 连接进入 RECONNECTING→DISCONNECTED：数据冻结标注，Core 侧 Run 继续运行。",
+  "ui_surfaces": ["顶栏", "首页", "项目页"],
+  "snapshot": {
+    "cursor": 5300,
+    "hello": {
+      "serverInstanceId": "core-prod-01:a91f",
+      "protocol": "agentrouter-client/1",
+      "schemaVersion": 1,
+      "platform": "linux",
+      "connectionState": "RECONNECTING",
+      "health": "DEGRADED",
+      "capabilities": { "remote_filesystem": true, "event_stream": false, "controller_lease": true, "mock": true }
+    },
+    "projects": [
+      { "id": "proj_atlas", "name": "支付中台重构", "status": "ACTIVE", "hostLabel": "SSH · core-prod-01", "displayRoot": "~/work/pay-core", "spacesCount": 2, "activeRunsCount": 2, "issuesCount": 0, "revision": 46 }
+    ],
+    "runs": [
+      { "id": "run_412", "roleId": "r_zhou", "taskId": "t_impl", "harness": "pi", "state": "RUNNING", "startedAtMs": 1788930000000, "reconciliationRequired": false, "revision": 2 }
+    ]
+  },
+  "expected_ui": [
+    "顶栏连接徽标变为『◌⌁ 重连中』并显示已断时长；DISCONNECTED 后变『○⌁ 已断开』",
+    "项目卡整体降饱和但数据保持可见，卡片角标『数据截至 13:24:33』（最后一致快照 cursor=5300）",
+    "顶栏活跃 Run 计数保持断线前最后一致值（Core 侧 Run 继续运行，不假装归零）",
+    "全部写操作禁用并提示『连接断开后不可用』；只读浏览可用",
+    "重连成功后经 events.catchup 恢复，不重复渲染断线期间已展示过的事件",
+    "已提交的组重构/Apply 事务在重连后通过对应 get 方法取回结果（不重复提交）"
+  ]
+}

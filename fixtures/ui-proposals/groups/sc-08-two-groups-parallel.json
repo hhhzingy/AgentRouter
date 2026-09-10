@@ -1,0 +1,36 @@
+{
+  "scenario_id": "sc-08",
+  "title": "两组不同 worktree 并行 + 同工作区写互斥",
+  "description": "核心组与 UI 组各自 worktree 并行写；运维观察组与核心组共享工作区时被写互斥标记。",
+  "ui_surfaces": ["项目概览", "项目卡"],
+  "snapshot": {
+    "cursor": 4200,
+    "spaces": [
+      { "id": "sp_core", "projectId": "proj_atlas", "name": "核心实现组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 9 },
+      { "id": "sp_ui", "projectId": "proj_atlas", "name": "UI 组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 7 },
+      { "id": "sp_ops", "projectId": "proj_atlas", "name": "运维观察组", "status": "ACTIVE", "rolesCount": 1, "queuedTasksCount": 1, "revision": 2 }
+    ],
+    "roles": [
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "RUNNING", "currentTaskSummary": "登录接口实现", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 8 },
+      { "id": "r_su", "spaceId": "sp_ui", "name": "苏界面", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:ui", "taskState": "ACTIVE", "runState": "RUNNING", "currentTaskSummary": "设置页实现", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 6 },
+      { "id": "r_ops", "spaceId": "sp_ops", "name": "赵运维", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core（共享）", "queuedTasksCount": 1, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 2 }
+    ],
+    "runs": [
+      { "id": "run_412", "roleId": "r_zhou", "taskId": "t_impl", "harness": "pi", "state": "RUNNING", "startedAtMs": 1788930000000, "reconciliationRequired": false, "revision": 2 },
+      { "id": "run_415", "roleId": "r_su", "taskId": "t_settings", "harness": "pi", "state": "RUNNING", "startedAtMs": 1788930600000, "reconciliationRequired": false, "revision": 1 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-06"],
+    "workspaces": [
+      { "id": "ws_core", "label": "wt:core", "kind": "DEDICATED_WORKTREE", "display_path": "~/work/pay-core-wt/core", "write_lease_holder_run_id": "run_412", "bound_roles": ["r_lin", "r_zhou", "r_chen", "r_ops"] },
+      { "id": "ws_ui", "label": "wt:ui", "kind": "DEDICATED_WORKTREE", "display_path": "~/work/pay-core-wt/ui", "write_lease_holder_run_id": "run_415", "bound_roles": ["r_su", "r_tang", "r_he"] }
+    ]
+  },
+  "expected_ui": [
+    "概览顶部活跃任务条同时显示 Run#412（周实现）与 Run#415（苏界面），两组并行互不阻塞",
+    "运维观察组的工作区徽标显示『⧉wt:core（共享）🔒写占用中』，Tooltip 说明同一物理工作区同时只有一个写 Run",
+    "赵运维排队任务标注 blockedReason 相关提示『等待工作区写租约』（若 Core 提供）",
+    "组卡工作区徽标点击展开 WorkspaceVM 详情（路径/绑定角色/写租约持有者）"
+  ]
+}

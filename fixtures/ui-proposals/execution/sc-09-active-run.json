@@ -1,0 +1,25 @@
+{
+  "scenario_id": "sc-09",
+  "title": "活跃 Run",
+  "description": "周实现正在执行 Run#412。验证角色展示态=正在执行（优先级 4）与 Run/Task 分行。",
+  "ui_surfaces": ["项目概览", "角色详情", "顶栏"],
+  "snapshot": {
+    "cursor": 4300,
+    "roles": [
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "deepseek-v4-pro · 推理 high", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "RUNNING", "currentTaskSummary": "登录接口实现", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 8 }
+    ],
+    "tasks": [
+      { "id": "t_impl", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "登录接口实现", "state": "ACTIVE", "acceptance": "NOT_REQUIRED", "completionTargetLabel": "陈复核", "createdAtMs": 1788929400000, "updatedAtMs": 1788930000000, "revision": 3 }
+    ],
+    "runs": [
+      { "id": "run_412", "roleId": "r_zhou", "taskId": "t_impl", "harness": "pi", "state": "RUNNING", "startedAtMs": 1788930000000, "nativeSessionDisplay": "pi session #88", "reconciliationRequired": false, "revision": 2 }
+    ]
+  },
+  "expected_ui": [
+    "角色头像角标 ●(绿)，标签『正在执行』",
+    "角色详情右栏：Task 卡『登录接口实现 · 进行中』与 Run 卡『Run#412 · 运行中 · 已 50 分钟』分两行，互不覆盖",
+    "顶栏活跃 Run 计数 +1",
+    "输入框下方提示『角色正在执行，新消息将进入队列』",
+    "Run 卡显示 nativeSessionDisplay『pi session #88』与 harness 徽标"
+  ]
+}

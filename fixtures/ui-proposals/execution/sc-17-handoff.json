@@ -1,0 +1,28 @@
+{
+  "scenario_id": "sc-17",
+  "title": "Handoff 角色间交接",
+  "description": "周实现完成实现并把复核任务交接给陈复核（HANDED_OFF + ROUTE_RESULT）。",
+  "ui_surfaces": ["协作时间线", "项目概览", "角色详情对话流"],
+  "snapshot": {
+    "cursor": 4700,
+    "roles": [
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "HANDED_OFF", "currentTaskSummary": "登录接口实现", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 9 },
+      { "id": "r_chen", "spaceId": "sp_core", "name": "陈复核", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "STARTING", "currentTaskSummary": "登录接口复核", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 5 }
+    ],
+    "tasks": [
+      { "id": "t_impl", "spaceId": "sp_core", "requesterRoleId": "r_lin", "assigneeRoleId": "r_zhou", "summary": "登录接口实现", "state": "HANDED_OFF", "acceptance": "ACCEPTED", "completionTargetLabel": "陈复核", "createdAtMs": 1788929400000, "updatedAtMs": 1788931780000, "revision": 5 },
+      { "id": "t_review", "spaceId": "sp_core", "requesterRoleId": "r_zhou", "assigneeRoleId": "r_chen", "summary": "登录接口复核", "state": "ACTIVE", "acceptance": "PENDING", "completionTargetLabel": "用户", "createdAtMs": 1788931780000, "updatedAtMs": 1788931780000, "revision": 1 }
+    ],
+    "conversation": [
+      { "id": "ci_950", "cursor": 950, "kind": "ROUTE_RESULT", "roleId": "r_zhou", "taskId": "t_impl", "occurredAtMs": 1788931780000, "title": "交付：登录接口实现", "body": "实现完成，附提交与测试证据，交接给 陈复核 复核。", "state": "DELIVERED", "artifactIds": ["art_diff_01", "art_test_01"], "replay": false, "sensitive": false },
+      { "id": "ci_951", "cursor": 951, "kind": "ROUTE_TASK", "roleId": "r_chen", "taskId": "t_review", "occurredAtMs": 1788931780000, "title": "接收：登录接口复核", "body": "来自 周实现 的复核请求。", "state": "ACTIVE", "artifactIds": ["art_diff_01", "art_test_01"], "replay": false, "sensitive": false }
+    ]
+  },
+  "expected_ui": [
+    "周实现对话流显示 ROUTE_RESULT 交付卡（含 2 个产物链接），陈复核对话流显示 ROUTE_TASK 接收卡",
+    "t_impl 状态 HANDED_OFF⇄『已交接』，验收 ACCEPTED",
+    "组卡最近交接条更新为『周实现→陈复核 登录接口复核 · 刚刚』",
+    "时间线按人类语义渲染：『周实现 提交 artifact，并向 陈复核 发起复核』",
+    "交接唤醒陈复核（Run STARTING），而非普通通知"
+  ]
+}

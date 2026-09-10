@@ -1,0 +1,42 @@
+{
+  "scenario_id": "sc-23",
+  "title": "合并 Preview blockers",
+  "description": "合并核心组与 UI 组：preview 返回 4 类 blocker，全部阻断，无『忽略继续』。",
+  "ui_surfaces": ["组重构向导 Preview"],
+  "snapshot": {
+    "cursor": 5100,
+    "spaces": [
+      { "id": "sp_core", "projectId": "proj_atlas", "name": "核心实现组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 2, "revision": 9 },
+      { "id": "sp_ui", "projectId": "proj_atlas", "name": "UI 组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 1, "revision": 7 }
+    ],
+    "runs": [
+      { "id": "run_412", "roleId": "r_zhou", "taskId": "t_impl", "harness": "pi", "state": "RUNNING", "startedAtMs": 1788930000000, "reconciliationRequired": false, "revision": 2 },
+      { "id": "run_409", "roleId": "r_chen", "taskId": "t_review", "harness": "pi", "state": "UNKNOWN", "startedAtMs": 1788930200000, "reconciliationRequired": true, "revision": 4 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-05", "CCR-UI-11", "CCR-UI-15"],
+    "reconfigure_preview": {
+      "plan_id": "rc_01",
+      "plan_hash": "f27b…9d",
+      "expected_revision": 47,
+      "blockers": [
+        { "kind": "ACTIVE_RUN", "severity": "blocker", "ref": "run_412", "message": "Run #412（周实现）正在 RUNNING", "actions": ["等待完成", "取消 Run"] },
+        { "kind": "UNKNOWN_RUN", "severity": "blocker", "ref": "run_409", "message": "Run #409（陈复核）UNKNOWN 未对账", "actions": ["去对账"] },
+        { "kind": "ACCOUNT_SWITCH_IN_PROGRESS", "severity": "blocker", "ref": "r_tang", "message": "唐测试 账号切换进行中", "actions": ["等待切换完成"] },
+        { "kind": "WAITING_CHILD_TASK", "severity": "blocker", "ref": "t_parent", "message": "任务『登录模块整体交付』正在等待下属结果，不能静默迁移", "actions": ["先完成", "取消", "转人工"] },
+        { "kind": "QUEUE_UNRESOLVED", "severity": "blocker", "ref": "t_q2", "message": "排队任务『退款状态机』未选择处置", "actions": ["回到步骤 6"] }
+      ],
+      "affected": { "roles": 6, "active_runs": 2, "queued_tasks": 3, "sessions": 6, "workspaces": ["ws_core", "ws_ui"] },
+      "required_confirmations": ["合并不合并 worktree（wt:core 与 wt:ui 保持独立）", "旧组将归档为只读历史"]
+    }
+  },
+  "expected_ui": [
+    "blockers 分组为『⛔ 阻断项』与『⚠ 警告』，本场景 5 项全部为 blocker",
+    "每个 blocker 显示去处链接（跳角色详情/对账面板/向导步骤 6）",
+    "『提交』按钮禁用；界面不存在『忽略阻断继续』类控件",
+    "影响面统计与 required_confirmations 完整展示；plan_hash 与 expected_revision 可见",
+    "处理任一 blocker 后需『重新预检』，plan_hash 随输入变化失效",
+    "中止（space.reconfigure.abort）随时可用"
+  ]
+}

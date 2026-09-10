@@ -1,0 +1,24 @@
+{
+  "scenario_id": "sc-22",
+  "title": "六个 pi seed 模型目录",
+  "description": "完整 seed 目录（deepseek×2 / zai×2 / dashscope×2）的分组展示与模型原生推理档位。",
+  "ui_surfaces": ["模型与账号", "角色创建表单"],
+  "snapshot": { "cursor": 5040 },
+  "x_proposal": {
+    "ccr": ["CCR-UI-02"],
+    "model_catalog_source": "执行包 seeds/pi-model-catalog.v1.json（status=SEED_UNVERIFIED, runtime_probe_wins=true）",
+    "expected_groups": [
+      { "provider": "deepseek", "models": ["deepseek-v4-pro", "deepseek-v4-flash"], "levels": ["low", "high", "max"], "default": "high" },
+      { "provider": "zai", "models": ["glm-5.3", "glm-5.3-flash"], "levels": ["low", "high", "max"], "default": "max" },
+      { "provider": "dashscope", "models": ["qwen3.8-max", "qwen3.8-flash"], "levels": ["none", "low", "medium", "xhigh"], "default": "xhigh" }
+    ]
+  },
+  "expected_ui": [
+    "目录按 Provider 分组展示 6 个模型，全部带 SEED + REQUIRES_LOGIN 徽标，无一冒充可用",
+    "推理档位按模型原生渲染：deepseek/zai 为 low/high/max；qwen 为 none/low/medium/xhigh —— UI 不做跨模型归一化",
+    "qwen 模型显示约束提示『不同时设置 reasoning_effort 与 thinking_budget』",
+    "Flash 变体作为独立模型条目，不被解释为推理档位",
+    "tool_support=VERIFY_AT_RUNTIME 的模型在条目上标注『工具能力运行时确认』",
+    "刷新（model.refresh）前，目录头部常驻『seed 参考目录，非实时可用性证明』说明"
+  ]
+}

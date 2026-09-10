@@ -1,0 +1,26 @@
+{
+  "scenario_id": "sc-13",
+  "title": "UNKNOWN 状态未知",
+  "description": "陈复核的 Run 失去确认进入 UNKNOWN。不自动重跑；对账六动作；阻断组重构。",
+  "ui_surfaces": ["角色详情", "审批与问题", "组重构向导"],
+  "snapshot": {
+    "cursor": 4500,
+    "roles": [
+      { "id": "r_chen", "spaceId": "sp_core", "name": "陈复核", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "ACTIVE", "runState": "UNKNOWN", "currentTaskSummary": "登录接口复核", "queuedTasksCount": 0, "unreadNoticesCount": 1, "pendingApprovalsCount": 0, "revision": 6 }
+    ],
+    "tasks": [
+      { "id": "t_review", "spaceId": "sp_core", "requesterRoleId": "r_zhou", "assigneeRoleId": "r_chen", "summary": "登录接口复核", "state": "ACTIVE", "acceptance": "PENDING", "completionTargetLabel": "用户", "createdAtMs": 1788930000000, "updatedAtMs": 1788931760000, "revision": 3 }
+    ],
+    "runs": [
+      { "id": "run_409", "roleId": "r_chen", "taskId": "t_review", "harness": "pi", "state": "UNKNOWN", "startedAtMs": 1788930200000, "nativeSessionDisplay": "pi session #91", "reconciliationRequired": true, "revision": 4 }
+    ]
+  },
+  "expected_ui": [
+    "角色展示态=UNKNOWN/恢复核对（? 紫，优先级 3），与红色错误态明确区分",
+    "Run 卡显示『状态未知：Core 与原生会话失去确认。不会自动重跑。』及 nativeSessionDisplay",
+    "对账面板提供六动作：confirm_native_completed / confirm_no_side_effect_and_retry / mark_failed / reattach_native_session / quarantine_workspace / release_after_manual_verification，均需附证据",
+    "界面无『重试』『自动恢复』按钮",
+    "组重构 preview 将该 Run 列为 blocker（关联 sc-23）",
+    "对账完成（run.reconcile）前，该角色不派发新 Run"
+  ]
+}
