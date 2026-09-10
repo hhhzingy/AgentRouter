@@ -1,5 +1,6 @@
 {
-  "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+  "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+  "sourceDirty": false,
   "mode": "REAL_ELECTRON_LOCAL_CORE",
   "realHarnessSupport": 0,
   "nativeDialogs": "CONTROLLED_RETURN_MANUAL_NOT_RUN",
@@ -45,6 +46,10 @@
       "status": "PASS"
     },
     {
+      "id": "J2_HISTORY_READING_ANCHOR",
+      "status": "PASS"
+    },
+    {
       "id": "J2_EVENT_REFRESH_COALESCED",
       "status": "PASS"
     },
@@ -63,12 +68,33 @@
     {
       "id": "J2_ZOOM_125_150_200",
       "status": "PASS"
+    },
+    {
+      "id": "J2_TEXT_CONTRAST",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_DELETE_LOCAL_COPY_NO_CANCEL",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_FAILURE_RED_PRESERVES_INPUT",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_DISCONNECTED_NO_HEALTH_PROMISE",
+      "status": "PASS"
     }
   ],
   "screenshots": [
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-empty-home.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -79,7 +105,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-manual-editor.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -90,7 +121,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -101,7 +137,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-two-groups.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -112,7 +153,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -123,7 +169,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -134,7 +185,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-150.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -145,7 +201,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -156,7 +217,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -167,7 +233,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -178,7 +249,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -189,7 +265,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-uncertain-edited-draft.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1440,
@@ -200,7 +281,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1280,
+        "height": 720
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 1024,
@@ -211,7 +297,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1280,
+        "height": 720
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 853,
@@ -222,7 +313,12 @@
     },
     {
       "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
-      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "pixelSize": {
+        "width": 1280,
+        "height": 720
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
         "width": 640,
@@ -230,6 +326,38 @@
         "dpr": 2
       },
       "zoom": 2
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-failed-keeps-input.png",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-disconnected-readonly.png",
+      "pixelSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceDirty": false,
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
     }
   ]
 }
