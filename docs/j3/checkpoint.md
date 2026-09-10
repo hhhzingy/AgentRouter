@@ -8,3 +8,11 @@
 H-01 待用户回复：账号代号与独立登录、预算、SSH Alias/指纹/目录/部署授权、人工和干净环境。未读取开发凭据，无真实调用，无 SSH 连接，无 main/tag/release。
 失败与修复：冻结 API README 误改已恢复；新测试等待条件/字段名已改正且断言未降低；自动审批曾拒绝宽泛证据恢复提交，随后只读核验并对 16 文件逐个备份/hash 校验后获准恢复。后续测试用 AGENTROUTER_TEST_EVIDENCE_ROOT 输出到 J3，不覆盖历史。
 下一命令：git status --short，提交本证据；推进 Windows 受限令牌/独立身份 canary 和生产适配器。不要重跑未知外部操作，不混入其他分支，不合 main。不能把本阶段增量当 V1.0 完成。
+
+## 最新增量（继续从这里恢复）
+
+最新代码 4ffecefc5f4f3b44e1755791c5461dc5cbc183c2：共享 RPC 和 Codex 生命周期，19 项离线测试通过；仍未接生产 Core/进程/账户/六工具。
+Windows 访问 canary 提交 ff55ecb：源码 native/windows-isolation/AccessCanary.cs，编译通过，protect-canary-acl UnauthorizedAccessException，BLOCKED_ENV，未做权限放宽或秘密读取。
+9821e7e4c34201ed34250d031c49f657a051b7ec 的两条 CI 已 success，见 evidence/J3/ci-9821e7e.json；不把该 CI 套到后续新源码。
+Kimi 实际为 Node.js 打包程序（嵌入 Node 24.15.0），不是旧 Python 版本；仅依据当前 Kimi Code 文档并等待实际 ACP 协商。pi 用户安装 0.85.1 自带 RPC 文档确有 agent_settled，不能用 agent_end 代替；尚未真实运行。
+当前待实现：J3-01 生产配置迁移/后端注册/六工具接线；J3-02 完整隔离和 SG；J3-04/05 生命周期；J3-06–12 均未完成。H-01 仍无回复。下一步继续这些离线实现，并直接与用户完成独立 Windows 条件、账号代号/登录、预算与 SSH 授权，禁止自行读取日常凭据或部署远程。
