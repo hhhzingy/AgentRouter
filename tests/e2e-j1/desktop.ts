@@ -159,6 +159,7 @@ try {
   await page.getByLabel(/任务内容/).fill('J1 显式流水线');
   await page.getByLabel('结果去向').selectOption(b.id);
   await page.getByLabel('交接任务给目标角色').check();
+  await page.getByLabel('下一步要求',{exact:true}).fill('按约定复核成果并继续指定的下一阶段');
   await page.getByRole('button', { name: '提交任务', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: /已提交|已入队/ })).toBeVisible();
   await page.getByRole('button', { name: '取消', exact: true }).click();

@@ -22,7 +22,7 @@ it('J2 无 role 的全局事件不能当作每个项目的活动', () => {
  const s = makeStore({}); s.timeline = [{id:'foreign_event',kind:'system',occurredAtMs:1,body:'FOREIGN_PROJECT_EVENT',replay:false,sensitive:false}];
  expect(render(s, <ProjectPage projectId={s.snapshot.projects[0].id} tab="timeline" />)).not.toContain('FOREIGN_PROJECT_EVENT');
 });
-it.fails('J2 空闲角色可以填写新任务而不是只保留灰色补充框', () => {
+it('J2 空闲角色可以填写新任务而不是只保留灰色补充框', () => {
  const s = makeStore({snapshot:{tasks:[],runs:[]}}), role = s.snapshot.roles[0];
  const html = render(s, <Composer role={role} spaceId={role.spaceId} />);
  expect(html.match(/<textarea([^>]*)>/u)?.[1]).not.toContain('disabled');

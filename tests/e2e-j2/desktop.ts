@@ -1,7 +1,7 @@
 import {_electron as electron,expect} from '@playwright/test';
 import {mkdirSync,mkdtempSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {startCore} from '../w11-process-support.ts';
+import {startCore,until} from '../w11-process-support.ts';
 mkdirSync('.local/j2-tests',{recursive:true});mkdirSync('evidence/J2/screenshots',{recursive:true});
 const gui=mkdtempSync(resolve('.local/j2-tests/gui-')),data=resolve(gui,'core'),projectPath=resolve(gui,'手工协作项目');mkdirSync(data);mkdirSync(projectPath);
 let core!:Awaited<ReturnType<typeof startCore>>,app:any,page:any;
@@ -51,7 +51,7 @@ try{
  snap=await core.session.request('system.snapshot',{});expect(snap.roles).toHaveLength(3);expect(snap.runs).toHaveLength(0);pass('J2_RELOAD_SAVED_UNVERIFIED_NOT_STARTED');
  await page.getByRole('button',{name:'申请控制'}).click();
  await page.getByRole('button',{name:/编排角色|添加角色/}).first().click();
- await page.getByLabel('添加到现有小组',{exact:true}).selectOption(snap.spaces[0].id);
+ await page.getByLabel('添加到现有小组',{exact:true}).selectOption(snap.spaces.find(g=>g.name==='小组 1')!.id);
  await expect(page.locator('[data-stage="draft"]')).toBeVisible();
  await page.getByRole('button',{name:'为小组 1 添加角色'}).click();
  await page.getByLabel('角色 1 名称',{exact:true}).fill('补充分析');
@@ -70,6 +70,41 @@ try{
  await page.getByRole('button',{name:'确认并应用',exact:true}).click();await expect(page.locator('[data-stage="applied"]')).toBeVisible();
  expect((await core.session.request('system.snapshot',{})).roles).toHaveLength(7);pass('J2_IMPORT_EXPLICIT_PROJECT_WORKSPACE_MAPPING');
  await page.getByRole('button',{name:'返回项目',exact:true}).click();
+
+ const all=await core.session.request('system.snapshot',{}),originalSpace=snap.spaces.find(g=>g.name==='小组 1')!.id,a=all.roles.find(r=>r.name==='资料分析'&&r.spaceId===originalSpace)!,b=all.roles.find(r=>r.name==='实现复核'&&r.spaceId===originalSpace)!,c=all.roles.find(r=>r.name==='补充分析'&&r.spaceId===originalSpace)!;
+ const finish={tool:'finish',payload:{outcome:'succeeded',summary:'核验成果',body:'**隔离执行证据**，不是真实模型。',outputs:[]}};
+ await core.control('configureFixture',{roleId:a.id,scenario:{steps:[{tool:'wait',payload:{waiting_for:'user_input',reason:'请明确核验范围'}}],continuationSteps:[finish]}});
+ for(const role of [b,c])await core.control('configureFixture',{roleId:role.id,scenario:{steps:[finish],delayMs:1200}});
+ for(const role of [a,b,c])await until(()=>core.session.request('roleCharter.get',{project_id:project.id,role_id:role.id}),v=>v.bootstrapState==='DELIVERED');
+ await page.locator(`a[href="#/role/${a.id}"]`).first().click();await expect(page.locator('[data-page="role"]')).toBeVisible();
+ const body=page.getByLabel(`任务内容（去向：${a.name}）`,{exact:true});await body.fill('J2 用户补充');
+ await body.dispatchEvent('compositionstart');await body.press('Control+Enter');expect((await core.control('inspect')).tasks).toHaveLength(0);await body.dispatchEvent('compositionend');await body.press('Control+Enter');
+ await expect(page.locator('[data-action-state="succeeded"]').first()).toBeVisible();
+ const waiting=await until(()=>core.session.request('system.snapshot',{}),v=>v.tasks.some(t=>t.assigneeRoleId===a.id&&t.blockedReason==='WAITING_FOR_USER_INPUT'));
+ const original=waiting.tasks.find(t=>t.assigneeRoleId===a.id)!;
+ await page.getByRole('button',{name:'补充到任务',exact:true}).click();await page.getByLabel('补充目标任务',{exact:true}).selectOption(original.id);await expect(page.getByLabel('补充目标任务',{exact:true})).toHaveValue(original.id);
+ await page.getByLabel('补充内容',{exact:true}).fill('仅核验已提供的离线资料');await page.getByRole('button',{name:'新任务',exact:true}).click();await page.getByLabel(`任务内容（去向：${a.name}）`,{exact:true}).fill('下一项独立草稿');await page.getByRole('button',{name:'补充到任务',exact:true}).click();await expect(page.getByLabel('补充内容',{exact:true})).toHaveValue('仅核验已提供的离线资料');
+ await page.getByRole('button',{name:'提交补充',exact:true}).click();await until(()=>core.session.request('inbox.list',{}),v=>v.items.length===1);expect((await core.control('inspect')).tasks).toHaveLength(1);pass('J2_NEW_TASK_IME_AND_BOUND_TASK_INPUT');await shot('role-conversation');
+ await page.evaluate((id:string)=>{location.hash='#/role/'+id;},b.id);await expect(page.getByRole('heading',{name:b.name,exact:true})).toBeVisible();
+ for(const title of ['J2 队列一','J2 队列二']){
+  await page.getByLabel(`任务内容（去向：${b.name}）`,{exact:true}).fill(title);
+  await page.getByRole('button',{name:/^提交任务$|^派发到队列$/}).evaluate((button:HTMLButtonElement)=>{button.click();button.click();});await expect(page.locator('[data-action-state="succeeded"]').first()).toBeVisible();
+ }
+ await until(()=>core.session.request('inbox.list',{}),v=>v.items.length===3);const fifo=await core.control('inspect');expect(fifo.tasks.filter((t:any)=>t.summary.startsWith('J2 队列')).map((t:any)=>t.summary)).toEqual(['J2 队列一','J2 队列二']);pass('J2_DOUBLE_CLICK_AND_FIFO');
+ const request=(id:string,completion:any)=>({kind:'task.request',to:{type:'role',id},summary:'J2 下游工作',body:'核对上游结果并按明确要求交付',inputs:[],expected:['核验成果'],completion});
+ await core.control('configureFixture',{roleId:a.id,scenario:{steps:[{...finish,payload:{...finish.payload,next_request:request(b.id,{mode:'handoff',to:{type:'role',id:c.id},instruction:'汇总并交付用户'})}}]}});
+ await core.control('configureFixture',{roleId:b.id,scenario:{steps:[{...finish,payload:{...finish.payload,next_request:request(c.id,{mode:'result',to:{type:'user'}})}}],delayMs:1600,exitDelayMs:1600}});
+ await page.evaluate((id:string)=>{location.hash='#/role/'+id;},a.id);await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();
+ await page.getByLabel(`任务内容（去向：${a.name}）`,{exact:true}).fill('J2 三角色流水线');await page.getByLabel('结果去向',{exact:true}).selectOption(b.id);await page.getByLabel('交接任务给目标角色').check();await expect(page.getByRole('button',{name:/^提交任务$|^派发到队列$/})).toBeDisabled();await page.getByLabel('下一步要求',{exact:true}).fill('复核资料并继续交给汇总角色');await page.getByRole('button',{name:/^提交任务$|^派发到队列$/}).click();
+ await until(()=>core.control('inspect'),v=>v.runs.some((r:any)=>r.role_id===b.id&&r.state==='SETTLING')&&v.outbox.some((o:any)=>o.state==='HELD'));
+ expect((await core.control('inspect')).runs.filter((r:any)=>r.role_id===c.id)).toHaveLength(0);
+ await page.evaluate((id:string)=>{location.hash='#/role/'+id;},b.id);await expect(page.getByText('收尾中',{exact:true}).first()).toBeVisible();await shot('settling-held');
+ await until(()=>core.session.request('inbox.list',{}),v=>v.items.length===4);pass('J2_EXPLICIT_HANDOFF_NATIVE_BARRIER');
+ await core.control('seedHistory',{roleId:a.id,label:'A_独立资料'});await core.control('seedHistory',{roleId:b.id,label:'B_独立资料'});
+ await page.evaluate((id:string)=>{location.hash='#/role/'+id;},a.id);await expect(page.getByText('A_独立资料 历史 0',{exact:true})).toBeVisible();await page.getByRole('button',{name:'加载更多记录',exact:true}).click();await expect(page.getByText('A_独立资料 历史 149',{exact:true})).toBeVisible();expect(await page.evaluate(()=>typeof (window as any).hiddenInjected)).toBe('undefined');await shot('history-150');pass('J2_HISTORY_150_MARKDOWN_SAFE');
+ await core.control('historyFault',{fail:true});await page.evaluate((id:string)=>{location.hash='#/role/'+id;},b.id);await expect(page.getByText(/读取失败不代表没有记录/)).toBeVisible();await shot('history-read-error');await page.getByRole('button',{name:'重试读取',exact:true}).click();await expect(page.getByText('B_独立资料 历史 0',{exact:true})).toBeVisible();expect(await page.getByText('A_独立资料 历史 0',{exact:true}).count()).toBe(0);pass('J2_HISTORY_ERROR_NOT_EMPTY');
+ await core.control('historyFault',{delayMs:400});await page.evaluate((id:string)=>{location.hash='#/role/'+id;},a.id);await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await page.evaluate((id:string)=>{location.hash='#/role/'+id;},b.id);await expect(page.getByText('B_独立资料 历史 0',{exact:true})).toBeVisible();expect(await page.getByText('A_独立资料 历史 0',{exact:true}).count()).toBe(0);await core.control('historyFault',{delayMs:0});pass('J2_FAST_ROLE_SWITCH_ISOLATED');
+ const beforeCounts=await core.control('requestCounts');await core.control('burstEvents',{roleId:b.id});await expect(page.getByRole('button',{name:'加载更多记录',exact:true})).toBeVisible();await new Promise(r=>setTimeout(r,700));const afterCounts=await core.control('requestCounts');expect((afterCounts['system.snapshot']??0)-(beforeCounts['system.snapshot']??0)).toBeLessThanOrEqual(4);expect(afterCounts['conversation.read']).toBe(beforeCounts['conversation.read']);pass('J2_EVENT_REFRESH_COALESCED');
  expect(errors).toEqual([]);
 }catch(e){console.error(e);console.error(await page?.locator('body').innerText().catch(()=>''));process.exitCode=1;checks.push({id:'J2_DESKTOP',status:'FAIL'});if(page)await shot('failure').catch(()=>{});}
 finally{

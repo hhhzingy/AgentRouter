@@ -109,6 +109,7 @@ export class Projection {
         assigneeRoleId: t.assignee_role_id,
         summary: t.summary,
         state: t.state,
+        ...(t.state==='WAITING_INPUT'?{blockedReason:this.one('select waiting_for from wait_records where task_id=?',t.id)?.waiting_for==='user_input'?'WAITING_FOR_USER_INPUT':'WAITING_FOR_DEPENDENCY'}:{}),
         acceptance: t.acceptance,
         completionTargetLabel:
           completion.to.type === 'user'

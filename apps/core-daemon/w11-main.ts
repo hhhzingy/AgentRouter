@@ -35,6 +35,8 @@ function send(socket: import('node:net').Socket, value: unknown) {
   }
   socket.write(encoded + '\n');
 }
+const fixtureReadCounts:Record<string,number>={};
+let fixtureHistoryDelay=0,fixtureFailHistory=false;
 const server = createServer((socket) => {
   sockets.add(socket);
   const decoder = new JsonLfDecoder();
@@ -78,6 +80,13 @@ const server = createServer((socket) => {
                 });
               }
               return;
+            }
+            if(application.fixtureMode&&typeof frame.method==='string'){
+              fixtureReadCounts[frame.method]=(fixtureReadCounts[frame.method]??0)+1;
+              if(frame.method==='conversation.read'){
+                if(fixtureHistoryDelay)await new Promise(r=>setTimeout(r,fixtureHistoryDelay));
+                if(fixtureFailHistory){fixtureFailHistory=false;send(socket,{v:1,id:frame.id,error:{code:'INTERNAL_ERROR',category:'INTERNAL'}});return;}
+              }
             }
             const response = await application.handle(connection, frame);
             if (dropNext && frame.operation_id && !String(frame.method).startsWith('control.')) {
@@ -240,6 +249,18 @@ process.on('message', async (message: any) => {
         .immediate();
       application.notify();
       result = { id, sha256: sha, byteSize: bytes.length };
+    } else if(message.action==='seedHistory'){
+      const scope=application.roleScope(message.roleId);
+      const insert=application.db.prepare('insert into conversation_items(id,project_id,space_id,role_id,kind,title,body,at_ms,source_key) values(?,?,?,?,?,?,?,?,?)');
+      application.db.transaction(()=>{for(let i=0;i<150;i++){const id='j2_history_'+randomUUID();insert.run(id,scope.project_id,scope.space_id,message.roleId,i===75?'GAP':'ASSISTANT_MESSAGE',String(message.label)+' 历史 '+i,i===75?'对话存在缺口：隔离测试':String(message.label)+' 第 '+i+' 条 **核验结论**\n```ts\nconst evidence = '+i+';\n```\n<script>window.hiddenInjected=true</script>',Date.now()+i,id);}})();
+      application.event(scope.project_id,'FixtureHistory',message.roleId);application.notify();result={count:150};
+    } else if(message.action==='historyFault'){
+      fixtureHistoryDelay=Math.min(Math.max(Number(message.delayMs)||0,0),2000);fixtureFailHistory=message.fail===true;result={configured:true};
+    } else if(message.action==='requestCounts'){
+      result={...fixtureReadCounts};
+    } else if(message.action==='burstEvents'){
+      const scope=application.roleScope(message.roleId);
+      for(let i=0;i<100;i++){application.event(scope.project_id,'FixturePulse',message.roleId);application.notify();}result={events:100};
     } else if (message.action === 'dropNextReply') {
       dropNext = true;
     } else if (message.action === 'failNextCommit') {

@@ -1,3 +1,5 @@
+import {SafeText} from './safe-text.tsx';
+import {TaskEditor} from './task-editor.tsx';
 import {actionTone,failureState,errorMessage,type ActionState} from './action-state.ts';
 import { STAGED_RESULT_LABEL } from '../../../packages/ui/status.ts';
 /** 页面级复合组件：项目卡、组卡、角色行、派发抽屉、对话视图、对账面板。 */
@@ -233,132 +235,8 @@ export function SpaceCard({
 
 /* ---------- 派发抽屉 ---------- */
 
-export function DispatchDrawer({ role, onClose }: { role: RoleVM; onClose: () => void }) {
-  const s = useStore();
-  const [text, setText] = useState('');
-  const [target, setTarget] = useState('user');
-  const [handoff, setHandoff] = useState(false);
-  const [expected, setExpected] = useState('提交成果');
-  const [action,setAction]=useState<ActionState>('idle');
-  const [notice, setNotice] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const active = s.snapshot.tasks.find(
-    (t) => t.assigneeRoleId === role.id && ['ACTIVE', 'WAITING_INPUT'].includes(t.state),
-  );
-  const queued = s.snapshot.tasks.filter(
-    (t) => t.assigneeRoleId === role.id && t.state === 'QUEUED',
-  );
-  const willQueue = !!active || role.status === 'PAUSED';
-
-  async function submit() {
-    setSending(true);setAction('submitting');
-    try {
-      const task = await s.call('task.submitFromUser', {
-        request: {
-          kind: 'task.request',
-          to: { type: 'role', id: role.id },
-          summary: text.slice(0, 240),
-          body: text,
-          inputs: [],
-          expected: expected.split('\n').filter(Boolean),
-          completion:
-            handoff && target !== 'user'
-              ? {
-                  mode: 'handoff',
-                  to: { type: 'role', id: target },
-                  instruction: '按任务正文接续工作',
-                }
-              : {
-                  mode: 'result',
-                  to: target === 'user' ? { type: 'user' } : { type: 'role', id: target },
-                },
-        },
-      });
-      // 红线：只显示"已提交/已入队"，不声称角色已接收或已处理。
-      setNotice(
-        task.state === 'QUEUED'
-          ? `已入队${task.queuePosition ? `，${formatQueuePosition(task.queuePosition)}` : ''}（位置以 Core 返回为准）`
-          : '已提交',
-      );
-      setText('');setAction('succeeded');
-    } catch (e) {
-      setAction(failureState(e));setNotice(errorMessage(e));
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <Drawer
-      title={`派发给 ${role.name}`}
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            取消
-          </Button>
-          <Button
-            variant="primary"
-            disabled={s.readOnly || !text.trim() || !expected.trim() || sending}
-            onClick={() => void submit()}
-          >
-            {willQueue ? '派发到队列' : '提交任务'}
-          </Button>
-        </>
-      }
-    >
-      {active && (
-        <div className="hint tone-warning">
-          该角色正在处理「{active.summary}」。新任务将进入队列 。
-        </div>
-      )}
-      {role.status === 'PAUSED' && (
-        <div className="hint tone-warning">该角色已暂停派发，任务将留在队列中等待恢复。</div>
-      )}
-      <label className="field">
-        <span>任务内容（去向：{role.name}）</span>
-        <textarea
-          value={text}
-          maxLength={8192}
-          rows={6}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="描述任务与完成定义…"
-        />
-      </label>
-      <label className="field">
-        <span>预期成果（每行一项）</span>
-        <textarea
-          aria-label="预期成果"
-          value={expected}
-          onChange={(e) => setExpected(e.target.value)}
-        />
-      </label>
-      <label className="field">
-        <span>结果去向</span>
-        <select aria-label="结果去向" value={target} onChange={(e) => setTarget(e.target.value)}>
-          <option value="user">用户</option>
-          {s.snapshot.roles
-            .filter((r) => r.spaceId === role.spaceId && r.id !== role.id)
-            .map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-        </select>
-      </label>
-      {target !== 'user' && (
-        <label>
-          <input type="checkbox" checked={handoff} onChange={(e) => setHandoff(e.target.checked)} />
-          交接任务给目标角色
-        </label>
-      )}
-      {notice && (
-        <div className={`hint tone-${actionTone(action)}`} role="status" data-action-state={action}>
-          {notice}
-        </div>
-      )}
-    </Drawer>
-  );
+export function DispatchDrawer({role,onClose}:{role:RoleVM;onClose:()=>void}){
+ return <Drawer title={`派发给 ${role.name}`} onClose={onClose} footer={<Button onClick={onClose}>取消</Button>}><TaskEditor role={role}/></Drawer>;
 }
 
 /* ---------- 任务 / Run 行 ---------- */
@@ -450,7 +328,7 @@ export function ConversationView({ items, now }: { items: ConversationItemVM[]; 
             {it.title && <span className="cv-title">{it.title}</span>}
             <time title={formatDateTime(it.occurredAtMs)}>{formatAgo(it.occurredAtMs, now)}</time>
           </header>
-          {it.body && <p className="cv-body">{it.body}</p>}
+          {it.body && (it.kind==='TOOL_CALL'||it.kind==='TOOL_RESULT'?<details><summary>查看工具记录</summary><SafeText text={it.body}/></details>:<SafeText text={it.body}/>) }
         </li>
       ))}
     </ol>
@@ -459,57 +337,7 @@ export function ConversationView({ items, now }: { items: ConversationItemVM[]; 
 
 /* ---------- 对话输入（无回执红线） ---------- */
 
-export function Composer({ role, spaceId: _spaceId }: { role: RoleVM; spaceId: string }) {
-  const s = useStore();
-  const [text, setText] = useState('');
-  const [note, setNote] = useState<string | null>(null);
-  const activeTask = s.snapshot.tasks.find(
-    (t) => t.assigneeRoleId === role.id && t.state === 'WAITING_INPUT',
-  );
-  const disabled = s.readOnly || s.connectionState === 'DISCONNECTED' || !activeTask;
-  async function send() {
-    try {
-      await s.call('conversation.sendUserInput', {
-        role_id: role.id,
-        task_id: activeTask!.id,
-        body: text,
-      } as never);
-      setText('');
-      // 只说"已提交"，不伪造"已读/已处理"。
-      setNote('已提交。对方是否接收与处理以后续事件为准。');
-    } catch (e) {
-      setNote(e instanceof Error ? e.message : String(e));
-    }
-  }
-  return (
-    <div className="composer">
-      <textarea
-        aria-label={`给 ${role.name} 发送输入`}
-        placeholder={
-          s.readOnly || s.connectionState === 'DISCONNECTED'
-            ? '只读或断线时不可发送'
-            : !activeTask
-              ? '没有进行中的任务；补充输入需关联任务，新任务请使用「派发」'
-              : `就「${activeTask.summary}」补充输入…`
-        }
-        value={text}
-        disabled={disabled}
-        rows={2}
-        onChange={(e) => setText(e.target.value)}
-      />
-      <div className="composer-foot">
-        {note && (
-          <span className="hint tone-ok" role="status">
-            {note}
-          </span>
-        )}
-        <Button variant="primary" disabled={disabled || !text.trim()} onClick={() => void send()}>
-          发送
-        </Button>
-      </div>
-    </div>
-  );
-}
+export function Composer({role,spaceId:_spaceId}:{role:RoleVM;spaceId:string}){return <TaskEditor role={role}/>;}
 
 /* ---------- UNKNOWN 对账面板 ---------- */
 
