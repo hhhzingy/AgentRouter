@@ -1,0 +1,57 @@
+{
+  "stage": "W11A",
+  "date": "2026-09-10",
+  "backendModes": [
+    "LOCAL_CORE",
+    "PREVIEW_MOCK"
+  ],
+  "realHarnessSupport": 0,
+  "command": "node tools/check-w11.mjs",
+  "exitCode": 0,
+  "tests": {
+    "files": 22,
+    "passed": 123,
+    "failed": 0,
+    "preservedOriginal": 91
+  },
+  "checks": {
+    "C1_GENERATION_FREEZE": "PASS",
+    "C1R1_GENERATION_FREEZE": "PASS",
+    "C1R1P1_GENERATION_FREEZE": "PASS",
+    "TYPECHECK": "PASS",
+    "SENSITIVE_SCAN": "PASS",
+    "REAL_CORE_FIXTURE_PROCESSES": "PASS",
+    "REAL_ELECTRON_PREVIEW_MOCK": "PASS",
+    "REAL_ELECTRON_LOCAL_CORE": "PASS"
+  },
+  "notRun": [
+    "REAL_ACCOUNTS",
+    "REAL_HARNESS",
+    "REAL_SSH_LINUX",
+    "FINAL_UI_B1",
+    "J1"
+  ],
+  "failuresResolved": [
+    {
+      "finding": "类型错误、UNKNOWN 使用未冻结干预枚举",
+      "resolution": "修复类型，使用已有 runState 和问题记录；冻结检查通过"
+    },
+    {
+      "finding": "Fixture 测试退出等待和第二实例拒绝后的 IPC 持活",
+      "resolution": "正确识别已退出子进程；启动失败断开父 IPC"
+    },
+    {
+      "finding": "Electron 测试工具等待独立子进程导致关闭等待",
+      "resolution": "以真实窗口关闭及 GUI 进程退出验证，独立 Core 后续专门清理"
+    },
+    {
+      "finding": "Renderer crash 后过早求值",
+      "resolution": "等待实际 crash，确认 Core 存活；关窗重开重新附着"
+    },
+    {
+      "finding": "新测试输入缺少合同必填字段",
+      "resolution": "补全 scope、租约和合法 completion 后验证目标行为"
+    }
+  ],
+  "evidencePolicy": "仅脱敏检查摘要；不提交原始日志、数据库、endpoint 凭据或账号资料"
+}

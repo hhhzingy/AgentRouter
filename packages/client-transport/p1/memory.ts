@@ -34,6 +34,26 @@ export class P1MemoryTransport implements ClientTransport {
     this.connection = c;
     const revision = options.contractRevision ?? 'C1R1P1';
     let lease: LeaseVM | null = null;
+    let observedCursor = 0,
+      overflow = false;
+    const buffered = new Map<number, Event>();
+    const listeners = new Map<(e: Event) => void, number>();
+    const sourceUnsub = this.server.subscribe(c, (e: Event) => {
+      if (generation !== this.generation) return;
+      validateFrame(e, revision);
+      if (e.cursor <= observedCursor) return;
+      buffered.set(e.cursor, e);
+      if (buffered.size > 1000) {
+        overflow = true;
+        buffered.delete(buffered.keys().next().value!);
+      }
+      for (const [fn, last] of listeners)
+        if (e.cursor > last) {
+          listeners.set(fn, e.cursor);
+          fn(e);
+        }
+    });
+    this.subscriptions.add(sourceUnsub);
     const request = async <M extends Method>(
       method: M,
       params: MethodMap[M]['params'],
@@ -75,6 +95,11 @@ export class P1MemoryTransport implements ClientTransport {
         if (method === 'control.acquire' || method === 'control.renew')
           lease = reply.result as LeaseVM;
         if (method === 'control.release') lease = null;
+        if (method === 'system.snapshot') {
+          observedCursor = (reply.result as { cursor: number }).cursor;
+          for (const key of buffered.keys()) if (key <= observedCursor) buffered.delete(key);
+          overflow = false;
+        }
         return reply.result as MethodMap[M]['result'];
       } finally {
         clearTimeout(timer);
@@ -88,20 +113,21 @@ export class P1MemoryTransport implements ClientTransport {
         requested_mode: options.requestedMode,
         contract_revision: revision,
       })) as CoreHelloVM;
+      observedCursor = Math.max(observedCursor, hello.eventCursor);
       if (hello.contractRevision !== revision) throw new C1R1Error('PROTOCOL_INCOMPATIBLE');
       return {
         hello,
         request,
         subscribe: (fn) => {
-          const unsub = this.server.subscribe(c, (e: Event) => {
-            if (generation !== this.generation) return;
-            validateFrame(e, revision);
-            fn(e);
-          });
-          this.subscriptions.add(unsub);
+          if (overflow) throw new C1R1Error('CURSOR_EXPIRED');
+          listeners.set(fn, observedCursor);
+          for (const e of buffered.values())
+            if (e.cursor > (listeners.get(fn) ?? 0)) {
+              listeners.set(fn, e.cursor);
+              fn(e);
+            }
           return () => {
-            unsub();
-            this.subscriptions.delete(unsub);
+            listeners.delete(fn);
           };
         },
         connectionState: () =>
