@@ -34,5 +34,5 @@ it('J2 core/core-ui 前缀与跨项目同名目录只按权威 ID 匹配',()=>{
  expect(exactWorkspace([foreign,workspace,ui],charter,'p-one')).toBe(ui);
  expect(exactWorkspace([foreign,workspace],charter,'p-one')).toBeUndefined();
  expect(exactWorkspace([foreign,workspace,ui],charter,'p-two')).toBeUndefined();
- expect(exactWorkspace([foreign,workspace,ui],null,'p-one')).toBeNull();
+ expect(exactWorkspace([foreign,workspace,ui],null,'p-one')).toBeUndefined();
 });
