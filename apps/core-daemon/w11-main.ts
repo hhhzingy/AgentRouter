@@ -36,7 +36,7 @@ function send(socket: import('node:net').Socket, value: unknown) {
   socket.write(encoded + '\n');
 }
 const fixtureReadCounts:Record<string,number>={};
-let fixtureHistoryDelay=0,fixtureFailHistory=false;
+let fixtureHistoryDelay=0,fixtureFailHistory=false,fixtureDenyMutation=false;
 const server = createServer((socket) => {
   sockets.add(socket);
   const decoder = new JsonLfDecoder();
@@ -83,9 +83,10 @@ const server = createServer((socket) => {
             }
             if(application.fixtureMode&&typeof frame.method==='string'){
               fixtureReadCounts[frame.method]=(fixtureReadCounts[frame.method]??0)+1;
-              if(frame.method==='conversation.read'){
+              if(fixtureDenyMutation&&frame.operation_id&&!frame.method.startsWith('control.')){fixtureDenyMutation=false;send(socket,{v:1,id:frame.id,error:{code:'INVALID_PARAMS',category:'VALIDATION'}});return;}
+              if(['conversation.read','roleCharter.get'].includes(frame.method)){
                 if(fixtureHistoryDelay)await new Promise(r=>setTimeout(r,fixtureHistoryDelay));
-                if(fixtureFailHistory){fixtureFailHistory=false;send(socket,{v:1,id:frame.id,error:{code:'INTERNAL_ERROR',category:'INTERNAL'}});return;}
+                if(frame.method==='conversation.read'&&fixtureFailHistory){fixtureFailHistory=false;send(socket,{v:1,id:frame.id,error:{code:'INTERNAL_ERROR',category:'INTERNAL'}});return;}
               }
             }
             const response = await application.handle(connection, frame);
@@ -254,6 +255,7 @@ process.on('message', async (message: any) => {
       const insert=application.db.prepare('insert into conversation_items(id,project_id,space_id,role_id,kind,title,body,at_ms,source_key) values(?,?,?,?,?,?,?,?,?)');
       application.db.transaction(()=>{for(let i=0;i<150;i++){const id='j2_history_'+randomUUID();insert.run(id,scope.project_id,scope.space_id,message.roleId,i===75?'GAP':'ASSISTANT_MESSAGE',String(message.label)+' 历史 '+i,i===75?'对话存在缺口：隔离测试':String(message.label)+' 第 '+i+' 条 **核验结论**\n```ts\nconst evidence = '+i+';\n```\n<script>window.hiddenInjected=true</script>',Date.now()+i,id);}})();
       application.event(scope.project_id,'FixtureHistory',message.roleId);application.notify();result={count:150};
+    } else if(message.action==='denyNextMutation'){fixtureDenyMutation=true;result={configured:true};
     } else if(message.action==='historyFault'){
       fixtureHistoryDelay=Math.min(Math.max(Number(message.delayMs)||0,0),2000);fixtureFailHistory=message.fail===true;result={configured:true};
     } else if(message.action==='requestCounts'){

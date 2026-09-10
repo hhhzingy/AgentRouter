@@ -179,12 +179,15 @@ export function SpaceCard({
   const s = useStore();
   const roles = s.snapshot.roles.filter((r) => r.spaceId === space.id && r.status !== 'ARCHIVED');
   const ws = undefined; // 无权威 workspaceId 时不按显示名称猜测。
-  const tone = summaryTone({
+  const setup=roles.filter(r=>r.interventionState==='BOOTSTRAP_REQUIRED'||r.interventionState==='MODEL_UNVERIFIED').length;
+  const summary = summaryTone({
+    unknown:s.snapshot.runs.filter(run=>roles.some(r=>r.id===run.roleId)&&run.state==='UNKNOWN').length,
     activeRuns: space.activeRunsCount,
     issues: s.snapshot.issues.filter(i=>roles.some(r=>r.id===i.roleId)&&i.state!=='RESOLVED').length,
     queued: space.queuedTasksCount,
     approvals: roles.reduce((n, r) => n + r.pendingApprovalsCount, 0),
   });
+  const tone=summary.key==='idle'&&setup?{key:'setup',label:`${setup} 个角色待设置`,tone:'neutral' as const,priority:15}:summary;
   return (
     <section className="space-card" data-space-id={space.id}>
       <header className="space-card-head">

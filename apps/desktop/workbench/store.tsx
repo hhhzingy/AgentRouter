@@ -132,7 +132,7 @@ export function StoreProvider({
       }
       setHello((h) => ({ ...h, connectionState: session.connectionState() }));
     } catch (e) {
-      setProblem(e instanceof Error ? e.message : String(e));
+      setProblem(errorMessage(e));
       setHello((h) => ({ ...h, connectionState: session.connectionState() }));
     } finally {
       refreshing.current = false;
@@ -161,14 +161,15 @@ export function StoreProvider({
     const off = session.subscribe(() => {
       if(!scheduled) scheduled=setTimeout(()=>{scheduled=undefined;void refresh();},250);
     });
+    const connectionWatch=setInterval(()=>{const state=session.connectionState();setHello(h=>h.connectionState===state?h:{...h,connectionState:state});},1000);
     const verify = setInterval(()=>{metadataLoaded.current=false;void refresh();},30000);
     const timer = setInterval(() => {
       if (lease.current && lease.current.expiresAtMs - Date.now() < 15000)
-        void control('control.renew').catch((e) => {lease.current=null;setProblem(e.message);});
+        void control('control.renew').catch((e) => {lease.current=null;setProblem(errorMessage(e));});
     },5000);
     return () => {
       off();
-      clearInterval(timer);clearInterval(verify);clearTimeout(scheduled);
+      clearInterval(timer);clearInterval(verify);clearInterval(connectionWatch);clearTimeout(scheduled);
     };
   }, [refresh, session, control]);
   const call = useCallback(

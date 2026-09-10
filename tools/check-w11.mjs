@@ -18,10 +18,12 @@ const commands = [
     'tests/chaos',
     'tests/ui',
   ],
+  ['tools/generate-j2-role-validator.mjs','--check'],
   ['tools/build-w11.mjs'],
   ['tools/test-b0-desktop.mjs'],
   ['tools/test-w11-desktop.mjs'],
   ['tools/test-j1-desktop.mjs'],
+  ['tools/test-j2-desktop.mjs'],
 ];
 for (const args of commands) {
   const r = spawnSync(process.execPath, args, { stdio: 'inherit', windowsHide: true });

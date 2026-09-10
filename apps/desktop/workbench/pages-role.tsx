@@ -1,3 +1,4 @@
+import {errorMessage} from './action-state.ts';
 import {HistoryPanel} from './history.tsx';
 import {exactWorkspace} from './identity.ts';
 /** 角色详情：Charter / 当前任务与 Run / 完整对话 / 权限与工作区 / UNKNOWN 对账。 */
@@ -132,13 +133,13 @@ export function RolePage({ roleId }: { roleId: string }) {
 
         {settingsOpen&&<Drawer title="角色设置" onClose={()=>setSettingsOpen(false)}><div className="role-col-side">
           <Card>
-            <h3>Role Charter</h3>
+            <h3>角色说明（Role Charter）</h3><CharterHistory roleId={role.id} projectId={project?.id??''}/>
             {charterUnavailable ? (
               <p className="muted">当前 Core 不支持 Charter 查询（能力缺失，降级显示）。</p>
             ) : !charter ? (
               <p className="muted">加载中…</p>
             ) : (
-              <div data-testid="charter-card">
+              <div data-testid="charter-card" data-role-id={charter.roleId}>
                 <KeyValue k="修订" v={`r${charter.revision}`} />
                 <KeyValue
                   k="Bootstrap"
@@ -251,4 +252,10 @@ export function RolePage({ roleId }: { roleId: string }) {
       </div>
     </div>
   );
+}
+
+function CharterHistory({roleId,projectId}:{roleId:string;projectId:string}){
+ const s=useStore(),[rows,setRows]=useState<RoleCharterVM[]|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[more,setMore]=useState(false),alive=useRef(true);
+ useEffect(()=>()=>{alive.current=false;},[]);
+ return <details onToggle={async e=>{if(!e.currentTarget.open||rows||busy)return;setBusy(true);try{const v=await s.call('roleCharter.listHistory',{role_id:roleId,project_id:projectId});if(alive.current){setRows(v.items);setMore(v.has_more);}}catch(e){if(alive.current)setError(errorMessage(e));}finally{if(alive.current)setBusy(false);}}}><summary>角色说明历史（原始修订）</summary>{busy&&<p>正在读取…</p>}{error&&<p role="alert">{error}；关闭后重开可重试。</p>}{rows?.map(c=><details key={c.id}><summary>修订 {c.revision} · {formatDateTime(c.effectiveAtMs)}</summary><p>{c.spec.mission}</p><pre>{JSON.stringify(c,null,2)}</pre></details>)}{more&&<p>还有历史修订；当前冻结查询没有尾页游标参数，本页不宣称完整。</p>}</details>;
 }

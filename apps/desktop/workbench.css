@@ -426,3 +426,10 @@ nav[aria-label] {display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
 .model-table {display:block;max-width:100%;overflow:auto;}
 .drawer {width:min(640px,96vw);} .muted,.hint,.capability-reason {color:#536174;}
 @media(max-width:800px){.page-head,.wb-topbar {flex-wrap:wrap;}.wb-main {padding:12px;}.overview-strip{flex-wrap:wrap;}.project-head-actions{flex-wrap:wrap;}.tabs{overflow:auto;}.field input,.field select,.field textarea{max-width:100%;}}
+
+.wb-topbar-status {display:flex;flex-wrap:wrap;} .wb-topbar {flex-wrap:wrap;}
+.project-root,.project-card-root {overflow-wrap:anywhere;word-break:break-word;}
+.page-head>div {min-width:0;} .space-card-head,.space-card-meta,.role-row {flex-wrap:wrap;}
+:root {--warning:#805509;--ok:#146c3e;}
+
+.btn {white-space:nowrap;} .project-head {flex-wrap:wrap;} .project-head-actions {flex-shrink:0;}

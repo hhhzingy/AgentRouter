@@ -158,6 +158,14 @@ it('用户任务 sender=user，明确结果目标入库；对话角色过滤不�
         project_data: { origin: 'user' },
       };
     const task = (await f.write('task.submitFromUser', { request }, scope)) as any;
+    // QUEUED / ACTIVE 都不支持用户补充；不能偷偷中断或创建新任务。
+    for(const state of ['QUEUED','ACTIVE']){
+      f.db.prepare('update tasks set state=? where id=?').run(state,task.id);
+      await expect(f.write('conversation.sendUserInput',{role_id:a.id,task_id:task.id,body:'不能偷偷续办'},scope)).rejects.toThrow('PLAN_STATE_CONFLICT');
+      expect((f.db.prepare('select count(*) as n from tasks').get() as any).n).toBe(1);
+      expect((f.db.prepare('select count(*) as n from conversation_items where body=?').get('不能偷偷续办') as any).n).toBe(0);
+    }
+    f.db.prepare('update tasks set state=? where id=?').run('QUEUED',task.id);
     const row = f.db.prepare('select * from messages where task_id=?').get(task.id) as any;
     expect(row.from_kind).toBe('user');
     expect(row.from_role_id).toBeNull();

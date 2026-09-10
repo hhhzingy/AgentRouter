@@ -31,9 +31,9 @@ export function Shell({ children }: { children: ReactNode }) {
           {snap.runs.some((r) => r.nativeSessionDisplay === 'SIMULATED') && (
             <Badge tone="warning">模拟执行器 · 真实 Harness 支持 0</Badge>
           )}
-          <Badge tone={s.hello.health === 'OK' ? 'ok' : 'warning'} title="Core 健康状态">
+          <Badge tone={disconnected||reconnecting?'warning':s.hello.health === 'OK' ? 'ok' : 'warning'} title="Core 健康状态">
             Core{' '}
-            {s.hello.health === 'OK' ? '正常' : s.hello.health === 'DEGRADED' ? '降级' : '仅诊断'}
+            {disconnected||reconnecting?'当前健康未知':s.hello.health === 'OK' ? '正常' : s.hello.health === 'DEGRADED' ? '降级' : '仅诊断'}
           </Badge>
           {activeRuns>0&&<Badge tone="active" title="活跃 Run（不含 UNKNOWN）">
             ▶ {activeRuns} 运行
