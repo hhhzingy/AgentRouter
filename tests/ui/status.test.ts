@@ -52,12 +52,13 @@ describe('角色展示态合成', () => {
     expect(states.filter((s) => s.label === '等待审批')).toHaveLength(1);
   });
 
-  it('BOOTSTRAP_REQUIRED 优先于一切运行信号', () => {
+  it('BOOTSTRAP_REQUIRED 显示待设置，不渲染成故障', () => {
     const c = ctx('role_lin');
     c.role = { ...c.role, interventionState: 'BOOTSTRAP_REQUIRED' };
     const states = roleDisplayStates(c);
     expect(states[0].key).toBe('intervention');
-    expect(states[0].label).toBe('待初始化');
+    expect(states[0].label).toBe('待设置（待初始化）');
+    expect(states[0].tone).toBe('neutral');
   });
 });
 

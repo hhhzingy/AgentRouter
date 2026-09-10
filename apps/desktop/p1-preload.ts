@@ -79,6 +79,7 @@ const client: ClientTransport = {
 };
 contextBridge.exposeInMainWorld('agentrouterClient', client);
 contextBridge.exposeInMainWorld('agentrouterDesktop', {
+  getContext: () => ipcRenderer.invoke('desktop:context'),
   chooseProjectDirectory: () => ipcRenderer.invoke('desktop:choose-project-directory'),
   saveArtifact: (id: string) => ipcRenderer.invoke('desktop:save-artifact', id),
 });

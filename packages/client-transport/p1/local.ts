@@ -7,6 +7,12 @@ import type { ClientSession, ClientTransport, ConnectOptions } from './types.ts'
 export class LocalCoreTransport implements ClientTransport {
   private transport?: P1MemoryTransport;
   private proxy?: StdioServerProxy;
+  async desktopContext() {
+    if(!this.proxy)throw Error('CONNECTION_LOST');
+    const reply=await this.proxy.desktopContext() as {result?:{dataId:string;clientId:string;serverInstanceId:string};error?:{code:string}};
+    if(reply.error||!reply.result)throw Error(reply.error?.code??'INVALID_CONTEXT');
+    return reply.result;
+  }
   async grantSelectedDirectory(path: string) {
     if (!this.proxy) throw Error('CONNECTION_LOST');
     const reply = (await this.proxy.grantSelectedDirectory(path)) as any;

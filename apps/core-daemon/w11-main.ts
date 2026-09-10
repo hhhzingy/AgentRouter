@@ -60,6 +60,9 @@ const server = createServer((socket) => {
               send(socket, { attached: true });
               return;
             }
+            if (frame.desktop_context === true) {
+              send(socket,{v:1,id:frame.id,result:application.desktopContext(connection)});return;
+            }
             if (typeof frame.desktop_directory === 'string') {
               try {
                 send(socket, {

@@ -1,3 +1,4 @@
+import {PendingPanel} from './pending-panel.tsx';
 /** 全局壳：连接/角色（Controller/Observer）/Core 健康/全局计数/断线冻结横幅。 */
 import React, { type ReactNode } from 'react';
 import { Badge, CONNECTION_LABEL } from '../../../packages/ui/index.ts';
@@ -84,7 +85,7 @@ export function Shell({ children }: { children: ReactNode }) {
           连接不稳定，正在重连。展示最后一致快照（{formatAsOf(s.frozenAtMs)}）。
         </div>
       )}
-      <main className="wb-main">{children}</main>
+      <main className="wb-main"><PendingPanel />{children}</main>
       <footer className="wb-footer">
         <span>
           关闭窗口仅退出界面，本地 Core 独立运行；远程状态需重新连接确认。

@@ -1,3 +1,5 @@
+import {HistoryPanel} from './history.tsx';
+import {exactWorkspace} from './identity.ts';
 /** 角色详情：Charter / 当前任务与 Run / 完整对话 / 权限与工作区 / UNKNOWN 对账。 */
 import React, { useEffect, useState, useRef } from 'react';
 import {
@@ -40,42 +42,14 @@ export function RolePage({ roleId }: { roleId: string }) {
       return;
     }
     const space = s.snapshot.spaces.find((sp) => sp.id === role.spaceId);
-    s.call('roleCharter.get', { role_id: role.id, project_id: space?.projectId ?? '' } as never)
-      .then((c) => setCharter(c as RoleCharterVM))
-      .catch(() => setCharterUnavailable(true));
+    let active = true;
+    s.call('roleCharter.get', { role_id: role.id, project_id: space?.projectId ?? '' })
+      .then((c) => {if(active)setCharter(c);})
+      .catch(() => {if(active)setCharterUnavailable(true);});
+    return () => {active=false;};
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleId, s.capabilities.role_charters, role?.charterRevision, role?.bootstrapState]);
 
-  const [history, setHistory] = useState<ConversationItemVM[] | undefined>();
-  const [hasMore, setHasMore] = useState(false);
-  const cursor = useRef<string | undefined>(undefined),
-    historyRole = useRef(roleId);
-  async function readHistory() {
-    if (!role || !s.capabilities.methods.includes('conversation.read')) return;
-    const projectId = s.snapshot.spaces.find((x) => x.id === role.spaceId)?.projectId;
-    if (!projectId) return;
-    const currentRole = roleId;
-    const page = await s.call('conversation.read', {
-      role_id: roleId,
-      scope: { project_id: projectId, space_id: role.spaceId },
-      limit: 100,
-      ...(cursor.current ? { after_id: cursor.current } : {}),
-    });
-    if (historyRole.current !== currentRole) return;
-    setHistory((old) => [
-      ...new Map([...(old ?? []), ...page.items].map((x) => [x.id, x])).values(),
-    ]);
-    if (page.items.length) cursor.current = page.next_id ?? undefined;
-    setHasMore(page.has_more);
-  }
-  useEffect(() => {
-    if (historyRole.current !== roleId) {
-      historyRole.current = roleId;
-      cursor.current = undefined;
-      setHistory(undefined);
-    }
-    void readHistory().catch(() => {});
-  }, [roleId, s.snapshot.cursor]);
   if (!role) return <EmptyState title="角色不存在" body="可能已归档，或当前 Core 上没有该角色。" />;
 
   const space = s.snapshot.spaces.find((sp) => sp.id === role.spaceId);
@@ -86,10 +60,7 @@ export function RolePage({ roleId }: { roleId: string }) {
   const activeRun = runs.find((r) =>
     ['CREATED', 'STARTING', 'RUNNING', 'WAITING_APPROVAL', 'SETTLING'].includes(r.state),
   );
-  const conversation = history ?? s.timeline.filter((it) => it.roleId === role.id);
-  const workspace = (s.snapshot.workspaces ?? []).find((w) =>
-    role.workspaceLabel.includes(w.label),
-  );
+  const workspace = exactWorkspace(s.snapshot.workspaces ?? [], charter, project?.id);
 
   return (
     <div className="page page-role" data-page="role">
@@ -151,9 +122,8 @@ export function RolePage({ roleId }: { roleId: string }) {
           </Card>
 
           <Card>
-            <h3>对话（完整可见）</h3>
-            <ConversationView items={conversation} now={s.now()} />
-            {hasMore && <Button onClick={() => void readHistory()}>加载更多对话</Button>}
+            <h3>对话与记录</h3>
+            <HistoryPanel scope={{project_id:project?.id,space_id:role.spaceId}} roleId={role.id}/>
             <Composer role={role} spaceId={role.spaceId} />
           </Card>
         </div>

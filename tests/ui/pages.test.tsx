@@ -1,3 +1,5 @@
+import {ConversationView} from '../../apps/desktop/workbench/composites.tsx';
+import {readFileSync} from 'node:fs';
 /** 页面静态渲染断言：状态呈现、语义红线、能力门控、生命周期。 */
 import React from 'react';
 import { describe, expect, it } from 'vitest';
@@ -48,7 +50,7 @@ describe('单项目页', () => {
   it('组卡展示 purpose、规则 revision 与工作区徽标（组≠worktree）', () => {
     expect(html).toContain('支付核心链路的规划、实现与复核');
     expect(html).toContain('规则 r3');
-    expect(html).toContain('wt-core');
+    expect(html).not.toContain('ws-badge'); // 缺少权威工作区 ID 不再猜测。
   });
   it('SETTLING 显示"收尾中"而非"完成"', () => {
     expect(html).toContain('收尾中');
@@ -86,7 +88,8 @@ describe('角色详情', () => {
     expect(html).toContain('收尾中');
     expect(html).toContain('不能视为&quot;完成&quot;');
   });
-  it('对话完整可见：Route/Tool/User/GAP/系统卡', () => {
+  it('对话组件保留 Route/Tool/User/GAP/系统卡', () => {
+    const html=render(controller,<ConversationView items={controller.timeline} now={controller.now()}/>);
     for (const kind of ['kind-route_task', 'kind-tool_call', 'kind-user_message', 'kind-gap', 'kind-system_event'])
       expect(html).toContain(kind);
   });
@@ -170,6 +173,6 @@ describe('可访问性与缩放', () => {
   });
   it('根文档声明中文', () => {
     // workbench.html 含 lang="zh-CN"（静态文件检查在 e2e 脚本中覆盖）
-    expect(true).toBe(true);
+    expect(readFileSync('apps/desktop/workbench.html','utf8')).toMatch(/lang=["']zh-CN["']/);
   });
 });

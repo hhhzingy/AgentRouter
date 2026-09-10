@@ -1,3 +1,4 @@
+import {exactModel} from './identity.ts';
 /**
  * Role Plan：AI 生成（能力不足禁用）/ 导入 / 手工 → Validate → Review
  * （权限"请求 vs 拟授予"对照、模型可用性）→ 确认 → Apply（APPLIED 与 Bootstrap 分离）。
@@ -31,13 +32,7 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
   const [busy, setBusy] = useState(false);
 
   const catalog = s.snapshot.modelCatalog ?? [];
-  const aiAvailable = useMemo(
-    () =>
-      Object.values(s.capabilities.harnesses).some(
-        (h) => (h.status === 'LIVE_TESTED' || h.status === 'CERTIFIED') && h.create_session,
-      ),
-    [s.capabilities],
-  );
+  const aiAvailable = false; // 内部规划会话尚未实现，不能由 Harness 状态推导。
 
   if (!project) return <EmptyState title="项目不存在" body="" />;
   if (s.capabilities.role_plans === false)
@@ -168,15 +163,9 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
                   review: { requires_user_confirmation: true, known_risks: [] },
                 };
                 setPlan(blank);
-                setValidation({
-                  valid: true,
-                  planHash: 'manual',
-                  errors: [],
-                  warnings: [],
-                  requiredConfirmations: [],
-                });
-                setConfirmed(new Set());
-                setStage('review');
+                setValidation(null);
+                setImportError('请先添加小组和角色，再进行服务器校验。');
+                setStage('entry');
               }}
             >
               新建空白方案
@@ -225,7 +214,7 @@ export function RolePlanPage({ projectId }: { projectId: string }) {
                   {plan.roles
                     .filter((r) => r.group_key === g.group_key)
                     .map((r) => {
-                      const model = catalog.find((m) => m.model_id === r.runtime.model_id);
+                      const model = exactModel(catalog, r.runtime);
                       const runnable =
                         model && model.availability === 'AVAILABLE' && model.source !== 'SEED';
                       return (

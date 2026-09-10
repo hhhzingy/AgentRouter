@@ -51,6 +51,7 @@ export class StdioServerProxy implements ClientServer {
     this.handlers.clear();
   }
   /** Main-only authenticated local gateway extension; never a Client API method. */
+  desktopContext() {return this.handle(this.id!,{id:'desktop_'+randomUUID(),desktop_context:true});}
   grantSelectedDirectory(path: string) {
     return this.handle(this.id!, { id: 'desktop_' + randomUUID(), desktop_directory: path });
   }

@@ -40,6 +40,11 @@ if (process.env.AGENTROUTER_DATA) app.setPath('userData', process.env.AGENTROUTE
 app.whenReady().then(async () => {
   if (mock && process.env.AGENTROUTER_PREVIEW_SCENARIO)
     await loadP1Scenario(mock, process.env.AGENTROUTER_PREVIEW_SCENARIO);
+  ipcMain.handle('desktop:context',async(e)=>{
+    guard(e.sender);if(!session)throw Error('CONNECTION_LOST');
+    if(transport instanceof LocalCoreTransport)return {mode,...await transport.desktopContext()};
+    return {mode,dataId:session.hello.serverInstanceId,serverInstanceId:session.hello.serverInstanceId,clientId:'workbench'};
+  });
   ipcMain.handle('desktop:choose-project-directory', async (e) => {
     guard(e.sender);
     if (!session || session.connectionState() !== 'CONNECTED_CONTROLLER')

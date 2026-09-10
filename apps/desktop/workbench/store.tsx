@@ -1,3 +1,5 @@
+import {PendingStore,type PendingRecord} from './pending.ts';
+import {failureState,errorMessage} from './action-state.ts';
 /**
  * Workbench 数据层：唯一的 Core 会话入口。
  * 规则：UI 不维护第二套业务状态机——渲染只消费 snapshot + 事件触发刷新。
@@ -31,6 +33,10 @@ import type {
 } from '../../../packages/client-contract/c1r1p1/generated.ts';
 
 export interface WorkbenchStore {
+  pendingOperations?:PendingRecord[];
+  retryPending?:(id:string)=>Promise<void>;
+  removePending?:(id:string)=>Promise<void>;
+  pendingIdentity?:string;
   hello: CoreHelloVM;
   snapshot: SnapshotVM;
   /** 首批时间线（conversation.read）；角色详情按游标继续读取。 */
@@ -84,10 +90,24 @@ export function StoreProvider({
   const [quotas, setQuotas] = useState<QuotaVM[]>([]);
   const [frozenAtMs, setFrozenAtMs] = useState<number>(() => (now ?? Date.now)());
   const clock = now ?? Date.now;
+  const metadataLoaded = useRef(false);
   const refreshing = useRef(false),
     rerun = useRef(false);
   const lease = useRef<LeaseVM | null>(session.hello.lease);
   const [problem, setProblem] = useState<string | null>(null);
+  const [pendingOperations,setPendingOperations]=useState<PendingRecord[]>([]);
+  const [pendingIdentity,setPendingIdentity]=useState<string>();
+  const pending=useRef<Promise<PendingStore>|undefined>(undefined);
+  function getPending(){
+    return pending.current??= (async()=>{
+      const context=window.agentrouterDesktop ? await window.agentrouterDesktop.getContext() : {mode:'PREVIEW_MOCK' as const,dataId:session.hello.serverInstanceId,serverInstanceId:session.hello.serverInstanceId,clientId:'workbench'};
+      if(context.serverInstanceId!==session.hello.serverInstanceId)throw Error('CORE_IDENTITY_MISMATCH');
+      const identity={mode:context.mode,dataId:context.dataId,clientId:context.clientId};
+      const store=new PendingStore(localStorage,identity);store.migrateLegacy();setPendingIdentity(JSON.stringify(identity));setPendingOperations(store.list());return store;
+    })();
+  }
+  useEffect(()=>{void getPending().catch(e=>setProblem(errorMessage(e)));},[session]);
+
   const supported = (m: Method) =>
     hello.capabilities.methods.includes(m) ||
     (hello.capabilities.mock && hello.capabilities.methods.length === 0);
@@ -103,19 +123,11 @@ export function StoreProvider({
       setFrozenAtMs(clock());
       setProblem(null);
       const caps = session.hello.capabilities;
-      const timelineMethod = caps.methods.includes('conversation.read')
-        ? 'conversation.read'
-        : caps.mock
-          ? 'message.listTimeline'
-          : null;
-      if (timelineMethod) {
-        const tl = await session.request(timelineMethod, { scope: {}, limit: 100 } as never);
-        setTimeline(tl.items);
+      if (!metadataLoaded.current) {
+        if (caps.methods.includes('account.listProfiles')) setAccounts((await session.request('account.listProfiles', {})).items);
+        if (caps.methods.includes('quota.listSnapshots')) setQuotas((await session.request('quota.listSnapshots', {})).items);
+        metadataLoaded.current=true;
       }
-      if (caps.methods.includes('account.listProfiles'))
-        setAccounts((await session.request('account.listProfiles', {} as never)).items);
-      if (caps.methods.includes('quota.listSnapshots'))
-        setQuotas((await session.request('quota.listSnapshots', {} as never)).items);
       setHello((h) => ({ ...h, connectionState: session.connectionState() }));
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e));
@@ -143,18 +155,18 @@ export function StoreProvider({
   );
   useEffect(() => {
     void refresh();
-    const off = session.subscribe(() => void refresh());
+    let scheduled:ReturnType<typeof setTimeout>|undefined;
+    const off = session.subscribe(() => {
+      if(!scheduled) scheduled=setTimeout(()=>{scheduled=undefined;void refresh();},250);
+    });
+    const verify = setInterval(()=>{metadataLoaded.current=false;void refresh();},30000);
     const timer = setInterval(() => {
       if (lease.current && lease.current.expiresAtMs - Date.now() < 15000)
-        void control('control.renew').catch((e) => {
-          lease.current = null;
-          setProblem(e.message);
-        });
-      void refresh();
-    }, 5000);
+        void control('control.renew').catch((e) => {lease.current=null;setProblem(e.message);});
+    },5000);
     return () => {
       off();
-      clearInterval(timer);
+      clearInterval(timer);clearInterval(verify);clearTimeout(scheduled);
     };
   }, [refresh, session, control]);
   const call = useCallback(
@@ -167,42 +179,22 @@ export function StoreProvider({
       if (!lease.current && session.connectionState() !== 'CONNECTED_CONTROLLER')
         throw Error('CONTROL_LEASE_REQUIRED');
       const snap = await session.request('system.snapshot', {});
-      const namespace =
-        'agentrouter.pending:' + session.hello.serverInstanceId.replace(/_[0-9a-f-]{36}$/, '');
-      const records = JSON.parse(localStorage.getItem(namespace) ?? '{}');
-      const key = JSON.stringify({ method, params });
-      const command = records[key] ?? {
-        operationId: 'op_' + crypto.randomUUID(),
-        expectedRevision: snap.revision,
-        scope: scopeFor(method, params, snap),
-      };
-      records[key] = command;
-      localStorage.setItem(namespace, JSON.stringify(records));
+      const records=await getPending();
+      const command=records.prepare(method,params,snap.revision,scopeFor(method,params,snap));
+      setPendingOperations(records.list());
+
       try {
         const result = await session.request(method, params, {
-          ...command,
+          operationId:command.operationId,expectedRevision:command.expectedRevision,scope:command.scope,
           leaseId: lease.current?.leaseId,
         });
-        const remaining = JSON.parse(localStorage.getItem(namespace) ?? '{}');
-        delete remaining[key];
-        localStorage.setItem(namespace, JSON.stringify(remaining));
+        records.remove(command.recordId);setPendingOperations(records.list());
         await refresh();
         return result;
       } catch (e) {
-        const error = e as { category?: string; message?: string };
-        if (
-          error.category !== 'AMBIGUOUS' &&
-          !['CONNECTION_LOST', 'REQUEST_TIMEOUT'].includes(error.message ?? '')
-        ) {
-          const remaining = JSON.parse(localStorage.getItem(namespace) ?? '{}');
-          delete remaining[key];
-          localStorage.setItem(namespace, JSON.stringify(remaining));
-        }
-        setProblem(
-          error.category === 'AMBIGUOUS'
-            ? '提交结果待核对；再次提交相同内容会复用原操作 ID'
-            : (error.message ?? '请求失败'),
-        );
+        if(failureState(e)==='uncertain') records.markUncertain(command.recordId);
+        else records.remove(command.recordId);
+        setPendingOperations(records.list());setProblem(errorMessage(e));
         throw e;
       }
     },
@@ -212,6 +204,9 @@ export function StoreProvider({
     if (!snapshot) return null;
     const state = hello.connectionState;
     return {
+      pendingOperations,pendingIdentity,
+      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');await call(record.method,record.params as MethodMap[Method]['params']);},
+      removePending:async(id)=>{const records=await getPending();records.remove(id);setPendingOperations(records.list());},
       hello,
       snapshot,
       timeline,
@@ -230,10 +225,11 @@ export function StoreProvider({
       now: clock,
       call,
       refresh,
-      acquireControl: () => control('control.acquire'),
+      acquireControl: async() => {try{await control('control.acquire');}catch(e){setProblem(errorMessage(e));throw e;}},
       releaseControl: () => control('control.release'),
     };
   }, [
+    pendingOperations,pendingIdentity,
     hello,
     snapshot,
     timeline,

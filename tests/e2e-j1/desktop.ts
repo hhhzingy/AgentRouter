@@ -205,12 +205,12 @@ try {
     if (title === 'J1 FIFO 2') await core.control('dropNextReply');
     await page.getByRole('button', { name: /提交任务|派发到队列/, exact: true }).click();
     if (title === 'J1 FIFO 2') {
-      await expect(page.getByRole('status').filter({ hasText: 'REQUEST_TIMEOUT' })).toBeVisible({
+      await expect(page.getByRole('status').filter({ hasText: '提交结果尚未确认' })).toBeVisible({
         timeout: 15000,
       });
       const pending = await page.evaluate(() =>
         Object.entries(localStorage)
-          .filter(([k]) => k.startsWith('agentrouter.pending:'))
+          .filter(([k]) => k.startsWith('agentrouter.pending.v2:'))
           .map(([, v]) => JSON.parse(v)),
       );
       expect(pending.flatMap((r: any) => Object.values(r))).toHaveLength(1);

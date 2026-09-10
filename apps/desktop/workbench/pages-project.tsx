@@ -1,3 +1,4 @@
+import {HistoryPanel} from './history.tsx';
 /** 单项目页：概览/协作组/时间线/收件箱/审批与问题/产物/模型与账号/设置。 */
 import React, { useState } from 'react';
 import {
@@ -32,7 +33,8 @@ const TABS = [
 export function ProjectPage({ projectId, tab }: { projectId: string; tab?: string }) {
   const s = useStore();
   const project = s.snapshot.projects.find((p) => p.id === projectId);
-  const [activeTab, setActiveTab] = useState(tab ?? 'overview');
+  const activeTab = tab ?? 'overview';
+  const setActiveTab = (next:string) => {location.hash = `#/project/${projectId}/${next}`;};
   const [dispatchRole, setDispatchRole] = useState<RoleVM | null>(null);
   if (!project) return <EmptyState title="项目不存在" body="可能已归档或连接的是另一个 Core。" />;
 
@@ -170,13 +172,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
       {activeTab === 'timeline' && (
         <div className="tab-body" data-tab="timeline">
-          <ConversationView
-            items={s.timeline.filter((it) => {
-              const role = roles.find((r) => r.id === it.roleId);
-              return !it.roleId || !!role;
-            })}
-            now={s.now()}
-          />
+          <HistoryPanel scope={{project_id:projectId}}/>
         </div>
       )}
 

@@ -469,6 +469,11 @@ export class ApplicationService extends Plans {
     if (this.lease.connection !== id || this.lease.id !== lease)
       throw new C1R1Error('CONTROL_LEASE_REQUIRED');
   }
+  desktopContext(connection: string) {
+    const c=this.connection(connection);
+    if(!c.authorized || !c.initialized) throw new C1R1Error('SCOPE_DENIED');
+    return {dataId:this.one("select value from app_meta where key='dataset_id'").value as string,clientId:c.clientId!,serverInstanceId:this.instanceId};
+  }
   /** 仅认证的本机 Main 原生选目录后调用，不在 Renderer Client API 方法表。 */
   grantSelectedDirectory(connection: string, path: string) {
     const c = this.connection(connection);

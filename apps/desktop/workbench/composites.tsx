@@ -1,3 +1,4 @@
+import {actionTone,failureState,errorMessage,type ActionState} from './action-state.ts';
 import { STAGED_RESULT_LABEL } from '../../../packages/ui/status.ts';
 /** 页面级复合组件：项目卡、组卡、角色行、派发抽屉、对话视图、对账面板。 */
 import React, { useState } from 'react';
@@ -37,15 +38,9 @@ export function ProjectCard({ project }: { project: ProjectVM }) {
     (sp) => sp.projectId === project.id && sp.status === 'ACTIVE',
   );
   const roles = s.snapshot.roles.filter((r) => spaces.some((sp) => sp.id === r.spaceId));
-  const tone = summaryTone({
-    issues: project.issuesCount,
-    activeRuns: project.activeRunsCount,
-    approvals: s.snapshot.approvals.filter(
-      (a) =>
-        a.state === 'PENDING' &&
-        s.snapshot.runs.some((run) => run.id === a.runId && roles.some((r) => r.id === run.roleId)),
-    ).length,
-  });
+  const needsSetup=roles.filter(r=>r.interventionState==='BOOTSTRAP_REQUIRED'||r.interventionState==='MODEL_UNVERIFIED').length;
+  const unknown=s.snapshot.runs.filter(r=>roles.some(x=>x.id===r.roleId)&&(r.state==='UNKNOWN'||r.reconciliationRequired)).length;
+  const tone = unknown ? {key:'unknown',label:`${unknown} 个状态未知`,tone:'danger' as const,priority:1} : needsSetup && !project.activeRunsCount && !project.issuesCount ? {key:'setup',label:`${needsSetup} 个角色待设置`,tone:'neutral' as const,priority:15} : summaryTone({issues:project.issuesCount,activeRuns:project.activeRunsCount,approvals:roles.reduce((n,r)=>n+r.pendingApprovalsCount,0)});
   const ssh = project.hostLabel.startsWith('SSH');
   return (
     <article className="project-card" data-project-id={project.id}>
@@ -88,7 +83,7 @@ export function ProjectCard({ project }: { project: ProjectVM }) {
         <span>
           {project.activeRunsCount > 0 ? `▶${project.activeRunsCount} 运行 ` : ''}
           {project.issuesCount > 0 ? `◆${project.issuesCount} 介入` : ''}
-          {project.activeRunsCount === 0 && project.issuesCount === 0 && '无进行中的工作'}
+          {project.activeRunsCount === 0 && project.issuesCount === 0 && (needsSetup ? `${needsSetup} 个角色待设置` : '无进行中的工作')}
         </span>
         <a className="btn btn-secondary btn-sm" href={`#/project/${project.id}`}>
           打开
@@ -185,12 +180,10 @@ export function SpaceCard({
 }) {
   const s = useStore();
   const roles = s.snapshot.roles.filter((r) => r.spaceId === space.id && r.status !== 'ARCHIVED');
-  const ws = (s.snapshot.workspaces ?? []).find((w) =>
-    roles.some((r) => r.workspaceLabel.includes(w.label)),
-  );
+  const ws = undefined; // 无权威 workspaceId 时不按显示名称猜测。
   const tone = summaryTone({
     activeRuns: space.activeRunsCount,
-    issues: space.needsUserCount,
+    issues: s.snapshot.issues.filter(i=>roles.some(r=>r.id===i.roleId)&&i.state!=='RESOLVED').length,
     queued: space.queuedTasksCount,
     approvals: roles.reduce((n, r) => n + r.pendingApprovalsCount, 0),
   });
@@ -200,12 +193,7 @@ export function SpaceCard({
         <div>
           <h3>
             {space.name}
-            {ws && (
-              <span className="ws-badge" title={`工作区：${ws.displayPath}（文件边界，≠ 协作组）`}>
-                ⧉ {ws.label}
-                {ws.branchLabel ? ` · ${ws.branchLabel}` : ''}
-              </span>
-            )}
+
           </h3>
           {space.purpose && <p className="space-purpose">{space.purpose}</p>}
         </div>
@@ -251,6 +239,7 @@ export function DispatchDrawer({ role, onClose }: { role: RoleVM; onClose: () =>
   const [target, setTarget] = useState('user');
   const [handoff, setHandoff] = useState(false);
   const [expected, setExpected] = useState('提交成果');
+  const [action,setAction]=useState<ActionState>('idle');
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const active = s.snapshot.tasks.find(
@@ -262,7 +251,7 @@ export function DispatchDrawer({ role, onClose }: { role: RoleVM; onClose: () =>
   const willQueue = !!active || role.status === 'PAUSED';
 
   async function submit() {
-    setSending(true);
+    setSending(true);setAction('submitting');
     try {
       const task = await s.call('task.submitFromUser', {
         request: {
@@ -291,9 +280,9 @@ export function DispatchDrawer({ role, onClose }: { role: RoleVM; onClose: () =>
           ? `已入队${task.queuePosition ? `，${formatQueuePosition(task.queuePosition)}` : ''}（位置以 Core 返回为准）`
           : '已提交',
       );
-      setText('');
+      setText('');setAction('succeeded');
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e));
+      setAction(failureState(e));setNotice(errorMessage(e));
     } finally {
       setSending(false);
     }
@@ -364,7 +353,7 @@ export function DispatchDrawer({ role, onClose }: { role: RoleVM; onClose: () =>
         </label>
       )}
       {notice && (
-        <div className="hint tone-ok" role="status">
+        <div className={`hint tone-${actionTone(action)}`} role="status" data-action-state={action}>
           {notice}
         </div>
       )}
@@ -527,6 +516,7 @@ export function Composer({ role, spaceId: _spaceId }: { role: RoleVM; spaceId: s
 export function ReconcilePanel({ run }: { run: RunVM }) {
   const s = useStore();
   const [done, setDone] = useState<string | null>(null);
+  const [action,setAction]=useState<ActionState>('idle');
   const actions = [
     ['confirm_native_completed', '确认原生已完成'],
     ['confirm_no_side_effect_and_retry', '确认无副作用'],
@@ -558,8 +548,8 @@ export function ReconcilePanel({ run }: { run: RunVM }) {
               onClick={() =>
                 void s
                   .call('run.reconcile', { run_id: run.id, action, evidence_ids: [] } as never)
-                  .then(() => setDone(label))
-                  .catch((e) => setDone(e.message))
+                  .then(() => {setAction('succeeded');setDone('已提交对账动作：'+label);})
+                  .catch((e) => {setAction(failureState(e));setDone(errorMessage(e));})
               }
             >
               {label}
@@ -568,8 +558,8 @@ export function ReconcilePanel({ run }: { run: RunVM }) {
         ))}
       </div>
       {done && (
-        <div className="hint tone-ok" role="status">
-          已提交对账动作：{done}
+        <div className={`hint tone-${actionTone(action)}`} role="status">
+          {done}
         </div>
       )}
     </section>

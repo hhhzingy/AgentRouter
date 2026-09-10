@@ -472,3 +472,23 @@ it('J1 Main 目录授权受控制租约限制，句柄不能跨连接使用', as
     await f.close();
   }
 });
+
+it('J2 项目范围先过滤再分页，150 条无 role 事件不串项目且游标无丢重', async()=>{
+ const f=await fixture();
+ try{
+  const m=new Management(f.db),a=m.createProject('同名项目',f.dir),b=m.createProject('同名项目',f.dir);
+  const insert=f.db.prepare('insert into conversation_items(id,project_id,space_id,kind,title,body,at_ms) values(?,?,?,?,?,?,?)');
+  for(let i=0;i<150;i++){
+   insert.run('j2_a_'+i,a.project,a.space,'SYSTEM_EVENT','历史 A '+i,'第 '+i+' 条',i);
+   insert.run('j2_b_'+i,b.project,b.space,'SYSTEM_EVENT','历史 B '+i,'第 '+i+' 条',i);
+  }
+  const first=await f.s.request('conversation.read',{scope:{project_id:a.project},limit:100});
+  const second=await f.s.request('conversation.read',{scope:{project_id:a.project},limit:100,after_id:first.next_id!});
+  expect(first.items).toHaveLength(100);expect(second.items).toHaveLength(50);
+  expect(new Set([...first.items,...second.items].map(x=>x.id)).size).toBe(150);
+  expect([...first.items,...second.items].every(x=>x.id.startsWith('j2_a_'))).toBe(true);
+  await expect(f.s.request('conversation.read',{scope:{project_id:b.project},after_id:first.next_id!})).rejects.toThrow('CURSOR_INVALID');
+  const connection=(f.transport as unknown as {connection:string}).connection;
+  expect(f.server.desktopContext(connection).dataId).toMatch(/^dataset_/);
+ }finally{await f.close();}
+});

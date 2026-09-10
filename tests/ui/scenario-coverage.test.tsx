@@ -1,3 +1,4 @@
+import {ConversationView} from '../../apps/desktop/workbench/composites.tsx';
 /**
  * Phase A 28 场景等价覆盖（docs/ui/09_mock-scenarios.md → UI Baseline V1）。
  * 每个 sc 断言在当前基线中的对应呈现/行为。
@@ -157,7 +158,7 @@ describe('28 场景等价覆盖', () => {
     expect(html).toContain('观察者模式：全部内容只读');
   });
   it('sc-27 历史缺口：GAP 卡可见', () => {
-    const html = page(<RolePage roleId="role_zhou" />);
+    const html = page(<ConversationView items={D.conversation} now={D.FIXED_NOW}/>);
     expect(html).toContain('kind-gap');
     expect(html).toContain('对话存在缺口');
   });

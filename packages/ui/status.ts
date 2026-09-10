@@ -90,11 +90,11 @@ export function roleDisplayStates(input: {
   if (role.interventionState && role.interventionState !== 'NONE') {
     const label =
       role.interventionState === 'BOOTSTRAP_REQUIRED'
-        ? '待初始化'
+        ? '待设置（待初始化）'
         : role.interventionState === 'BOOTSTRAP_FAILED'
           ? '初始化失败'
-          : '模型未验证';
-    states.push({ key: 'intervention', label, tone: 'danger', priority: 1 });
+          : '待设置（模型未验证）';
+    states.push({ key: 'intervention', label, tone: role.interventionState === 'BOOTSTRAP_FAILED' ? 'danger' : 'neutral', priority: role.interventionState === 'BOOTSTRAP_FAILED' ? 1 : 15 });
   }
   if (unknownRun) states.push({ key: 'unknown', label: '状态未知', tone: 'danger', priority: 2 });
   if (attentionTask || openIssue)

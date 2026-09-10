@@ -19,6 +19,7 @@ import { ReconfigurePage } from './workbench/pages-reconfigure.tsx';
 declare global {
   interface Window {
     agentrouterDesktop?: {
+      getContext():Promise<{mode:'LOCAL_CORE'|'PREVIEW_MOCK';dataId:string;clientId:string;serverInstanceId:string}>;
       saveArtifact(id: string): Promise<{ saved: boolean }>;
       chooseProjectDirectory(): Promise<{
         name: string;
@@ -53,9 +54,9 @@ function Routes() {
   const hash = useHashRoute();
   const parts = hash.replace(/^#\//, '').split('/').filter(Boolean);
   if (parts[0] === 'project' && parts[1])
-    return <ProjectPage projectId={parts[1]} tab={parts[2]} />;
-  if (parts[0] === 'role' && parts[1]) return <RolePage roleId={parts[1]} />;
-  if (parts[0] === 'roleplan' && parts[1]) return <RolePlanPage projectId={parts[1]} />;
+    return <ProjectPage key={parts[1]} projectId={parts[1]} tab={parts[2]} />;
+  if (parts[0] === 'role' && parts[1]) return <RolePage key={parts[1]} roleId={parts[1]} />;
+  if (parts[0] === 'roleplan' && parts[1]) return <RolePlanPage key={parts[1]} projectId={parts[1]} />;
   if (parts[0] === 'reconfigure' && parts[1]) return <ReconfigurePage projectId={parts[1]} />;
   return <HomePage />;
 }
