@@ -1,10 +1,11 @@
+import { evidencePath } from '../evidence-path.ts';
 import { _electron as electron, expect } from '@playwright/test';
 import { mkdirSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { startCore, until } from '../w11-process-support.ts';
 import seed from '../../fixtures/client-c1r1/two-groups.plan.json' with { type: 'json' };
 mkdirSync('.local/j1-tests', { recursive: true });
-mkdirSync('evidence/J1/screenshots', { recursive: true });
+mkdirSync(evidencePath('J1/screenshots'), { recursive: true });
 const gui = mkdtempSync(resolve('.local/j1-tests/ui-')),
   data = resolve(gui, 'core'),
   projectPath = resolve(gui, '联验项目');
@@ -99,7 +100,7 @@ try {
   writeFileSync(planPath, JSON.stringify(plan));
   await page.getByLabel('导入 Role Plan JSON').setInputFiles(planPath);
   await expect(page.locator('[data-stage="review"]')).toBeVisible();
-  await page.screenshot({ path: 'evidence/J1/screenshots/01-plan-review.png', fullPage: true });
+  await page.screenshot({ path: evidencePath('J1/screenshots/01-plan-review.png'), fullPage: true });
   for (const checkbox of await page.locator('.confirm-row input').all()) await checkbox.check();
   await page.getByRole('button', { name: '确认并应用' }).click();
   await expect(page.locator('[data-stage="applied"]')).toBeVisible();
@@ -108,7 +109,7 @@ try {
   expect(snap.spaces).toHaveLength(2);
   expect(snap.roles).toHaveLength(6);
   expect(snap.roles.every((r) => r.bootstrapState === 'PENDING')).toBe(true);
-  await page.screenshot({ path: 'evidence/J1/screenshots/02-two-groups.png', fullPage: true });
+  await page.screenshot({ path: evidencePath('J1/screenshots/02-two-groups.png'), fullPage: true });
   pass('J1_ROLEPLAN_ATOMIC_PENDING_TWO_GROUPS');
   const group = snap.spaces[0];
   const [a, b, c] = snap.roles.filter((r) => r.spaceId === group.id);
@@ -172,7 +173,7 @@ try {
   await page.locator(`a[href="#/role/${b.id}"]`).first().click();
   await expect(page.locator('[data-page="role"]')).toBeVisible();
   await expect(page.getByText('收尾中', { exact: true }).first()).toBeVisible();
-  await page.screenshot({ path: 'evidence/J1/screenshots/03-settling.png', fullPage: true });
+  await page.screenshot({ path: evidencePath('J1/screenshots/03-settling.png'), fullPage: true });
   await until(
     () => core.session.request('inbox.list', {}),
     (v) => v.items.length === 1,
@@ -252,7 +253,7 @@ try {
   await page.locator(`a[href="#/role/${c.id}"]`).first().click();
   await expect(page.getByTestId('reconcile-panel')).toBeVisible();
   await expect(page.getByRole('button', { name: '人工核验后释放' })).toBeDisabled();
-  await page.screenshot({ path: 'evidence/J1/screenshots/04-unknown.png', fullPage: true });
+  await page.screenshot({ path: evidencePath('J1/screenshots/04-unknown.png'), fullPage: true });
   pass('J1_UNKNOWN_VISIBLE_CAPABILITY_GATED');
   await closeGui();
   await core.stop();
@@ -279,7 +280,7 @@ try {
     true,
   );
   await page.screenshot({
-    path: 'evidence/J1/screenshots/05-home-restarted-1280.png',
+    path: evidencePath('J1/screenshots/05-home-restarted-1280.png'),
     fullPage: true,
   });
   pass('J1_CORE_RESTART_PERSISTENCE');
@@ -307,14 +308,14 @@ try {
     );
   if (page)
     await page
-      .screenshot({ path: 'evidence/J1/screenshots/failure.png', fullPage: true, timeout: 5000 })
+      .screenshot({ path: evidencePath('J1/screenshots/failure.png'), fullPage: true, timeout: 5000 })
       .catch(() => {});
   process.exitCode = 1;
 } finally {
   await closeGui().catch(() => {});
   await core?.stop();
   writeFileSync(
-    'evidence/J1/desktop.json',
+    evidencePath('J1/desktop.json'),
     JSON.stringify(
       {
         backend: 'REAL_ELECTRON_LOCAL_CORE',
