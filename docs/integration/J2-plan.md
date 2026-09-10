@@ -1,0 +1,13 @@
+# J2 实施计划与阶段检查点
+
+基线 bbdea2ab86243260c520f5eed791bab90a2b851c；分支 feat/j2-usable-workbench，独立 clone E:/AgentRouter/.local/w11a/integration。包路径 AgentRouter_Codex_J2_可用性收敛执行包，15 文件哈希与结构通过，46 项应用验收初始 NOT_RUN。
+
+J2-0 复现 J1 门禁并建立已知失败回归；J2-1 修正操作状态、稳定身份、异步/分页和待核对记录；J2-2 实现手工角色方案及审阅；J2-3 统一新任务/补充输入及历史；J2-4 四入口和中文渐进展开；J2-5 真实 Electron/Fixture 验收与精确 SHA/CI 记录。每阶段独立提交。
+
+功能保留按执行包 feature-map 映射；协议优先复用，必要稳定身份只通过受限本地桥补充并登记有限 CCR，不重做全量合同。无真实账号/Harness/SSH/Linux，不开放生产组重构/worktree，不合 main，不改原 UI 标签。完成 J2 后停止复核。
+
+当前已知失败测试使用 it.fails 显式标记 J1 缺陷，不计为修复通过：未实现 AI 规划错误启用、同名工作区串项目、无 role 全局事件混入项目、空闲角色灰输入。手工伪造 valid/hash 已源代码定位；真实交互验收必须验证手工表单保存、重载和服务端实体，不能用文本存在替代。
+
+变更清单和每阶段结果续记于本目录 J2 报告；新 UI 和截图写 docs/ui/ui-usability-j2 / evidence/J2，原 UI 基线证据保留。原生对话框人工检查无用户实际记录则 NOT_RUN。
+
+J2-0：基线命令退出码 0，199 项测试、12 项 J1 及 6 项既有 Electron 检查通过；新增 4 个缺陷用例均为 expected fail（已复现，不是已修复）。构建/数据留在项目内，原 J1 截图保留。
