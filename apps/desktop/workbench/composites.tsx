@@ -200,6 +200,8 @@ export function SpaceCard({
         </div>
         <div className="space-card-meta"><details><summary>管理小组</summary><a href={`#/reconfigure/${space.projectId}`}>合并小组 / 拆分小组（未开放）</a></details>
           <ToneBadge state={tone} />
+          {tone.key==='unknown'&&s.snapshot.issues.some(i=>roles.some(r=>r.id===i.roleId)&&i.state!=='RESOLVED')&&<Badge tone="danger">待介入问题</Badge>}
+          {tone.key==='unknown'&&roles.some(r=>r.pendingApprovalsCount>0)&&<Badge tone="warning">待审批</Badge>}
           {space.policyRevision !== undefined && (
             <span className="policy-rev" title="组规则版本">
               规则 r{space.policyRevision}
