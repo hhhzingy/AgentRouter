@@ -154,6 +154,10 @@ function useModal<T extends HTMLElement>(onClose: () => void) {
           'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],[tabindex="0"]',
         ) ?? [],
       ).filter((x) => x.getClientRects().length && !x.closest('fieldset[disabled]'));
+    const inertNodes:Array<{node:HTMLElement;previous:boolean}>=[];
+    let branch:HTMLElement|null=ref.current?.closest<HTMLElement>('.overlay')??null;
+    while(branch&&branch!==document.body){for(const child of Array.from(branch.parentElement?.children??[])){if(child!==branch&&child instanceof HTMLElement){inertNodes.push({node:child,previous:child.inert});child.inert=true;}}branch=branch.parentElement;}
+    const overflow=document.body.style.overflow;document.body.style.overflow='hidden';
     items()[0]?.focus();
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -180,6 +184,7 @@ function useModal<T extends HTMLElement>(onClose: () => void) {
     document.addEventListener('keydown', key);
     return () => {
       document.removeEventListener('keydown', key);
+      for(const item of inertNodes)item.node.inert=item.previous;document.body.style.overflow=overflow;
       if (previous?.isConnected) previous.focus();
     };
   }, []);

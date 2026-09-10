@@ -4,6 +4,7 @@ import {exactWorkspace} from './identity.ts';
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Avatar,
+  Drawer,
   Badge,
   Button,
   CapabilityGate,
@@ -29,6 +30,7 @@ import { useStore } from './store.tsx';
 
 export function RolePage({ roleId }: { roleId: string }) {
   const s = useStore();
+  const [settingsOpen,setSettingsOpen]=useState(false);
   const role = s.snapshot.roles.find((r) => r.id === roleId);
   const [charter, setCharter] = useState<RoleCharterVM | null>(null);
   const [charterUnavailable, setCharterUnavailable] = useState(false);
@@ -74,14 +76,14 @@ export function RolePage({ roleId }: { roleId: string }) {
           <h1>{role.name}</h1>
           <p className="role-mission">{role.description}</p>
         </div>
-        <RoleStateBadges role={role} />
+        <RoleStateBadges role={role} /><button className="btn" onClick={()=>setSettingsOpen(true)}>角色设置</button>
       </header>
 
       {unknownRun && <ReconcilePanel run={unknownRun} />}
 
       <div className="role-grid">
         <div className="role-col-main">
-          <Card>
+          <details className="current-work"><summary>当前工作 · {activeRun?RUN_STATE_LABEL[activeRun.state]:"暂无运行"} · {tasks.length} 项任务</summary><Card>
             <h3>当前工作</h3>
             {activeRun ? (
               <div className="run-panel" data-run-id={activeRun.id}>
@@ -119,7 +121,7 @@ export function RolePage({ roleId }: { roleId: string }) {
                 ))}
               </ul>
             )}
-          </Card>
+          </Card></details>
 
           <Card>
             <h3>对话与记录</h3>
@@ -128,7 +130,7 @@ export function RolePage({ roleId }: { roleId: string }) {
           </Card>
         </div>
 
-        <div className="role-col-side">
+        {settingsOpen&&<Drawer title="角色设置" onClose={()=>setSettingsOpen(false)}><div className="role-col-side">
           <Card>
             <h3>Role Charter</h3>
             {charterUnavailable ? (
@@ -161,7 +163,7 @@ export function RolePage({ roleId }: { roleId: string }) {
                   }
                 />
                 {charter.bootstrapState !== 'DELIVERED' && (
-                  <p className="hint tone-warning">Bootstrap 未完成前不能派发首个任务。</p>
+                  <p className="hint tone-warning">初始化未完成前不会执行首个任务；已保存的任务继续等待。</p>
                 )}
                 <KeyValue k="生效于" v={formatDateTime(charter.effectiveAtMs)} />
                 <h4>职责</h4>
@@ -245,7 +247,7 @@ export function RolePage({ roleId }: { roleId: string }) {
               <p className="muted">Charter 可用后展示。</p>
             )}
           </Card>
-        </div>
+        </div></Drawer>}
       </div>
     </div>
   );

@@ -413,3 +413,16 @@ textarea, input[type='text'] {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* J2：阅读优先与单主区，工程元信息按需展开。 */
+:root { --fs-xs: 12px; --fs-sm: 13px; --fs-md: 15px; --text-3:#536174; --text3:#536174; }
+.role-grid {display:block;max-width:1100px;margin:auto;}
+.current-work {margin-bottom:16px;} summary {cursor:pointer;padding:8px 0;}
+.btn {min-height:36px;} :focus-visible {outline:3px solid #3155a3;outline-offset:3px;}
+.task-editor {scroll-margin-bottom:24px;} pre {max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;}
+.role-col-main,.card,.dialog-body,.page {min-width:0;}
+.group-avatars>a {display:inline-flex;align-items:center;gap:2px;}
+nav[aria-label] {display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+.model-table {display:block;max-width:100%;overflow:auto;}
+.drawer {width:min(640px,96vw);} .muted,.hint,.capability-reason {color:#536174;}
+@media(max-width:800px){.page-head,.wb-topbar {flex-wrap:wrap;}.wb-main {padding:12px;}.overview-strip{flex-wrap:wrap;}.project-head-actions{flex-wrap:wrap;}.tabs{overflow:auto;}.field input,.field select,.field textarea{max-width:100%;}}

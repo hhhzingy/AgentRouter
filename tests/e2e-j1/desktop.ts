@@ -89,7 +89,7 @@ try {
   const project = (await core.session.request('system.snapshot', {})).projects[0];
   expect(project.displayRoot).toBe(projectPath);
   pass('J1_NATIVE_PICKER_CORE_GRANT_PROJECT');
-  await page.getByRole('button', { name: /编排角色/ }).click();
+  await page.getByRole('button', { name: /添加角色/ }).click();
   const ws = (await core.session.request('workspace.list', { project_id: project.id })).items[0];
   const plan = structuredClone(seed);
   plan.project_id = project.id;
@@ -180,7 +180,7 @@ try {
   pass('J1_PIPELINE_HELD_NATIVE_BARRIER');
   const artifact = await core.control('createFixtureArtifact');
   await page.locator(`a[href="#/project/${project.id}"]`).first().click();
-  await page.getByRole('tab', { name: '产物', exact: true }).click();
+  await page.getByRole('tab', { name: /^成果/ }).click();await page.getByRole('button', { name: '文件与报告', exact: true }).click();
   await expect(page.getByText('j1-result.txt', { exact: true })).toBeVisible();
   const saved = resolve(gui, 'saved-artifact.txt');
   await app.evaluate(({ dialog }: any, path: string) => {
@@ -195,7 +195,7 @@ try {
   await page.getByRole('button', { name: '转为只读' }).click();
   await expect(page.getByRole('button', { name: '保存产物…' })).toBeDisabled();
   await page.getByRole('button', { name: '申请控制' }).click();
-  await page.getByRole('tab', { name: '概览', exact: true }).click();
+  await page.getByRole('tab', { name: '工作台', exact: true }).click();
   await core.control('configureFixture', { roleId: c.id, scenario: { delayMs: 1000 } });
   for (const title of ['J1 FIFO 1', 'J1 FIFO 2']) {
     await page

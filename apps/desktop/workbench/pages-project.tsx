@@ -1,3 +1,6 @@
+import {CommandButton} from './command-button.tsx';
+import {LocalDataPanel} from './pending-panel.tsx';
+import {errorMessage} from './action-state.ts';
 import {HistoryPanel} from './history.tsx';
 /** 单项目页：概览/协作组/时间线/收件箱/审批与问题/产物/模型与账号/设置。 */
 import React, { useState } from 'react';
@@ -19,21 +22,14 @@ import type { RoleVM } from '../../../packages/client-contract/c1r1p1/generated.
 import { ConversationView, DispatchDrawer, SpaceCard, TaskRow } from './composites.tsx';
 import { useStore } from './store.tsx';
 
-const TABS = [
-  { key: 'overview', label: '概览' },
-  { key: 'spaces', label: '协作组' },
-  { key: 'timeline', label: '时间线' },
-  { key: 'inbox', label: '收件箱' },
-  { key: 'issues', label: '审批与问题' },
-  { key: 'artifacts', label: '产物' },
-  { key: 'models', label: '模型与账号' },
-  { key: 'settings', label: '设置' },
-];
+const TABS = [{key:'overview',label:'工作台'},{key:'timeline',label:'动态'},{key:'inbox',label:'成果'},{key:'settings',label:'设置'}];
 
 export function ProjectPage({ projectId, tab }: { projectId: string; tab?: string }) {
   const s = useStore();
   const project = s.snapshot.projects.find((p) => p.id === projectId);
   const activeTab = tab ?? 'overview';
+  const primaryTab=({spaces:'overview',artifacts:'inbox',models:'settings',issues:'overview'} as Record<string,string>)[activeTab]??activeTab;
+  const [historyGroup,setHistoryGroup]=useState(''),[historyRole,setHistoryRole]=useState('');
   const setActiveTab = (next:string) => {location.hash = `#/project/${projectId}/${next}`;};
   const [dispatchRole, setDispatchRole] = useState<RoleVM | null>(null);
   if (!project) return <EmptyState title="项目不存在" body="可能已归档或连接的是另一个 Core。" />;
@@ -85,32 +81,20 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             }
           >
             <Button variant="secondary" onClick={() => (location.hash = `#/roleplan/${projectId}`)}>
-              编排角色（Role Plan）
+              添加角色
             </Button>
           </CapabilityGate>
-          <CapabilityGate
-            available={s.capabilities.space_reconfiguration !== false && !s.readOnly}
-            unavailableReason={
-              s.capabilities.space_reconfiguration === false
-                ? '当前 Core 不支持组重构'
-                : '观察者只读'
-            }
-          >
-            <Button
-              variant="secondary"
-              onClick={() => (location.hash = `#/reconfigure/${projectId}`)}
-            >
-              组重构
-            </Button>
-          </CapabilityGate>
+          <button className="btn" onClick={()=>setActiveTab('issues')}>待处理（{tabBadges.issues??0}）</button>
         </div>
       </header>
       <Tabs
         tabs={TABS.map((t) => ({ ...t, badge: tabBadges[t.key] }))}
-        active={activeTab}
+        active={primaryTab}
         onChange={setActiveTab}
       />
 
+      {primaryTab==='inbox'&&<nav aria-label="成果分类"><button className="btn" aria-pressed={activeTab==='inbox'} onClick={()=>setActiveTab('inbox')}>交付给我</button><button className="btn" aria-pressed={activeTab==='artifacts'} onClick={()=>setActiveTab('artifacts')}>文件与报告</button></nav>}
+      {primaryTab==='settings'&&<nav aria-label="设置分类"><button className="btn" onClick={()=>setActiveTab('settings')}>项目设置</button><button className="btn" onClick={()=>setActiveTab('models')}>运行环境</button></nav>}
       {activeTab === 'overview' && (
         <div className="tab-body" data-tab="overview">
           <div className="overview-strip">
@@ -172,7 +156,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
       {activeTab === 'timeline' && (
         <div className="tab-body" data-tab="timeline">
-          <HistoryPanel scope={{project_id:projectId}}/>
+          <label className="field">筛选小组<select aria-label="动态小组" value={historyGroup} onChange={e=>{setHistoryGroup(e.target.value);setHistoryRole('');}}><option value="">整个项目</option>{spaces.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label><label className="field">筛选角色<select aria-label="动态角色" value={historyRole} onChange={e=>setHistoryRole(e.target.value)}><option value="">范围内全部角色</option>{roles.filter(r=>!historyGroup||r.spaceId===historyGroup).map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><HistoryPanel scope={{project_id:projectId,...(historyGroup?{space_id:historyGroup}:{})}} roleId={historyRole||undefined}/>
         </div>
       )}
 
@@ -205,18 +189,8 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                   {r.acceptance === 'PENDING' && (
                     <div className="inbox-actions">
                       <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
-                        <Button
-                          variant="primary"
-                          onClick={() => void s.call('result.accept', { id: r.id } as never)}
-                        >
-                          接受
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={() => void s.call('result.reject', { id: r.id } as never)}
-                        >
-                          拒绝
-                        </Button>
+                        <CommandButton method="result.accept" params={{id:r.id}}>接受</CommandButton>
+                        <CommandButton method="result.reject" params={{id:r.id}}>拒绝</CommandButton>
                       </CapabilityGate>
                     </div>
                   )}
@@ -274,28 +248,8 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                             s.readOnly ? s.readOnlyReason : '当前 Core 未开放此操作'
                           }
                         >
-                          <Button
-                            variant="primary"
-                            onClick={() =>
-                              void s.call('approval.decide', {
-                                id: a.id,
-                                decision: 'APPROVE',
-                              } as never)
-                            }
-                          >
-                            批准
-                          </Button>
-                          <Button
-                            variant="danger"
-                            onClick={() =>
-                              void s.call('approval.decide', {
-                                id: a.id,
-                                decision: 'DENY',
-                              } as never)
-                            }
-                          >
-                            拒绝
-                          </Button>
+                          <CommandButton method="approval.decide" params={{id:a.id,decision:"APPROVE"}}>批准</CommandButton>
+                          <CommandButton method="approval.decide" params={{id:a.id,decision:"DENY"}}>拒绝</CommandButton>
                         </CapabilityGate>
                       </span>
                     )}
@@ -336,12 +290,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                             s.readOnly ? s.readOnlyReason : '当前 Core 未开放此操作'
                           }
                         >
-                          <Button
-                            variant="secondary"
-                            onClick={() => void s.call('issue.acknowledge', { id: i.id } as never)}
-                          >
-                            知悉
-                          </Button>
+                          <CommandButton method="issue.acknowledge" params={{id:i.id}}>知悉</CommandButton>
                         </CapabilityGate>
                       </span>
                     )}
@@ -368,7 +317,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
       {activeTab === 'settings' && (
         <div className="tab-body" data-tab="settings">
           <Card>
-            <h3>项目设置</h3>
+            <h3>项目设置</h3><LocalDataPanel/>
             <KeyValue k="项目 ID" v={project.id} />
             <KeyValue k="Core" v={project.hostLabel} />
             <KeyValue k="根路径（来自 Core）" v={project.displayRoot} />
@@ -393,10 +342,12 @@ function ArtifactList({ ids }: { ids: string[] }) {
     Array<{ id: string; mediaType: string; byteSize: number; displaySource: string; state: string }>
   >([]);
   React.useEffect(() => {
-    void Promise.all(ids.map((id) => s.call('artifact.get', { id, scope: {} } as never))).then(
-      (rows) => setItems(rows as never),
-      (e) => setArtifactMessage(e.message),
+    let active=true;setItems([]);setArtifactMessage(null);
+    void Promise.all(ids.map((id) => s.call('artifact.get', { id, scope: {} }))).then(
+      (rows) => {if(active)setItems(rows);},
+      (e) => {if(active)setArtifactMessage(errorMessage(e));},
     );
+    return ()=>{active=false;};
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids.join(',')]);
   return (
@@ -574,19 +525,7 @@ function AccountsBlock() {
                   ? '数据过期'
                   : '未知'}
             </Badge>
-            <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
-              <Button
-                variant="secondary"
-                title="切换账号期间新派发会被阻断；凭据由 Core 管理，界面不提供输入框"
-                onClick={() =>
-                  void s
-                    .call('account.switch', { auth_unit_id: a.label, profile_id: a.id } as never)
-                    .catch(() => {})
-                }
-              >
-                切换到此账号
-              </Button>
-            </CapabilityGate>
+            <button className="btn" disabled title="本轮不开放真实账号操作；缺少经确认的认证单元身份">切换到此账号</button><small>账号切换未开放，凭据由 Core 管理。</small>
           </li>
         );
       })}

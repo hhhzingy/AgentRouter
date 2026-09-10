@@ -43,8 +43,8 @@ describe('首页', () => {
 
 describe('单项目页', () => {
   const html = page(controller, <ProjectPage projectId="proj_atlas" />);
-  it('八个页签齐全', () => {
-    for (const t of ['概览', '协作组', '时间线', '收件箱', '审批与问题', '产物', '模型与账号', '设置'])
+  it('四个主入口与持续待处理入口齐全', () => {
+    for (const t of ['工作台', '动态', '成果', '设置', '待处理'])
       expect(html).toContain(t);
   });
   it('组卡展示 purpose、规则 revision 与工作区徽标（组≠worktree）', () => {

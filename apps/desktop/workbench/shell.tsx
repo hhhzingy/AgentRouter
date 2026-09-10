@@ -27,6 +27,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </span>
         </a>
         <div className="wb-topbar-status">
+          {s.hello.capabilities.mock&&<Badge tone="warning">演示数据 · 不是真实执行</Badge>}
           {snap.runs.some((r) => r.nativeSessionDisplay === 'SIMULATED') && (
             <Badge tone="warning">模拟执行器 · 真实 Harness 支持 0</Badge>
           )}
@@ -34,15 +35,15 @@ export function Shell({ children }: { children: ReactNode }) {
             Core{' '}
             {s.hello.health === 'OK' ? '正常' : s.hello.health === 'DEGRADED' ? '降级' : '仅诊断'}
           </Badge>
-          <Badge tone="active" title="活跃 Run（不含 UNKNOWN）">
+          {activeRuns>0&&<Badge tone="active" title="活跃 Run（不含 UNKNOWN）">
             ▶ {activeRuns} 运行
-          </Badge>
-          <Badge tone={openIssues > 0 ? 'danger' : 'neutral'} title="未解决问题">
+          </Badge>}
+          {openIssues>0&&<Badge tone={openIssues > 0 ? 'danger' : 'neutral'} title="未解决问题">
             ◆ {openIssues} 介入
-          </Badge>
-          <Badge tone={pendingApprovals > 0 ? 'warning' : 'neutral'} title="待处理审批">
+          </Badge>}
+          {pendingApprovals>0&&<Badge tone={pendingApprovals > 0 ? 'warning' : 'neutral'} title="待处理审批">
             ✋ {pendingApprovals} 审批
-          </Badge>
+          </Badge>}
         </div>
         <div className="wb-topbar-conn">
           <Badge
@@ -87,11 +88,11 @@ export function Shell({ children }: { children: ReactNode }) {
       )}
       <main className="wb-main"><PendingPanel />{children}</main>
       <footer className="wb-footer">
-        <span>
+        <details><summary>帮助与连接说明</summary><span>
           关闭窗口仅退出界面，本地 Core 独立运行；远程状态需重新连接确认。
           {s.hello.capabilities.mock && ' · 预览数据（Mock）'}
         </span>
-        <span>V1.0 UI Baseline</span>
+        </details>
       </footer>
     </div>
   );

@@ -49,7 +49,7 @@ export function ProjectCard({ project }: { project: ProjectVM }) {
       <header>
         <StatusDot tone={tone.tone} label={tone.label} />
         <div className="project-card-title">
-          <h2>{project.name}</h2>
+          <h2><a href={`#/project/${project.id}`}>{project.name}</a></h2>
           <span
             className="project-card-host"
             title={ssh ? '远程 Core，路径由 Core 提供' : '本地 Core'}
@@ -62,25 +62,21 @@ export function ProjectCard({ project }: { project: ProjectVM }) {
       </header>
       <p className="project-card-root">{project.displayRoot}</p>
       <div className="project-card-groups">
-        {spaces.map((sp) => {
+        {spaces.slice(0,3).map((sp) => {
           const members = roles.filter((r) => r.spaceId === sp.id);
           return (
             <div className="project-card-group" key={sp.id}>
               <span className="group-name">{sp.name}</span>
               <span className="group-avatars">
                 {members.slice(0, 5).map((r) => (
-                  <Avatar
-                    key={r.id}
-                    name={r.name}
-                    tone={roleDisplayStates(roleCtx(s.snapshot, r))[0].tone}
-                  />
+                  <a key={r.id} href={`#/role/${r.id}`} aria-label={`${r.name} · ${roleDisplayStates(roleCtx(s.snapshot,r)).map(x=>x.label).join('、')}`}><Avatar name={r.name} tone="neutral"/><StatusDot tone={roleDisplayStates(roleCtx(s.snapshot,r))[0].tone} label={roleDisplayStates(roleCtx(s.snapshot,r))[0].label}/></a>
                 ))}
                 {members.length > 5 && <span className="avatar-more">+{members.length - 5}</span>}
               </span>
             </div>
           );
         })}
-      </div>
+      {spaces.length>3&&<a href={`#/project/${project.id}`}>另有 {spaces.length-3} 个小组</a>}</div>
       <footer>
         <span>
           {project.activeRunsCount > 0 ? `▶${project.activeRunsCount} 运行 ` : ''}
@@ -113,7 +109,7 @@ export function CreateProjectCard() {
       });
       location.hash = '#/project/' + project.id;
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -199,7 +195,7 @@ export function SpaceCard({
           </h3>
           {space.purpose && <p className="space-purpose">{space.purpose}</p>}
         </div>
-        <div className="space-card-meta">
+        <div className="space-card-meta"><details><summary>管理小组</summary><a href={`#/reconfigure/${space.projectId}`}>合并小组 / 拆分小组（未开放）</a></details>
           <ToneBadge state={tone} />
           {space.policyRevision !== undefined && (
             <span className="policy-rev" title="组规则版本">
