@@ -27,3 +27,7 @@ Codex 切号及重启 INCLUDED_LAST_DUT_ONLY，最后执行。DEV hzxpro 认证�
 当前精确启动断点：见convergence-startup-diagnosis.md。BU+RC显式无秘密诊断可运行native cmd和Node；12cc236d节点phase3失败是icacls spawn error，无退出码，随后canary仍拒绝。孙Node未测、CLR失败，不加载真凭据。下一步记录spawn errno并定位后代创建/stdio权限，不要求用户重复操作。HTTPS五项与f170f1d双CI成功。
 
 最新：完全访问后主线工具可用，子Agent旧运行器仍helper错误，未让其绕过权限规则。28a56e9f实际受限Node与孙Node+canary负测在新文件stdio句柄下通过；真实NUL写EPERM、自动pipe仍失败，CLR失败。下一步是受控通信句柄/pipe机制，不再笼统说Node无法运行。无真实凭据加载，无付费调用，DEV未触碰。
+
+新增源码be75e5c：Provider缓冲SSE、两项Reviewer P1修复，独立29测试及固定源码HTTPS8项通过。详细见convergence-sse.md。真实Harness仍0，不加载凭据；下一生产工作仍是受控管道/Job/出网安全与broker接线，不是再次跑Fixture充当验收。
+
+固定源码be75e5c6f5830adcdc5c5c556300e719916a869d：326全仓测试/类型检查/HTTPS8项PASS；证据index位于evidence/J3/convergence/be75e5c。最新未测项见convergence-sse.md与convergence-startup-diagnosis.md。
