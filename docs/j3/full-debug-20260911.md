@@ -31,3 +31,7 @@ Windows 进程树测试支持项目内独立证据目录，避免覆盖历史证
 先在普通独立 PowerShell（无需改开发账号）执行 tools/test-j3-access-environment.ps1。脚本只编译已有无秘密 canary，在项目 .local/j3-access-check 下新建目录，检查假文件 ACL 和自建假 broker；不读取账号、不联网、不更改已有目录 ACL、不全局杀进程。只回报 result.json 路径及状态。该脚本仅通过语法检查，未在独立用户终端实测；即使结果 PASS，也仍需实现并验证完整进程隔离。
 
 后续继续生产后端/迁移/六工具及 Kimi/pi 生命周期、秘密隔离实现；环境齐备后执行真实组合、取消/恢复、SSH、正式包和现场验收。未实测项保持未通过，不进入 main/tag/release。
+
+## 用户后续授权更新
+
+费用无上限；目录全范围授权，但开发产物仍限 AgentRouter 内，保留已有资产和开发身份保护。SSH 联调暂不进行，状态改为 DEFERRED_BY_USER，不再索取 SSH 条件。本地真实测试预算已解除阻断，仍需先通过秘密隔离；Codex 切换继续 EXCLUDED_BY_USER。修复源码 211abf361c5fb93722a20c41bd98b4bd21592d49 的 CI 34550830283、34550830431 均 success。

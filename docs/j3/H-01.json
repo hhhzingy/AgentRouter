@@ -1,6 +1,6 @@
 {
   "request_id": "H-01",
-  "status": "PARTIAL_USER_INPUT_FULL_DEBUG_AUTHORIZED",
+  "status": "WINDOWS_DEBUG_AUTHORIZED_ISOLATION_PENDING",
   "source_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
   "known": {
     "windows": "Windows11 10.0.26200 x64",
@@ -17,15 +17,13 @@
     "deepseek_connectivity": "PASS HTTP 200; 8 input + 1 output tokens; direct API only"
   },
   "requested": [
-    "完整测试费用总上限",
-    "SSH Host Alias/核对指纹/授权部署测试目录",
     "独立 Windows 环境与原生人工试用时间",
     "Kimi 第二账号代号及隔离登录（若执行账号切换验收）"
   ],
   "secrets_requested": false,
   "authorization": {
     "real_accounts": true,
-    "paid_calls": "用户授权完整调试；仍要求低思考、小任务，批量付费预算待回复",
+    "paid_calls": true,
     "remote_deploy": false,
     "main_tag_release": false,
     "codex_account_switch": false,
@@ -35,15 +33,23 @@
       "completed": true,
       "tokens": 9,
       "automaticRetry": false,
-      "additionalCallsAuthorized": "后续完整调试已授权；费用上限待明确，原探针不自动重放"
-    }
+      "additionalCallsAuthorized": "完整调试已授权，费用无上限；原操作不自动重放"
+    },
+    "expense_budget": {
+      "limit": null,
+      "meaning": "用户明确费用无上限；保留低思考、小任务偏好",
+      "automaticRetry": false
+    },
+    "directory_scope": "用户授权目录全范围；开发产物仍放 AgentRouter 内；不推定删除已有资产或读取开发会话凭据授权",
+    "ssh_joint_debug": false
   },
   "unblocked_work": "完整离线/实际 Electron 回归、故障复现修复、生产实现、脱敏记录；真实 Harness 等待隔离通过",
   "updated_from_user": "2026-09-11",
   "constraints": [
     "当前开发 Codex hzxpro 不切换、不登出、不读取凭据",
     "本轮排除 Codex 账号切换；不触碰当前开发会话",
-    "登录状态与真实调用成功分别记录"
+    "登录状态与真实调用成功分别记录",
+    "SSH 联调暂不进行；不将 SSH 标记为环境缺失导致的失败，也不认证远程支持"
   ],
   "test_preferences": {
     "first": "DeepSeek",
@@ -51,6 +57,6 @@
     "codex_reasoning": "最低实际可用；未验证具体枚举",
     "kimi_model_requested": "K2.7",
     "kimi_reasoning": "最低实际可用",
-    "scope": "完整调试测试、记录、修复复测；排除 Codex 切换，真实测试仍需安全隔离和授权环境"
+    "scope": "完整 Windows 本地调试与优化；暂不进行 SSH，排除 Codex 切换"
   }
 }
