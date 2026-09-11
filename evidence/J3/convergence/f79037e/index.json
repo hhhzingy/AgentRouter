@@ -9,7 +9,7 @@
   "files": [
     {
       "path": "gate.txt",
-      "sha256": "c4da85f080efe20952aae9188a4f1b1d8db4cdf540738d5f4b3154250a2f70f1"
+      "sha256": "b538ddced94e39e8f54f594f2e94cfa77f4b2f27ea12a2ff4d73c046ebc197db"
     },
     {
       "path": "J1/desktop.json",
@@ -127,5 +127,6 @@
       "path": "workbench.png",
       "sha256": "3ce87d29f82f42f5d06387323900869346324d6363e2de5e50f0148ebbe5addb"
     }
-  ]
+  ],
+  "hashBasis": "committed Git blob bytes (text normalized LF); screenshot/package hashes remain original artifact bytes"
 }

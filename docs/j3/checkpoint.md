@@ -17,3 +17,5 @@ Codex 切号及重启 INCLUDED_LAST_DUT_ONLY，最后执行。DEV hzxpro 认证�
 当前等待用户普通PowerShell运行tools/test-j3-access-environment.ps1的Result/Status。没有新增登录/付费请求，不触碰hzxpro。
 
 下一工程任务：SecureProcessHost主令牌/Job/bridge完整实现；受控本地HTTPS连接清理验证及pi流式代理；实际账号/模型注册和GUI接线。随后pi→Kimi→Codex实际小任务/取消/恢复，最后独立Codex切号。未完成项是实现任务，不能仅等环境。下一只读命令：git status --short，然后检查用户新诊断JSON（只允许脱敏元数据）。
+
+远端同步：dec0abc 源码/主要证据已push；0e59e40补交门禁文本遇连续GitHub TLS握手失败。CI新运行查询EOF，未确认；不要引用旧绿色作为新CI。下一次先git status与git log，再重试正常TLS推送，不关闭证书校验。
