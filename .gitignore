@@ -21,3 +21,6 @@ evidence/live-raw/
 **/.env*
 
 .vitest/
+
+# 本地账号材料禁止进入版本库与发布物
+/账号信息/

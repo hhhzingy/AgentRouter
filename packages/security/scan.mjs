@@ -17,6 +17,7 @@ export function scanText(text) {
   return rules.filter(([, re]) => re.test(text)).map(([id]) => id);
 }
 export function forbiddenPath(path) {
+  if (/(?:^|[\\/])账号信息(?:[\\/]|$)/u.test(path)) return true;
   return /(?:^|\/)(?:auth\.json|\.env(?:\..*)?|[^/]*(?:token|secret)[^/]*|[^/]*\.log)$|(?:^|\/)evidence\/(?:raw|live-raw)\//i.test(
     path,
   );
