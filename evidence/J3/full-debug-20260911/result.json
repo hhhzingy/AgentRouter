@@ -1,0 +1,164 @@
+{
+  "sourceSha": "211abf361c5fb93722a20c41bd98b4bd21592d49",
+  "scope": "离线全仓、真实 Electron + Fixture Core、Windows 自建进程树；不是 V1.0 实际支持认证",
+  "tests": {
+    "automated": 252,
+    "electron": 38,
+    "windowsProcessTree": 20,
+    "allExitCodes": 0
+  },
+  "fix": "断线观察者异常导致未处理 Promise 拒绝；已最小复现、修复及多请求/迟到写入复测",
+  "review": "独立只读 Reviewer 无阻断意见；未独立执行测试",
+  "notRun": {
+    "realHarnessSixCombinations": "BLOCKED_ENV_AND_IMPLEMENTATION",
+    "codexAccountSwitch": "EXCLUDED_BY_USER",
+    "kimiAccountSwitch": "NOT_RUN_SECOND_ACCOUNT_AND_ISOLATION_REQUIRED",
+    "ssh": "BLOCKED_ENV_SCOPE_AND_FINGERPRINT_REQUIRED",
+    "secretIsolation": "BLOCKED_ENV_ACL_AND_IMPLEMENTATION",
+    "manualDialogsImeSleepCleanInstall": "NOT_RUN",
+    "formalProductionPackage": "NOT_RUN_OLD_ENTRYPOINT",
+    "twoHourSoakAndRealMixedSoak": "NOT_RUN"
+  },
+  "costThisDebugBatch": {
+    "realGenerationRequests": 0,
+    "note": "之前 DeepSeek 1 次 9 token 独立证据，不在本批重复调用"
+  },
+  "baselineRun": "250 tests + 38 Electron；期间开始协议修复，不作为修复后认证，保留 gates 日志，移除冗余截图",
+  "artifacts": [
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/gates.txt",
+      "sha256": "60907d590750c9e7d8e65d1128896afc1459c674e2c56a877e824d34eb83639d",
+      "bytes": 2162
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J1/desktop.json",
+      "sha256": "d442c59592cf69cf55569429050638cf05e2c52a630b02772033121e14b0b294",
+      "bytes": 1207
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J1/screenshots/01-plan-review.png",
+      "sha256": "76c7f68fe2e3baa5ed19bffe5bccf5d6bec69fe8adcebebec639c94f3b504308",
+      "bytes": 232984
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J1/screenshots/02-two-groups.png",
+      "sha256": "34262d84e1f0b3ebc522f3ed0c06ce85e63d91d448b80ecd9c91fb265b812913",
+      "bytes": 86572
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J1/screenshots/03-settling.png",
+      "sha256": "8689f366be1c712f7d08f4c1e167c7ed065165684d890d0f22484cba7c36306d",
+      "bytes": 73274
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J1/screenshots/04-unknown.png",
+      "sha256": "a455ab0002bff22860d969c9fc4b3af3c9ba1705f3d69fa2cc2ddf999e01d612",
+      "bytes": 131408
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J1/screenshots/05-home-restarted-1280.png",
+      "sha256": "c020877f15d2266f394d122ccc0e7d3e58de0dd5b02ae1aaedef4930841037c6",
+      "bytes": 51030
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/contrast.json",
+      "sha256": "cc07bc3dcfabcc9ac8394ad19ca0d90ea345891682693783ecd7694181e87b1c",
+      "bytes": 493
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/desktop.json",
+      "sha256": "086e1bf4f3c7d5e298e095f3dd154c9f971a9f5b56fe377d10859d602d2a5b10",
+      "bytes": 10105
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+      "sha256": "e3ed755c83b509863697021493fee0673b05a59476a3bc86612a3c526156215b",
+      "bytes": 72093
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+      "sha256": "465f639f9ea5e44e8aec5a08f8ea37800216b45e010d32374e7018668a1bf272",
+      "bytes": 91236
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+      "sha256": "d649fd16b5e79a69ecfc6a958fd26351091dbcf02b91f74740563cf2617daf7d",
+      "bytes": 97063
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-disconnected-readonly.png",
+      "sha256": "eae08848db35ec8dbb319ad54b61c3517ae9f00ff7da683c407ab8d1b63f5507",
+      "bytes": 56623
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-empty-home.png",
+      "sha256": "a092a2f5a9a0694418f1cdd3dc7f70a09e695031eb97dc74566e0373dad03985",
+      "bytes": 43412
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-failed-keeps-input.png",
+      "sha256": "b8d6dca96e7157ac24838592557c76ab8b89a688074120a03734b7894f4aa272",
+      "bytes": 53622
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-history-150.png",
+      "sha256": "f78d1133ded4dd76d650a7ee7a9211b07347d8d8aa125ac7dc4313453009f49e",
+      "bytes": 66175
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+      "sha256": "260500fd20329ee20d2cee39992429dfd39e6ededd001eaf1ccd9b0499eca472",
+      "bytes": 61209
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-manual-editor.png",
+      "sha256": "f48d78d755934311d5f6009d0e2e7cff87cbb0de9497b70b5dae67af1e11e74b",
+      "bytes": 58164
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+      "sha256": "4aaf8576fcecd11cfbf69f39e2f31eb9b75b1d2842dd932ea93052d02f6508df",
+      "bytes": 66551
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+      "sha256": "fbe09dc03206efd43730f12f260ba275a1d92b556a25d0cd19c9e50fe9833d9c",
+      "bytes": 76967
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+      "sha256": "c293a09f5c9aa3a4adf84d41187da80d81a02830196079ed28e378b0df20f859",
+      "bytes": 75044
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+      "sha256": "0fd4e5b15765b4d8e1a01b2221d3cd435dba6c74e19c54e284a4211f92e052ca",
+      "bytes": 100570
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+      "sha256": "2e6255718de9774b793f7a3c01a29a1948e570b2434126bb94bcfb4b0b79dd35",
+      "bytes": 87311
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+      "sha256": "63e7c291f1625c6ba2df762f36b2267ac5b7568c55f98dd83d23b625ddce883c",
+      "bytes": 62257
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-two-groups.png",
+      "sha256": "1212aa928f2bcbc747bdbe329c9297499a46e65e3a04c4aa0afc5a639ba020df",
+      "bytes": 35452
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J2/screenshots/LOCAL_CORE-1440x900-100-uncertain-edited-draft.png",
+      "sha256": "0bde32a4c53bfc89eea4b93e731df2b93e5c1cc272f9b8ef7730ea885c47fbb0",
+      "bytes": 57899
+    },
+    {
+      "path": "evidence/J3/full-debug-20260911/committed/J3/J3-02/windows-supervisor.json",
+      "sha256": "01d340a5b34a487ca26353ed30a9d224e1910e42d61f2e4e0956a15d781c5c1f",
+      "bytes": 4756
+    }
+  ]
+}

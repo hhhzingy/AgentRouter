@@ -1,6 +1,6 @@
 {
   "request_id": "H-01",
-  "status": "WAITING_USER",
+  "status": "PARTIAL_USER_INPUT_FULL_DEBUG_AUTHORIZED",
   "source_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
   "known": {
     "windows": "Windows11 10.0.26200 x64",
@@ -13,20 +13,19 @@
     "alternate_codex_material": "用户指定的本地账号信息目录；内容未读取",
     "kimi_login": "USER_REPORTED_LOGGED_IN",
     "kimi_credential_location": "%USERPROFILE%/.kimi-code/credentials/kimi-code.json（仅存在性确认）",
-    "pi_material": "用户提供两个本地 API 配置文件，未解析凭据",
+    "pi_material": "DeepSeek 文件仅在本地进程内解析用于已完成单次调用；另一 API 文件未读取",
     "deepseek_connectivity": "PASS HTTP 200; 8 input + 1 output tokens; direct API only"
   },
   "requested": [
-    "Codex/Kimi各两个账号代号与隔离登录切换范围",
-    "pi Provider/模型",
-    "总预算/单次上限/时段",
-    "SSH alias/已核对指纹状态/允许用户级部署与测试目录",
-    "原生界面/IME/睡眠/试用时间及干净Windows条件"
+    "完整测试费用总上限",
+    "SSH Host Alias/核对指纹/授权部署测试目录",
+    "独立 Windows 环境与原生人工试用时间",
+    "Kimi 第二账号代号及隔离登录（若执行账号切换验收）"
   ],
   "secrets_requested": false,
   "authorization": {
-    "real_accounts": false,
-    "paid_calls": false,
+    "real_accounts": true,
+    "paid_calls": "用户授权完整调试；仍要求低思考、小任务，批量付费预算待回复",
     "remote_deploy": false,
     "main_tag_release": false,
     "codex_account_switch": false,
@@ -36,14 +35,14 @@
       "completed": true,
       "tokens": 9,
       "automaticRetry": false,
-      "additionalCallsAuthorized": false
+      "additionalCallsAuthorized": "后续完整调试已授权；费用上限待明确，原探针不自动重放"
     }
   },
-  "unblocked_work": "只读审计、确定性测试、无秘密夹具、生产接口与安全实现",
+  "unblocked_work": "完整离线/实际 Electron 回归、故障复现修复、生产实现、脱敏记录；真实 Harness 等待隔离通过",
   "updated_from_user": "2026-09-11",
   "constraints": [
     "当前开发 Codex hzxpro 不切换、不登出、不读取凭据",
-    "Codex A/B 切换安排在最后，先完善独立被测环境",
+    "本轮排除 Codex 账号切换；不触碰当前开发会话",
     "登录状态与真实调用成功分别记录"
   ],
   "test_preferences": {
@@ -52,6 +51,6 @@
     "codex_reasoning": "最低实际可用；未验证具体枚举",
     "kimi_model_requested": "K2.7",
     "kimi_reasoning": "最低实际可用",
-    "scope": "最小联通任务；不能视为完整 J3 验收"
+    "scope": "完整调试测试、记录、修复复测；排除 Codex 切换，真实测试仍需安全隔离和授权环境"
   }
 }

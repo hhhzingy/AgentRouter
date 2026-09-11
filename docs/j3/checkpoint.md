@@ -1,3 +1,13 @@
+# 当前恢复入口（2026-09-11 完整调试）
+
+工作目录 E:/AgentRouter/.local/w11a/integration，分支 feat/v1-finalization-j3。
+最新受测源码 211abf361c5fb93722a20c41bd98b4bd21592d49；252 测试 + 38 真实 Electron（Fixture Core）+ 20 Windows 进程树通过。完整真实 V1.0 未完成。详见 docs/j3/full-debug-20260911.md。
+用户现已授权完整调试但排除 Codex 账号切换；旧“只最小联通/切换最后/无回复”记录为历史，不再代表最新范围。当前 hzxpro 会话不动，fj 凭据未读；Kimi 仅定位；DeepSeek 历史单次9token不重放。本批新增真实调用0。
+当前阻断：秘密隔离 ACL 与生产执行未完成；预算/SSH范围/独立Windows人工条件待回复。下一步检查 git status 和 H-01，继续生产 Core、安全隔离、Kimi/pi 协议实现，再真实验收；不要重复未知外部操作。不合 main。
+
+---
+以下保留历史断点：
+
 # J3 执行断点
 
 工作目录 E:/AgentRouter/.local/w11a/integration；分支 feat/v1-finalization-j3。
