@@ -6,6 +6,7 @@ import {
   copyFileSync,
   unlinkSync,
   existsSync,
+  readFileSync,
 } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -44,7 +45,7 @@ async function phase(live) {
   if (live && !existsSync(auth)) throw Error('FRESH_DUT_LOGIN_REQUIRED');
   const child = spawn(
     'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe',
-    ['app-server'],
+    ['-c', 'cli_auth_credentials_store="file"', 'app-server'],
     {
       cwd: work,
       windowsHide: true,
@@ -94,6 +95,23 @@ async function phase(live) {
     report.emptyNativeMcpVerified = true;
     if (live) {
       report.scope = 'ACTUAL_CODEX_FJ_LUNA_COMPONENT';
+      const seed = JSON.parse(readFileSync('E:/AgentRouter/账号信息/codex/auth.json', 'utf8'));
+      const jwt = seed.tokens?.id_token;
+      let expectedEmail;
+      try {
+        expectedEmail = JSON.parse(
+          Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8'),
+        ).email;
+      } catch {}
+      const identity = await lifecycle.peer.request('account/read', { refreshToken: false });
+      report.identityCheck = {
+        seedEmailPresent: typeof expectedEmail === 'string',
+        dutEmailPresent: typeof identity.account?.email === 'string',
+        accountType: identity.account?.type,
+      };
+      if (typeof expectedEmail !== 'string' || identity.account?.email !== expectedEmail)
+        throw Error('DUT_ACCOUNT_IDENTITY_UNVERIFIED');
+      report.accountIdentityMatchesFjSeed = true;
       const models = await lifecycle.peer.request('model/list', {});
       const luna = models.data?.find((m) => m.model === 'gpt-5.6-luna');
       if (!luna) throw Error('REQUESTED_MODEL_UNAVAILABLE');

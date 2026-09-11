@@ -11,7 +11,10 @@ if not target.is_relative_to(base):
     raise RuntimeError('PROBE_SCOPE_DENIED')
 source = tomllib.loads(Path('C:/Users/hap_p/.kimi-code/config.toml').read_text(encoding='utf-8'))
 provider = source['providers']['managed:kimi-code']
-if provider.get('api_key') or urlparse(provider['base_url']).hostname != 'api.kimi.com':
+url = urlparse(provider['base_url'])
+if (provider.get('api_key') or url.hostname != 'api.kimi.com' or url.scheme != 'https'
+        or url.username or url.password or url.query or url.fragment
+        or provider.get('oauth') != {'storage': 'file', 'key': 'oauth/kimi-code'}):
     raise RuntimeError('PROVIDER_REQUIRES_EXPLICIT_REGISTRATION')
 model = source['models']['kimi-code/kimi-for-coding']
 lines = ['default_model = "kimi-code/kimi-for-coding"', '[thinking]', 'enabled = false', '[providers."managed:kimi-code"]']

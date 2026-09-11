@@ -16,7 +16,7 @@ try {
     $env:HOME = $dutHome
     $env:USERPROFILE = $dutHome
     Write-Host 'Login ONLY the isolated AgentRouter DUT using fj. Keep the Codex desktop account unchanged.'
-    & 'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe' login --device-auth
+    & 'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe' -c 'cli_auth_credentials_store="file"' login --device-auth
     if ($LASTEXITCODE -ne 0) { throw 'DUT_LOGIN_FAILED' }
     Write-Host 'DUT_LOGIN_COMPLETED. Report only this status. Never send login codes or credentials.'
 } finally {
