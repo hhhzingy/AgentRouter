@@ -98,6 +98,72 @@ function structuredSecret(value: unknown, secret: string): boolean {
   }
   return false;
 }
+/** Buffer the bounded SSE response until every event is validated; never release partial secret-bearing output. */
+function decodeSse(raw: string, secret: string): Record<string, unknown>[] {
+  const events: Record<string, unknown>[] = [];
+  const strings = new Map<string, string>();
+  let done = false;
+  for (const block of raw.replaceAll('\r\n', '\n').split('\n\n')) {
+    if (!block.trim()) continue;
+    if (done) throw new Rejected('RESPONSE_INVALID');
+    const data: string[] = [];
+    for (const line of block.split('\n')) {
+      if (line.startsWith(':')) continue;
+      if (!line.startsWith('data:')) throw new Rejected('RESPONSE_INVALID');
+      data.push(line.slice(5).replace(/^ /, ''));
+    }
+    if (!data.length) continue;
+    const text = data.join('\n');
+    if (text === '[DONE]') {
+      done = true;
+      continue;
+    }
+    let event: unknown;
+    try {
+      event = JSON.parse(text);
+    } catch {
+      throw new Rejected('RESPONSE_INVALID');
+    }
+    if (!record(event) || !Array.isArray(event.choices) || event.error !== undefined)
+      throw new Rejected('RESPONSE_INVALID');
+    if (structuredSecret(event, secret)) throw new Rejected('SECRET_IN_RESPONSE');
+    // A model may split a reflected credential across successive delta strings.
+    const pending: [unknown, string[]][] = [[event, []]];
+    while (pending.length) {
+      const [value, path] = pending.pop()!;
+      if (typeof value === 'string') {
+        const key = JSON.stringify(path),
+          joined = (strings.get(key) ?? '') + value;
+        if (containsSecret(joined, secret)) throw new Rejected('SECRET_IN_RESPONSE');
+        strings.set(key, joined);
+      } else if (Array.isArray(value)) {
+        const seen = new Set<number>();
+        value.forEach((child, i) => {
+          const indexed = ['choices', 'tool_calls'].includes(path.at(-1) ?? '');
+          if (
+            indexed &&
+            (!record(child) || !Number.isSafeInteger(child.index) || Number(child.index) < 0)
+          )
+            throw new Rejected('RESPONSE_INVALID');
+          if (indexed) {
+            const id = Number((child as Record<string, unknown>).index);
+            if (seen.has(id)) throw new Rejected('RESPONSE_INVALID');
+            seen.add(id);
+          }
+          pending.push([
+            child,
+            [...path, indexed ? '#' + String((child as Record<string, unknown>).index) : String(i)],
+          ]);
+        });
+      } else if (record(value)) {
+        Object.entries(value).forEach(([key, child]) => pending.push([child, [...path, key]]));
+      }
+    }
+    events.push(event);
+  }
+  if (!done || !events.length) throw new Rejected('RESPONSE_INVALID');
+  return events;
+}
 function positive(value: number | undefined, fallback: number, max: number): number {
   const result = value ?? fallback;
   if (!Number.isSafeInteger(result) || result <= 0 || result > max)
@@ -105,7 +171,7 @@ function positive(value: number | undefined, fallback: number, max: number): num
   return result;
 }
 
-/** No endpoint is accepted from a client request. Streaming is explicitly unsupported until a separately tested SSE boundary exists. */
+/** No endpoint is accepted from a client request. SSE is bounded and buffered for whole-response validation. */
 export class ApprovedProvider {
   private readonly origin: string;
   private readonly path: string;
@@ -146,7 +212,14 @@ export class ApprovedProvider {
     this.requestLimit = positive(policy.maxRequestBytes, 262_144, 4_194_304);
     this.responseLimit = positive(policy.maxResponseBytes, 1_048_576, 16_777_216);
   }
-  async complete(input: unknown): Promise<ProviderResult> {
+  complete(input: unknown): Promise<ProviderResult> {
+    return this.execute(input, false);
+  }
+  /** Returns validated upstream events in response.events; not a live token-forwarding API. */
+  bufferedStream(input: unknown): Promise<ProviderResult> {
+    return this.execute(input, true);
+  }
+  private async execute(input: unknown, streaming: boolean): Promise<ProviderResult> {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const task = async (): Promise<ProviderResult> => {
@@ -176,7 +249,11 @@ export class ApprovedProvider {
           request.messages.length === 0
         )
           throw new Rejected('POLICY_REJECTED');
-        if (request.stream !== undefined && request.stream !== false)
+        if (
+          streaming
+            ? request.stream !== true
+            : request.stream !== undefined && request.stream !== false
+        )
           throw new Rejected('STREAM_UNSUPPORTED');
         if (
           request.max_tokens !== undefined &&
@@ -228,6 +305,7 @@ export class ApprovedProvider {
           throw new Rejected('RESPONSE_INVALID');
         }
         if (containsSecret(raw, secret)) throw new Rejected('SECRET_IN_RESPONSE');
+        if (streaming) return { ok: true, response: { events: decodeSse(raw, secret) } };
         let response: unknown;
         try {
           response = JSON.parse(raw);

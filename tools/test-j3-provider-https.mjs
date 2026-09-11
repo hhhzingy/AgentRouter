@@ -16,7 +16,7 @@ const { ApprovedProvider } = await import(pathToFileURL(resolve(dir, 'provider.m
 const checks = [];
 for (const scenario of process.argv[3] === '--untrusted'
   ? ['untrusted']
-  : ['timeout', 'overflow', 'redirect', 'success']) {
+  : ['timeout', 'overflow', 'redirect', 'success', 'sse-success', 'sse-secret', 'sse-timeout']) {
   let count = 0;
   const sockets = new Set();
   const server = createServer(
@@ -24,6 +24,14 @@ for (const scenario of process.argv[3] === '--untrusted'
     (req, res) => {
       count++;
       req.resume();
+      if (scenario.startsWith('sse-')) {
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        const event = (text) =>
+          'data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: text } }] }) + '\n\n';
+        res.write(event(scenario === 'sse-secret' ? 'synthetic-' : '中文'));
+        if (scenario === 'sse-secret') res.write(event('credential-only'));
+        if (scenario !== 'sse-timeout') res.end('data: [DONE]\n\n');
+      }
       if (scenario === 'timeout') {
         res.writeHead(200);
         res.write('{');
@@ -57,12 +65,16 @@ for (const scenario of process.argv[3] === '--untrusted'
       },
       async () => 'synthetic-credential-only',
     );
-    const result = await provider.complete({
+    const method = scenario.startsWith('sse-') ? 'bufferedStream' : 'complete';
+    const result = await provider[method]({
       model: 'test',
+      ...(scenario.startsWith('sse-') ? { stream: true } : {}),
       messages: [{ role: 'user', content: 'dummy' }],
     });
     const expected = {
       timeout: 'TIMEOUT',
+      'sse-timeout': 'TIMEOUT',
+      'sse-secret': 'SECRET_IN_RESPONSE',
       overflow: 'RESPONSE_TOO_LARGE',
       redirect: 'UPSTREAM_REJECTED',
       untrusted: 'TRANSPORT_FAILED',
