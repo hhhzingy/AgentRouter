@@ -2,7 +2,7 @@
 
 本节覆盖下方历史“完整隔离前不加载凭据”的笼统阻断。用户授权 LIMITED_ISOLATION 低风险实际调试；SSH暂缓、DEV hzxpro不动、DUT切号和重启最后。
 
-当前分支 feat/v1-finalization-j3，工作目录 E:/AgentRouter/.local/w11a/integration，起点90ed45436974bfb848cfcf83ac936bac5fe967f6。Management MCP 已实现并通过14项真实STDIO→LOCAL_CORE检查；不是Harness认证。Codex用户配置已注册agentrouter-management，无秘密env；常驻Core所有权记录在.local/management-live/owner.json，不重复启动或按名称杀进程。当前会话工具列表尚未刷新，直接开发Codex调用 NOT_RUN。
+当前分支 feat/v1-finalization-j3，工作目录 E:/AgentRouter/.local/w11a/integration，起点90ed45436974bfb848cfcf83ac936bac5fe967f6。Management MCP 已实现并通过15项真实STDIO→LOCAL_CORE检查；不是Harness认证。Codex用户配置已注册agentrouter-management，无秘密env；常驻Core所有权记录在.local/management-live/owner.json，不重复启动或按名称杀进程。当前会话工具列表尚未刷新，直接开发Codex调用 NOT_RUN。
 
 下一命令：git status --short；node tools/test-management-mcp.mjs。下一工程：managed实例配置隔离、实际NativeProcessHost接线、pi→Kimi→Codex；External API注册面仍未实现。所有冻结合同保持不变。
 
@@ -41,3 +41,5 @@ Codex 切号及重启 INCLUDED_LAST_DUT_ONLY，最后执行。DEV hzxpro 认证�
 新增源码be75e5c：Provider缓冲SSE、两项Reviewer P1修复，独立29测试及固定源码HTTPS8项通过。详细见convergence-sse.md。真实Harness仍0，不加载凭据；下一生产工作仍是受控管道/Job/出网安全与broker接线，不是再次跑Fixture充当验收。
 
 固定源码be75e5c6f5830adcdc5c5c556300e719916a869d：326全仓测试/类型检查/HTTPS8项PASS；证据index位于evidence/J3/convergence/be75e5c。最新未测项见convergence-sse.md与convergence-startup-diagnosis.md。
+
+MCP 固定源码6bfdb79a6cb570ff22545935278115e2073b9c53已push；15项固定源码实测和326项原回归通过，证据evidence/J3/management-mcp/6bfdb79/report.json；工作项https://github.com/hhhzingy/AgentRouter/issues/1。当前开发工具刷新与managed启动接线待完成。
