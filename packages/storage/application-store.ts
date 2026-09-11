@@ -34,14 +34,14 @@ export function openApplicationStore(
     const rows = db
       .prepare('select version,checksum from schema_migrations order by version')
       .all() as { version: number; checksum: string }[];
-    const sources = ['001-baseline.sql', '002-w11-application.sql'].map((name) =>
+    const sources = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql'].map((name) =>
       readFileSync(new URL(name, migrations), 'utf8'),
     );
     const hashes = sources.map((sql) => createHash('sha256').update(sql).digest('hex'));
     if (
       rows.some((r, i) => r.version !== i + 1 || hashes[i] !== r.checksum) ||
       rows.length < 1 ||
-      rows.length > 2
+      rows.length > sources.length
     )
       throw Error('MIGRATION_MISMATCH_DIAGNOSTIC_ONLY');
     if (rows.length === 1) {
@@ -63,6 +63,25 @@ export function openApplicationStore(
             JSON.stringify(m),
           );
       }).immediate();
+    }
+    if (rows.length < 3) {
+      if (existed && rows.length === 2) {
+        const backups = resolve(data, 'backups');
+        mkdirSync(backups, { recursive: true });
+        db.prepare('VACUUM INTO ?').run(resolve(backups, 'before-v3-' + randomUUID() + '.db'));
+      }
+      // SQLite table rebuild requires FK OFF outside the transaction; check before commit.
+      db.pragma('foreign_keys=OFF');
+      try {
+        db.transaction(() => {
+          db.exec(sources[2]);
+          if ((db.pragma('foreign_key_check') as unknown[]).length)
+            throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
+          db.prepare('insert into schema_migrations values(3,?,?)').run(Date.now(), hashes[2]);
+        }).immediate();
+      } finally {
+        db.pragma('foreign_keys=ON');
+      }
     }
     db.pragma('journal_mode=WAL');
     db.pragma('synchronous=FULL');

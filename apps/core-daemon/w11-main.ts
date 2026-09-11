@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { ApplicationService } from '../../packages/core-service/application.ts';
 import { FixtureDriver } from '../../packages/core-service/fixture-driver.ts';
+import { ExecutionCoordinator } from '../../packages/core-service/execution-coordinator.ts';
+import { NativeBackend, NativeExecutionRegistry } from '../../packages/core-service/native-registry.ts';
 import { JsonLfDecoder } from '../../packages/platform/framing.ts';
 const input = process.env.AGENTROUTER_DATA;
 if (!input) throw Error('AGENTROUTER_DATA_REQUIRED');
@@ -23,7 +25,7 @@ const address =
     .slice(0, 32);
 const credential = randomBytes(32).toString('hex');
 let application: ApplicationService,
-  driver: FixtureDriver,
+  driver: ExecutionCoordinator,
   closing = false,
   dropNext = false;
 const sockets = new Set<import('node:net').Socket>();
@@ -146,10 +148,16 @@ server.listen(address, () => {
     ) as string[];
     const db = openApplicationStore(data, new URL('./migrations/', import.meta.url));
     application = new ApplicationService(db, roots, fixture);
-    driver = new FixtureDriver(
-      application,
-      fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)),
-    );
+    if (fixture) {
+      driver = new FixtureDriver(application,fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)));
+    } else {
+      const registry = new NativeExecutionRegistry(db);
+      application.nativeAuthorization = (binding) => registry.authorized(binding);
+      application.nativeCancelAvailable = (binding) => binding ? registry.canCancel(binding) : registry.anyCancel();
+      application.nativeToolAuthorization = (binding,epoch,tool) => registry.toolAuthorized(binding,epoch,tool);
+      driver = new ExecutionCoordinator(application,new NativeBackend(registry));
+      // Native OS runtime ports are installed only after isolation verification; no Fixture fallback.
+    }
     application.onShutdown = () => void shutdown();
     writeFileSync(
       resolve(data, 'endpoint.json'),
@@ -159,7 +167,7 @@ server.listen(address, () => {
         pid: process.pid,
         instance: application.instanceId,
         mode: 'LOCAL_CORE',
-        source: fixture ? 'SIMULATED_EXECUTOR' : 'NO_EXECUTOR',
+        source: fixture ? 'SIMULATED_EXECUTOR' : 'NATIVE_REGISTRY_BLOCKED_IMPLEMENTATION',
       }),
       { mode: 0o600 },
     );

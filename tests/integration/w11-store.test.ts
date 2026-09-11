@@ -11,6 +11,7 @@ it('W11 增量迁移可重复打开，旧 baseline 不改，真实 SQLite 持久
   expect(db.prepare('select version from schema_migrations order by version').all()).toEqual([
     { version: 1 },
     { version: 2 },
+    { version: 3 },
   ]);
   db.close();
   db = openApplicationStore(dir);

@@ -110,6 +110,9 @@ export class ApplicationService extends Plans {
   private controlLedger = new Map<string, { hash: string; result: unknown }>();
   private grants = new Map<string, { connection: string; path: string }>();
   onChanged?: () => void;
+  nativeAuthorization?: (bindingId: string) => boolean;
+  nativeCancelAvailable?: (bindingId?:string)=>boolean;
+  nativeToolAuthorization?: (bindingId:string,epoch:number,tool:string)=>boolean;
   onShutdown?: () => void;
   failNextCommit = false;
   constructor(
@@ -128,6 +131,7 @@ export class ApplicationService extends Plans {
           "select e.role_id from execution_profiles e join bindings b on b.role_id=e.role_id where b.id=? and e.verified=1 and e.source='SIMULATED'",
           binding,
         ),
+      nativeAuthorization: (binding) => !this.fixtureMode && !!this.nativeAuthorization?.(binding),
       beforeDispatch: (role) => this.dispatchBlocker(role),
       kindForTask: (task) =>
         this.one('select result_id from result_handlings where task_id=?', task)
@@ -216,7 +220,7 @@ export class ApplicationService extends Plans {
           (c.revision === 'C1R1P1' ||
             (c.revision === 'C1R1' ? m in r1['x-methods'] : m in c1['x-methods'])) &&
           (c.revision === 'C1R1P1' || m !== 'provider.listProfiles') &&
-          (m !== 'run.cancel' || this.fixtureMode),
+          (m !== 'run.cancel' || this.fixtureMode || this.nativeCancelAvailable?.()===true),
       ),
       remote_filesystem: false,
       event_stream: true,
@@ -1098,7 +1102,7 @@ export class ApplicationService extends Plans {
       const run = this.one('select * from runs where id=?', p.id);
       if (!run) throw new C1R1Error('NOT_FOUND');
       this.assertRole(run.role_id, scope);
-      if (!this.fixtureMode || !this.one('select run_id from run_sources where run_id=?', run.id))
+      if ((!this.fixtureMode && !this.nativeCancelAvailable?.(run.binding_id)) || !this.one('select run_id from run_sources where run_id=?', run.id))
         throw new C1R1Error('CAPABILITY_UNAVAILABLE');
       if (!['STARTING', 'RUNNING', 'WAITING_APPROVAL', 'SETTLING'].includes(run.state))
         throw new C1R1Error('RECONFIGURATION_BLOCKED');

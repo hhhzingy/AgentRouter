@@ -11,7 +11,7 @@ await build({
   format: 'esm',
   packages: 'external',
 });
-for (const name of ['001-baseline.sql', '002-w11-application.sql'])
+for (const name of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql'])
   copyFileSync('packages/storage/migrations/' + name, resolve(out, 'migrations', name));
 copyFileSync('packages/core-service/fixture-harness.mjs', resolve(out, 'fixture-harness.mjs'));
 console.log(out);

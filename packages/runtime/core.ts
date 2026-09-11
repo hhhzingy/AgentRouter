@@ -31,6 +31,7 @@ export class Core {
     readonly options: {
       allowMock?: boolean;
       fixtureAuthorization?: (bindingId: string) => boolean;
+      nativeAuthorization?: (bindingId: string) => boolean;
       beforeDispatch?: (roleId: string) => string | null;
       kindForTask?: (taskId: string) => string;
     } = {},
@@ -471,7 +472,7 @@ export class Core {
       if (
         !(this.options.allowMock && caps.fixture === 'mock') &&
         !this.options.fixtureAuthorization?.(b.id) &&
-        caps.status !== 'LIVE_TESTED'
+        !(this.options.nativeAuthorization ? this.options.nativeAuthorization(b.id) : caps.status === 'LIVE_TESTED')
       )
         return this.blocked(roleId, 'harness_unverified');
       const blocked = this.options.beforeDispatch?.(roleId);

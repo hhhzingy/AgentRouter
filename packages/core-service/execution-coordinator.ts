@@ -4,7 +4,7 @@ import { completionAllowed } from './execution-backend.ts';
 import type { Dispatch } from '../runtime/core.ts';
 import type { ApplicationService } from './application.ts';
 const uid = (p: string) => p + '_' + randomUUID();
-/** 单一应用协调层；进程 I/O 由后端负责。生产注册尚未接入，继续保持 Fixture 双门禁。 */
+/** 单一应用协调层；进程 I/O 由后端负责。Fixture 与 Native 共用调度/收尾；生产必须通过可信运行器安全授权。 */
 export class ExecutionCoordinator {
   private scheduled = false;
   private active = new Map<string, () => void>();
@@ -16,7 +16,7 @@ export class ExecutionCoordinator {
     app.onChanged = () => this.kick();
   }
   kick() {
-    if (this.stopping || !this.app.fixtureMode || this.scheduled) return;
+    if (this.stopping || (!this.app.fixtureMode && !this.app.nativeAuthorization) || this.scheduled) return;
     this.scheduled = true;
     setImmediate(() => {
       this.scheduled = false;
@@ -62,6 +62,7 @@ export class ExecutionCoordinator {
           profile.role_id,
         );
       if (!b || !charter) continue;
+      if (a.fixtureMode ? profile.source !== 'SIMULATED' : profile.source !== 'NATIVE' || !a.nativeAuthorization?.(b.id)) continue;
       const d = a.one('select * from bootstrap_deliveries where charter_id=?', charter.id),
         scenario = JSON.parse(profile.scenario_json);
       if (d.state === 'PENDING') {
@@ -74,8 +75,8 @@ export class ExecutionCoordinator {
           const dispatch = a.core.dispatch(profile.role_id);
           if (dispatch) {
             a.db
-              .prepare("insert into run_sources(run_id,source,charter_id) values(?,'SIMULATED',?)")
-              .run(dispatch.id, charter.id);
+              .prepare("insert into run_sources(run_id,source,charter_id) values(?,?,?)")
+              .run(dispatch.id, a.fixtureMode ? 'SIMULATED' : 'NATIVE', charter.id);
             a.event(a.roleScope(profile.role_id).project_id, 'DispatchIntent', dispatch.id);
           }
           return dispatch;
@@ -118,9 +119,9 @@ export class ExecutionCoordinator {
       .transaction(() => {
         a.db
           .prepare(
-            "insert into initialization_attempts(id,delivery_id,role_id,epoch,charter_hash,state,source,created_at_ms) values(?,?,?,?,?,'STARTING','SIMULATED',?)",
+            "insert into initialization_attempts(id,delivery_id,role_id,epoch,charter_hash,state,source,created_at_ms) values(?,?,?,?,?,'STARTING',?,?)",
           )
-          .run(attempt, d.id, role, b.epoch, charter.hash, a.clock());
+          .run(attempt, d.id, role, b.epoch, charter.hash, a.fixtureMode ? 'SIMULATED' : 'NATIVE', a.clock());
         for (const key of resources)
           a.db
             .prepare("insert into initialization_leases values(?,?,?,'HELD')")
@@ -138,7 +139,7 @@ export class ExecutionCoordinator {
       broken = false;
     const child = this.launch(
       attempt,
-      { mode: 'bootstrap', epoch: b.epoch, charterHash: charter.hash, scenario },
+      { mode: 'bootstrap', bindingId:b.id, roleId:role, epoch: b.epoch, charterHash: charter.hash, charter:JSON.parse(charter.spec_json), scenario },
       (event) => {
         if (event.epoch !== b.epoch) {
           this.audit(charter.project_id, 'STALE_BOOTSTRAP_EVENT');
@@ -202,7 +203,7 @@ export class ExecutionCoordinator {
       broken = false;
     const child = this.launch(
       dispatch.id,
-      { mode: 'run', epoch: b.epoch, request: dispatch.request, scenario },
+      { mode: 'run', bindingId:b.id, roleId:dispatch.principal.roleId, epoch: b.epoch, charterHash:charter.hash, charter:JSON.parse(charter.spec_json), request: dispatch.request, scenario, handleTool:(tool:string,operationId:string,input:any)=>this.routeTool(dispatch,tool,operationId,input) },
       (event) => {
         if (event.epoch !== b.epoch) {
           this.audit(charter.project_id, 'STALE_RUN_EVENT');
@@ -232,18 +233,20 @@ export class ExecutionCoordinator {
               )
               .run(
                 uid('event'),
-                'FixtureNative',
+                a.fixtureMode ? 'FixtureNative' : 'NativeEvent',
                 dispatch.principal.roleId,
                 dispatch.taskId,
                 dispatch.id,
                 event.key,
-                JSON.stringify({ kind: event.kind, source: 'SIMULATED' }),
+                JSON.stringify({ kind: event.kind, source: a.fixtureMode ? 'SIMULATED' : 'NATIVE' }),
                 a.clock(),
               );
             if (event.kind === 'accepted') a.core.accepted(dispatch.id);
+            if (!a.fixtureMode && event.kind === 'text' && typeof event.text==='string') this.conversation(dispatch,'ASSISTANT_MESSAGE','原生输出',event.text,event.key);
             if (event.kind === 'gap')
               this.conversation(dispatch, 'GAP', '历史缺口', '缺失内容未重建', event.key);
             if (event.kind === 'tool') {
+              if (!a.fixtureMode) throw Error('NATIVE_TOOL_REQUIRES_TRUSTED_BRIDGE');
               this.conversation(
                 dispatch,
                 'TOOL_CALL',
@@ -274,7 +277,7 @@ export class ExecutionCoordinator {
                 .prepare('update run_sources set native_terminal=1 where run_id=?')
                 .run(dispatch.id);
             }
-            a.event(charter.project_id, 'FixtureEvent', dispatch.id);
+            a.event(charter.project_id, a.fixtureMode ? 'FixtureEvent' : 'NativeEvent', dispatch.id);
           })
           .immediate();
         a.notify();
@@ -299,7 +302,7 @@ export class ExecutionCoordinator {
                 this.deliverPublished();
                 a.syncConversation();
               } else this.unknown(dispatch.id);
-              a.event(charter.project_id, 'FixtureProcessExited', dispatch.id);
+              a.event(charter.project_id, a.fixtureMode ? 'FixtureProcessExited' : 'NativeProcessExited', dispatch.id);
             })
             .immediate();
         } catch {
@@ -313,6 +316,24 @@ export class ExecutionCoordinator {
       },
     );
     a.db.prepare('update run_sources set pid=? where run_id=?').run(child.pid ?? null, dispatch.id);
+  }
+  private routeTool(d:Dispatch,tool:string,op:string,input:any) {
+    if (this.stopping || this.app.fixtureMode) throw Error('NATIVE_ROUTE_UNAVAILABLE');
+    const a=this.app;
+    if (!a.nativeToolAuthorization?.(d.principal.bindingId,d.principal.epoch,tool)) throw Error('TOOL_NOT_GRANTED');
+    const p=d.principal;
+    this.conversation(d,'TOOL_CALL',tool,'原生工具调用',op+':call');
+    let result;
+    if(tool==='route_context') result=a.core.context(p,input);
+    else if(tool==='route_send') result=a.core.send(p,op,input);
+    else if(tool==='route_finish') result=a.core.finish(p,op,input);
+    else if(tool==='route_wait') result=a.core.wait(p,op,input);
+    else if(tool==='route_artifact_register') result=a.core.registerArtifact(p,op,input);
+    else if(tool==='route_artifact_read') result=a.core.readArtifact(p,input);
+    else throw Error('TOOL_UNAVAILABLE');
+    this.conversation(d,'TOOL_RESULT',tool,'工具已返回；业务交付仍受原生收尾屏障约束',op+':reply');
+    a.syncConversation();a.notify();
+    return result;
   }
   private launch(
     key: string,
