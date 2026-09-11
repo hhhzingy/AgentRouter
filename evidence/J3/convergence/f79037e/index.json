@@ -8,7 +8,7 @@
   "piProbeSource": "precommit working tree, installed binary hash fixed; not fixed-code certification",
   "files": [
     {
-      "path": "gate.log",
+      "path": "gate.txt",
       "sha256": "c4da85f080efe20952aae9188a4f1b1d8db4cdf540738d5f4b3154250a2f70f1"
     },
     {
