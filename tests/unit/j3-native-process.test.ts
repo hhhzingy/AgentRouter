@@ -26,6 +26,8 @@ function fixture(
         write: async (bytes) => {
           const c = JSON.parse(bytes.toString());
           commands.push(c);
+          if(c.method==='initialized')return;
+          if(c.method==='initialize'){queueMicrotask(()=>emit({id:c.id,result:{}}));return;}
           if (c.type === 'get_state' && hooks.closeAfterState)
             queueMicrotask(() => queueMicrotask(close));
           const state =
@@ -67,6 +69,7 @@ function fixture(
           return stop;
         },
         session,
+        verifyCodex: hooks.verifyCodex,
         saveSession: async (s, guard) => {
           if (hooks.save) await hooks.save(s, guard);
           sessions.push(s);
@@ -126,6 +129,17 @@ function fixture(
     stops: () => stops,
   };
 }
+it('Codex native boundary rejection prevents thread creation and paid prompt', async () => {
+  let verified=0;
+  const f=fixture(undefined,undefined,{verifyCodex:async()=>{verified++;throw Error('CODEX_MCP_BOUNDARY_MISMATCH');}});
+  f.launch({config:{harness:'codex',charterHash:'hash'}});
+  await tick();await tick();
+  expect(f.commands.some(c=>c.method==='initialize')).toBe(true);
+  expect(f.commands.some(c=>c.method==='thread/start'||c.method==='turn/start')).toBe(false);
+  expect(f.stops()).toBe(1);
+  expect(verified).toBe(1);
+  await f.backend.stop();
+});
 it('native terminal waits for trusted OS stop, bootstrap charter is emitted only after settled', async () => {
   const f = fixture();
   f.launch({ mode: 'bootstrap', charterHash: 'hash', charter: { purpose: 'test' } });
@@ -258,6 +272,7 @@ it('Codex and Kimi actual lifecycle dialects reach terminal through the same tru
         session: { id: harness === 'codex' ? 't' : 's' },
         saveSession: async () => {},
         kimiConfiguration: { modelConfigId: 'model', effortConfigId: 'thinking' },
+        verifyCodex: async () => { commands.push({method:'test/verified'}); },
       }),
     };
     const backend = new NativeProcessBackend(host);
@@ -287,6 +302,7 @@ it('Codex and Kimi actual lifecycle dialects reach terminal through the same tru
     expect(exits).toHaveLength(1);
     expect(exits[0].code).toBe(0);
     if (harness === 'codex') {
+      expect(commands.findIndex(x=>x.method==='test/verified')).toBeLessThan(commands.findIndex(x=>x.method==='thread/resume'));
       const resume = commands.find((x) => x.method === 'thread/resume');
       expect(resume.params.developerInstructions).toContain('frozen');
       expect(resume.params.developerInstructions).not.toBe('');

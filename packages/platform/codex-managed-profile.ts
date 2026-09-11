@@ -73,6 +73,10 @@ export function prepareManagedCodexProfile(input: {
     throw Error('CODEX_PROFILE_BRIDGE_INVALID');
   const codexHome = join(home, '.codex');
   const assertPlain = (path: string) => {
+    if (existsSync(path)) {
+      const stat = lstatSync(path);
+      if (stat.isFile() && stat.nlink !== 1) throw Error('CODEX_PROFILE_HARDLINK_TARGET');
+    }
     if (
       existsSync(path) &&
       (lstatSync(path).isSymbolicLink() || realpathSync(path).toLowerCase() !== path.toLowerCase())
@@ -96,7 +100,8 @@ export function prepareManagedCodexProfile(input: {
   }
   // Replace the complete MCP table at highest CLI precedence, not just one server subsection.
   // Tokens remain in the private child environment rather than process arguments or config files.
-  const mcp = `{ agentrouter-role = { command = ${quote(input.nodeExecutable)}, args = [${quote(input.roleBridge)}], env_vars = ["AGENTROUTER_BRIDGE_ENDPOINT", "AGENTROUTER_BRIDGE_TOKEN"], enabled_tools = [${routeTools.map(quote).join(', ')}], required = true } }`;
+  const approvals=routeTools.map(tool=>`${tool} = { approval_mode = "approve" }`).join(', ');
+  const mcp = `{ agentrouter-role = { command = ${quote(input.nodeExecutable)}, args = [${quote(input.roleBridge)}], env_vars = ["AGENTROUTER_BRIDGE_ENDPOINT", "AGENTROUTER_BRIDGE_TOKEN"], enabled_tools = [${routeTools.map(quote).join(', ')}], default_tools_approval_mode = "prompt", tools = { ${approvals} }, required = true } }`;
   return {
     codexHome,
     env: {

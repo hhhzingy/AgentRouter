@@ -1,8 +1,30 @@
 import { afterEach, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  symlinkSync,
+  linkSync,
+} from 'node:fs';
 import { resolve, join } from 'node:path';
 import { prepareManagedKimiProfile } from '../../packages/platform/kimi-managed-profile.js';
 const roots: string[] = [];
+it.each(['credentials/kimi-code.json', 'config.toml', 'agents/agent.md'])(
+  'rejects hard-linked %s without changing its source',
+  (name) => {
+    const f = fixture(),
+      prepared = prepareManagedKimiProfile(f);
+    const target = join(prepared.home, name),
+      source = join(f.root, 'user-owned-fake');
+    writeFileSync(source, 'FAKE PRESERVED SOURCE');
+    rmSync(target);
+    linkSync(source, target);
+    expect(() => prepareManagedKimiProfile(f)).toThrow('KIMI_PROFILE_HARDLINK_TARGET');
+    expect(readFileSync(source, 'utf8')).toBe('FAKE PRESERVED SOURCE');
+  },
+);
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true });
 });

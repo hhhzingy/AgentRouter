@@ -14,6 +14,7 @@ import { createNativeRoleBridge } from '../role-bridge/native-server.ts';
 import { ApprovedProvider, deepSeekPolicy } from '../security/approved-provider.ts';
 import { createPiProviderBroker } from './pi-provider-broker.ts';
 import { prepareManagedKimiProfile } from './kimi-managed-profile.ts';
+import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
 
 interface Config {
   isolation: 'LIMITED_ISOLATION';
@@ -27,6 +28,7 @@ interface Config {
   piExtensionSha256: string;
   credentialFile: string;
   kimiCredentialSource?: string;
+  codexApprovedIdentityFile?: string;
   roleBridge?: string;
   roleBridgeSha256?: string;
   profiles: TrustedNativeProfile[];
@@ -67,7 +69,7 @@ export async function installLocalNativeRuntime(
       throw Error('NATIVE_RUNTIME_HASH_MISMATCH');
   for (const p of c.profiles) {
     if (
-      !((p.harness === 'pi' && p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash' && p.effort === 'off') || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on')) ||
+      !((p.harness === 'pi' && p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash' && p.effort === 'off') || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low')) ||
       !isAbsolute(p.sessionHome) ||
       !isAbsolute(p.executable) ||
       sha(p.executable) !== p.executableSha256
@@ -95,6 +97,35 @@ export async function installLocalNativeRuntime(
         mkdirSync(join(home, path), { recursive: true });
       const scope = { bindingId: input.bindingId, epoch: input.epoch, sessionHome: home };
       const session = sessions.load(scope);
+      if(input.config.harness==='codex') {
+        if(!c.codexApprovedIdentityFile || !inside(c.managedRoot,c.codexApprovedIdentityFile) || !c.roleBridge || !c.roleBridgeSha256)throw Error('CODEX_RUNTIME_CONFIG_INVALID');
+        const token=bridge.issue(input.handleTool);
+        try {
+          const prepared=prepareManagedCodexProfile({managedRoot:c.managedRoot,sessionHome:home,nodeExecutable:process.execPath,nodeSha256:sha(process.execPath),roleBridge:c.roleBridge,roleBridgeSha256:c.roleBridgeSha256,bridgeEndpoint:bridge.endpoint,bridgeToken:token});
+          return {
+            env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,...prepared.env},extraArgs:prepared.extraArgs,session,
+            revoke:()=>bridge.revoke(token),
+            verifyCodex:async(request:(method:string,params:unknown)=>Promise<any>)=>{
+              const effective=await request('config/read',{cwd:input.config.workspace,includeLayers:false});
+              if(effective.config?.features?.shell_tool!==false || effective.config?.web_search!=='disabled' || effective.config?.sandbox_mode!=='read-only' || effective.config?.approval_policy!=='never')throw Error('CODEX_NATIVE_POLICY_MISMATCH');
+              const mcp=await request('mcpServerStatus/list',{});
+              const expected=['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read'].sort();
+              if(!expected.every(t=>effective.config?.mcp_servers?.['agentrouter-role']?.tools?.[t]?.approval_mode==='approve'))throw Error('CODEX_ROUTE_APPROVAL_MISMATCH');
+              if(mcp.nextCursor || mcp.data?.length!==1 || mcp.data[0].name!=='agentrouter-role' || JSON.stringify(Object.keys(mcp.data[0].tools??{}).sort())!==JSON.stringify(expected))throw Error('CODEX_MCP_BOUNDARY_MISMATCH');
+              const approved=JSON.parse(readFileSync(c.codexApprovedIdentityFile!,'utf8'));
+              const current=JSON.parse(readFileSync(join(prepared.codexHome,'auth.json'),'utf8'));
+              const claims=JSON.parse(Buffer.from(current.tokens.id_token.split('.')[1],'base64url').toString('utf8'));
+              const identity=await request('account/read',{refreshToken:false});
+              const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
+              if(typeof identity.account?.email!=='string' || hash(identity.account.email.trim().toLowerCase())!==approved.emailSha256 || hash(current.tokens.account_id)!==approved.accountIdSha256 || hash(claims.sub)!==approved.subjectSha256)throw Error('CODEX_DUT_IDENTITY_MISMATCH');
+              const models=await request('model/list',{}),model=models.data?.find((m:any)=>m.model===input.config.modelId);
+              const efforts=model?.supportedReasoningEfforts?.map((e:any)=>e.reasoningEffort)??[];
+              if(['none','minimal','low','medium','high','xhigh','max'].find(e=>efforts.includes(e))!==input.config.effort)throw Error('CODEX_MODEL_EFFORT_UNVERIFIED');
+            },
+            saveSession:async(ref:any,guard:any)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
+          };
+        } catch(error){bridge.revoke(token);throw error;}
+      }
       if (input.config.harness === 'kimi_code') {
         if (!c.kimiCredentialSource || !isAbsolute(c.kimiCredentialSource) || !c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256) throw Error('KIMI_RUNTIME_CONFIG_INVALID');
         await prepareManagedKimiProfile({sessionHome:home,credentialSource:c.kimiCredentialSource});

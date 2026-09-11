@@ -1,3 +1,13 @@
+# 当前执行（2026-09-11 15:22）：生产 Codex 首次 Route 交付已通过
+
+最新源码仍 HEAD 1901b4ea6ac0372146eb8985b099a6bbec256ac2（已push），当前有新的未提交修复。固定源码1901b4e：pi+MCP真实任务与GUI重启/发布PASS，52文件358测试PASS；证据 evidence/J3/production-pi/1901b4e。其Windows CI34572884488失败（旧连接回调覆盖新连接），另CI34572884560成功；不要称全绿。现已修复Preload世代回调、Main旧连接覆盖、新endpoint竞态与原子发布，真实 test-w11-desktop 四项复测PASS，待重新提交/CI。
+
+Codex生产新增：同Core/DB、独立已批准DUT、原生config/read+account/read+MCP清单+模型最低推理门禁；必须verifyCodex成功后才thread/open/prompt。假凭据原生边界 .local/j3-codex-boundary/run-SaZ79i PASS（六个RoleBridge工具、shell禁用、web禁用、零任务、Job空树）。真正业务 .local/j3-production-pi/run-ZNTN4d PASS_TASK_AND_BOOTSTRAP：Luna/low，MCP派发同key幂等，route_context/route_finish，42结果PUBLISHED，SUCCEEDED和Job收尾。dirty_source=true，不冒称1901固定源码。此前69rkR9/W4Ohl9/WK73H2原生成功却无发布，保留失败；原因native Route工具审批（auto不等于明确批准）。改为仅六个受控Route工具approval_mode=approve，默认prompt，Core继续做权限/epoch/幂等验证。任务角色使命删除含混的长期“不调用工具”表达；Bootstrap禁止工具由该轮提示单独添加。
+
+最新全仓364项PASS（在新增ExternalApiRegistry前）；后者仅模块5假Provider测试PASS，仍需Core SQLite journal与Client契约CCR接线，不能算API完成。待Codex取消、固定源码复测、Kimi登录、联合交接/队列/恢复、生产包。DUT切号和完整重启最后，不触碰DEV hzxpro。唯一用户动作仍KIMI_DUT_LOGIN_COMPLETED。下一先git status并收拢提交，再同固定源码实测；不要重复执行旧失败任务。
+
+## 前一断点（保留历史）
+
 # 当前执行（2026-09-11 15:10）：生产 pi 与真实 Electron 已通过增量验证
 
 分支 feat/v1-finalization-j3；HEAD 5ef946aa2ab4e431d9b9a330e2009c77b56de20a（尚未push），后续有未提交修复。不要丢弃修改。固定源码 pi 证据 evidence/J3/production-pi/5ef946a/report.json；GUI 开发版证据 .local/j3-production-pi/run-HPUpGv/gui-report.json（dirty_source=true，不能冒称固定源码）。真实 GUI 已实际派发唯一 GUI2 标记任务，DB SUCCEEDED/PUBLISHED，截图有内容；需要提交后固定源码复测与导出。run-BjUtlq 的 GUI 任务 QUEUED，前面取消后 NEEDS_ATTENTION 阻塞，未重放、未强行放行。

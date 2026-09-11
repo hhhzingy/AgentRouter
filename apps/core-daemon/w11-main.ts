@@ -1,6 +1,6 @@
 import { createServer } from 'node:net';
 import { createHash, randomBytes, timingSafeEqual, randomUUID } from 'node:crypto';
-import { mkdirSync, realpathSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, realpathSync, readFileSync, writeFileSync, existsSync, renameSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { userInfo } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -166,8 +166,10 @@ server.listen(address, async () => {
       // Native runtime is explicit opt-in; configuration is not a Harness certification.
     }
     application.onShutdown = () => void shutdown();
+    const endpointTemp = resolve(data, 'endpoint-' + randomUUID() + '.tmp');
+    try {
     writeFileSync(
-      resolve(data, 'endpoint.json'),
+      endpointTemp,
       JSON.stringify({
         address,
         credential,
@@ -176,8 +178,11 @@ server.listen(address, async () => {
         mode: 'LOCAL_CORE',
         source: fixture ? 'SIMULATED_EXECUTOR' : nativeRuntime ? 'NATIVE_LIMITED_ISOLATION' : 'NATIVE_REGISTRY_BLOCKED_IMPLEMENTATION',
       }),
-      { mode: 0o600 },
+      { mode: 0o600, flag: 'wx' },
     );
+    // Publish a complete instance/credential snapshot, never truncate the live endpoint.
+    renameSync(endpointTemp, resolve(data, 'endpoint.json'));
+    } finally { rmSync(endpointTemp, {force:true}); }
     process.send?.({ ready: true, pid: process.pid, instance: application.instanceId });
     driver.kick();
   } catch (error) {

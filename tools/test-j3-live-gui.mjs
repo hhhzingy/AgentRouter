@@ -76,13 +76,18 @@ finally {
  }
  console.log(JSON.stringify({stage:'CLEANUP_CORE'}));
  let cleanup;
+ const ownedPid=JSON.parse(readFileSync(resolve(root,'core/endpoint.json'),'utf8')).pid;
  try {
   const {LocalCoreTransport}=await import(pathToFileURL(resolve(root,'gui-transport.mjs')));
   const t=cleanup=new LocalCoreTransport(resolve(root,'core'));const s=await t.connect({clientId:'gui_cleanup',clientVersion:'1.0.0',requestedMode:'controller',contractRevision:'C1R1P1',mode:'LOCAL_CORE'});
   const snap=await s.request('system.snapshot',{});
-  const lease=await s.request('control.acquire',{}, {operationId:'gui-cleanup-acquire',expectedRevision:snap.revision,scope:{}});
-  await s.request('runtime.shutdownCore',{}, {operationId:'gui-cleanup-stop',expectedRevision:snap.revision,scope:{},leaseId:lease.leaseId});await t.close();
+  const lease=await s.request('control.acquire',{}, {operationId:'gui-cleanup-acquire-'+resultMarker,expectedRevision:snap.revision,scope:{}});
+  await s.request('runtime.shutdownCore',{}, {operationId:'gui-cleanup-stop-'+resultMarker,expectedRevision:(await s.request('system.snapshot',{})).revision,scope:{},leaseId:lease.leaseId});await t.close();
  }catch{report.cleanup='SHUTDOWN_UNCONFIRMED';}finally{await cleanup?.close();}
+ for(let i=0;i<30;i++){
+  try{process.kill(ownedPid,0);}catch(e){if(e.code==='ESRCH'){report.cleanup='CORE_EXITED';break;}}
+  await new Promise(r=>setTimeout(r,100));
+ }
  writeFileSync(resolve(root,'gui-report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({root,...report}));
 }
 if(report.status!=='PASS')process.exitCode=1;

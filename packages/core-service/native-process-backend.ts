@@ -12,6 +12,7 @@ export interface SecureNativeProcess {
   session?: { id?: string; path?: string };
   mcpServers?: unknown[];
   kimiConfiguration?: { modelConfigId: string; effortConfigId: string };
+  verifyCodex?: (request: (method: string, params: unknown) => Promise<any>) => Promise<void>;
   /** Storage must conditionally commit binding/epoch and call isCurrent immediately before commit. */
   saveSession(
     session: { id: string; path?: string },
@@ -255,6 +256,9 @@ export class NativeProcessBackend implements ExecutionBackend {
       if (lifecycle instanceof CodexLifecycle) {
         phase="INITIALIZE";
         await lifecycle.initialize();
+        phase="VERIFY_NATIVE_BOUNDARY";
+        if (!r.process.verifyCodex) throw Error('CODEX_NATIVE_VERIFIER_REQUIRED');
+        await r.process.verifyCodex((method,params)=>lifecycle.peer.request(method,params));
         const id = await lifecycle.open({
           cwd: config.workspace,
           model: config.modelId,

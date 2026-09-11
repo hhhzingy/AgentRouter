@@ -24,6 +24,7 @@ const client: ClientTransport = {
     state = 'CONNECTING';
     try {
       const hello = await ipcRenderer.invoke('p1:connect', options, current);
+      if (generation !== current) throw Error('CONNECTION_LOST');
       state = hello.connectionState;
       return {
         hello,
@@ -65,7 +66,7 @@ const client: ClientTransport = {
         },
       } as ClientSession;
     } catch (e) {
-      state = 'DISCONNECTED';
+      if (generation === current) state = 'DISCONNECTED';
       throw e;
     }
   },

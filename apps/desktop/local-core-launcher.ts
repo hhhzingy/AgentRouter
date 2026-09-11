@@ -66,7 +66,7 @@ export async function connectLocalCore(data: string, buildDir: string, options: 
       // Endpoint publication follows runtime initialization. A previous Core's
       // credential must not be sent to the newly listening process.
       const endpoint = readEndpoint();
-      if (endpoint.pid !== child.pid) {
+      if (endpoint.pid !== child.pid && (!endpoint.instance || endpoint.instance === previous?.instance || endpoint.credential === previous?.credential)) {
         await new Promise((resolve) => setTimeout(resolve, 50));
         continue;
       }

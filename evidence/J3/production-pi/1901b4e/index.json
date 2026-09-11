@@ -1,0 +1,21 @@
+{
+  "code_sha": "1901b4ea6ac0372146eb8985b099a6bbec256ac2",
+  "tests": {
+    "files": 52,
+    "passed": 358,
+    "typecheck": "PASS"
+  },
+  "files": {
+    "report.json": "f04d692bc36e84fdb21ed3cdb90e57ea60942951baad0a3742109b0a7da6a79e",
+    "gui-report.json": "eb1595015c9f8cc7c77eaf62aada271339dca369a85919f3bb0a63a1cc92aba6",
+    "gui-role.png": "9a69e167f78b1155e3f6c08563c5d38e7256a2e876becb1cee61de97bded3ff4",
+    "gui-role-reloaded.png": "a790b172338b9b3e86c8998b7947b7bc9273914d016448bc94066cd192fad867"
+  },
+  "limitations": [
+    "LIMITED_ISOLATION",
+    "GUI cleanup shutdown unconfirmed",
+    "Kimi login pending",
+    "Codex production not yet wired",
+    "SSH deferred by user"
+  ]
+}

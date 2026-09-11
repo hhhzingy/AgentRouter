@@ -10,7 +10,14 @@ import Database from 'better-sqlite3';
 import { piEntry } from './pi-location.mjs';
 if (!process.argv.includes('--live')) throw Error('EXPLICIT_LIVE_FLAG_REQUIRED');
 const kimi = process.argv.includes('--kimi');
-const harnessLabel=kimi?'Kimi':'pi';
+const codex = process.argv.includes('--codex');
+if(kimi&&codex)throw Error('ONE_HARNESS_PER_TEST');
+const harnessLabel=codex?'Codex':kimi?'Kimi':'pi';
+const harness=codex?'codex':kimi?'kimi_code':'pi';
+const providerId=codex?'agentrouter-codex':kimi?'agentrouter-kimi':'agentrouter-deepseek';
+const modelId=codex?'gpt-5.6-luna':kimi?'kimi-code/kimi-for-coding':'deepseek-v4-flash';
+const effort=codex?'low':kimi?'on':'off';
+const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
 mkdirSync('.local/j3-production-pi', { recursive: true });
 const root = mkdtempSync(resolve('.local/j3-production-pi/run-'));
 const path = (n) => resolve(root, n),
@@ -34,7 +41,7 @@ writeFileSync(
   path('runtime.json'),
   JSON.stringify({
     isolation: 'LIMITED_ISOLATION',
-    managedRoot: path('managed'),
+    managedRoot: codex?resolve('.local/j3-codex'):path('managed'),
     workspaceRoot: path('workspace'),
     supervisorExecutable: supervisor,
     supervisorSha256: sha(supervisor),
@@ -44,18 +51,15 @@ writeFileSync(
     piExtensionSha256: sha(extension),
     credentialFile: 'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
     kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json',
+    codexApprovedIdentityFile:resolve('.local/j3-codex/dut-fj/approved-identity.json'),
     roleBridge:resolve('.local/w11-core/role-bridge.mjs'),roleBridgeSha256:sha(resolve('.local/w11-core/role-bridge.mjs')),
     profiles: [
       {
-        id: kimi?'production_kimi':'production_pi',
-        harness: kimi?'kimi_code':'pi',
-        executable: kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath,
-        executableSha256: sha(kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath),
-        version: kimi?'0.42.0':'0.85.1',
-        providerId: kimi?'agentrouter-kimi':'agentrouter-deepseek',
-        modelId: kimi?'kimi-code/kimi-for-coding':'deepseek-v4-flash',
-        effort: kimi?'on':'off',
-        sessionHome: path('managed/pi'),
+        id: 'production_'+harness,
+        harness, executable, executableSha256:sha(executable),
+        version: codex?'0.153.4':kimi?'0.42.0':'0.85.1',
+        providerId, modelId, effort,
+        sessionHome: codex?resolve('.local/j3-codex/dut-fj/home'):path('managed/pi'),
       },
     ],
   }),
@@ -93,7 +97,7 @@ const closed = new Promise((r) =>
   }),
 );
 const report = {
-  scope: kimi?'PRODUCTION_CORE_REAL_KIMI':'PRODUCTION_CORE_REAL_PI',
+  scope: codex?'PRODUCTION_CORE_REAL_CODEX':kimi?'PRODUCTION_CORE_REAL_KIMI':'PRODUCTION_CORE_REAL_PI',
   status: 'FAIL',
   code_sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   dirty_source: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(),
@@ -146,12 +150,9 @@ try {
   plan.groups[0].workspace_ref = ws.items[0].id;
   const role = plan.roles[0];
   role.workspace_ref = ws.items[0].id;
-  role.mission = '只完成最小算术任务。Bootstrap请确认已理解章程，不调用工具。';
+  role.mission = '只完成最小算术任务；业务任务使用获授权的 Route 工具提交结果。';
   role.runtime = {
-    harness: kimi?'kimi_code':'pi',
-    provider_profile_id: kimi?'agentrouter-kimi':'agentrouter-deepseek',
-    model_id: kimi?'kimi-code/kimi-for-coding':'deepseek-v4-flash',
-    reasoning_effort: kimi?'on':'off',
+    harness, provider_profile_id:providerId, model_id:modelId, reasoning_effort:effort,
     selection_source: 'runtime',
   };
   role.requested_permissions = {

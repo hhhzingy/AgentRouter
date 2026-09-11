@@ -1,0 +1,20 @@
+{
+  "scope": "PRODUCTION_CORE_REAL_PI",
+  "status": "PASS_TASK_AND_BOOTSTRAP",
+  "code_sha": "1901b4ea6ac0372146eb8985b099a6bbec256ac2",
+  "dirty_source": false,
+  "checks": [
+    "真实产品入口Plan应用并注册Native配置",
+    "真实pi Bootstrap原生结算和Windows Job全树收尾",
+    "STDIO SDK Management MCP真实派发与同key幂等",
+    "真实Route工具、指定用户结果、原生终态与全树屏障"
+  ],
+  "fullIsolationCertified": false,
+  "bootstrap": "DELIVERED",
+  "run": "SUCCEEDED",
+  "result": {
+    "publication_state": "PUBLISHED",
+    "summary": "42"
+  },
+  "coreExited": true
+}

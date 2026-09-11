@@ -1,12 +1,26 @@
 import { afterEach, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, linkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   managedCodexConfig,
   prepareManagedCodexProfile,
 } from '../../packages/platform/codex-managed-profile.js';
 const roots: string[] = [];
+it.each(['auth.json', 'config.toml'])(
+  'rejects hard-linked %s without changing its source',
+  (name) => {
+    const f = fixture();
+    const target = join(f.sessionHome, '.codex', name),
+      source = join(f.managedRoot, 'user-owned-fake');
+    writeFileSync(source, name === 'config.toml' ? managedCodexConfig : 'FAKE AUTH ONLY');
+    rmSync(target, { force: true });
+    linkSync(source, target);
+    const before = readFileSync(source, 'utf8');
+    expect(() => prepareManagedCodexProfile(f)).toThrow('CODEX_PROFILE_HARDLINK_TARGET');
+    expect(readFileSync(source, 'utf8')).toBe(before);
+  },
+);
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true });
 });

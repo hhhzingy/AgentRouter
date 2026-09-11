@@ -115,6 +115,10 @@ app.whenReady().then(async () => {
         dir,
         options,
       );
+      if (generation !== g) {
+        await connected.transport.close();
+        throw Error('CONNECTION_LOST');
+      }
       transport = connected.transport;
       session = connected.session;
     }

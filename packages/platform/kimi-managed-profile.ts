@@ -2,6 +2,7 @@ import {
   constants,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   realpathSync,
   writeFileSync,
@@ -39,6 +40,18 @@ export function prepareManagedKimiProfile(input: {
   const home = join(input.sessionHome, '.kimi-code');
   const credentials = join(home, 'credentials');
   const credentialTarget = join(credentials, 'kimi-code.json');
+  const assertSingleLink = (target: string) => {
+    if (existsSync(target)) {
+      const stat = lstatSync(target);
+      if (stat.isFile() && stat.nlink !== 1) throw Error('KIMI_PROFILE_HARDLINK_TARGET');
+    }
+  };
+  for (const target of [
+    credentialTarget,
+    join(home, 'config.toml'),
+    join(home, 'agents', 'agent.md'),
+  ])
+    assertSingleLink(target);
   if (canonical(input.credentialSource) === canonical(credentialTarget))
     throw Error('KIMI_PROFILE_SOURCE_IS_TARGET');
   // Reject pre-existing linked directories that escape the explicitly selected independent home.
@@ -70,6 +83,8 @@ export function prepareManagedKimiProfile(input: {
   }
   mkdirSync(join(home, 'agents'), { recursive: true });
   const agentPath = join(home, 'agents', 'agent.md');
+  for (const target of [credentialTarget, join(home, 'config.toml'), agentPath])
+    assertSingleLink(target);
   if (
     existsSync(agentPath) &&
     canonical(agentPath) !==
