@@ -39,16 +39,18 @@
     },
     "directory_scope": "用户授权目录全范围；开发产物仍放 AgentRouter 内；不推定删除已有资产或读取开发会话凭据授权",
     "ssh_joint_debug": false,
-    "codex_restart": "INCLUDED_LAST_DUT_ONLY"
+    "codex_restart": "INCLUDED_LAST_DUT_ONLY",
+    "limited_isolation": true,
+    "management_mcp": "当前开发Codex用户配置，STDIO连接独立LOCAL_CORE；managed Codex不得继承"
   },
-  "unblocked_work": "完整离线/实际 Electron 回归、故障复现修复、生产实现、脱敏记录；真实 Harness 等待隔离通过",
+  "unblocked_work": "用户最新授权：LIMITED_ISOLATION 下低风险实际 LOCAL_CORE / Management MCP / Harness 调试；完整Windows隔离另行修复，不再作为全面前置阻断。",
   "updated_from_user": "2026-09-11",
   "constraints": [
     "当前开发 Codex hzxpro 不切换、不登出、不读取凭据",
     "登录状态与真实调用成功分别记录",
     "SSH 联调暂不进行；不将 SSH 标记为环境缺失导致的失败，也不认证远程支持",
     "Codex 切号和重启最后，仅 AgentRouter 管理的独立 DUT；DEV hzxpro 不修改/登出/关闭",
-    "安全未通过不加载真实凭据；不阻断其他无秘密工程"
+    "真实Secret泄露、越权破坏、未登记出网、未知副作用可能重复、影响hzxpro时停止对应链路。"
   ],
   "test_preferences": {
     "first": "DeepSeek",

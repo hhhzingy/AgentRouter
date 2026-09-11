@@ -457,7 +457,7 @@ export class ApplicationService extends Plans {
           .prepare(
             'insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(?,?,?,?,?)',
           )
-          .run(project ?? null, c.principal, r.method, '{}', this.clock());
+          .run(project ?? null, c.principal, r.method, JSON.stringify({origin:c.clientId?.startsWith('mcp_')?'MCP':'CLIENT',client_id:c.clientId,operation_id:r.operation_id}), this.clock());
         this.event(project, r.method, entity);
         return result;
       })

@@ -33,7 +33,8 @@
     "ajv": "8.20.0",
     "better-sqlite3": "13.0.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "@modelcontextprotocol/sdk": "1.30.0"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
