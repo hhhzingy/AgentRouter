@@ -1,3 +1,15 @@
+# 最新续办状态（覆盖下方旧登录等待）
+
+用户已明确批准刚登录的独立Codex DUT账号，身份不必匹配旧fj种子。源码36a92281188eb7bfc2af714cb33ea62c58124775上的真实Luna/low任务及取消PASS，脱敏证据见real-components.md。hzxpro不动，无待用户登录动作。三家仍仅部件通过，不能宣称Core/Route/GUI全链路通过。
+
+当前未提交：真实部件证据与文档、WindowsNativeProcessHost、NativeRoleBridge及测试。下一步修复pi Node入口参数与测试编译隔离，接现有生产Core，保持单数据库。原生开发MCP本会话仍未暴露工具；不要求重启开发会话。SSH暂缓，DUT切号与重启最后。
+
+# 本轮真实实测增量
+
+详情见real-components.md与evidence/J3/real-components/index.json。pi真实任务/恢复/取消通过（部件）；Kimi K2.7真实任务/取消/恢复通过（部件）。Codex fj模型Luna/low可用，但旧种子401刷新失败；用户正在独立DUT登录，不重试旧种子，hzxpro不动。tools/test-j3-codex-isolated.mjs --live现仅使用.local/j3-codex/dut-fj/home/.codex并保留最新刷新认证。登录脚本已ASCII修复；等待用户DUT_LOGIN_COMPLETED之后再测试。
+
+当前源码8e30635含Job收尾平台组件和Kimi恢复修复；未接生产Core/Harness，不认证全链路。下一主线是可信NativeProcessHost与同一个Core实际注册/RoleBridge工具；External API注册面待完成。无main合并/发布，SSH暂缓。
+
 # 最新授权与断点：J3-MCP-01
 
 本节覆盖下方历史“完整隔离前不加载凭据”的笼统阻断。用户授权 LIMITED_ISOLATION 低风险实际调试；SSH暂缓、DEV hzxpro不动、DUT切号和重启最后。

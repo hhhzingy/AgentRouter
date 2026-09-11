@@ -1,4 +1,4 @@
-import { it, expect, beforeAll } from 'vitest';
+import { it, expect, beforeAll, afterAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -6,13 +6,32 @@ import { join, resolve } from 'node:path';
 import { startContainedLimitedProcess } from '../../packages/platform/contained-limited-process.ts';
 
 const windows = it.skipIf(process.platform !== 'win32');
-const supervisorExecutable = resolve('.local/native/agentrouter-supervisor.exe');
-beforeAll(() => {
+let buildRoot: string | undefined;
+let supervisorExecutable: string;
+beforeAll(async () => {
   if (process.platform !== 'win32') return;
-  const built = spawnSync('powershell.exe', ['-NoProfile', '-File', resolve('tools/build-supervisor.ps1')], {
-    windowsHide: true, encoding: 'utf8', timeout: 30000,
-  });
+  const base = resolve('.local/contained-supervisor-builds');
+  await mkdir(base, { recursive: true });
+  buildRoot = await mkdtemp(join(base, 'build-'));
+  supervisorExecutable = join(buildRoot, 'supervisor.exe');
+  const compiler = join(
+    process.env.WINDIR ?? 'C:/Windows',
+    'Microsoft.NET/Framework64/v4.0.30319/csc.exe',
+  );
+  const built = spawnSync(
+    compiler,
+    [
+      '/nologo',
+      '/target:exe',
+      '/out:' + supervisorExecutable,
+      resolve('native/windows-supervisor/Supervisor.cs'),
+    ],
+    { windowsHide: true, encoding: 'utf8', timeout: 30000 },
+  );
   if (built.status !== 0) throw Error('SUPERVISOR_TEST_BUILD_FAILED');
+});
+afterAll(async () => {
+  if (buildRoot) await rm(buildRoot, { recursive: true, maxRetries: 10, retryDelay: 100 });
 });
 async function fixture(args: string[], stopTimeoutMs = 3000) {
   const base = resolve('.local/contained-limited-tests');

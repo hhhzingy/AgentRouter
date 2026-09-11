@@ -1,0 +1,65 @@
+{
+  "scope": "HARNESS_COMPONENTS_NOT_CORE_ROUTE_ACCEPTANCE",
+  "reports": [
+    {
+      "name": "pi-canary",
+      "sha256": "03659b04f3d541890ffa48764e17c59aa0e72328ce5e2443901a44281190ede6",
+      "code_sha": "a785254e2ffeec151caf87f50be1b37c39b59a9f"
+    },
+    {
+      "name": "pi-task",
+      "sha256": "c91424a4a85839a4357d2fa0ba1546a8ddf84f9708496b909e17791ad5640ad7",
+      "code_sha": "a785254e2ffeec151caf87f50be1b37c39b59a9f"
+    },
+    {
+      "name": "pi-recovery",
+      "sha256": "9885be954ca63694a996e6d439daa44336b0186cac39508ed8329cca1fe87e3a",
+      "code_sha": "a785254e2ffeec151caf87f50be1b37c39b59a9f"
+    },
+    {
+      "name": "pi-cancel",
+      "sha256": "e5f6020efa8fb8d98c9dae8ca695e40c9c3595899d62efe18d045e1a16ac5a22",
+      "code_sha": "a785254e2ffeec151caf87f50be1b37c39b59a9f"
+    },
+    {
+      "name": "kimi-task",
+      "sha256": "a75d6d4498a61e76c1c8ce1376487ca3154f2e8a6991450600a42d352e6bec6e",
+      "code_sha": "b0613f166975819855a1be1b4dcebd5e60060e00"
+    },
+    {
+      "name": "kimi-cancel",
+      "sha256": "87ab45a947511f6eb8e2f4352460f3911447518ba22830e9935a353352bb0772",
+      "code_sha": "b0613f166975819855a1be1b4dcebd5e60060e00"
+    },
+    {
+      "name": "codex-preflight",
+      "sha256": "57544a8d157e80c67363b4210f2fe819e5e38546882a440bd08941c013fac98a",
+      "code_sha": "b0613f166975819855a1be1b4dcebd5e60060e00"
+    },
+    {
+      "name": "codex-auth-failure",
+      "sha256": "bdcf5ed1fbe4d0f71356a7f21b5007a404dc11d5d4ef9d5e403cfd2aa43e30b2",
+      "code_sha": null
+    },
+    {
+      "name": "kimi-recovery",
+      "sha256": "3ae3f617909db8b38a9cbbd08d9c0b1f13b9b7fb90dfccce53f22a678d90969c",
+      "code_sha": "8e30635cec1cba98cc8a6770cf4d522b0d0256da"
+    },
+    {
+      "name": "codex-task",
+      "sha256": "7535ef960a2f33dd30631863d9719e3cdbc0f1d65b21705230979c48e01e28c6",
+      "code_sha": "36a92281188eb7bfc2af714cb33ea62c58124775"
+    },
+    {
+      "name": "codex-cancel",
+      "sha256": "0ce853420d3ac372d78c7163391a5ab0b106fb39016524e03e02e38a7be675d3",
+      "code_sha": "36a92281188eb7bfc2af714cb33ea62c58124775"
+    }
+  ],
+  "known_secret_literal_scan": {
+    "files": 410,
+    "matches": 0,
+    "fullCertification": false
+  }
+}
