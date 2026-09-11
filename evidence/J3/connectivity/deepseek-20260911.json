@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "generationCallLimit": 1,
+  "automaticRetry": false,
+  "scriptSha256": "9e51f8e084baeff13ee6c3d3dcbf0bdb22177f69cfa5be7ebbc28b550b1cd801",
+  "httpStatus": 200,
+  "model": "deepseek-v4-flash",
+  "thinking": "disabled",
+  "maxOutputTokens": 16,
+  "scope": "DIRECT_API_CONNECTIVITY_ONLY",
+  "harnessCertified": false,
+  "expectedReplyMatched": true,
+  "usage": {
+    "prompt_tokens": 8,
+    "completion_tokens": 1,
+    "total_tokens": 9
+  },
+  "repositorySha": "6d015d9ee0c0b1c992fc49eef47f10b11e6ea22e",
+  "probeWasUntracked": true,
+  "testDate": "2026-09-11",
+  "accountSource": "USER_PROVIDED_LOCAL_FILE_NOT_COPIED",
+  "request": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply exactly OK."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    },
+    "max_tokens": 16,
+    "stream": false
+  },
+  "secretValuesPersisted": false
+}

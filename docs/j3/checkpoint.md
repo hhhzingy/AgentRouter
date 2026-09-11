@@ -16,3 +16,7 @@ Windows 访问 canary 提交 ff55ecb：源码 native/windows-isolation/AccessCan
 9821e7e4c34201ed34250d031c49f657a051b7ec 的两条 CI 已 success，见 evidence/J3/ci-9821e7e.json；不把该 CI 套到后续新源码。
 Kimi 实际为 Node.js 打包程序（嵌入 Node 24.15.0），不是旧 Python 版本；仅依据当前 Kimi Code 文档并等待实际 ACP 协商。pi 用户安装 0.85.1 自带 RPC 文档确有 agent_settled，不能用 agent_end 代替；尚未真实运行。
 当前待实现：J3-01 生产配置迁移/后端注册/六工具接线；J3-02 完整隔离和 SG；J3-04/05 生命周期；J3-06–12 均未完成。H-01 仍无回复。下一步继续这些离线实现，并直接与用户完成独立 Windows 条件、账号代号/登录、预算与 SSH 授权，禁止自行读取日常凭据或部署远程。
+
+## 2026-09-11 最小联通结果
+
+用户要求先测 DeepSeek，模型思考最低、任务最小，Codex 切换最后。已完成一次官方 DeepSeek API 请求：deepseek-v4-flash、thinking disabled、max_tokens=16，HTTP 200、符合预期 OK，实际 8 输入+1 输出 token，共 9。此为直接 API 联通，不是 pi 或真实 Harness 验收；不得重复执行该付费探针。脱敏证据 evidence/J3/connectivity/deepseek-20260911.json。一次性脚本按用户清理要求移除，未保留凭据或原始响应。当前开发 Codex hzxpro 不动，fj 切换仍最后；Kimi 登录文件仅已定位，未读取。
