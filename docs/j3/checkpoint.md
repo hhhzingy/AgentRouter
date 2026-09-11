@@ -25,3 +25,5 @@ Codex 切号及重启 INCLUDED_LAST_DUT_ONLY，最后执行。DEV hzxpro 认证�
 最新已同步增量f170f1ddb639c7cafec61ce67b5973a0eef4f5a5：HTTPS五项/用户终端证据；CI34557497701、34557497703均SUCCESS。Windows startup机制诊断仍在收敛，未授权真实凭据加载；用户当前无待执行动作。
 
 当前精确启动断点：见convergence-startup-diagnosis.md。BU+RC显式无秘密诊断可运行native cmd和Node；12cc236d节点phase3失败是icacls spawn error，无退出码，随后canary仍拒绝。孙Node未测、CLR失败，不加载真凭据。下一步记录spawn errno并定位后代创建/stdio权限，不要求用户重复操作。HTTPS五项与f170f1d双CI成功。
+
+最新：完全访问后主线工具可用，子Agent旧运行器仍helper错误，未让其绕过权限规则。28a56e9f实际受限Node与孙Node+canary负测在新文件stdio句柄下通过；真实NUL写EPERM、自动pipe仍失败，CLR失败。下一步是受控通信句柄/pipe机制，不再笼统说Node无法运行。无真实凭据加载，无付费调用，DEV未触碰。

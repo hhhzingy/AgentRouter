@@ -59,3 +59,16 @@
 有代码差异后实测：Node phase3，aclSpawnError=true、aclExit=-999（无退出码）、canaryStillDenied=true。确认为ACL工具未成功启动，未证明ACL绕过，孙Node仍未运行；native cmd 0、CLR FFFFFFFF。总exit1，fullIsolationCertified=false。
 
 下一动作改为记录合成子进程spawn错误的数值errno，区分进程创建、stdio/管道、自身对象访问；不再把phase3笼统归为ACL权限修改失败。不需要用户重复脚本/UAC。生产SecureProcessHost、SG和真实Harness仍未完成。
+
+## 完全访问权限后的对照（未加载凭据）
+
+- de4155afdac942f1ac117505b44a885a：ignore：Node spawn errno -4048 EPERM；假秘密仍拒绝。
+- 264e20c90c6f4cfa8a29eb1ee8c04959：新dummy文件fd：native、Node与孙Node通过，CLR失败。
+- d6c4e3a3092841d2bbfc3847d4973f21：相对NUL测试不能代表设备（Node路径规范化）；撤回设备结论。
+- 315752c6a3e14a37b946c69def8acc52：stdin文件fd，stdout/stderr pipe：spawn失败。
+- c4b6c62b648a447e8294a281609adf94：真实NUL设备路径，但pipe仍失败。
+- 28a56e9f0e604906bd44b1844d2d0f17：真实NUL读0、写-4048；文件fd下Node及孙Node控制通过；CLR仍失败。
+
+文件fd正向检查保留原dummy读写、canary读写/ACL拒绝及孙Node同检查；没有把spawn失败当成ACL拒绝通过。其通过不包含CLR、Job树清空、出网隔离、真实凭据路径保护。相对NUL用例不是设备测试，后续改用显式\\.\NUL获得设备读写差异。
+
+当前具体下一步：生产宿主显式创建/继承stdout/stdin通信句柄，分别验证服务端和受限客户端访问；调查libuv自动管道EPERM，不能关闭安全负测或开放系统对象ACL。Harness内部采用ignore/pipe的工具调用仍未兼容，不得加载真实凭据。Node24.14.0，libuv1.51.0。
