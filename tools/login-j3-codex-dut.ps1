@@ -15,10 +15,10 @@ try {
     $env:CODEX_HOME = $dutCodex
     $env:HOME = $dutHome
     $env:USERPROFILE = $dutHome
-    Write-Host '仅登录 AgentRouter 独立 DUT 的 fj 账号；不要注销 Codex 桌面开发账号。'
+    Write-Host 'Login ONLY the isolated AgentRouter DUT using fj. Keep the Codex desktop account unchanged.'
     & 'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe' login --device-auth
     if ($LASTEXITCODE -ne 0) { throw 'DUT_LOGIN_FAILED' }
-    Write-Host 'DUT_LOGIN_COMPLETED：只需回报此状态，不发送登录代码或凭据。'
+    Write-Host 'DUT_LOGIN_COMPLETED. Report only this status. Never send login codes or credentials.'
 } finally {
     $env:CODEX_HOME = $priorCodexHome
     $env:HOME = $priorHome

@@ -37,8 +37,11 @@ const report = {
   routeCoreCertified: false,
 };
 async function phase(live) {
-  const auth = resolve(codexHome, 'auth.json');
-  if (live) copyFileSync('E:/AgentRouter/账号信息/codex/auth.json', auth);
+  // Preserve refreshed credentials in the single managed DUT; never replay the rejected seed.
+  const activeHome = live ? resolve('.local/j3-codex/dut-fj/home') : home;
+  const activeCodexHome = live ? resolve(activeHome, '.codex') : codexHome;
+  const auth = resolve(activeCodexHome, 'auth.json');
+  if (live && !existsSync(auth)) throw Error('FRESH_DUT_LOGIN_REQUIRED');
   const child = spawn(
     'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe',
     ['app-server'],
@@ -49,11 +52,11 @@ async function phase(live) {
       env: {
         SystemRoot: process.env.SystemRoot,
         WINDIR: process.env.WINDIR,
-        HOME: home,
-        USERPROFILE: home,
-        CODEX_HOME: codexHome,
-        APPDATA: home,
-        LOCALAPPDATA: home,
+        HOME: activeHome,
+        USERPROFILE: activeHome,
+        CODEX_HOME: activeCodexHome,
+        APPDATA: activeHome,
+        LOCALAPPDATA: activeHome,
         PATH: resolve(root, 'empty-bin'),
         TEMP: root,
         TMP: root,
@@ -123,7 +126,7 @@ async function phase(live) {
     lifecycle.peer.disconnect();
     child.kill();
     await closed;
-    if (existsSync(auth)) unlinkSync(auth);
+    if (!live && existsSync(auth)) unlinkSync(auth);
   }
 }
 try {

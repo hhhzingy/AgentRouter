@@ -26,4 +26,8 @@ jobs:
           exit $LASTEXITCODE
       - name: Contract, security and process gates
         shell: pwsh
-        run: node tools/check-w11.mjs
+        run: |
+          & ./tools/build-supervisor.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/check-w11.mjs
+          exit $LASTEXITCODE
