@@ -31,6 +31,11 @@ public static class Supervisor {
  static string Quote(string text){var b=new StringBuilder("\"");int slashes=0;foreach(char c in text){if(c=='\\'){slashes++;continue;}if(c=='"')b.Append('\\',slashes*2+1);else b.Append('\\',slashes);b.Append(c);slashes=0;}b.Append('\\',slashes*2);return b.Append('"').ToString();}
  public static int Main(string[] args) {
   if(args.Length<2){Console.Error.WriteLine("usage: supervisor <absolute cwd> <absolute executable> [args]");return 64;}
+  string stopFile=null;
+  if(args.Length>=4 && args[0]=="--stop-file"){
+   stopFile=args[1];if(!System.IO.Path.IsPathRooted(stopFile))return 64;
+   var remaining=new string[args.Length-2];Array.Copy(args,2,remaining,0,remaining.Length);args=remaining;
+  }
   IntPtr job=IntPtr.Zero;PROCESS_INFORMATION pi=new PROCESS_INFORMATION();STARTUPINFO si=new STARTUPINFO();
   try {
    if(!System.IO.Path.IsPathRooted(args[0])||!System.IO.Path.IsPathRooted(args[1]))return 64;
@@ -42,7 +47,16 @@ public static class Supervisor {
    if(!CreateProcess(args[1],command,IntPtr.Zero,IntPtr.Zero,true,0x4|0x08000000,IntPtr.Zero,args[0],ref si,out pi))throw new Exception("CREATE_PROCESS:"+Marshal.GetLastWin32Error());
    if(!AssignProcessToJobObject(job,pi.process)){TerminateProcess(pi.process,125);throw new Exception("ASSIGN_JOB:"+Marshal.GetLastWin32Error());}
    if(ResumeThread(pi.thread)==0xffffffff){TerminateProcess(pi.process,125);throw new Exception("RESUME_FAILED");}
-   if(WaitForSingleObject(pi.process,0xffffffff)!=0)throw new Exception("WAIT_PROCESS_FAILED");
+   while(true){
+    uint waited=WaitForSingleObject(pi.process,stopFile==null?0xffffffff:50);
+    if(waited==0)break;
+    if(waited!=258)throw new Exception("WAIT_PROCESS_FAILED");
+    if(stopFile!=null && System.IO.File.Exists(stopFile)){
+     if(!TerminateJobObject(job,125))throw new Exception("TERMINATE_JOB_FAILED");
+     if(WaitForSingleObject(pi.process,10000)!=0)throw new Exception("WAIT_STOP_FAILED");
+     break;
+    }
+   }
    uint code;if(!GetExitCodeProcess(pi.process,out code))throw new Exception("EXIT_CODE_FAILED");
    // End all descendants before reporting completion. Job closure by itself is asynchronous.
    if(!TerminateJobObject(job,125))throw new Exception("TERMINATE_JOB:"+Marshal.GetLastWin32Error());
@@ -54,7 +68,8 @@ public static class Supervisor {
     if(deadline.ElapsedMilliseconds>=10000)throw new Exception("TREE_STOP_UNPROVEN");
     Thread.Sleep(10);
    }
-   return unchecked((int)code);
+   // In controlled mode this exit code certifies containment only; native task outcome is separate.
+   return stopFile==null?unchecked((int)code):0;
   }catch(Exception e){Console.Error.WriteLine(e.Message);return 125;}
   finally{if(job!=IntPtr.Zero)CloseHandle(job);if(pi.thread!=IntPtr.Zero)CloseHandle(pi.thread);if(pi.process!=IntPtr.Zero)CloseHandle(pi.process);if(si.input!=IntPtr.Zero)CloseHandle(si.input);if(si.output!=IntPtr.Zero)CloseHandle(si.output);if(si.error!=IntPtr.Zero)CloseHandle(si.error);}
  }

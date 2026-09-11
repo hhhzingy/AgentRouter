@@ -336,6 +336,14 @@ it('late host startup after deadline is stopped and never prompted; hung stop is
   await new Promise((r) => setTimeout(r, 15));
   expect(exits).toHaveLength(1);
   expect(exits[0].stop.kind).toBe('unknown');
+  expect(() =>
+    backend.launch(
+      'r',
+      { epoch: 2, bindingId: 'b', mode: 'run', config: { harness: 'pi' } },
+      () => {},
+      () => {},
+    ),
+  ).toThrow('NATIVE_LAUNCH_INVALID');
   resolveHost({
     write: async () => {
       writes++;

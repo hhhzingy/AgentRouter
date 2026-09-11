@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
-import { realpathSync, statSync } from 'node:fs';
-import { isAbsolute, relative, sep } from 'node:path';
+import { realpathSync, statSync, existsSync } from 'node:fs';
+import { isAbsolute, relative, sep, dirname, basename, join } from 'node:path';
 export interface NativeSessionScope {
   bindingId: string;
   epoch: number;
@@ -24,7 +24,12 @@ export class NativeSessionStore {
     if (!b) throw Error('SESSION_BINDING_REVOKED');
     return b;
   }
-  private reference(scope: NativeSessionScope, harness: string, input: NativeSessionReference) {
+  private reference(
+    scope: NativeSessionScope,
+    harness: string,
+    input: NativeSessionReference,
+    pending = false,
+  ) {
     if (
       !input ||
       typeof input.id !== 'string' ||
@@ -42,8 +47,21 @@ export class NativeSessionStore {
         !isAbsolute(scope.sessionHome)
       )
         throw Error('SESSION_PATH_INVALID');
-      const home = realpathSync(scope.sessionHome),
-        path = realpathSync(input.path);
+      const home = realpathSync(scope.sessionHome);
+      let path: string;
+      if (pending && harness === 'pi' && !existsSync(input.path)) {
+        // pi reserves its session filename before the first prompt creates it. Persist that
+        // reservation before dispatch; recovery still requires the actual native file.
+        let ancestor = input.path;
+        const tail: string[] = [];
+        while (!existsSync(ancestor)) {
+          tail.unshift(basename(ancestor));
+          const parent = dirname(ancestor);
+          if (parent === ancestor) throw Error('SESSION_PATH_INVALID');
+          ancestor = parent;
+        }
+        path = join(realpathSync(ancestor), ...tail);
+      } else path = realpathSync(input.path);
       const child = relative(home, path);
       if (
         !child ||
@@ -51,7 +69,7 @@ export class NativeSessionStore {
         child.startsWith('..' + sep) ||
         isAbsolute(child) ||
         child.includes(':') ||
-        !statSync(path).isFile()
+        (existsSync(path) ? !statSync(path).isFile() : !pending || harness !== 'pi')
       )
         throw Error('SESSION_PATH_OUTSIDE_HOME');
       ref.path = path;
@@ -83,7 +101,7 @@ export class NativeSessionStore {
           )
           .get(scope.key, b.role_id, scope.epoch);
         if (!liveRun && !liveInit) throw Error('SESSION_EXECUTION_REVOKED');
-        const ref = this.reference(scope, b.harness, input);
+        const ref = this.reference(scope, b.harness, input, !!liveInit);
         if (!scope.isCurrent()) throw Error('SESSION_SAVE_REVOKED');
         const json = JSON.stringify(ref);
         this.db

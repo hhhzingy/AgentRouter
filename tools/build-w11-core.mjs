@@ -11,6 +11,13 @@ await build({
   format: 'esm',
   packages: 'external',
 });
+await build({
+  entryPoints: ['packages/pi-extension/agentrouter-tools.mjs'],
+  outfile: resolve(out, 'role-tools.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+});
 for (const name of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql'])
   copyFileSync('packages/storage/migrations/' + name, resolve(out, 'migrations', name));
 copyFileSync('packages/core-service/fixture-harness.mjs', resolve(out, 'fixture-harness.mjs'));

@@ -10,6 +10,7 @@ import { FixtureDriver } from '../../packages/core-service/fixture-driver.ts';
 import { ExecutionCoordinator } from '../../packages/core-service/execution-coordinator.ts';
 import { NativeBackend, NativeExecutionRegistry } from '../../packages/core-service/native-registry.ts';
 import { JsonLfDecoder } from '../../packages/platform/framing.ts';
+import { installLocalNativeRuntime } from '../../packages/platform/local-native-runtime.ts';
 const input = process.env.AGENTROUTER_DATA;
 if (!input) throw Error('AGENTROUTER_DATA_REQUIRED');
 mkdirSync(input, { recursive: true });
@@ -29,6 +30,7 @@ let application: ApplicationService,
   closing = false,
   dropNext = false;
 const sockets = new Set<import('node:net').Socket>();
+let nativeRuntime: Awaited<ReturnType<typeof installLocalNativeRuntime>> | undefined;
 function send(socket: import('node:net').Socket, value: unknown) {
   const encoded = JSON.stringify(value);
   if (Buffer.byteLength(encoded) > 262144) {
@@ -127,13 +129,14 @@ async function shutdown() {
   if (closing) return;
   closing = true;
   await driver?.stop();
+  await nativeRuntime?.close();
   for (const socket of sockets) socket.destroy();
   server.close(() => {
     application?.db.close();
     process.exit(0);
   });
 }
-server.listen(address, () => {
+server.listen(address, async () => {
   try {
     const fixture = process.env.AGENTROUTER_FIXTURE === '1';
     if (
@@ -152,11 +155,13 @@ server.listen(address, () => {
       driver = new FixtureDriver(application,fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)));
     } else {
       const registry = new NativeExecutionRegistry(db);
+      if (process.env.AGENTROUTER_NATIVE_CONFIG)
+        nativeRuntime = await installLocalNativeRuntime(application,registry,process.env.AGENTROUTER_NATIVE_CONFIG);
       application.nativeAuthorization = (binding) => registry.authorized(binding);
       application.nativeCancelAvailable = (binding) => binding ? registry.canCancel(binding) : registry.anyCancel();
       application.nativeToolAuthorization = (binding,epoch,tool) => registry.toolAuthorized(binding,epoch,tool);
       driver = new ExecutionCoordinator(application,new NativeBackend(registry));
-      // Native OS runtime ports are installed only after isolation verification; no Fixture fallback.
+      // Native runtime is explicit opt-in; configuration is not a Harness certification.
     }
     application.onShutdown = () => void shutdown();
     writeFileSync(
@@ -167,7 +172,7 @@ server.listen(address, () => {
         pid: process.pid,
         instance: application.instanceId,
         mode: 'LOCAL_CORE',
-        source: fixture ? 'SIMULATED_EXECUTOR' : 'NATIVE_REGISTRY_BLOCKED_IMPLEMENTATION',
+        source: fixture ? 'SIMULATED_EXECUTOR' : nativeRuntime ? 'NATIVE_LIMITED_ISOLATION' : 'NATIVE_REGISTRY_BLOCKED_IMPLEMENTATION',
       }),
       { mode: 0o600 },
     );

@@ -126,6 +126,17 @@ it('bootstrap session save validates role and epoch, and load detects inconsiste
       "insert into initialization_attempts values('init','delivery',?,1,'hash','RUNNING','NATIVE',null,1,null)",
     )
     .run(f.r.role);
+  const reserved = resolve(f.scope.sessionHome, 'reserved.jsonl');
+  f.store.save({ ...f.scope, key: 'init' }, { id: 'n', path: reserved });
+  expect(() => f.store.load(f.scope)).toThrow();
+  expect(() =>
+    f.store.save(
+      { ...f.scope, key: 'init' },
+      { id: 'n', path: resolve(f.dir, 'outside-missing.jsonl') },
+    ),
+  ).toThrow('SESSION_PATH_OUTSIDE_HOME');
+  writeFileSync(reserved, 'native session materialized');
+  expect(f.store.load(f.scope)).toEqual({ id: 'n', path: realpathSync(reserved) });
   f.store.save({ ...f.scope, key: 'init' }, { id: 'n', path: f.path });
   f.db.prepare("update bindings set native_session_ref='different' where id=?").run(f.r.binding);
   expect(() => f.store.load(f.scope)).toThrow('SESSION_REFERENCE_DIVERGED');

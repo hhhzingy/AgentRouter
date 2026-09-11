@@ -1,3 +1,11 @@
+# 当前执行：生产 pi 已跑通，继续三家与 GUI
+
+新增产品入口 AGENTROUTER_NATIVE_CONFIG 显式 LIMITED_ISOLATION，可信 Profile 注册复用现有 DB/Binding，pi NativeBackend/Job/RoleBridge/Provider 已接线。run-a3GksX 实际 STDIO SDK Management MCP 派发幂等、pi Route context/finish、结果42发布、原生与Job屏障PASS；源码尚未固定，不能将2b6dda4当本次源码。下一步固定源码复测，再产品取消、恢复、Kimi/Codex接线、GUI；SSH暂缓，DUT切号最后。
+
+重要失败保留：LG3N9i/2hfnkg Bootstrap会话文件尚未创建；Bzn1QM旧EOF收尾UNKNOWN；Mvh1tS测试查询列错误并提前关闭Core，任务UNKNOWN；RbZjL1使用--no-tools禁用了扩展，运行成功但无结果，不认证交付。这些任务不自动重放。修复为Bootstrap限定路径预留（load必须存在），Supervisor受控stop-file后确认Job空树，pi --no-builtin-tools保留显式Route扩展，查询created_at_ms。
+
+审查修复：晚到启动保留占用墓碑；Bridge停止撤权/关闭清理；stop预算协调；每次校验扩展hash与完整profile字段。明确失败启动墓碑保守保留，避免无法证明未启动时重复执行；Job空树不代表上游费用取消。49文件344项回归含UI通过；追加28项定向通过。开发hzxpro未操作，当前无用户行动单。
+
 # 最新续办状态（覆盖下方旧登录等待）
 
 用户已明确批准刚登录的独立Codex DUT账号，身份不必匹配旧fj种子。源码36a92281188eb7bfc2af714cb33ea62c58124775上的真实Luna/low任务及取消PASS，脱敏证据见real-components.md。hzxpro不动，无待用户登录动作。三家仍仅部件通过，不能宣称Core/Route/GUI全链路通过。

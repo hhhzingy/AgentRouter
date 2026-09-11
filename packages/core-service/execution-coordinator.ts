@@ -145,6 +145,7 @@ export class ExecutionCoordinator {
           this.audit(charter.project_id, 'STALE_BOOTSTRAP_EVENT');
           return;
         }
+        if (event.kind === 'diagnostic') this.audit(charter.project_id, 'NATIVE_' + event.code);
         if (event.kind === 'charter' && event.charterHash === charter.hash) delivered = true;
         if (event.kind === 'terminal') terminal = true;
       },

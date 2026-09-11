@@ -42,7 +42,9 @@ windows(
       join(root, 'app-server'),
       `process.stdin.on('data',()=>console.log(JSON.stringify({home:process.env.HOME,codex:process.env.CODEX_HOME,managed:process.env.AGENTROUTER_MANAGED_ROLE,canary:process.env.TEST_SECRET})));`,
     );
-    let saved = false;
+    let saved = false,
+      revoked = 0,
+      disposed = 0;
     const host = new WindowsNativeProcessHost({
       isolation: 'LIMITED_ISOLATION',
       managedRoot: root,
@@ -50,6 +52,12 @@ windows(
       supervisorSha256: await sha(supervisorExecutable),
       prepare: async () => ({
         env: { SystemRoot: process.env.SystemRoot },
+        revoke: () => {
+          revoked++;
+        },
+        dispose: async () => {
+          disposed++;
+        },
         saveSession: async () => {
           saved = true;
         },
@@ -86,6 +94,9 @@ windows(
       await p.saveSession({ id: 'test' }, { bindingId: 'test', epoch: 1, isCurrent: () => true });
       expect(saved).toBe(true);
       expect((await p.stop()).kind).toBe('supervisor-tree-empty');
+      expect(revoked).toBeGreaterThan(0);
+      await new Promise((r) => setImmediate(r));
+      expect(disposed).toBe(1);
       const second = await host.start(input);
       expect((await second.stop()).kind).toBe('supervisor-tree-empty');
       await expect(host.start({ ...input, args: ['--eval', 'bad'] })).rejects.toThrow(

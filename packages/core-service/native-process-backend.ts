@@ -19,7 +19,7 @@ export interface SecureNativeProcess {
   ): Promise<void>;
 }
 export interface SecureProcessHost {
-  /** Recheck OS isolation/config identity before loading credentials; never return a same-user fallback. */
+  /** Recheck the explicitly authorized isolation tier and config identity before loading credentials; never silently downgrade. */
   start(input: {
     config: Readonly<NativeBindingConfig>;
     key: string;
@@ -120,7 +120,8 @@ export class NativeProcessBackend implements ExecutionBackend {
         r.lifecycle?.peer.disconnect();
         if (stop.kind === 'unknown' && r.process)
           this.quarantined.set(key, { process: r.process, epoch: packet.epoch });
-        this.active.delete(key);
+        // 启动尚未返回时保留占用墓碑，避免同 key 重入与晚到进程重叠。
+        if (r.process) this.active.delete(key);
         onExit({ code: broken ? null : code, stop });
       })();
       return r.complete;
@@ -199,6 +200,7 @@ export class NativeProcessBackend implements ExecutionBackend {
           !lateStop.containmentId?.trim()
         )
           this.quarantined.set(key, { process: r.process, epoch: packet.epoch });
+        if (this.active.get(key) === r) this.active.delete(key);
         return;
       }
       if (this.stopping) {
@@ -288,7 +290,9 @@ export class NativeProcessBackend implements ExecutionBackend {
         effort: config.effort,
         epoch: String(packet.epoch),
       });
-    })().catch(async () => {
+    })().catch(async (error) => {
+      const code = typeof error?.code === 'string' ? error.code : error?.message;
+      if (typeof code === 'string' && /^[A-Z][A-Z0-9_]{1,95}$/.test(code)) frame({kind:'diagnostic',code});
       if (!r.finishing) await r.finish(true);
     });
     return {};
