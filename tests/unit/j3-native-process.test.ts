@@ -131,6 +131,7 @@ it('native terminal waits for trusted OS stop, bootstrap charter is emitted only
   f.launch({ mode: 'bootstrap', charterHash: 'hash', charter: { purpose: 'test' } });
   await tick();
   expect(f.frames.some((x) => x.kind === 'charter')).toBe(false);
+  f.emit({type:'message_update',assistantMessageEvent:{type:'text_delta',delta:'AGENTROUTER_CHARTER_ACK:hash'}});
   f.emit({ type: 'agent_end' });
   expect(f.exits).toEqual([]);
   f.settled();
@@ -433,4 +434,9 @@ it('unknown containment remains available for later cleanup without rewriting Co
   expect(f.exits[0].stop.kind).toBe('unknown');
   await f.backend.stop();
   expect(f.stops()).toBe(2);
+});
+
+it('authentication notices or empty native success cannot acknowledge a charter', async()=>{
+ const f=fixture();f.launch({mode:'bootstrap'});await tick();f.settled();await tick();
+ expect(f.frames.some(x=>x.kind==='charter')).toBe(false);
 });

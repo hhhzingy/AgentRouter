@@ -11,6 +11,7 @@ export interface KimiLifecycleOptions {
     text?: string;
     outcome?: string;
     update?: unknown;
+    reason?: string;
   }) => void;
   onApproval?: NativeRpcOptions['onRequest'];
   timeoutMs?: number;
@@ -54,13 +55,13 @@ export class KimiLifecycle {
           throw Error('APPROVAL_EXPIRED');
         return result;
       },
-      onDisconnect: () => {
+      onDisconnect: (reason) => {
         this.uncertain = true;
-        this.emit({ type: 'Disconnected' });
+        this.emit({ type: 'Disconnected', reason });
       },
     });
   }
-  private emit(event: { type: string; text?: string; outcome?: string; update?: unknown }) {
+  private emit(event: { type: string; text?: string; outcome?: string; update?: unknown; reason?: string }) {
     this.options.onEvent({
       ...event,
       epoch: this.options.epoch,

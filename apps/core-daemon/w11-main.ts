@@ -155,8 +155,10 @@ server.listen(address, async () => {
       driver = new FixtureDriver(application,fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)));
     } else {
       const registry = new NativeExecutionRegistry(db);
-      if (process.env.AGENTROUTER_NATIVE_CONFIG)
-        nativeRuntime = await installLocalNativeRuntime(application,registry,process.env.AGENTROUTER_NATIVE_CONFIG);
+      const nativeConfig = process.env.AGENTROUTER_NATIVE_CONFIG ??
+        (existsSync(resolve(data,'native-runtime.json')) ? resolve(data,'native-runtime.json') : undefined);
+      if (nativeConfig)
+        nativeRuntime = await installLocalNativeRuntime(application,registry,nativeConfig);
       application.nativeAuthorization = (binding) => registry.authorized(binding);
       application.nativeCancelAvailable = (binding) => binding ? registry.canCancel(binding) : registry.anyCancel();
       application.nativeToolAuthorization = (binding,epoch,tool) => registry.toolAuthorized(binding,epoch,tool);

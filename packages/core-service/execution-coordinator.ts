@@ -242,6 +242,7 @@ export class ExecutionCoordinator {
                 JSON.stringify({ kind: event.kind, source: a.fixtureMode ? 'SIMULATED' : 'NATIVE' }),
                 a.clock(),
               );
+            if (event.kind === 'diagnostic') this.audit(charter.project_id, 'NATIVE_' + (event.phase ?? '') + '_' + event.code);
             if (event.kind === 'accepted') a.core.accepted(dispatch.id);
             if (!a.fixtureMode && event.kind === 'text' && typeof event.text==='string') this.conversation(dispatch,'ASSISTANT_MESSAGE','原生输出',event.text,event.key);
             if (event.kind === 'gap')

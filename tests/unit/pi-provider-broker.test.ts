@@ -22,6 +22,87 @@ const response = (body = events) => ({
 });
 
 describe('pi trusted provider broker', () => {
+  it('deduplicates concurrent normalized requests and replays completed SSE', async () => {
+    let calls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const broker = await createPiProviderBroker(
+      new ApprovedProvider(
+        deepSeekPolicy,
+        async () => fakeSecret,
+        async () => {
+          calls++;
+          await gate;
+          return response();
+        },
+      ),
+    );
+    const send = (body: unknown) =>
+      fetch(`${broker.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${broker.capability}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }).then(async (res) => ({ status: res.status, body: await res.text() }));
+    try {
+      const first = send({ ...requestBody, max_tokens: 2000 });
+      const second = send({
+        stream: true,
+        messages: [{ content: '17+25', role: 'user' }],
+        model: requestBody.model,
+        max_tokens: 9000,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      release();
+      expect(await first).toEqual({ status: 200, body: events });
+      expect(await second).toEqual({ status: 200, body: events });
+      expect(await send(requestBody)).toEqual({ status: 200, body: events });
+      expect(calls).toBe(1);
+    } finally {
+      release();
+      await broker.close();
+    }
+  });
+  it('caches unknown failures and bounds distinct requests without evicting old outcomes', async () => {
+    let calls = 0;
+    const broker = await createPiProviderBroker(
+      new ApprovedProvider(
+        deepSeekPolicy,
+        async () => fakeSecret,
+        async () => {
+          calls++;
+          throw Error('uncertain upstream side effect');
+        },
+      ),
+    );
+    const send = async (content: string) => {
+      const res = await fetch(`${broker.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${broker.capability}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ ...requestBody, messages: [{ role: 'user', content }] }),
+      });
+      return { status: res.status, body: await res.text() };
+    };
+    try {
+      const first = await send('0');
+      expect(first.status).toBe(502);
+      expect(await send('0')).toEqual(first);
+      expect(calls).toBe(1);
+      for (let i = 1; i < 32; i++) expect((await send(String(i))).status).toBe(502);
+      expect((await send('32')).status).toBe(429);
+      expect(await send('0')).toEqual(first);
+      expect(calls).toBe(32);
+    } finally {
+      await broker.close();
+    }
+  });
   it('preserves tool calls, bounds policy and releases only validated SSE', async () => {
     const calls: ProviderTransportRequest[] = [];
     const broker = await createPiProviderBroker(

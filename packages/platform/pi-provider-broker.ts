@@ -1,13 +1,32 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { createServer, type ServerResponse } from 'node:http';
 import type { Socket } from 'node:net';
-import type { ApprovedProvider } from '../security/approved-provider.js';
+import type { ApprovedProvider, ProviderResult } from '../security/approved-provider.js';
+
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value !== null && typeof value === 'object')
+    return (
+      '{' +
+      Object.keys(value)
+        .sort()
+        .map(
+          (key) => JSON.stringify(key) + ':' + canonical((value as Record<string, unknown>)[key]),
+        )
+        .join(',') +
+      '}'
+    );
+  return JSON.stringify(value);
+}
 
 /** Trusted parent owns the provider; the child receives only a revocable loopback capability. */
 export async function createPiProviderBroker(provider: ApprovedProvider) {
   const capability = randomBytes(32).toString('hex');
   const sockets = new Set<Socket>();
   const pending = new Set<Promise<unknown>>();
+  // No eviction: evicting an unknown outcome could permit a duplicate paid call.
+  const requests = new Map<string, Promise<ProviderResult>>();
+  const maxRequests = 32;
   let closed = false;
   let authority = '';
   let closing: Promise<void> | undefined;
@@ -87,8 +106,20 @@ export async function createPiProviderBroker(provider: ApprovedProvider) {
       for (const key of ['tools', 'tool_choice', 'parallel_tool_calls', 'temperature']) {
         if (input[key] !== undefined) request[key] = input[key];
       }
-      const task = provider.bufferedStream(request);
-      pending.add(task);
+      const key = createHash('sha256').update(canonical(request)).digest('hex');
+      let task = requests.get(key);
+      if (!task) {
+        if (requests.size >= maxRequests) {
+          reply(res, 429, 'BROKER_REQUEST_LIMIT');
+          return;
+        }
+        // Cache before entering injected code; even thrown/unknown outcomes remain terminal here.
+        task = Promise.resolve()
+          .then(() => provider.bufferedStream(request))
+          .catch(() => ({ ok: false as const, code: 'TRANSPORT_FAILED' as const }));
+        requests.set(key, task);
+        pending.add(task);
+      }
       let result;
       try {
         result = await task;

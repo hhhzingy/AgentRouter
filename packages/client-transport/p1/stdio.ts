@@ -8,13 +8,18 @@ export class StdioServerProxy implements ClientServer {
   private id?: string;
   private pending = new Map<
     string,
-    { resolve: (value: unknown) => void; reject: (e: Error) => void }
+    {
+      resolve: (value: unknown) => void;
+      reject: (e: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
   >();
   private handlers = new Set<(e: Event) => void>();
   private closed = false;
   constructor(
     readonly input: Readable,
     readonly output: Writable,
+    readonly requestTimeoutMs = 30000,
   ) {
     const decoder = new JsonLfDecoder();
     input.on('data', (b: Buffer) => {
@@ -25,6 +30,7 @@ export class StdioServerProxy implements ClientServer {
           } else {
             const p = this.pending.get(frame.id);
             if (p) {
+              clearTimeout(p.timer);
               this.pending.delete(frame.id);
               p.resolve(frame);
             }
@@ -37,21 +43,31 @@ export class StdioServerProxy implements ClientServer {
     input.on('end', () => {
       try {
         decoder.end();
+      } catch {
+        // Truncated transport input is a lost connection, never an uncaught
+        // exception in the desktop Main process.
       } finally {
         this.fail();
       }
     });
     input.on('error', () => this.fail());
+    input.on('close', () => this.fail());
     output.on('error', () => this.fail());
+    output.on('close', () => this.fail());
   }
   private fail() {
     this.closed = true;
-    for (const p of this.pending.values()) p.reject(new C1R1Error('CONNECTION_LOST'));
+    for (const p of this.pending.values()) {
+      clearTimeout(p.timer);
+      p.reject(new C1R1Error('CONNECTION_LOST'));
+    }
     this.pending.clear();
     this.handlers.clear();
   }
   /** Main-only authenticated local gateway extension; never a Client API method. */
-  desktopContext() {return this.handle(this.id!,{id:'desktop_'+randomUUID(),desktop_context:true});}
+  desktopContext() {
+    return this.handle(this.id!, { id: 'desktop_' + randomUUID(), desktop_context: true });
+  }
   grantSelectedDirectory(path: string) {
     return this.handle(this.id!, { id: 'desktop_' + randomUUID(), desktop_directory: path });
   }
@@ -62,8 +78,14 @@ export class StdioServerProxy implements ClientServer {
   handle(id: string, request: unknown) {
     if (id !== this.id || this.closed) return Promise.reject(new C1R1Error('CONNECTION_LOST'));
     const frame = request as { id: string };
+    if (this.pending.has(frame.id)) return Promise.reject(new C1R1Error('INVALID_FRAME'));
     return new Promise<unknown>((resolve, reject) => {
-      this.pending.set(frame.id, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.fail();
+        this.input.destroy();
+        this.output.destroy();
+      }, this.requestTimeoutMs);
+      this.pending.set(frame.id, { resolve, reject, timer });
       this.output.write(JSON.stringify(request) + '\n');
     });
   }

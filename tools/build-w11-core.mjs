@@ -18,6 +18,13 @@ await build({
   platform: 'node',
   format: 'esm',
 });
+await build({
+  entryPoints: ['packages/role-bridge/stdio.mjs'],
+  outfile: resolve(out, 'role-bridge.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+});
 for (const name of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql'])
   copyFileSync('packages/storage/migrations/' + name, resolve(out, 'migrations', name));
 copyFileSync('packages/core-service/fixture-harness.mjs', resolve(out, 'fixture-harness.mjs'));

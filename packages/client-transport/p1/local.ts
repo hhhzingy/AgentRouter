@@ -8,9 +8,12 @@ export class LocalCoreTransport implements ClientTransport {
   private transport?: P1MemoryTransport;
   private proxy?: StdioServerProxy;
   async desktopContext() {
-    if(!this.proxy)throw Error('CONNECTION_LOST');
-    const reply=await this.proxy.desktopContext() as {result?:{dataId:string;clientId:string;serverInstanceId:string};error?:{code:string}};
-    if(reply.error||!reply.result)throw Error(reply.error?.code??'INVALID_CONTEXT');
+    if (!this.proxy) throw Error('CONNECTION_LOST');
+    const reply = (await this.proxy.desktopContext()) as {
+      result?: { dataId: string; clientId: string; serverInstanceId: string };
+      error?: { code: string };
+    };
+    if (reply.error || !reply.result) throw Error(reply.error?.code ?? 'INVALID_CONTEXT');
     return reply.result;
   }
   async grantSelectedDirectory(path: string) {
@@ -19,10 +22,15 @@ export class LocalCoreTransport implements ClientTransport {
     if (reply.error) throw Error(reply.error.code);
     return reply.result;
   }
-  constructor(readonly data: string) {}
+  constructor(
+    readonly data: string,
+    private readonly endpointSnapshot?: { address: string; credential: string },
+  ) {}
   async connect(options: ConnectOptions): Promise<ClientSession> {
     await this.close();
-    const endpoint = JSON.parse(readFileSync(resolve(this.data, 'endpoint.json'), 'utf8'));
+    const endpoint =
+      this.endpointSnapshot ??
+      JSON.parse(readFileSync(resolve(this.data, 'endpoint.json'), 'utf8'));
     if (
       typeof endpoint.address !== 'string' ||
       !endpoint.address.startsWith('\\\\.\\pipe\\AgentRouter-')
@@ -30,6 +38,12 @@ export class LocalCoreTransport implements ClientTransport {
       throw Error('INVALID_LOCAL_ENDPOINT');
     const socket = connect(endpoint.address);
     await new Promise<void>((resolve, reject) => {
+      const onClose = () => {
+        clearTimeout(timer);
+        reject(Error('CORE_AUTH_CLOSED'));
+      };
+      socket.once('close', onClose);
+      socket.once('end', onClose);
       const timer = setTimeout(() => {
         socket.destroy();
         reject(Error('CORE_CONNECT_TIMEOUT'));
@@ -46,6 +60,8 @@ export class LocalCoreTransport implements ClientTransport {
           const boundary = text.indexOf('\n');
           if (boundary >= 0) {
             clearTimeout(timer);
+            socket.off('close', onClose);
+            socket.off('end', onClose);
             socket.off('data', onData);
             socket.pause();
             if (text.slice(0, boundary).trim() !== '{"attached":true}') {

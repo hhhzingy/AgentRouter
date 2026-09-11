@@ -9,6 +9,8 @@ import { build } from 'esbuild';
 import Database from 'better-sqlite3';
 import { piEntry } from './pi-location.mjs';
 if (!process.argv.includes('--live')) throw Error('EXPLICIT_LIVE_FLAG_REQUIRED');
+const kimi = process.argv.includes('--kimi');
+const harnessLabel=kimi?'Kimi':'pi';
 mkdirSync('.local/j3-production-pi', { recursive: true });
 const root = mkdtempSync(resolve('.local/j3-production-pi/run-'));
 const path = (n) => resolve(root, n),
@@ -41,16 +43,18 @@ writeFileSync(
     piExtension: extension,
     piExtensionSha256: sha(extension),
     credentialFile: 'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
+    kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json',
+    roleBridge:resolve('.local/w11-core/role-bridge.mjs'),roleBridgeSha256:sha(resolve('.local/w11-core/role-bridge.mjs')),
     profiles: [
       {
-        id: 'production_pi',
-        harness: 'pi',
-        executable: process.execPath,
-        executableSha256: sha(process.execPath),
-        version: '0.85.1',
-        providerId: 'agentrouter-deepseek',
-        modelId: 'deepseek-v4-flash',
-        effort: 'off',
+        id: kimi?'production_kimi':'production_pi',
+        harness: kimi?'kimi_code':'pi',
+        executable: kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath,
+        executableSha256: sha(kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath),
+        version: kimi?'0.42.0':'0.85.1',
+        providerId: kimi?'agentrouter-kimi':'agentrouter-deepseek',
+        modelId: kimi?'kimi-code/kimi-for-coding':'deepseek-v4-flash',
+        effort: kimi?'on':'off',
         sessionHome: path('managed/pi'),
       },
     ],
@@ -89,7 +93,7 @@ const closed = new Promise((r) =>
   }),
 );
 const report = {
-  scope: 'PRODUCTION_CORE_REAL_PI',
+  scope: kimi?'PRODUCTION_CORE_REAL_KIMI':'PRODUCTION_CORE_REAL_PI',
   status: 'FAIL',
   code_sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   dirty_source: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(),
@@ -144,10 +148,10 @@ try {
   role.workspace_ref = ws.items[0].id;
   role.mission = '只完成最小算术任务。Bootstrap请确认已理解章程，不调用工具。';
   role.runtime = {
-    harness: 'pi',
-    provider_profile_id: 'agentrouter-deepseek',
-    model_id: 'deepseek-v4-flash',
-    reasoning_effort: 'off',
+    harness: kimi?'kimi_code':'pi',
+    provider_profile_id: kimi?'agentrouter-kimi':'agentrouter-deepseek',
+    model_id: kimi?'kimi-code/kimi-for-coding':'deepseek-v4-flash',
+    reasoning_effort: kimi?'on':'off',
     selection_source: 'runtime',
   };
   role.requested_permissions = {
@@ -183,7 +187,7 @@ try {
     await new Promise((r) => setTimeout(r, 1000));
   }
   if (report.bootstrap !== 'DELIVERED') throw Error('BOOTSTRAP_NOT_DELIVERED');
-  report.checks.push('真实pi Bootstrap原生结算和Windows Job全树收尾');
+  report.checks.push('真实'+harnessLabel+' Bootstrap原生结算和Windows Job全树收尾');
   const roles = await s.request('role.list', { scope: { project_id: project.id }, limit: 100 });
   const target = roles.items[0],
     scope = { project_id: project.id, space_id: target.spaceId };
@@ -257,6 +261,32 @@ try {
   )
     throw Error('TASK_RESULT_NOT_VERIFIED');
   report.checks.push('真实Route工具、指定用户结果、原生终态与全树屏障');
+  if (process.argv.includes('--cancel')) {
+    const next = await call('router_status');
+    const cancelledTask = await call('router_task_dispatch', {
+      request_key: 'cancel-task', expected_revision: next.snapshot.revision, scope,
+      params: {request: {...request, summary:'取消验证',body:'List prime numbers below 200 and explain the calculation, then report with route_finish. This is a cancellation test.'}},
+    });
+    let running;
+    for (let i=0;i<1000;i++) {
+      const db=new Database(path('core/router.db'),{readonly:true});
+      running=db.prepare('select id,state from runs where task_id=? order by created_at_ms desc limit 1').get(cancelledTask.id);db.close();
+      if (running?.state === 'RUNNING') break;
+      if (running && ['UNKNOWN','SUCCEEDED','FAILED','CANCELLED'].includes(running.state)) throw Error('CANCEL_WINDOW_NOT_OBSERVED');
+      await new Promise(r=>setTimeout(r,20));
+    }
+    if (running?.state !== 'RUNNING') throw Error('CANCEL_RUN_NOT_ACCEPTED');
+    const current=await call('router_status');
+    await call('router_run_cancel',{request_key:'cancel-run',expected_revision:current.snapshot.revision,scope,params:{id:running.id}});
+    for (let i=0;i<120;i++) {
+      const db=new Database(path('core/router.db'),{readonly:true});
+      const ended=db.prepare('select state from runs where id=?').get(running.id);db.close();
+      if (['UNKNOWN','SUCCEEDED','FAILED','CANCELLED'].includes(ended.state)){report.cancel=ended.state;break;}
+      await new Promise(r=>setTimeout(r,500));
+    }
+    if(report.cancel!=='CANCELLED')throw Error('NATIVE_CANCEL_NOT_VERIFIED');
+    report.checks.push('Management MCP运行中取消、原生取消终态和Job屏障');
+  }
   report.status = 'PASS_TASK_AND_BOOTSTRAP';
 } catch (error) {
   report.error = /^[A-Z0-9_]{1,96}$/.test(error.message) ? error.message : 'CHECK_FAILED';

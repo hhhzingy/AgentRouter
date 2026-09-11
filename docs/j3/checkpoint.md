@@ -1,3 +1,15 @@
+# 当前执行（2026-09-11 15:10）：生产 pi 与真实 Electron 已通过增量验证
+
+分支 feat/v1-finalization-j3；HEAD 5ef946aa2ab4e431d9b9a330e2009c77b56de20a（尚未push），后续有未提交修复。不要丢弃修改。固定源码 pi 证据 evidence/J3/production-pi/5ef946a/report.json；GUI 开发版证据 .local/j3-production-pi/run-HPUpGv/gui-report.json（dirty_source=true，不能冒称固定源码）。真实 GUI 已实际派发唯一 GUI2 标记任务，DB SUCCEEDED/PUBLISHED，截图有内容；需要提交后固定源码复测与导出。run-BjUtlq 的 GUI 任务 QUEUED，前面取消后 NEEDS_ATTENTION 阻塞，未重放、未强行放行。
+
+新增修复：Core 默认加载数据目录 native-runtime.json；Bootstrap 必须原生文本确认完整 Charter hash，不能把空 end_turn 当成功；Provider 相同请求去重并缓存未知/失败，避免重复计费；桌面连接使用 endpoint 快照避免重启旧凭据竞态；认证关闭立即失败；STDIO 半帧断流不再未捕获崩溃，close 与超时清理 pending，不自动重发业务。独立 Reviewer 已复现断流问题；修复后全仓 51 文件355项 PASS、tsc PASS（随后正在新增 Codex helper 单测，需最终复测）。
+
+Kimi 生产测试 BLOCKED_ACCOUNT：旧复制凭据 Authentication required，不把旧 Bootstrap DELIVERED 当真实模型成功。唯一待用户动作：独立 PowerShell 执行 tools/login-j3-kimi-dut.ps1，回复 KIMI_DUT_LOGIN_COMPLETED；目标 .local/j3-kimi/dut/home，日常账号不修改。不要重复复制旧源覆盖刷新凭据。Codex 用户已批准当前 DUT 身份，不重复问；.local/j3-codex/dut-fj/home 为独立目标，DEV hzxpro 不触碰。Codex 生产接线尚未完成；新增 helper 与假凭据测试正在准备，真实调用前必须核对原生 MCP 精确只有 RoleBridge、模型和最低推理、身份、工具限制。
+
+下一命令：git status --short；读取 tools/test-j3-live-gui.mjs 与 local-native-runtime.ts。先完成当前源码记录、扫描、提交、固定源码 pi/GUI/取消复测；继续 Kimi（登录后）、Codex 生产链路、External API、联合交接与包装矩阵。SSH DEFERRED_BY_USER，不合 main、不发布。开发原生 Management MCP 工具列表仍未暴露；实际 SDK MCP 已通，不声称原生直接调用通过。
+
+以下为历史进展：
+
 # 当前执行：生产 pi 已跑通，继续三家与 GUI
 
 新增产品入口 AGENTROUTER_NATIVE_CONFIG 显式 LIMITED_ISOLATION，可信 Profile 注册复用现有 DB/Binding，pi NativeBackend/Job/RoleBridge/Provider 已接线。run-a3GksX 实际 STDIO SDK Management MCP 派发幂等、pi Route context/finish、结果42发布、原生与Job屏障PASS；源码尚未固定，不能将2b6dda4当本次源码。下一步固定源码复测，再产品取消、恢复、Kimi/Codex接线、GUI；SSH暂缓，DUT切号最后。

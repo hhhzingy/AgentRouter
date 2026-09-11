@@ -13,6 +13,7 @@ import { WindowsNativeProcessHost } from './windows-native-process-host.ts';
 import { createNativeRoleBridge } from '../role-bridge/native-server.ts';
 import { ApprovedProvider, deepSeekPolicy } from '../security/approved-provider.ts';
 import { createPiProviderBroker } from './pi-provider-broker.ts';
+import { prepareManagedKimiProfile } from './kimi-managed-profile.ts';
 
 interface Config {
   isolation: 'LIMITED_ISOLATION';
@@ -25,6 +26,9 @@ interface Config {
   piExtension: string;
   piExtensionSha256: string;
   credentialFile: string;
+  kimiCredentialSource?: string;
+  roleBridge?: string;
+  roleBridgeSha256?: string;
   profiles: TrustedNativeProfile[];
 }
 const sha = (file: string) => createHash('sha256').update(readFileSync(file)).digest('hex');
@@ -63,10 +67,7 @@ export async function installLocalNativeRuntime(
       throw Error('NATIVE_RUNTIME_HASH_MISMATCH');
   for (const p of c.profiles) {
     if (
-      p.harness !== 'pi' ||
-      p.providerId !== 'agentrouter-deepseek' ||
-      p.modelId !== 'deepseek-v4-flash' ||
-      p.effort !== 'off' ||
+      !((p.harness === 'pi' && p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash' && p.effort === 'off') || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on')) ||
       !isAbsolute(p.sessionHome) ||
       !isAbsolute(p.executable) ||
       sha(p.executable) !== p.executableSha256
@@ -94,6 +95,18 @@ export async function installLocalNativeRuntime(
         mkdirSync(join(home, path), { recursive: true });
       const scope = { bindingId: input.bindingId, epoch: input.epoch, sessionHome: home };
       const session = sessions.load(scope);
+      if (input.config.harness === 'kimi_code') {
+        if (!c.kimiCredentialSource || !isAbsolute(c.kimiCredentialSource) || !c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256) throw Error('KIMI_RUNTIME_CONFIG_INVALID');
+        await prepareManagedKimiProfile({sessionHome:home,credentialSource:c.kimiCredentialSource});
+        const token = bridge.issue(input.handleTool);
+        return {
+          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),KIMI_CODE_NO_AUTO_UPDATE:'1',KIMI_DISABLE_TELEMETRY:'1',KIMI_DISABLE_CRON:'1'},
+          mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
+          kimiConfiguration:{modelConfigId:'model',effortConfigId:'thinking'},session,
+          revoke:()=>bridge.revoke(token),
+          saveSession:async(ref,guard)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
+        };
+      }
       // Read the explicitly authorized source only inside the trusted provider, never into child env.
       const provider = new ApprovedProvider({ ...deepSeekPolicy, timeoutMs: 60000 }, async () => {
         const keys = [
@@ -171,7 +184,7 @@ export async function installLocalNativeRuntime(
     },
   });
   const backend = new NativeProcessBackend(host);
-  registry.attach('pi', {
+  for (const harness of new Set(c.profiles.map(p=>p.harness))) registry.attach(harness, {
     backend,
     cancelSupported: true,
     authorize: (config) =>
