@@ -1,0 +1,86 @@
+{
+  "runId": "6a7ea290a9af408b9720868cd2120e4f",
+  "at": "2026-09-11T03:09:42.2134051Z",
+  "sourceHash": "ee901fa12c155149569ed34e55ce8297d05817d44703a40a907e6071628c0147",
+  "binaryHash": "17c19336dfa4762fd5a92b59185200f24cbdf0d8c98c44aa41e5cf1ddc22f560",
+  "runnerHash": "50499ba89ad2bfc8e94d9afea1454390a90c73bfdbbbf9fd7ac7e94bdbb8baae",
+  "elapsedMs": 296,
+  "watchdogTimedOut": false,
+  "outputCompleted": true,
+  "stderrPresent": false,
+  "exitCode": 125,
+  "status": "BLOCKED_ENV_OR_CHECK_FAILED",
+  "fullIsolationCertified": false,
+  "realAccountsRead": false,
+  "events": [
+    {
+      "stage": "create-new-root",
+      "ok": true,
+      "elapsedMs": 0,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "metadata": true,
+      "ntfs": true,
+      "fixedVolume": true,
+      "ownerMatchesPrincipal": true,
+      "groupCount": 10,
+      "administratorEnabled": false,
+      "daclProtected": false,
+      "aceCount": 10
+    },
+    {
+      "stage": "volume-principal-acl-metadata",
+      "ok": true,
+      "elapsedMs": 2,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "open-own-token",
+      "ok": true,
+      "elapsedMs": 0,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "integrityRid": 8192
+    },
+    {
+      "stage": "integrity-metadata",
+      "ok": true,
+      "elapsedMs": 1,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "ordinary-dummy-read-write",
+      "ok": true,
+      "elapsedMs": 3,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "dacl-only-protection",
+      "ok": true,
+      "elapsedMs": 0,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "owner-only-same-owner",
+      "ok": false,
+      "elapsedMs": 8,
+      "hresult": -2147024891,
+      "win32Error": 5,
+      "errorType": "UnauthorizedAccessException"
+    },
+    {
+      "stage": "unexpected",
+      "ok": false,
+      "hresult": -2146233079,
+      "errorType": "InvalidOperationException"
+    }
+  ]
+}

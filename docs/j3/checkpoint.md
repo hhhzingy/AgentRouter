@@ -21,3 +21,7 @@ Codex 切号及重启 INCLUDED_LAST_DUT_ONLY，最后执行。DEV hzxpro 认证�
 远端同步：dec0abc 源码/主要证据已push；0e59e40补交门禁文本遇连续GitHub TLS握手失败。CI新运行查询EOF，未确认；不要引用旧绿色作为新CI。下一次先git status与git log，再重试正常TLS推送，不关闭证书校验。
 
 2026-09-11续办：私有远端已成功同步3f83eb8；dec0abc两项CI 34556676880/34556676899 SUCCESS，3f83eb8两项CI 34557140326/34557140347运行中。新增本地真实HTTPS四项PASS，证书不入用户库且自动删除。当前安全支线负责进程/桌面权限定位，真账号仍未加载。
+
+最新已同步增量f170f1ddb639c7cafec61ce67b5973a0eef4f5a5：HTTPS五项/用户终端证据；CI34557497701、34557497703均SUCCESS。Windows startup机制诊断仍在收敛，未授权真实凭据加载；用户当前无待执行动作。
+
+当前精确启动断点：见convergence-startup-diagnosis.md。BU+RC显式无秘密诊断可运行native cmd和Node；12cc236d节点phase3失败是icacls spawn error，无退出码，随后canary仍拒绝。孙Node未测、CLR失败，不加载真凭据。下一步记录spawn errno并定位后代创建/stdio权限，不要求用户重复操作。HTTPS五项与f170f1d双CI成功。

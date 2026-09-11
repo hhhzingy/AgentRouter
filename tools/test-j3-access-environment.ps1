@@ -1,3 +1,4 @@
+param([switch]$SystemObjectControl)
 # 无秘密诊断：仅在本次新建目录操作 ACL；不读取账号，不启动 Harness。
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -13,6 +14,7 @@ if ($LASTEXITCODE -ne 0) { throw 'COMPILE_FAILED' }
 $start = New-Object System.Diagnostics.ProcessStartInfo
 $start.FileName = $binary
 $start.Arguments = '"' + (Join-Path $runRoot 'new-canary-only') + '"'
+if ($SystemObjectControl) { $start.Arguments += ' --system-object-control' }
 $start.UseShellExecute = $false
 $start.CreateNoWindow = $true
 $start.RedirectStandardOutput = $true
@@ -52,3 +54,4 @@ $record | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $recordPath -Encodi
 Write-Output "Result: $recordPath"
 Write-Output "Status: $($record.status); exit=$probeExit; fullIsolationCertified=false"
 exit $probeExit
+
