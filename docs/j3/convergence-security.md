@@ -49,3 +49,13 @@
 ## 仍未认证的完整安全 Gate
 
 SEC-01 的 DACL / owner 诊断已具备。SG1—SG3 尚未通过：实际子孙进程正负控制、父句柄/环境/内存/重解析点绕过、broker 程序配置防篡改、Core 管理与监督器接口拒绝、假 Provider 消息体秘密扫描、非允许目的地出网限制均需各自证据。线程模拟通过不是完整进程沙箱，任何时候 `fullIsolationCertified=false`。
+
+## 用户普通终端对照及启动细分
+
+用户结果 ed6b39e26cc2460bb953c3641f5e3a06，相同sourceHash，460ms、exit1、primary 0xC0000022。排除“仅Codex受控Shell导致”的归因；不要求用户重复或UAC。
+
+4d940f 探针在impersonation内取MainModule失败，属于对象查询失败，不能断言exe文件不可读。d5dea2把路径预解析，exe/ntdll/clr读取全部PASS，primary仍失败。e49d1a设置默认对象DACL本身被拒绝（句柄缺TOKEN_ADJUST_DEFAULT），未形成有效对照；后续由诊断支线修正句柄权限后重新验证，不作为生产权限方案。继续调查新进程/私有桌面对象，未修改现有桌面或系统ACL。
+
+本地真实HTTPS socket四项（timeout/overflow/redirect/success）全部PASS，每项1次请求、剩余socket0；证据https-socket-controls.json。只用合成凭据与一次性自签证书，由测试子进程单独信任；不是实际Provider/出网封锁认证。
+
+增补TLS负向控制PASS：不信任新自签证书时TRANSPORT_FAILED、HTTP请求0、剩余socket0。Reviewer只读确认测试使用生产directHttpsTransport，socket断言在测试强制清理前，信任环境只对子进程生效。

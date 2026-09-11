@@ -14,8 +14,10 @@ Codex 切号及重启 INCLUDED_LAST_DUT_ONLY，最后执行。DEV hzxpro 认证�
 
 独立Reviewer已复核停止隔离、会话条件写入、可信工具accepted、Provider JSON转义反射修复；未独立复跑。
 
-当前等待用户普通PowerShell运行tools/test-j3-access-environment.ps1的Result/Status。没有新增登录/付费请求，不触碰hzxpro。
+用户普通PowerShell结果ed6b39e26cc2460bb953c3641f5e3a06已收到，同样primary 0xC0000022；无需重复用户操作，继续自身诊断。没有新增登录/付费请求，不触碰hzxpro。
 
 下一工程任务：SecureProcessHost主令牌/Job/bridge完整实现；受控本地HTTPS连接清理验证及pi流式代理；实际账号/模型注册和GUI接线。随后pi→Kimi→Codex实际小任务/取消/恢复，最后独立Codex切号。未完成项是实现任务，不能仅等环境。下一只读命令：git status --short，然后检查用户新诊断JSON（只允许脱敏元数据）。
 
 远端同步：dec0abc 源码/主要证据已push；0e59e40补交门禁文本遇连续GitHub TLS握手失败。CI新运行查询EOF，未确认；不要引用旧绿色作为新CI。下一次先git status与git log，再重试正常TLS推送，不关闭证书校验。
+
+2026-09-11续办：私有远端已成功同步3f83eb8；dec0abc两项CI 34556676880/34556676899 SUCCESS，3f83eb8两项CI 34557140326/34557140347运行中。新增本地真实HTTPS四项PASS，证书不入用户库且自动删除。当前安全支线负责进程/桌面权限定位，真账号仍未加载。
