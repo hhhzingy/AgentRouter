@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentrouter:j3:live-evidence-summary:1",
+  "type": "object",
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9-]+$"
+    },
+    "source_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "evidence_kind": {
+      "enum": [
+        "OFFLINE",
+        "MOCK_PROVIDER",
+        "FIXTURE_PROCESS",
+        "LIVE_HARNESS",
+        "GUI_AUTOMATION",
+        "HUMAN_MANUAL"
+      ]
+    },
+    "status": {
+      "enum": [
+        "NOT_RUN",
+        "PASS",
+        "FAIL",
+        "BLOCKED_IMPLEMENTATION",
+        "BLOCKED_OS",
+        "WAITING_USER_CREDENTIAL_SESSION",
+        "AMBIGUOUS",
+        "DEFERRED_BY_USER"
+      ]
+    },
+    "backend": {
+      "enum": [
+        "none",
+        "mock",
+        "fixture",
+        "codex",
+        "kimi_code",
+        "pi",
+        "mixed"
+      ]
+    },
+    "profile_alias": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "model_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effort": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "endpoint_class": {
+      "enum": [
+        "NONE",
+        "LOCAL_MOCK",
+        "OFFICIAL",
+        "USER_APPROVED_GATEWAY"
+      ]
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "new_paid_calls": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "input_tokens": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "output_tokens": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "identity_matches_profile": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "developer_session_untouched": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "secret_scan_passed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "raw_secret_recorded": {
+      "const": false
+    },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "passed"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "issue_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_action": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "source_sha",
+    "evidence_kind",
+    "status",
+    "backend",
+    "profile_alias",
+    "model_id",
+    "effort",
+    "endpoint_class",
+    "started_at",
+    "duration_ms",
+    "new_paid_calls",
+    "input_tokens",
+    "output_tokens",
+    "identity_matches_profile",
+    "developer_session_untouched",
+    "secret_scan_passed",
+    "raw_secret_recorded",
+    "assertions",
+    "issue_ids",
+    "next_action"
+  ],
+  "additionalProperties": false,
+  "description": "Only allowlisted summary; this schema is not a substitute for secret scanning or OS enforcement. Do not insert secret fragments into arbitrary strings."
+}

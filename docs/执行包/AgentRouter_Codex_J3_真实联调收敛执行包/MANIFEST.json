@@ -1,0 +1,98 @@
+{
+  "package": "AgentRouter J3 real integration convergence addendum",
+  "baseline": "d28aa3e8836b013d53818bcf6475b01c31154710",
+  "files": [
+    {
+      "path": "00_开始这里.md",
+      "bytes": 2721,
+      "sha256": "da73b5ad899dd261bdb1b52fcfcea037254a3134fae83e33c5525b875bb13788"
+    },
+    {
+      "path": "01_代码复核与关键判断.md",
+      "bytes": 3220,
+      "sha256": "8222377ef338f5f489e233d6e77346836e4cbc9569bcbf1c5e67c91850a116b1"
+    },
+    {
+      "path": "02_授权与范围补充.md",
+      "bytes": 2532,
+      "sha256": "e4c55aaf14cf2a18647ffba0f407929dbadb2f1a7e8e5f95f6ae7f55858a4615"
+    },
+    {
+      "path": "03_生产链路实施要求.md",
+      "bytes": 2839,
+      "sha256": "52ef79fcb961156587f10e034ee6cd5f9c214c631d2c67d9b4062f71dde476e1"
+    },
+    {
+      "path": "04_Windows隔离故障定位.md",
+      "bytes": 3527,
+      "sha256": "8611eb24487f79e19223bc27d83d8a76ccc82612601273e5b1aa4d6076adc25c"
+    },
+    {
+      "path": "05_真实Harness与GUI验收.md",
+      "bytes": 3707,
+      "sha256": "edea61e81a0b009031e63d876065a610c5d8e124ecb9690542f9ef71fefe9892"
+    },
+    {
+      "path": "06_Codex切号重启最后执行.md",
+      "bytes": 3796,
+      "sha256": "84b9f5bde0aeadd8df1ab7e495562357d79caadc47867e655bfd1bdf4e2300a2"
+    },
+    {
+      "path": "07_凭据与GitHub防泄露.md",
+      "bytes": 3457,
+      "sha256": "5fdef28d800bd0078aef05e0d093244bb46fa2c2500124b6e4cb3e88c66807e9"
+    },
+    {
+      "path": "08_Codex连续执行指令.md",
+      "bytes": 2646,
+      "sha256": "6d902c418d0a4dcde8e8e06ae9cd53ef7da3d75e9cfe9beed43e787210c3d9e2"
+    },
+    {
+      "path": "09_验收清单.md",
+      "bytes": 2367,
+      "sha256": "7facb88b34ea8475b6476486eef5a83999bd70e678448974b3f3e200da85a777"
+    },
+    {
+      "path": "10_来源与检查范围.md",
+      "bytes": 2861,
+      "sha256": "046f05556f41c3b9bc371247b9767415e680d5ec1c4ac70ed780318f674cc6ea"
+    },
+    {
+      "path": "authorization-addendum.json",
+      "bytes": 1652,
+      "sha256": "876523ebbf27e5c6e970b664fcc0904bbd6cb1ffea0ea57a369bf05f60fdcfac"
+    },
+    {
+      "path": "prompts/直接发给Codex.txt",
+      "bytes": 1743,
+      "sha256": "9eadf0de4e1bfe1b22d2f74902abc56469f118f3252a6acc1b92f569c11b1af8"
+    },
+    {
+      "path": "sources.json",
+      "bytes": 4533,
+      "sha256": "a1511fe17fb6415e033ba85a299d501029d4a560c4cd16a6c69f02b1b558fd56"
+    },
+    {
+      "path": "templates/evidence.example.json",
+      "bytes": 648,
+      "sha256": "ce202ed3bb779292ea378446c5c81ecb576e9e7082db91033a5c9305e7f5ee8d"
+    },
+    {
+      "path": "templates/evidence.schema.json",
+      "bytes": 3268,
+      "sha256": "e2457c164576aafcfacba17396f31b2a8b0bdfb4dbd8e41cd79c7f63d9556082"
+    },
+    {
+      "path": "templates/最小用户行动单.md",
+      "bytes": 575,
+      "sha256": "1d7b99bc3c1e885676954dec3ac81debbb6edbaeaa7813efa8691de6bb660a45"
+    },
+    {
+      "path": "test-plan.json",
+      "bytes": 13364,
+      "sha256": "3b272cbccf9be943bd01b6b7f2c63c653cced01744c71b9e61841ce0302c52a3"
+    }
+  ],
+  "planned_test_count": 39,
+  "live_tests_executed_by_reviewer": 0
+}

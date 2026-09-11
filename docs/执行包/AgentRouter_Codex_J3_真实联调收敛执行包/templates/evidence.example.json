@@ -1,0 +1,23 @@
+{
+  "case_id": "PI-01",
+  "source_sha": "d28aa3e8836b013d53818bcf6475b01c31154710",
+  "evidence_kind": "LIVE_HARNESS",
+  "status": "NOT_RUN",
+  "backend": "pi",
+  "profile_alias": "TEST_PROFILE",
+  "model_id": null,
+  "effort": null,
+  "endpoint_class": "OFFICIAL",
+  "started_at": "NOT_RUN",
+  "duration_ms": 0,
+  "new_paid_calls": 0,
+  "input_tokens": null,
+  "output_tokens": null,
+  "identity_matches_profile": null,
+  "developer_session_untouched": null,
+  "secret_scan_passed": null,
+  "raw_secret_recorded": false,
+  "assertions": [],
+  "issue_ids": [],
+  "next_action": "通过指定安全Gate后从实际Core运行，填写真实证据"
+}

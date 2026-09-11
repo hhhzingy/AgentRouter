@@ -1,0 +1,14 @@
+{
+  "scope": "ACTUAL_PI_OFFLINE_RPC_NO_AUTH_NO_MODEL_CALL",
+  "entryHash": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+  "newPaidCalls": 0,
+  "realHarnessCertified": false,
+  "status": "PASS",
+  "checks": [
+    "actual_rpc_state_idle",
+    "actual_rpc_model_catalog_shape"
+  ],
+  "durationMs": 951,
+  "availableModelCount": 0,
+  "diagnosticBytes": 0
+}
