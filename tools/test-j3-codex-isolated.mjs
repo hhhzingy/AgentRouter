@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import {
   mkdirSync,
@@ -94,24 +95,24 @@ async function phase(live) {
       throw Error('MANAGEMENT_MCP_INHERITANCE_DENIED');
     report.emptyNativeMcpVerified = true;
     if (live) {
-      report.scope = 'ACTUAL_CODEX_FJ_LUNA_COMPONENT';
-      const seed = JSON.parse(readFileSync('E:/AgentRouter/账号信息/codex/auth.json', 'utf8'));
-      const jwt = seed.tokens?.id_token;
-      let expectedEmail;
-      try {
-        expectedEmail = JSON.parse(
-          Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8'),
-        ).email;
-      } catch {}
+      report.scope = 'ACTUAL_CODEX_APPROVED_DUT_LUNA_COMPONENT';
+      const approved = JSON.parse(
+        readFileSync(resolve('.local/j3-codex/dut-fj/approved-identity.json'), 'utf8'),
+      );
+      const current = JSON.parse(readFileSync(auth, 'utf8'));
+      const claims = JSON.parse(
+        Buffer.from(current.tokens.id_token.split('.')[1], 'base64url').toString('utf8'),
+      );
+      const hash = (value) => createHash('sha256').update(value).digest('hex');
       const identity = await lifecycle.peer.request('account/read', { refreshToken: false });
-      report.identityCheck = {
-        seedEmailPresent: typeof expectedEmail === 'string',
-        dutEmailPresent: typeof identity.account?.email === 'string',
-        accountType: identity.account?.type,
-      };
-      if (typeof expectedEmail !== 'string' || identity.account?.email !== expectedEmail)
+      if (
+        typeof identity.account?.email !== 'string' ||
+        hash(identity.account.email.trim().toLowerCase()) !== approved.emailSha256 ||
+        hash(current.tokens.account_id) !== approved.accountIdSha256 ||
+        hash(claims.sub) !== approved.subjectSha256
+      )
         throw Error('DUT_ACCOUNT_IDENTITY_UNVERIFIED');
-      report.accountIdentityMatchesFjSeed = true;
+      report.accountIdentityMatchesAuthorizedDut = true;
       const models = await lifecycle.peer.request('model/list', {});
       const luna = models.data?.find((m) => m.model === 'gpt-5.6-luna');
       if (!luna) throw Error('REQUESTED_MODEL_UNAVAILABLE');
@@ -130,14 +131,24 @@ async function phase(live) {
       });
       report.submittedTasks++;
       await lifecycle.start({ runId: 'arithmetic', text: '计算17加25，只输出整数。', effort });
+      const cancelling = process.argv.includes('--cancel');
+      if (cancelling) {
+        await new Promise((r) => setTimeout(r, 250));
+        report.cancelAcknowledgement = await lifecycle.cancel();
+      }
       const terminal = await Promise.race([
         settled,
         new Promise((_, j) => (timer = setTimeout(() => j(Error('TURN_TIMEOUT')), 90000))),
       ]);
       report.outcome = terminal.outcome;
       report.correctResult = resultText.trim() === '42';
-      if (terminal.outcome !== 'succeeded' || !report.correctResult)
+      if (
+        cancelling
+          ? terminal.outcome !== 'cancelled'
+          : terminal.outcome !== 'succeeded' || !report.correctResult
+      )
         throw Error('TASK_RESULT_MISMATCH');
+      if (cancelling) report.scope = 'ACTUAL_CODEX_APPROVED_DUT_CANCEL_COMPONENT';
     }
   } finally {
     clearTimeout(timer);
