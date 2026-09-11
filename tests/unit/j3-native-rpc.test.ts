@@ -174,3 +174,44 @@ it.each([
   expect(invoked).toBe(0);
   expect(disconnected).toBe(true);
 });
+
+it('断线观察者抛错不逃逸异步 writer，不丢失调用失败结算', async () => {
+  let callbacks = 0;
+  const peer = new NativeRpcPeer({
+    write: async () => { throw Error('private-write-detail'); },
+    onNotification() {},
+    onDisconnect() { callbacks++; throw Error('private-observer-detail'); },
+  });
+  await expect(peer.request('turn/start', {})).rejects.toMatchObject({
+    code: 'RPC_WRITE_FAILED', sideEffects: 'possible',
+  });
+  await new Promise((r) => setImmediate(r));
+  expect(callbacks).toBe(1);
+  expect(peer.disconnectObserverFailed).toBe(true);
+  expect(() => peer.disconnect()).not.toThrow();
+  await expect(peer.request('turn/start', {})).rejects.toMatchObject({code: 'RPC_CLOSED'});
+});
+
+it('断线观察者失败时全部 pending 拒绝，迟到写完成不排空旧队列', async () => {
+  let finish!: () => void;
+  let writes = 0;
+  const peer = new NativeRpcPeer({
+    write: () => { writes++; return new Promise<void>((resolve) => { finish = resolve; }); },
+    onNotification() {},
+    onDisconnect() { throw Error('fake-private-observer'); },
+  });
+  const results = Promise.allSettled([peer.request('first', {}), peer.request('second', {})]);
+  expect(() => peer.disconnect()).not.toThrow();
+  finish();
+  const settled = await results;
+  await new Promise((r) => setImmediate(r));
+  for (const result of settled) {
+    expect(result.status).toBe('rejected');
+    if (result.status === 'rejected') {
+      expect(result.reason).toMatchObject({message:'RPC_DISCONNECTED', sideEffects:'possible'});
+      expect(String(result.reason)).not.toContain('fake-private');
+    }
+  }
+  expect(writes).toBe(1);
+  expect(peer.disconnectObserverFailed).toBe(true);
+});

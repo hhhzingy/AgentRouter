@@ -28,6 +28,8 @@ export class NativeRpcPeer {
   private pending = new Map<string, Pending>();
   private reverse = new Map<string, { request: string; response: Promise<object> }>();
   private closed = false;
+  private observerFailed = false;
+  get disconnectObserverFailed() { return this.observerFailed; }
   private writing = false;
   private writeQueue: Buffer[] = [];
   constructor(private readonly options: NativeRpcOptions) {}
@@ -81,7 +83,12 @@ export class NativeRpcPeer {
     this.writeQueue = [];
     this.pending.clear();
     this.reverse.clear();
-    this.options.onDisconnect(reason);
+    try {
+      this.options.onDisconnect(reason);
+    } catch {
+      // Already closed with every pending operation rejected; never leak callback errors.
+      this.observerFailed = true;
+    }
   }
   private encode(value: object) {
     const text = JSON.stringify({

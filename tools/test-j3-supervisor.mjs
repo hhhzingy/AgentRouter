@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { evidencePath } from '../tests/evidence-path.ts';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 const root = resolve('.local/j3-supervisor');
@@ -136,9 +137,10 @@ try {
   process.exitCode = 1;
 } finally {
   unrelated.kill();
-  mkdirSync('evidence/J3/J3-02', { recursive: true });
+  const reportPath = evidencePath('J3/J3-02/windows-supervisor.json');
+  mkdirSync(dirname(reportPath), { recursive: true });
   writeFileSync(
-    'evidence/J3/J3-02/windows-supervisor.json',
+    reportPath,
     JSON.stringify(report, null, 2) + '\n',
   );
   console.log(
