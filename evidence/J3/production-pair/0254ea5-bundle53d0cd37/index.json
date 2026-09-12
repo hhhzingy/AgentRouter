@@ -1,0 +1,21 @@
+{
+  "code_sha": "0254ea5",
+  "dirty_source": false,
+  "scope": "新bundle(含External API扩展)六方向交接验收",
+  "bundleSha256": {
+    "core": "53d0cd374736b03874967f29720014361f26164b588006e4a09ffb23128eafa5",
+    "mcp": "0afd87fd58ea22b50471862f079bc1795ececca3ef8d6e9a7d6f75fbdf18568e"
+  },
+  "runs": {
+    "run1": "kimi源角色模型波动(NEEDS_ATTENTION保守呈现)，codex→kimi/codex→pi PASS",
+    "run2": {
+      "passing": "kimi→codex,kimi→pi,codex→kimi",
+      "flake": "codex→pi DeepSeek子任务偶发不合规(NEEDS_ATTENTION)"
+    },
+    "run3": {
+      "passing": "kimi→pi,kimi→codex",
+      "flake": "pi→kimi DeepSeek子任务偶发不合规(NEEDS_ATTENTION)"
+    }
+  },
+  "note": "六个方向在新bundle(0254ea5/53d0cd37)上均已至少通过一次；三次单轮验收各遇1次真实模型偶发不合规(Kimi/DeepSeek均有)，Core一律NEEDS_ATTENTION保守呈现，不伪造结果不重放。完整单轮6/6通过记录: a4111ae-bundle7f2f960c 目录(run-1DTgj0/run-6RE9aP,harness路径不变)。"
+}
