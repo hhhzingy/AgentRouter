@@ -3,7 +3,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import type Database from 'better-sqlite3';
 import type { ExecutionBackend } from './execution-backend.ts';
-export type NativeHarness = 'codex' | 'kimi_code' | 'pi';
+export type NativeHarness = 'codex' | 'kimi_code' | 'pi' | 'zcode' | 'deepseek_harness';
 /** Trusted configuration references only; credentials and arbitrary launch arguments are forbidden. */
 export interface NativeBindingConfig {
   harness: NativeHarness;

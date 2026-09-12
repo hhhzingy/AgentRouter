@@ -1,4 +1,4 @@
-import { readFileSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import type { ApplicationService } from '../core-service/application.ts';
@@ -17,6 +17,7 @@ import { prepareManagedKimiProfile, approveManagedKimiRoute } from './kimi-manag
 import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
 
 interface Config {
+  dshHome?: string;
   isolation: 'LIMITED_ISOLATION';
   managedRoot: string;
   workspaceRoot: string;
@@ -125,6 +126,30 @@ export async function installLocalNativeRuntime(
             saveSession:async(ref:any,guard:any)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
           };
         } catch(error){bridge.revoke(token);throw error;}
+      }
+      if (input.config.harness === 'zcode') {
+        if (input.config.version !== '0.16.5') throw Error('ZCODE_VERSION_UNVERIFIED');
+        if (!input.config.profileRef || !isAbsolute(input.config.profileRef)) throw Error('ZCODE_RUNTIME_CONFIG_INVALID');
+        // 受管隔离:沙箱HOME+受管env;真实会话创建需已配置凭据的实例(实验级,不宣称执行闭环)。
+        const zhome = join(home, 'zcode-home');
+        mkdirSync(zhome, { recursive: true });
+        const token = bridge.issue(input.handleTool);
+        return {
+          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1'},
+          revoke:()=>bridge.revoke(token),
+          saveSession:async()=>{throw Error('ZCODE_SESSION_SAVE_UNSUPPORTED');},
+        };
+      }
+      if (input.config.harness === 'deepseek_harness') {
+        if (input.config.version !== '0.1.5-rc.1') throw Error('DSH_VERSION_UNVERIFIED');
+        const dshHome = c.dshHome ?? join(home, '.dsh');
+        if (!existsSync(join(dshHome, 'profiles'))) throw Error('NATIVE_CREDENTIALS_REQUIRED');
+        const token = bridge.issue(input.handleTool);
+        return {
+          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),DSH_HOME:dshHome,AGENTROUTER_MANAGED_ROLE:'1'},
+          revoke:()=>bridge.revoke(token),
+          saveSession:async()=>{throw Error('DSH_SESSION_SAVE_UNSUPPORTED');},
+        };
       }
       if (input.config.harness === 'kimi_code') {
         if(input.config.version!=='0.42.0') throw Error('KIMI_PERMISSION_VERSION_UNVERIFIED');

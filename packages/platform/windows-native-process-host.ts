@@ -49,7 +49,11 @@ export class WindowsNativeProcessHost implements SecureProcessHost {
         ? ['app-server']
         : c.harness === 'kimi_code'
           ? ['acp']
-          : ['--mode', 'rpc'];
+          : c.harness === 'zcode'
+            ? [c.profileRef, 'app-server']
+            : c.harness === 'deepseek_harness'
+              ? [c.profileRef, '--profile', 'acp']
+              : ['--mode', 'rpc'];
     if (
       process.platform !== 'win32' ||
       o.isolation !== 'LIMITED_ISOLATION' ||

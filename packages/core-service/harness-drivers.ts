@@ -1,6 +1,8 @@
 import { CodexLifecycle } from '../adapters/codex/lifecycle.ts';
 import { KimiLifecycle } from '../adapters/kimi/lifecycle.ts';
 import { PiLifecycle } from '../adapters/pi/lifecycle.ts';
+import { ZcodeLifecycle } from '../adapters/zcode/lifecycle.ts';
+import { DshLifecycle } from '../adapters/dsh/lifecycle.ts';
 import type { NativeRpcOptions } from '../adapters/shared/rpc-peer.ts';
 import type { NativeBindingConfig } from './native-registry.ts';
 import type { SecureNativeProcess } from './native-process-backend.ts';
@@ -170,10 +172,72 @@ export const piDriver: HarnessDriver = {
     };
   },
 };
+export const zcodeDriver: HarnessDriver = {
+  harness: 'zcode',
+  requiresSessionPath: false,
+  // profileRef 持有官方 CLI 脚本路径;协议入口 app-server。
+  processArgs: (config) => [config.profileRef, 'app-server'],
+  createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
+    const lifecycle = new ZcodeLifecycle({ write, onEvent, onDisconnect: () => {}, timeoutMs: promptTimeoutMs });
+    return {
+      get phase() {
+        return lifecycle.phase;
+      },
+      async initialize() {
+        await lifecycle.initialize();
+      },
+      async open({ config: cfg }) {
+        // workspaceKey 语义未与官方桌面实例核验;实验级以 workspace 路径为键。
+        const opened = await lifecycle.open({ workspacePath: cfg.workspace, workspaceKey: cfg.workspace });
+        return { id: opened.id };
+      },
+      async start(input) {
+        await lifecycle.start({ runId: input.runId, text: input.text });
+      },
+      async cancel() {
+        await lifecycle.cancel();
+        return { state: 'requested' };
+      },
+      accept: (bytes: Buffer) => lifecycle.accept(bytes),
+      disconnect: () => lifecycle.disconnect(),
+    };
+  },
+};
+export const dshDriver: HarnessDriver = {
+  harness: 'deepseek_harness',
+  requiresSessionPath: false,
+  // profileRef 持有 dsh CLI 路径;官方 ACP profile。
+  processArgs: (config) => [config.profileRef, '--profile', 'acp'],
+  createLifecycle({ config, epoch, write, onEvent, promptTimeoutMs, onApproval }) {
+    const lifecycle = new DshLifecycle({ epoch, write, onEvent, promptTimeoutMs, onApproval });
+    return {
+      get phase() {
+        return lifecycle.phase;
+      },
+      async initialize() {
+        await lifecycle.initialize();
+      },
+      async open({ config: cfg, process }) {
+        const opened = await lifecycle.open({ cwd: cfg.workspace, nativeSessionId: process.session?.id });
+        return { id: opened.id };
+      },
+      async start(input) {
+        await lifecycle.start({ runId: input.runId, text: input.text });
+      },
+      async cancel() {
+        return lifecycle.cancel();
+      },
+      accept: (bytes: Buffer) => lifecycle.peer.accept(bytes),
+      disconnect: () => lifecycle.peer.disconnect(),
+    };
+  },
+};
 export function builtInDrivers(): HarnessDriverRegistry {
   const registry = new HarnessDriverRegistry();
   registry.register(codexDriver);
   registry.register(kimiDriver);
   registry.register(piDriver);
+  registry.register(zcodeDriver);
+  registry.register(dshDriver);
   return registry;
 }
