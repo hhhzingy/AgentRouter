@@ -1,5 +1,7 @@
 # 当前执行（2026-09-12）：Kimi 生产链路修复后通过（交付+取消+负测）
 
+**已提交并推送 1eab34d455b77a824b2dcc41155987337e87153c**（39文件，pre-commit 三套冻结+秘密扫描 PASS）；固定源码复测 PASS：evidence/J3/production-kimi/1eab34d（dirty_source=false，任务 SUCCEEDED+PUBLISHED=42+取消 CANCELLED）。dirty 阶段证据保留在 evidence/J3/production-kimi/e99782f-dirty。
+
 run-wb9l5X 根因已定：`NATIVE_START_PROMPT_RPC_TIMEOUT`——Kimi/Pi 的业务轮 `prompt` 响应覆盖整轮（含思考+工具调用），却被 peer 30 秒控制 RPC 活性界误杀；结果 STAGED 后 30 秒整断连→UNKNOWN。工具调用、审批、结果暂存均正常工作，非断流、非 Job 屏障、非终态缺失。
 
 修复：NativeRpcPeer/PiRpcPeer 支持每请求 `timeoutMs` 覆盖；KimiLifecycle/PiLifecycle 新增 `promptTimeoutMs` 仅用于业务轮，由 backend 传 `wallClockMs`（默认120秒，运行级墙钟仍是最终预算）；Codex `turn/start` 立即返回不受影响。控制 RPC 仍 30 秒。新增 3 项单测；全仓 54 文件 381 项 PASS；tsc PASS；C1/C1R1/C1R1P1 三套冻结 PASS；w11-core bundle 重建（hash 见证据 index）。
