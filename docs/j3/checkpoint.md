@@ -9,6 +9,16 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续7）：用户动作后增量——DeepSeek真实三项/SSH桥/手机仿真/ChatGPT交接包
+
+- **DeepSeek Harness 真实三项(ACP层,授权API key经DEEPSEEK_API_KEY环境变量)**:任务 end_turn;跨进程 session/resume 后上下文延续(轮2回复47);取消 cancelled。协议要点:JSON-RPC 2.0 信封必须显式。证据 evidence/J3/nextround-p0/dsh-acp-real-probes.json。
+- **生产E2E BLOCKED_BY_CONTRACT**:冻结 schema rolePlan.runtime.harness/capabilities.harnesses 枚举仅三家,客户端传输即拒;CCR-J3-DRIVER-01 记录提案(枚举扩 zcode/deepseek_harness,需合同修订),不偷改冻结、不用pi+DeepSeek冒充;test-j3-production-pi --dsh 已备,合同扩后即跑。
+- **修正**:profileRef 是 profile id 非 CLI 路径;zcodeCli/dshBin 经 builtInDrivers()+宿主 options 注入;dsh 生命周期补 mcpServers;prepare 分支注入 DEEPSEEK_API_KEY(仅环境变量,不落日志)。
+- **SSH**:用户已装 capability 但 sshd.exe 实际缺(仅11客户端文件)→ 需提权重装;apps/ssh-bridge(stdio帧桥,sshd forced command 同构)实现并自测 PASS(握手/读写/观察者写拒)。
+- **手机仿真**:tools/test-web-console-mobile,iPhone-13/Pixel-7 视口 PASS(无横向溢出,4区块渲染,截图);真机实测归用户。回答用户:用 Playwright 设备视口仿真即可覆盖响应式验收,Android/iOS 系统模拟器非必需。
+- **ChatGPT网页交接包**:docs/执行包/AgentRouter_ChatGPT网页角色_交接包_20260912(00给ChatGPT执行说明/01操作员手册);participant-mcp 新增 Streamable HTTP 入口(http.mjs,Bearer token,无状态每请求新transport),自测401/3工具/真实落盘sha登记 PASS。Kimi 5h 限额备选:经 kimi-code 自定义 provider 指向 DeepSeek API 的配置面未查证,当前无配额压力暂不动;DeepSeek Harness 本身已可用。
+- 全仓61文件395项PASS;门禁全PASS。待用户:①提权重装 OpenSSH Server 并启动;②按手册跑 ChatGPT 网页闭环;③真机手机验收;④(可选)批准 CCR-J3-DRIVER-01 后跑 dsh 生产E2E。
+
 # 当前执行（2026-09-12 续6）：P2/P3/P4 完成提交；P5 候选打包 PASS
 
 - **P2(4f55088)**: ZcodeLifecycle(app-server,协议帧实测)+DshLifecycle(--profile acp,session/resume);两驱动经注册制接入;NativeHarness 扩展;宿主参数白名单/profile 白名单(含 profileRef 承载 CLI 入口);prepare 分支带凭据门禁(NATIVE_CREDENTIALS_REQUIRED/版本 pin)。层级:实现+离线测试(3项)+全仓回归;真实执行闭环 BLOCKED_BY_CREDENTIALS。
