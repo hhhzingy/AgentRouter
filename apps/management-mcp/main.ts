@@ -32,6 +32,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       annotations: { readOnlyHint: !t.mutation, destructiveHint: t.mutation, openWorldHint: false },
     })),
     {
+      name: 'router_role_session_list',
+      description: 'AgentRouter roleSession草案扩展：列出指定角色的全部工作会话与当前活动会话。',
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id'], properties: { role_id: { type: 'string' } } } } },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    {
+      name: 'router_role_session_history',
+      description: 'AgentRouter roleSession草案扩展：读取指定会话的对话历史（按会话隔离，旧会话写入不会混入当前会话）。',
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'session_id'], properties: { role_id: { type: 'string' }, session_id: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 } } } } },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    {
+      name: 'router_role_session_create',
+      description: 'AgentRouter roleSession草案扩展：为角色新建工作会话并切换为活动（需要控制租约；generation递增）。',
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'name'], properties: { role_id: { type: 'string' }, name: { type: 'string', maxLength: 80 } } } } },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    },
+    {
+      name: 'router_role_session_switch',
+      description: 'AgentRouter roleSession草案扩展：切换/切回指定会话（幂等；切到当前会话无副作用；需要控制租约）。',
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'session_id'], properties: { role_id: { type: 'string' }, session_id: { type: 'string' } } } } },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    },
+    {
       name: 'router_external_api_list',
       description:
         'AgentRouter external-api/1扩展：列出Core固定注册的External API Profile与动作。旧Core不支持时返回错误，不降级为直接HTTP。',
@@ -104,6 +128,21 @@ server.setRequestHandler(CallToolRequestSchema, async (r) => {
           },
         ],
       };
+    }
+    if (r.params.name?.startsWith('router_role_session_')) {
+      const a = (r.params.arguments ?? {}) as { params?: Record<string, unknown> };
+      const q = a.params ?? {};
+      let result: unknown;
+      if (r.params.name === 'router_role_session_list')
+        result = await gateway.roleSessionList(String(q.role_id ?? ''));
+      else if (r.params.name === 'router_role_session_history')
+        result = await gateway.roleSessionHistory(String(q.role_id ?? ''), String(q.session_id ?? ''), q.limit ? Number(q.limit) : undefined);
+      else if (r.params.name === 'router_role_session_create')
+        result = await gateway.roleSessionCreate(String(q.role_id ?? ''), String(q.name ?? ''));
+      else if (r.params.name === 'router_role_session_switch')
+        result = await gateway.roleSessionSwitch(String(q.role_id ?? ''), String(q.session_id ?? ''));
+      else throw Error('TOOL_UNAVAILABLE');
+      return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
     }
     if (r.params.name === 'router_external_api_call') {
       const a = (r.params.arguments ?? {}) as { params?: Record<string, unknown> };
