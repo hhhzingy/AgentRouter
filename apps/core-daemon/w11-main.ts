@@ -8,6 +8,7 @@ import { openApplicationStore } from '../../packages/storage/application-store.t
 import { ApplicationService } from '../../packages/core-service/application.ts';
 import { ExternalApiExtension } from '../../packages/core-service/external-api-extension.ts';
 import { ExternalApiRegistry } from '../../packages/management-gateway/external-api-registry.ts';
+import { RoleSessionExtension } from '../../packages/core-service/role-session-extension.ts';
 import { createCoreDatasetProfile } from '../../packages/core-service/external-api-provider.ts';
 import { FixtureDriver } from '../../packages/core-service/fixture-driver.ts';
 import { ExecutionCoordinator } from '../../packages/core-service/execution-coordinator.ts';
@@ -158,6 +159,7 @@ server.listen(address, async () => {
       new ExternalApiRegistry([createCoreDatasetProfile(db)]),
       db,
     );
+    application.roleSession = new RoleSessionExtension(db);
     if (fixture) {
       driver = new FixtureDriver(application,fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)));
     } else {
