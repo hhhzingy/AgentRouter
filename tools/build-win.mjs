@@ -102,7 +102,7 @@ await build({
     js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
   },
 });
-for (const name of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql'])
+for (const name of readdirSync('packages/storage/migrations').filter((f) => f.endsWith('.sql')).sort())
   copyFileSync(resolve('packages/storage/migrations', name), resolve(core, 'migrations', name));
 // Ship the same production RoleBridge/extension and Job supervisor used by LOCAL_CORE.
 for (const [entry, output] of [
