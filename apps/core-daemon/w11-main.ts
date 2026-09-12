@@ -6,6 +6,9 @@ import { userInfo } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { ApplicationService } from '../../packages/core-service/application.ts';
+import { ExternalApiExtension } from '../../packages/core-service/external-api-extension.ts';
+import { ExternalApiRegistry } from '../../packages/management-gateway/external-api-registry.ts';
+import { createCoreDatasetProfile } from '../../packages/core-service/external-api-provider.ts';
 import { FixtureDriver } from '../../packages/core-service/fixture-driver.ts';
 import { ExecutionCoordinator } from '../../packages/core-service/execution-coordinator.ts';
 import { NativeBackend, NativeExecutionRegistry } from '../../packages/core-service/native-registry.ts';
@@ -151,6 +154,10 @@ server.listen(address, async () => {
     ) as string[];
     const db = openApplicationStore(data, new URL('./migrations/', import.meta.url));
     application = new ApplicationService(db, roots, fixture);
+    application.externalApi = new ExternalApiExtension(
+      new ExternalApiRegistry([createCoreDatasetProfile(db)]),
+      db,
+    );
     if (fixture) {
       driver = new FixtureDriver(application,fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)));
     } else {

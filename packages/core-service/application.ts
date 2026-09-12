@@ -110,6 +110,7 @@ export class ApplicationService extends Plans {
   private controlLedger = new Map<string, { hash: string; result: unknown }>();
   private grants = new Map<string, { connection: string; path: string }>();
   onChanged?: () => void;
+  externalApi?: import('./external-api-extension.ts').ExternalApiExtension;
   nativeAuthorization?: (bindingId: string) => boolean;
   nativeCancelAvailable?: (bindingId?:string)=>boolean;
   nativeToolAuthorization?: (bindingId:string,epoch:number,tool:string)=>boolean;
@@ -309,8 +310,19 @@ export class ApplicationService extends Plans {
     return rev;
   }
   async handle(id: string, raw: unknown): Promise<unknown> {
-    const request = validateRequest(raw),
-      c = this.connection(id);
+    const c = this.connection(id);
+    if (
+      this.externalApi &&
+      typeof (raw as { method?: unknown })?.method === 'string' &&
+      String((raw as { method?: unknown }).method).startsWith('externalApi.')
+    )
+      return this.externalApi.handle(raw, {
+        principal: c.principal,
+        ...(c.clientId ? { clientId: c.clientId } : {}),
+        ...(c.mode ? { mode: c.mode } : {}),
+        assertControllerLease: (leaseId: string) => this.checkLease(id, leaseId),
+      });
+    const request = validateRequest(raw);
     try {
       let result: unknown;
       const r = request as any;

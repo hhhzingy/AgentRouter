@@ -80,7 +80,7 @@ export class ExternalApiRegistry {
   >();
   constructor(
     profiles: readonly ExternalApiProfile[],
-    private journal: ExternalApiJournal,
+    private journal?: ExternalApiJournal,
   ) {
     const ajv = new Ajv2020({ strict: true, allErrors: false });
     for (const profile of profiles) {
@@ -140,13 +140,18 @@ export class ExternalApiRegistry {
     if (!action) throw Error('API_ACTION_UNAVAILABLE');
     return action;
   }
-  async call(input: {
-    profile_id: string;
-    action_id: string;
-    args: Record<string, unknown>;
-    request_key: string;
-    confirm?: string;
-  }) {
+  async call(
+    input: {
+      profile_id: string;
+      action_id: string;
+      args: Record<string, unknown>;
+      request_key: string;
+      confirm?: string;
+    },
+    journalOverride?: ExternalApiJournal,
+  ) {
+    const journal = journalOverride ?? this.journal;
+    if (!journal) throw Error('API_JOURNAL_UNAVAILABLE');
     if (
       !input ||
       Object.keys(input).some(
@@ -172,7 +177,7 @@ export class ExternalApiRegistry {
         sideEffect: entry.action.sideEffect,
       };
     const key = 'external_api:' + input.request_key;
-    const claim = await this.journal.claim(key, fingerprint);
+    const claim = await journal.claim(key, fingerprint);
     if (!claim.acquired) {
       if (claim.fingerprint !== fingerprint) throw Error('API_REQUEST_KEY_CONFLICT');
       return claim.result ?? { state: 'UNKNOWN' as const };
@@ -189,7 +194,7 @@ export class ExternalApiRegistry {
       /* Unknown side effects are never retried, including redaction/validation failure. */
     }
     try {
-      await this.journal.settle(key, fingerprint, result);
+      await journal.settle(key, fingerprint, result);
     } catch {
       return { state: 'UNKNOWN' as const };
     }

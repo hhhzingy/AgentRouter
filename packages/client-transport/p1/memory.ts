@@ -18,6 +18,11 @@ import type {
   ConnectOptions,
   RequestOptions,
 } from './types.ts';
+import {
+  isExternalApiMethod,
+  validateExternalApiFrame,
+  validateExternalApiResult,
+} from '../../client-contract/external-api-1.ts';
 export class P1MemoryTransport implements ClientTransport {
   private connection?: string;
   private generation = 0;
@@ -62,6 +67,34 @@ export class P1MemoryTransport implements ClientTransport {
       if (this.connection !== c || generation !== this.generation)
         throw new C1R1Error('CONNECTION_LOST');
       if (opts.signal?.aborted) throw new C1R1Error('REQUEST_CANCELLED', 'AMBIGUOUS');
+      if (isExternalApiMethod(method)) {
+        const extensionFrame = validateExternalApiFrame({
+          v: 1,
+          id: 'req_' + randomUUID(),
+          method,
+          ...(params ? { params } : {}),
+          client_id: options.clientId,
+          ...(opts.leaseId ? { lease_id: opts.leaseId } : {}),
+        });
+        let extensionTimer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const reply = (await Promise.race([
+            this.server.handle(c, extensionFrame),
+            new Promise<never>((_, reject) => {
+              extensionTimer = setTimeout(
+                () => reject(new C1R1Error('REQUEST_TIMEOUT', 'AMBIGUOUS')),
+                opts.timeoutMs ?? 10000,
+              );
+            }),
+          ])) as Response;
+          if ('id' in reply && reply.id !== extensionFrame.id) throw new C1R1Error('INVALID_FRAME');
+          if ('error' in reply) throw Object.assign(new Error(reply.error.code), reply.error);
+          validateExternalApiResult(method, reply.result);
+          return reply.result as MethodMap[M]['result'];
+        } finally {
+          clearTimeout(extensionTimer);
+        }
+      }
       const frame = {
         v: 1,
         id: 'req_' + randomUUID(),

@@ -199,4 +199,31 @@ export class ManagementGateway {
     if (name === 'router_control_acquire') return { controller: true };
     return result;
   }
+  /** external-api/1 扩展只经已认证 Client 连接转发；call 走串行队列并要求当前控制租约。 */
+  async externalApiList(): Promise<unknown> {
+    return (this.get().request as (m: string, p?: unknown) => Promise<unknown>)(
+      'externalApi.list',
+      {},
+    );
+  }
+  async externalApiDescribe(profileId: string, actionId: string): Promise<unknown> {
+    return (this.get().request as (m: string, p?: unknown) => Promise<unknown>)(
+      'externalApi.describe',
+      { profile_id: profileId, action_id: actionId },
+    );
+  }
+  async externalApiCall(input: { params: Record<string, unknown> }): Promise<unknown> {
+    const action = async () => {
+      const s = this.get();
+      if (!this.lease) throw Error('CONTROL_LEASE_REQUIRED');
+      return (s.request as (m: string, p: unknown, o?: unknown) => Promise<unknown>)(
+        'externalApi.call',
+        input.params,
+        { leaseId: this.lease, timeoutMs: 60000 },
+      );
+    };
+    const pending = this.serial.then(action, action);
+    this.serial = pending.catch(() => {});
+    return pending;
+  }
 }
