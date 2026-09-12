@@ -102,8 +102,16 @@ await build({
     js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
   },
 });
-for (const name of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql'])
+for (const name of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql'])
   copyFileSync(resolve('packages/storage/migrations', name), resolve(core, 'migrations', name));
+// Ship the same production RoleBridge/extension and Job supervisor used by LOCAL_CORE.
+for (const [entry, output] of [
+  ['packages/pi-extension/agentrouter-tools.mjs', 'role-tools.mjs'],
+  ['packages/role-bridge/stdio.mjs', 'role-bridge.mjs'],
+]) await build({entryPoints:[entry],outfile:resolve(core,output),bundle:true,platform:'node',format:'esm'});
+execFileSync(resolve(process.env.WINDIR,'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),[
+  '/nologo','/target:exe','/out:'+resolve(core,'windows-supervisor.exe'),resolve('native/windows-supervisor/Supervisor.cs'),
+],{windowsHide:true,stdio:'pipe'});
 const sqlite = dirname(require.resolve('better-sqlite3/package.json'));
 const sqliteOut = resolve(core, 'node_modules/better-sqlite3');
 mkdirSync(sqliteOut, { recursive: true });
@@ -111,7 +119,7 @@ for (const name of ['package.json', 'LICENSE', 'lib', 'prebuilds/win32-x64.node'
   cpSync(resolve(sqlite, name), resolve(sqliteOut, name), { recursive: true, dereference: true });
 writeFileSync(
   resolve(dest, '候选包说明.txt'),
-  '启动 electron.exe。新工作台 LOCAL_CORE 与生产注册入口；真实 OS 运行器未装，BLOCKED_IMPLEMENTATION。不是正式支持认证，不含用户账号或数据。\n',
+  '启动 electron.exe。包含新工作台、生产 LOCAL_CORE、Windows Job 监督器、pi 扩展与 RoleBridge。账号与受信任 native-runtime.json 须在独立用户数据目录另行配置，本包不携带账号、密钥或用户数据。当前仅 LIMITED_ISOLATION 开发候选，三家联合与干净环境完整验收尚未完成，不是正式 V1.0 支持认证。\n',
 );
 const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 const files = [];
@@ -135,7 +143,7 @@ const manifest = {
   at: new Date().toISOString(),
   sourceSHA,
   sourceDirty,
-  status: 'BLOCKED_IMPLEMENTATION',
+  status: 'CANDIDATE_NOT_CERTIFIED',
   scope: '开发机候选包；非正式支持认证或干净机验证',
   entry: 'resources/app/p1-main.mjs',
   core: 'resources/w11-core/core.mjs',

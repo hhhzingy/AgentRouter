@@ -41,7 +41,7 @@ writeFileSync(
   path('runtime.json'),
   JSON.stringify({
     isolation: 'LIMITED_ISOLATION',
-    managedRoot: codex?resolve('.local/j3-codex'):path('managed'),
+    managedRoot: codex?resolve('.local/j3-codex'):kimi?resolve('.local/j3-kimi'):path('managed'),
     workspaceRoot: path('workspace'),
     supervisorExecutable: supervisor,
     supervisorSha256: sha(supervisor),
@@ -59,7 +59,7 @@ writeFileSync(
         harness, executable, executableSha256:sha(executable),
         version: codex?'0.153.4':kimi?'0.42.0':'0.85.1',
         providerId, modelId, effort,
-        sessionHome: codex?resolve('.local/j3-codex/dut-fj/home'):path('managed/pi'),
+        sessionHome: codex?resolve('.local/j3-codex/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):path('managed/pi'),
       },
     ],
   }),

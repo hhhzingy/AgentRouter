@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { expect, test } from 'vitest';
 import { request } from 'node:http';
 import { createNativeRoleBridge } from '../../packages/role-bridge/native-server.ts';
@@ -90,4 +91,13 @@ test('处理器失败不泄漏秘密、不重试，保留未知副作用标记',
   } finally {
     await bridge.close();
   }
+});
+
+test.each(['2024-11-05','2025-03-26','2025-06-18','2025-11-25'])('STDIO negotiates supported MCP %s without credentials and exposes only Route', (version) => {
+  const messages = [{jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:version,capabilities:{},clientInfo:{name:'test',version:'1'}}},{jsonrpc:'2.0',id:2,method:'tools/list'}];
+  const child=spawnSync(process.execPath,['packages/role-bridge/stdio.mjs'],{input:messages.map(x=>JSON.stringify(x)).join('\n')+'\n',encoding:'utf8',windowsHide:true,env:{SystemRoot:process.env.SystemRoot},timeout:5000});
+  expect(child.status).toBe(0);
+  const responses=child.stdout.trim().split('\n').map(x=>JSON.parse(x));
+  expect(responses[0].result.protocolVersion).toBe(version);
+  expect(responses[1].result.tools.map((x:any)=>x.name).sort()).toEqual(['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read'].sort());
 });

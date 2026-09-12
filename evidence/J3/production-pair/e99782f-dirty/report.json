@@ -1,0 +1,165 @@
+{
+  "scope": "PRODUCTION_CORE_PI_CODEX_BIDIRECTIONAL_HANDOFF",
+  "status": "PASS",
+  "code_sha": "e99782f7e675dcea896f0a45cfe90796c6508e23",
+  "dirty_source": true,
+  "artifact_hashes": {
+    "core": "2d11806741443ff8d5f11814654e2acf592d232bfc5702ab2976fe21e025db4f",
+    "mcp": "05b430c1ba6b9212e114ca0ecd9d18f2af97b6ffc0caace48c6a8f596fd623a8"
+  },
+  "fullIsolationCertified": false,
+  "rounds": [
+    {
+      "direction": "pi_to_codex",
+      "status": "PASS",
+      "rootTaskId": "task_1e7afbdd-25c3-4834-a004-c6921471bd5e",
+      "tasks": [
+        {
+          "id": "task_1e7afbdd-25c3-4834-a004-c6921471bd5e",
+          "parent_task_id": null,
+          "assignee_role_id": "role_0fc849d5-6916-4ab3-bc4e-729b9c331513",
+          "state": "HANDED_OFF",
+          "completion_json": "{\"mode\":\"handoff\",\"to\":{\"type\":\"role\",\"id\":\"role_8c62099f-d307-4460-a94d-d6d36e895d0e\"},\"instruction\":\"Delegate the arithmetic result directly to the user, without an intermediate user receipt.\"}"
+        },
+        {
+          "id": "task_6a38e9b0-123a-4bf8-8da0-4ea99ff032ae",
+          "parent_task_id": "task_1e7afbdd-25c3-4834-a004-c6921471bd5e",
+          "assignee_role_id": "role_8c62099f-d307-4460-a94d-d6d36e895d0e",
+          "state": "DELIVERED",
+          "completion_json": "{\"mode\":\"result\",\"to\":{\"type\":\"user\"}}"
+        }
+      ],
+      "runs": [
+        {
+          "id": "run_73061bcd-c523-4032-a20b-34ddd3cfeb44",
+          "task_id": "task_1e7afbdd-25c3-4834-a004-c6921471bd5e",
+          "role_id": "role_0fc849d5-6916-4ab3-bc4e-729b9c331513",
+          "state": "SUCCEEDED",
+          "source": "NATIVE",
+          "native_terminal": 1,
+          "resources_stopped": 1
+        },
+        {
+          "id": "run_676fb35e-9b60-4e8d-a063-df27ebbeaf80",
+          "task_id": "task_6a38e9b0-123a-4bf8-8da0-4ea99ff032ae",
+          "role_id": "role_8c62099f-d307-4460-a94d-d6d36e895d0e",
+          "state": "SUCCEEDED",
+          "source": "NATIVE",
+          "native_terminal": 1,
+          "resources_stopped": 1
+        }
+      ],
+      "results": [
+        {
+          "id": "result_ad8777a0-facb-41fd-8d6c-8e7537a40391",
+          "task_id": "task_1e7afbdd-25c3-4834-a004-c6921471bd5e",
+          "run_id": "run_73061bcd-c523-4032-a20b-34ddd3cfeb44",
+          "outcome": "succeeded",
+          "publication_state": "PUBLISHED",
+          "summaryKind": "handoff"
+        },
+        {
+          "id": "result_8959286b-5dcb-41e4-84b5-dab44ad876e6",
+          "task_id": "task_6a38e9b0-123a-4bf8-8da0-4ea99ff032ae",
+          "run_id": "run_676fb35e-9b60-4e8d-a063-df27ebbeaf80",
+          "outcome": "succeeded",
+          "publication_state": "PUBLISHED",
+          "summaryKind": "42"
+        }
+      ],
+      "userMessages": [
+        {
+          "id": "message_0eb3f7d5-1c75-42da-8c64-507cb3f7ddd6",
+          "kind": "task.result",
+          "from_role_id": "role_8c62099f-d307-4460-a94d-d6d36e895d0e",
+          "task_id": "task_6a38e9b0-123a-4bf8-8da0-4ea99ff032ae",
+          "delivery_state": "DELIVERED",
+          "correctResult": true
+        }
+      ]
+    },
+    {
+      "direction": "codex_to_pi",
+      "status": "PASS",
+      "rootTaskId": "task_f0c392e8-6d1b-4eba-8e25-e567458af464",
+      "tasks": [
+        {
+          "id": "task_f0c392e8-6d1b-4eba-8e25-e567458af464",
+          "parent_task_id": null,
+          "assignee_role_id": "role_8c62099f-d307-4460-a94d-d6d36e895d0e",
+          "state": "HANDED_OFF",
+          "completion_json": "{\"mode\":\"handoff\",\"to\":{\"type\":\"role\",\"id\":\"role_0fc849d5-6916-4ab3-bc4e-729b9c331513\"},\"instruction\":\"Delegate the arithmetic result directly to the user, without an intermediate user receipt.\"}"
+        },
+        {
+          "id": "task_e414cf04-60b4-411c-bdd8-690dd2da1355",
+          "parent_task_id": "task_f0c392e8-6d1b-4eba-8e25-e567458af464",
+          "assignee_role_id": "role_0fc849d5-6916-4ab3-bc4e-729b9c331513",
+          "state": "DELIVERED",
+          "completion_json": "{\"mode\":\"result\",\"to\":{\"type\":\"user\"}}"
+        }
+      ],
+      "runs": [
+        {
+          "id": "run_a89266bc-b1ec-4087-9528-8c2eaa4d6f9f",
+          "task_id": "task_f0c392e8-6d1b-4eba-8e25-e567458af464",
+          "role_id": "role_8c62099f-d307-4460-a94d-d6d36e895d0e",
+          "state": "SUCCEEDED",
+          "source": "NATIVE",
+          "native_terminal": 1,
+          "resources_stopped": 1
+        },
+        {
+          "id": "run_5c91e927-f944-4ca5-a5dc-2034a9c25071",
+          "task_id": "task_e414cf04-60b4-411c-bdd8-690dd2da1355",
+          "role_id": "role_0fc849d5-6916-4ab3-bc4e-729b9c331513",
+          "state": "SUCCEEDED",
+          "source": "NATIVE",
+          "native_terminal": 1,
+          "resources_stopped": 1
+        }
+      ],
+      "results": [
+        {
+          "id": "result_7dbebca7-6fb9-49f5-81ce-670d22806943",
+          "task_id": "task_e414cf04-60b4-411c-bdd8-690dd2da1355",
+          "run_id": "run_5c91e927-f944-4ca5-a5dc-2034a9c25071",
+          "outcome": "succeeded",
+          "publication_state": "PUBLISHED",
+          "summaryKind": "42"
+        },
+        {
+          "id": "result_f32ab7fe-df0a-4cce-a140-84a77f6dc762",
+          "task_id": "task_f0c392e8-6d1b-4eba-8e25-e567458af464",
+          "run_id": "run_a89266bc-b1ec-4087-9528-8c2eaa4d6f9f",
+          "outcome": "succeeded",
+          "publication_state": "PUBLISHED",
+          "summaryKind": "handoff"
+        }
+      ],
+      "userMessages": [
+        {
+          "id": "message_5b4efabe-13dd-45d9-8f79-c64a88fdac0d",
+          "kind": "task.result",
+          "from_role_id": "role_0fc849d5-6916-4ab3-bc4e-729b9c331513",
+          "task_id": "task_e414cf04-60b4-411c-bdd8-690dd2da1355",
+          "delivery_state": "DELIVERED",
+          "correctResult": true
+        }
+      ]
+    }
+  ],
+  "nativeBootstrap": [
+    {
+      "role_id": "role_0fc849d5-6916-4ab3-bc4e-729b9c331513",
+      "state": "DELIVERED",
+      "source": "NATIVE"
+    },
+    {
+      "role_id": "role_8c62099f-d307-4460-a94d-d6d36e895d0e",
+      "state": "DELIVERED",
+      "source": "NATIVE"
+    }
+  ],
+  "automaticRetry": false,
+  "coreExited": true
+}

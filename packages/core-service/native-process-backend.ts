@@ -12,6 +12,7 @@ export interface SecureNativeProcess {
   session?: { id?: string; path?: string };
   mcpServers?: unknown[];
   kimiConfiguration?: { modelConfigId: string; effortConfigId: string };
+  approveKimi?: (params: unknown) => Promise<unknown>;
   verifyCodex?: (request: (method: string, params: unknown) => Promise<any>) => Promise<void>;
   /** Storage must conditionally commit binding/epoch and call isCurrent immediately before commit. */
   saveSession(
@@ -231,8 +232,8 @@ export class NativeProcessBackend implements ExecutionBackend {
         config.harness === 'codex'
           ? new CodexLifecycle({ write, onEvent: event })
           : config.harness === 'kimi_code'
-            ? new KimiLifecycle({ epoch: String(packet.epoch), write, onEvent: event })
-            : new PiLifecycle({ write, onEvent: event });
+            ? new KimiLifecycle({ epoch: String(packet.epoch), write, onEvent: event, promptTimeoutMs: this.wallClockMs, onApproval: async (_method, params) => { if (!r.process?.approveKimi) throw Error('NATIVE_REQUEST_DENIED'); return r.process.approveKimi(params); } })
+            : new PiLifecycle({ write, onEvent: event, promptTimeoutMs: this.wallClockMs });
       r.lifecycle = lifecycle;
       r.cleanup.push(
         r.process.onData((bytes) => lifecycle.peer.accept(bytes)),

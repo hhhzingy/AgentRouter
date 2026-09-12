@@ -22,6 +22,10 @@ export interface NativeRpcOptions {
   timeoutMs?: number;
   maxPending?: number;
 }
+export interface NativeRpcRequestOptions {
+  /** 业务轮可以合法超过控制 RPC 的 30 秒活性界；仅显式传入者放宽。 */
+  timeoutMs?: number;
+}
 /** 仅协议传输；无重试、无账号读取、无进程启动、无资源停止证明。 */
 export class NativeRpcPeer {
   private decoder = new JsonLfDecoder();
@@ -33,7 +37,7 @@ export class NativeRpcPeer {
   private writing = false;
   private writeQueue: Buffer[] = [];
   constructor(private readonly options: NativeRpcOptions) {}
-  request(method: string, params: unknown): Promise<unknown> {
+  request(method: string, params: unknown, opts?: NativeRpcRequestOptions): Promise<unknown> {
     if (this.closed) return Promise.reject(new NativeRpcError('RPC_CLOSED', 'none-proven'));
     if (this.pending.size >= (this.options.maxPending ?? 64))
       return Promise.reject(new NativeRpcError('RPC_PENDING_LIMIT', 'none-proven'));
@@ -47,7 +51,7 @@ export class NativeRpcPeer {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
         () => this.disconnect('RPC_TIMEOUT'),
-        this.options.timeoutMs ?? 30000,
+        opts?.timeoutMs ?? this.options.timeoutMs ?? 30000,
       );
       this.pending.set(id, { resolve, reject, timer });
       this.write(bytes);

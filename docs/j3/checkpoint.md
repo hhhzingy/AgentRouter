@@ -1,3 +1,42 @@
+# 当前执行（2026-09-12）：Kimi 生产链路修复后通过（交付+取消+负测）
+
+run-wb9l5X 根因已定：`NATIVE_START_PROMPT_RPC_TIMEOUT`——Kimi/Pi 的业务轮 `prompt` 响应覆盖整轮（含思考+工具调用），却被 peer 30 秒控制 RPC 活性界误杀；结果 STAGED 后 30 秒整断连→UNKNOWN。工具调用、审批、结果暂存均正常工作，非断流、非 Job 屏障、非终态缺失。
+
+修复：NativeRpcPeer/PiRpcPeer 支持每请求 `timeoutMs` 覆盖；KimiLifecycle/PiLifecycle 新增 `promptTimeoutMs` 仅用于业务轮，由 backend 传 `wallClockMs`（默认120秒，运行级墙钟仍是最终预算）；Codex `turn/start` 立即返回不受影响。控制 RPC 仍 30 秒。新增 3 项单测；全仓 54 文件 381 项 PASS；tsc PASS；C1/C1R1/C1R1P1 三套冻结 PASS；w11-core bundle 重建（hash 见证据 index）。
+
+真实复测（新隔离根，evidence/J3/production-kimi/e99782f-dirty）：
+- 假凭据负测（独立home+无效凭据）：bootstrap FAILED、BOOTSTRAP_NOT_DELIVERED，干净失败；Core 启动 NATIVE_HOME_SCOPE 边界同样验证。
+- 真实 Kimi 任务：bootstrap DELIVERED、run SUCCEEDED、结果 PUBLISHED=42、资源租约清空、零 issue。
+- 真实 Kimi 运行中取消：RUNNING 中经 Management MCP 取消→CANCELLED，原生取消终态+Job 屏障证实。
+- dirty_source=true（HEAD e99782f+未提交修复），不冒称固定源码；固定源码复测待提交后。
+
+Kimi 剩余：跨 Harness 交接（pi↔Kimi、Kimi↔Codex）与 KIMI_DUT 完整生命周期尚未重测；replay 用 `node tools/test-j3-production-pi.mjs --live --kimi --cancel`。
+
+# 当前执行（2026-09-12）：ZCode 经 MCP 接入管理面完成
+
+用户要求让 AgentRouter 像 Codex 一样通过 MCP 接入 ZCode 调试并自动连接。已完成：
+
+- apps/management-mcp/main.ts 新增第4个参数 clientId（强制 `mcp_management_` 前缀+Id字符集），默认 mcp_management_codex 不变；ZCode 以独立身份 mcp_management_zcode 接入，Core 审计与幂等 scope 可区分客户端。bundle 已重建，tsc 通过。
+- 常驻 Core pid 55872 已死（endpoint.json 陈旧），按所有权流程重启为 pid 55264（同数据目录 .local/management-live/core，owner.json 已更新）。
+- 工作区配置 E:/AgentRouter/.zcode/config.json 注册 agentrouter-management（stdio，controller 模式，绝对路径，timeoutMs 60000）；顶层 .gitignore 增加 /.zcode/ 防止本机路径入库。ZCode 工作区作用域 MCP 默认自动连接，重启会话后生效。
+- 验证：stdio 握手+21工具列表、router_status（mock=false、C1R1P1、62方法）、router_control_acquire/release 真实往返（mutation 输入必须含 scope）、test-management-mcp.mjs 15项全PASS、tsc PASS。当前 ZCode 会话工具列表固定于启动时，需重启会话后 mcp__agentrouter-management__* 工具才会出现。
+
+# 最新交接入口（2026-09-11）
+
+用户要求先总结与交接，完整现状见 [交接包](./交接包-20260911/README.md)。最新Kimi run-wb9l5X 已生成42但STAGED、运行UNKNOWN，仍FAIL，不得重放；取消未执行到。HEAD e99782f，当前有未提交修复，本文下方历史状态不代表最新全部通过。未启动新的真实任务。
+
+# 当前执行（2026-09-11 15:42）：继续生产联合测试
+
+HEAD e99782f7e675dcea896f0a45cfe90796c6508e23 已推送；CI 34574169187、34574169240 均成功。固定源码 Codex 真实 Bootstrap、Route42发布、同key幂等和运行中取消通过，见 evidence/J3/production-codex/e99782f。pi/Codex 双向真实交接通过，见 evidence/J3/production-pair/e99782f-dirty（明确 dirty_source=true）。
+
+Kimi独立DUT已有新登录，Bootstrap真实ACK通过，不再等待用户登录。cUKGLD、XoAEYg原生SUCCEEDED但无Route发布，仍FAIL。已发现 tools:[] 同时禁用MCP，改为六工具精确白名单仍未解决，独立只读Reviewer正在查0.42.0 ACP加载/权限行为；不得重放旧任务。
+
+新增External API SQLite journal及004增量迁移：重开不重新领取IN_FLIGHT、主体隔离、升级前v3备份通过。管理入口尚未接通，不计完成。候选包补齐生产RoleBridge/pi扩展/Job监督器，待固定源码构建验证。全仓首次373中371通过，2项旧迁移测试遗漏004；补齐后定向6项通过，tsc通过。无真实秘密输出、无hzxpro账号操作。
+
+下一步：检查git状态；完成Kimi Route修复及生产取消；提交后构建生产候选并真实Electron检查；继续External API接线、Linked Continuation/恢复/GUI联合；DUT切号与完整重启最后。SSH按用户暂缓，不合main、不发布。
+
+## 历史断点
+
 # 当前执行（2026-09-11 15:22）：生产 Codex 首次 Route 交付已通过
 
 最新源码仍 HEAD 1901b4ea6ac0372146eb8985b099a6bbec256ac2（已push），当前有新的未提交修复。固定源码1901b4e：pi+MCP真实任务与GUI重启/发布PASS，52文件358测试PASS；证据 evidence/J3/production-pi/1901b4e。其Windows CI34572884488失败（旧连接回调覆盖新连接），另CI34572884560成功；不要称全绿。现已修复Preload世代回调、Main旧连接覆盖、新endpoint竞态与原子发布，真实 test-w11-desktop 四项复测PASS，待重新提交/CI。

@@ -9,7 +9,7 @@ import {
   linkSync,
 } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { prepareManagedKimiProfile } from '../../packages/platform/kimi-managed-profile.js';
+import { prepareManagedKimiProfile, approveManagedKimiRoute } from '../../packages/platform/kimi-managed-profile.js';
 const roots: string[] = [];
 it.each(['credentials/kimi-code.json', 'config.toml', 'agents/agent.md'])(
   'rejects hard-linked %s without changing its source',
@@ -50,8 +50,14 @@ it('copies only explicit credentials once and creates fixed minimal managed conf
   expect(config).toContain('"always_thinking"');
   expect(config).toContain('enabled = true');
   expect(config).not.toContain('services');
+  expect(config.match(/decision = "allow"/g)).toHaveLength(6);
+  expect(config).not.toContain('pattern = "*"');
+  expect(config).toContain('[tools]');
   expect(config).not.toContain('FAKE CREDENTIAL');
-  expect(readFileSync(result.agentPath, 'utf8')).toContain('tools: []\nsubagents: []');
+  const agent = readFileSync(result.agentPath, 'utf8');
+  expect(agent).toContain('subagents: []');
+  for (const tool of ['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read']) expect(agent).toContain('mcp__agentrouter-role__'+tool);
+  expect(agent).not.toMatch(/Bash|ReadFile|mcp__agentrouter-management|mcp__agentrouter-role__\*/);
   expect(result.agentPath).toBe(join(result.home, 'agents/agent.md'));
 });
 it('preserves native refreshed credentials on subsequent startup even if source disappeared', () => {
@@ -89,4 +95,12 @@ it('rejects a linked profile directory without writing credentials outside the m
   );
   expect(() => prepareManagedKimiProfile(f)).toThrow('KIMI_PROFILE_LINKED_DIRECTORY');
   expect(() => readFileSync(join(outside, 'credentials/kimi-code.json'))).toThrow();
+});
+
+it('approves only one-shot native registered Route names, never display aliases or permanent grants', async()=>{
+  const p={toolCall:{toolCallId:'turn:call',title:'mcp__agentrouter-role__route_context'},options:[{kind:'allow_once',optionId:'approve_once'}]};
+  expect(await approveManagedKimiRoute(p)).toEqual({outcome:{outcome:'selected',optionId:'approve_once'}});
+  for(const title of ['Bash','router_status','route_context','Approve mcp__agentrouter-role__route_context','mcp__agentrouter-management__router_status']) await expect(approveManagedKimiRoute({...p,toolCall:{...p.toolCall,title}})).rejects.toThrow('KIMI_PERMISSION_DENIED');
+  await expect(approveManagedKimiRoute({...p,options:[{kind:'allow_always',optionId:'always'}]})).rejects.toThrow('KIMI_PERMISSION_DENIED');
+  await expect(approveManagedKimiRoute({...p,options:[...p.options,...p.options]})).rejects.toThrow('KIMI_PERMISSION_DENIED');
 });

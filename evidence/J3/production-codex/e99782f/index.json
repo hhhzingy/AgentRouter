@@ -1,0 +1,20 @@
+{
+  "code_sha": "e99782f7e675dcea896f0a45cfe90796c6508e23",
+  "profile": {
+    "harness": "codex",
+    "version": "0.153.4",
+    "model": "gpt-5.6-luna",
+    "effort": "low",
+    "executableSha256": "3d6ca7085c932b62ef4ee4877e92f15b050fb94b2eb8e6c10a346a06248c6004"
+  },
+  "tests": {
+    "files": 53,
+    "passed": 369,
+    "typecheck": "PASS",
+    "electronLifecycle": 4
+  },
+  "reportSha256": "bb915ff7daf3dd277340f2a32b3a5eada2007f7862835bb3b7d5221829a34fc0",
+  "developerAccountTouched": false,
+  "accountSwitchTested": false,
+  "ssh": "DEFERRED_BY_USER"
+}

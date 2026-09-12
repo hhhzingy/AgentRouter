@@ -215,3 +215,21 @@ it('断线观察者失败时全部 pending 拒绝，迟到写完成不排空旧�
   expect(writes).toBe(1);
   expect(peer.disconnectObserverFailed).toBe(true);
 });
+it('每请求超时覆盖只放宽显式传入者；未覆盖请求仍受默认界', async () => {
+  const sent: any[] = [];
+  const peer = new NativeRpcPeer({
+    write: async (b) => {
+      sent.push(JSON.parse(b.toString()));
+    },
+    timeoutMs: 20,
+    onNotification() {},
+    onDisconnect() {},
+  });
+  const business = peer.request('session/prompt', {}, { timeoutMs: 4000 });
+  await new Promise((r) => setTimeout(r, 60));
+  peer.accept(frame({ id: sent[0].id, result: { stopReason: 'end_turn' } }));
+  await expect(business).resolves.toMatchObject({ stopReason: 'end_turn' });
+  const strict = peer.request('initialize', {});
+  await expect(strict).rejects.toMatchObject({ code: 'RPC_TIMEOUT' });
+  peer.disconnect();
+});

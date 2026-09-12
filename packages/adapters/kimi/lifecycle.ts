@@ -15,6 +15,8 @@ export interface KimiLifecycleOptions {
   }) => void;
   onApproval?: NativeRpcOptions['onRequest'];
   timeoutMs?: number;
+  /** 业务轮响应即终态，必须受运行级墙钟而非 30 秒控制活性界约束。 */
+  promptTimeoutMs?: number;
 }
 /** 当前 Kimi Code ACP v1。每实例一个业务轮；epoch 由可信调用者绑定，不接受模型自报。
  * session/load 的回放只形成历史事件；RunSettled 从不构成资源停止证明。
@@ -174,10 +176,14 @@ export class KimiLifecycle {
       throw Error('NATIVE_QUEUE_FORBIDDEN');
     this.active = { runId: input.runId, terminal: false, cancelled: false };
     try {
-      const response = await this.peer.request('session/prompt', {
-        sessionId: this.sessionId,
-        prompt: [{ type: 'text', text: input.text }],
-      });
+      const response = await this.peer.request(
+        'session/prompt',
+        {
+          sessionId: this.sessionId,
+          prompt: [{ type: 'text', text: input.text }],
+        },
+        { timeoutMs: this.options.promptTimeoutMs },
+      );
       const settled = kimiSettled({ result: response }, 1)!;
       this.active.terminal = true;
       this.emit({ type: 'RunSettled', outcome: settled.outcome });

@@ -15,6 +15,8 @@ export class PiLifecycle {
       write: (b: Buffer) => Promise<void>;
       onEvent: (e: any) => void;
       timeoutMs?: number;
+      /** pi prompt 回应覆盖整轮；放宽到运行级墙钟，控制 RPC 仍为 30 秒。 */
+      promptTimeoutMs?: number;
     },
   ) {
     this.peer = new PiRpcPeer({
@@ -83,7 +85,7 @@ export class PiLifecycle {
     this.active = { runId: input.runId, accepted: false, terminal: false };
     this.normalizer.start();
     try {
-      await this.peer.request('prompt', { message: input.text });
+      await this.peer.request('prompt', { message: input.text }, { timeoutMs: this.options.promptTimeoutMs });
       if (this.uncertain) throw Error('RPC_DISCONNECTED');
       this.active.accepted = true;
       this.options.onEvent({ type: 'RunAccepted', runId: input.runId, sessionId: this.sessionId });

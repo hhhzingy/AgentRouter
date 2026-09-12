@@ -23,7 +23,7 @@ export class PiRpcPeer {
       timeoutMs?: number;
     },
   ) {}
-  request(command: string, args: Record<string, unknown> = {}): Promise<any> {
+  request(command: string, args: Record<string, unknown> = {}, opts?: { timeoutMs?: number }): Promise<any> {
     if (this.closed) return Promise.reject(new NativeRpcError('RPC_CLOSED', 'none-proven'));
     if (this.pending.size >= 64)
       return Promise.reject(new NativeRpcError('RPC_PENDING_LIMIT', 'none-proven'));
@@ -39,7 +39,7 @@ export class PiRpcPeer {
     const result = new Promise((resolve, reject) => {
       const timer = setTimeout(
         () => this.disconnect('RPC_TIMEOUT'),
-        this.options.timeoutMs ?? 30000,
+        opts?.timeoutMs ?? this.options.timeoutMs ?? 30000,
       );
       this.pending.set(id, { command, resolve, reject, timer });
     });

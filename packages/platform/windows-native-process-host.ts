@@ -22,6 +22,7 @@ export interface PreparedWindowsNativeProcess {
   mcpServers?: unknown[];
   kimiConfiguration?: SecureNativeProcess['kimiConfiguration'];
   verifyCodex?: SecureNativeProcess['verifyCodex'];
+  approveKimi?: SecureNativeProcess['approveKimi'];
   session?: SecureNativeProcess['session'];
   saveSession: SecureNativeProcess['saveSession'];
 }
@@ -164,6 +165,7 @@ export class WindowsNativeProcessHost implements SecureProcessHost {
       return {
         session: prepared.session,
         mcpServers: prepared.mcpServers,
+        approveKimi: prepared.approveKimi,
           kimiConfiguration: prepared.kimiConfiguration,
           verifyCodex: prepared.verifyCodex,
         saveSession: prepared.saveSession,

@@ -210,3 +210,16 @@ it('clear_queue rejection makes cancellation unknown and does not issue abort', 
   expect(await cancel).toEqual({ state: 'unknown' });
   expect(f.sent.some((x) => x.type === 'abort')).toBe(false);
 });
+
+it('prompt 响应放宽到 promptTimeoutMs；控制请求仍受默认活性界', async () => {
+  const f = fixture({ timeoutMs: 20, promptTimeoutMs: 4000 });
+  await f.open();
+  const p = f.driver.start({ runId: 'r1', text: '慢任务' });
+  await new Promise((r) => setTimeout(r, 60));
+  f.event({ type: 'message_end', message: { role: 'assistant', stopReason: 'stop' } });
+  f.event({ type: 'agent_settled' });
+  await f.reply('prompt');
+  await p;
+  expect(f.events.map((x) => x.type)).toEqual(['RunAccepted', 'RunSettled']);
+  f.driver.peer.end();
+});

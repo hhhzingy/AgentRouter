@@ -1,12 +1,16 @@
 import { it, expect } from 'vitest';
 import { KimiLifecycle } from '../../packages/adapters/kimi/lifecycle.ts';
 const tick = () => new Promise((r) => setImmediate(r));
-function fixture(onApproval?: (method: string, params: unknown) => Promise<unknown>) {
+function fixture(
+  onApproval?: (method: string, params: unknown) => Promise<unknown>,
+  overrides: Record<string, unknown> = {},
+) {
   const sent: any[] = [],
     events: any[] = [];
   const driver = new KimiLifecycle({
     epoch: 'epoch-1',
     onApproval,
+    ...overrides,
     write: async (b) => {
       sent.push(JSON.parse(b.toString()));
     },
@@ -206,3 +210,15 @@ it.each(['wrong', undefined])(
     expect(f.sent.some((x) => x.method === 'session/prompt')).toBe(false);
   },
 );
+
+it('业务轮响应放宽到 promptTimeoutMs；控制请求仍受默认活性界', async () => {
+  const f = fixture(undefined, { timeoutMs: 20, promptTimeoutMs: 4000 });
+  await f.open();
+  const p = f.driver.start({ runId: 'r1', epoch: 'epoch-1', text: '慢任务' });
+  await new Promise((r) => setTimeout(r, 60));
+  expect(f.events.some((e) => e.type === 'Disconnected')).toBe(false);
+  await f.reply('session/prompt', { stopReason: 'end_turn' });
+  await p;
+  expect(f.events.at(-1)).toMatchObject({ type: 'RunSettled', outcome: 'succeeded' });
+  f.driver.peer.disconnect();
+});

@@ -12,6 +12,7 @@ it('W11 增量迁移可重复打开，旧 baseline 不改，真实 SQLite 持久
     { version: 1 },
     { version: 2 },
     { version: 3 },
+    { version: 4 },
   ]);
   db.close();
   db = openApplicationStore(dir);

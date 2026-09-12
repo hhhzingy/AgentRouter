@@ -13,7 +13,7 @@ import { WindowsNativeProcessHost } from './windows-native-process-host.ts';
 import { createNativeRoleBridge } from '../role-bridge/native-server.ts';
 import { ApprovedProvider, deepSeekPolicy } from '../security/approved-provider.ts';
 import { createPiProviderBroker } from './pi-provider-broker.ts';
-import { prepareManagedKimiProfile } from './kimi-managed-profile.ts';
+import { prepareManagedKimiProfile, approveManagedKimiRoute } from './kimi-managed-profile.ts';
 import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
 
 interface Config {
@@ -127,13 +127,16 @@ export async function installLocalNativeRuntime(
         } catch(error){bridge.revoke(token);throw error;}
       }
       if (input.config.harness === 'kimi_code') {
+        if(input.config.version!=='0.42.0') throw Error('KIMI_PERMISSION_VERSION_UNVERIFIED');
         if (!c.kimiCredentialSource || !isAbsolute(c.kimiCredentialSource) || !c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256) throw Error('KIMI_RUNTIME_CONFIG_INVALID');
-        await prepareManagedKimiProfile({sessionHome:home,credentialSource:c.kimiCredentialSource});
+        const kimiProfile=await prepareManagedKimiProfile({sessionHome:home,credentialSource:c.kimiCredentialSource});
         const token = bridge.issue(input.handleTool);
         return {
           env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),KIMI_CODE_NO_AUTO_UPDATE:'1',KIMI_DISABLE_TELEMETRY:'1',KIMI_DISABLE_CRON:'1'},
+          extraArgs:['--agent-file',kimiProfile.agentPath],
           mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
           kimiConfiguration:{modelConfigId:'model',effortConfigId:'thinking'},session,
+          approveKimi:approveManagedKimiRoute,
           revoke:()=>bridge.revoke(token),
           saveSession:async(ref,guard)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
         };
