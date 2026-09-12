@@ -9,6 +9,15 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续6）：P2/P3/P4 完成提交；P5 候选打包 PASS
+
+- **P2(4f55088)**: ZcodeLifecycle(app-server,协议帧实测)+DshLifecycle(--profile acp,session/resume);两驱动经注册制接入;NativeHarness 扩展;宿主参数白名单/profile 白名单(含 profileRef 承载 CLI 入口);prepare 分支带凭据门禁(NATIVE_CREDENTIALS_REQUIRED/版本 pin)。层级:实现+离线测试(3项)+全仓回归;真实执行闭环 BLOCKED_BY_CREDENTIALS。
+- **P3(11dacb7)**: participant.artifact 原子落盘(临时文件+rename,受限文件名/类型白名单/256KB,sha256+byte_size 入库,事件流通知);Participant MCP 三工具(收件箱只读/WAITING_INPUT 用户输入/产物登记),AGENTROUTER_MANAGED_ROLE 守卫+controller 租约;集成测试含穿越/类型/重名负测。
+- **P4(cbf65dc)**: 只读 Web 控制台(apps/web-console):127.0.0.1 HTTP 观察者+响应式页面(项目/角色/任务/运行);Tailscale Serve 一条命令即可挂私网(本机 tailnet 活跃 1.102.2);OpenSSH Server 安装需提权——用户动作单:管理员 PowerShell 执行 Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0.0 后启动 sshd。
+- **P5(6b36a2a)**: build-win 迁移拷贝目录驱动(修复候选包缺005导致 CORE_START_FAILED);干净候选 release/AgentRouter-j3-6b36a2a4a582-*(artifact 59befa85…)打包 Electron 验证 PASS(项目创建/重载持久化/截图)。
+- 全仓 60 文件 394 项 PASS;三套冻结+迁移守卫 PASS。层级:以上均为实现+离线测试+单项真实验证(P4 Web 为真实 Core HTTP 往返);多端联合/重复稳定性未做——待手机实测与 SSH 提权后。
+- 用户动作单(合并): ①管理员安装 OpenSSH Server(命令见上);② tailscale serve https 127.0.0.1:8787(或自选端口)启动私网访问;③ DeepSeek DUT 登录(dsh)后解锁 P2 真实闭环;④ ChatGPT Secure MCP Tunnel 与账号 Developer/write 权限核验(P3 网页闭环)。
+
 # 当前执行（2026-09-12 续5）：P2-a 驱动注册制完成 + 两个新Harness协议面探明
 
 - **HarnessDriverRegistry 完成（7d05981）**：NativeProcessBackend 三家品牌分支抽取为 HarnessDriver（processArgs/requiresSessionPath/createLifecycle→统一 HarnessLifecycle：phase/initialize/open/start/cancel/accept/disconnect）。verifyCodex 门禁、kimi 配置门禁与审批、pi 会话路径要求行为不变；新驱动经 registry.register 接入，未注册 harness 拒绝 NATIVE_HARNESS_UNSUPPORTED。全仓 57 文件 389 项 PASS。
