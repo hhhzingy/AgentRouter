@@ -11,7 +11,8 @@ export type ExternalApiMethod = (typeof EXTERNAL_API_METHODS)[number];
 export function isExtensionMethod(method: unknown): boolean {
   return (
     (EXTERNAL_API_METHODS as readonly string[]).includes(method as string) ||
-    (typeof method === 'string' && method.startsWith('roleSession.'))
+    (typeof method === 'string' &&
+      (method.startsWith('roleSession.') || method.startsWith('participant.')))
   );
 }
 export function isExternalApiMethod(method: unknown): method is ExternalApiMethod {

@@ -112,6 +112,7 @@ export class ApplicationService extends Plans {
   onChanged?: () => void;
   externalApi?: import('./external-api-extension.ts').ExternalApiExtension;
   roleSession?: import('./role-session-extension.ts').RoleSessionExtension;
+  participant?: import('./participant-extension.ts').ParticipantExtension;
   nativeAuthorization?: (bindingId: string) => boolean;
   nativeCancelAvailable?: (bindingId?:string)=>boolean;
   nativeToolAuthorization?: (bindingId:string,epoch:number,tool:string)=>boolean;
@@ -329,6 +330,17 @@ export class ApplicationService extends Plans {
       String((raw as { method?: unknown }).method).startsWith('roleSession.')
     )
       return this.roleSession.handle(raw, {
+        principal: c.principal,
+        ...(c.clientId ? { clientId: c.clientId } : {}),
+        ...(c.mode ? { mode: c.mode } : {}),
+        assertControllerLease: (leaseId: string) => this.checkLease(id, leaseId),
+      });
+    if (
+      this.participant &&
+      typeof (raw as { method?: unknown })?.method === 'string' &&
+      String((raw as { method?: unknown }).method).startsWith('participant.')
+    )
+      return this.participant.handle(raw, {
         principal: c.principal,
         ...(c.clientId ? { clientId: c.clientId } : {}),
         ...(c.mode ? { mode: c.mode } : {}),
