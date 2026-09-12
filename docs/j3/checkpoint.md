@@ -1,3 +1,26 @@
+# 当前执行（2026-09-12 续2）：P0 完成
+
+- **P0 全部完成**（HEAD c32bef0 起，未动开发配置/认证/进程）：
+  - 经管理MCP验证真实Core（instance dataset_7a83c1c7…，mock=false，C1R1P1）；发现会话内网关在Core重启后报 CONNECTION_LOST(AMBIGUOUS) 无自动重连，新stdio客户端正常——记为改进项。
+  - baseline.json（.local/nextround-p0/）：git/HEAD/实例/工具数(observer16+controller24)/运行时版本/数据目录清单(仅文件名与大小)/迁移EOL状态。
+  - **受管ZCode配置继承负测 PASS（决定性）**：沙箱HOME+AGENTROUTER_MANAGED_ROLE=1+cwd=E:/AgentRouter 下，官方 zcode 0.16.5 确实从 E:/AgentRouter/.zcode/config.json 发现并拉起 agentrouter-management；守卫生效（MANAGEMENT_START_DENIED，0工具注册）。**新敞口**：插件层 node_repl 不受workspace配置管控，连上并注册3工具——P2驱动须用 --disallowed-tools/插件禁用收紧；受管实例暂不加载真实凭据直至收紧完成。证据 evidence/J3/nextround-p0/managed-zcode-inheritance.json。
+  - 构建EOL guard+迁移manifest：docs/api/freeze.migrations.json（001–004 LF字节sha256）+ tools/check-migrations.mjs（--staged 支持）+ 单测 migration-manifest.test.ts；防CRLF回退制度化。
+  - 能力探测（evidence/J3/nextround-p0/capability-probes.json）：**DeepSeek官方Harness= @deepseek-ai/dsh 0.1.5-rc.1**（profile插件栈；含 dsh-acp 0.1.5-rc.2 "Automation-only ACP server over JSON-RPC stdio" + dsh-session/session-persistence-jsonl）→ P2 以 dsh ACP 为接线目标，session/resume 待真实DUT验证；ZCode CLI 0.16.5 具备 app-server/--prompt/--resume/--settings/--disallowed-tools，均为P2驱动候选杠杆（未实测协议细节，不猜）。
+  - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
+- 下一动作：P1 RoleSession 最小切换闭环。
+
+# 下一轮执行包登记（2026-09-12）：AgentRouter_NextRound_ZCode_20260912
+
+审查基线 feat/v1-finalization-j3@c32bef0 与实际 HEAD 一致，树干净。包位置 E:/AgentRouter/docs/执行包/AgentRouter_NextRound_ZCode_20260912（已读 00/01/02/09）。
+
+本轮目标（保持真实Core/GUI/管理MCP/三家原生链/冻结合同，增量实现）：P0 基线与配置隔离/证据口径/构建EOL guard → P1 RoleSession 最小切换闭环（稳定Role ID、历史/新会话/切换/切回/generation防写/幂等switch，保留Binding与原生会话，禁重置数据库）→ P2 HarnessDriverRegistry 抽取 + DeepSeek官方Harness(先ACP能力核验,session/resume优先) + ZCode实验级驱动(先真实探测,不猜协议不用GLM冒充) → P3 Participant MCP/交互角色/产物原子落盘(ChatGPT网页角色仅用户主动唤起,attachment/generation防旧覆新) → P4 手机响应式Web+Tailscale Serve私网/桌面SSH(Windows走OpenSSH over Tailscale,最小实现) → P5 联合验收与候选包。
+
+风险策略（来自包01/09，本轮约束）：
+- 验收口径纠正：六方向交接按"覆盖率/单轮成功率/总尝试"分开记录，累计方向覆盖≠整轮稳定通过；ACK/漏finish须协议级trace（prompt/native session/turn/工具发现/事件来源），保留NEEDS_ATTENTION与失败分母，不无限重跑。
+- 受管ZCode配置继承是P0优先修复项：.gitignore与独立HOME不阻止cwd向上发现 E:/AgentRouter/.zcode/config.json；须枚举用户/项目/父目录/兼容目录/启动参数来源并以实际tools/list证明只有角色工具；未确认前仅挂起受管ZCode真实凭据启动。
+- 不重做已完成的管理MCP接入；不重写Core；不动冻结清单，新增字段走CCR协商草案；历史CRLF数据库须有兼容/迁移路径，不得清空用户数据；账号切换/额度查询继续不做；现有开发ZCode与hzxpro不触碰；不合main、不发版本。
+- 执行规则：P0→P1→P2→P3→P4→P5，P2探测与P4只读页可并行；每完成一个真实用户闭环即提交代码+脱敏证据+断点；层级声明分离：实现/离线/真实单项/联合覆盖/重复稳定性/最终包。
+
 # 当前执行（2026-09-12 续）：交接六方向通过、External API 接线完成、打包验证通过、回退闭环验证
 
 - **跨Harness交接（pi/Kimi/Codex 六方向）**：pair工具泛化到三harness。单轮 6/6 PASS 两次（run-1DTgj0、run-6RE9aP，证据 evidence/J3/production-pair/a4111ae-bundle7f2f960c）。新 bundle（0254ea5/含External API）三次单轮验收中六个方向均已至少通过一次，各轮各遇1次真实模型偶发不合规（Kimi/DeepSeek源-子任务均有），Core一律 NEEDS_ATTENTION 保守呈现、不伪造结果、不重放（evidence/J3/production-pair/0254ea5-bundle53d0cd37）。已录入 known-limitations。

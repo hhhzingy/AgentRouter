@@ -1,0 +1,55 @@
+{
+  "scope": "P0 受管ZCode配置继承负测",
+  "capturedAt": "2026-09-12T07:09:39.785Z",
+  "baseline": "feat/v1-finalization-j3@c32bef0",
+  "method": "沙箱HOME+受管env(AGENTROUTER_MANAGED_ROLE=1)+cwd=E:/AgentRouter/probe-nextround-tmp,官方zcode.cjs 0.16.5 headless启动;假provider(不可达端口)负测,无真实API调用;开发配置/进程未动",
+  "findings": {
+    "workspaceConfigInherited": true,
+    "detail": "E:/AgentRouter/.zcode/config.json 中的 agentrouter-management 被受管实例发现并尝试拉起(mcpServerName=agentrouter-management)",
+    "guardEffective": true,
+    "guardEvidence": "被拉起进程抛 MANAGEMENT_START_DENIED 退出,mcp.server.failed(Connection closed),注册工具0",
+    "pluginLayerExposure": true,
+    "pluginEvidence": "node_repl(插件层)不受workspace配置管控,连接成功注册3工具——受管实例当前不是“只有角色工具”,P2驱动须用--disallowed-tools/插件禁用收紧",
+    "sandboxHomeHonored": true,
+    "isolatedHomeEvidence": "db/log均在沙箱HOME内"
+  },
+  "mcpEvents": [
+    {
+      "event": "mcp.server.connect.started",
+      "name": "agentrouter-management",
+      "error": "",
+      "stderrHead": ""
+    },
+    {
+      "event": "mcp.server.connect.started",
+      "name": "node_repl",
+      "error": "",
+      "stderrHead": ""
+    },
+    {
+      "event": "mcp.server.failed",
+      "name": "agentrouter-management",
+      "error": "Connection closed",
+      "stderrHead": "file:///E:/AgentRouter/.local/w11a/integration/.local/management-mcp/main.mjs:29"
+    },
+    {
+      "event": "mcp.server.connected",
+      "name": "node_repl",
+      "toolCount": 3,
+      "error": "",
+      "stderrHead": ""
+    },
+    {
+      "event": "mcp.startup.completed",
+      "toolCount": 3,
+      "error": "",
+      "stderrHead": ""
+    },
+    {
+      "event": "mcp.tools.registered",
+      "toolCount": 3,
+      "error": "",
+      "stderrHead": ""
+    }
+  ]
+}

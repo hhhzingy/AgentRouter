@@ -1,0 +1,10 @@
+{
+  "canonicalEol": "LF",
+  "note": "迁移校验和按文件字节计算；工作树必须与 .gitattributes 的 LF 一致，否则跨 checkout 的 Core 会按设计拒绝彼此的数据库。",
+  "sha256_lf": {
+    "001-baseline.sql": "96c60988816b8c8057b0c34e78c8f23fa0f039958decc9c340cd00749f539fe3",
+    "002-w11-application.sql": "d49e1bae041c9703120dc33a08e379710d9d35e9859ca9ac1c90625790b63552",
+    "003-native-execution.sql": "617cbb1701d85cd75d552ae990bb3f49246df1ebadc9591446067c8f94ce585b",
+    "004-external-api-journal.sql": "fe2645142aefe33643fa163bec2a4063d292150d709eed666ebc30b995dddab9"
+  }
+}
