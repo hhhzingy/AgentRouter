@@ -1,3 +1,12 @@
+# 当前执行（2026-09-12 续）：交接六方向通过、External API 接线完成、打包验证通过、回退闭环验证
+
+- **跨Harness交接**：pair工具泛化到三harness（pi/Kimi/Codex全六方向）。中文章程后 6/6 PASS（run-1DTgj0，证据 evidence/J3/production-pair/a4111ae-bundle7f2f960c）。此前3次固定bundle运行遭遇 K2.7 session/load 模型波动（重答章程ACK/漏发交接），Core以NEEDS_ATTENTION保守呈现，证据保留；已录入 known-limitations。
+- **External API（CCR-J3-MCP-02）接线完成并提交 0254ea5**：external-api/1 严格schema、同连接身份+控制器租约校验（冻结帧校验前拦截，旧客户端不受影响）、Core固定Provider（core_dataset/snapshot 只读诊断）、MCP三个新工具经已认证Client转发。集成测试4项+真实Core端到端（list/describe/call/幂等/observer拒绝）通过。全仓55文件385项PASS。仅含本地只读动作；真实外部HTTP须另行授权注册。
+- **打包**：新候选 release/AgentRouter-j3-0254ea5bbacf-*（artifact 70602373…）真实Electron验证 PASS（连接生产Core、SQLite项目创建、重载持久化+截图）。
+- **备份/升级回退闭环验证 PASS**：旧版Core(e99782f)建v3 → 新版升v4+before-v4备份 → 恢复备份 → 旧版可开；旧版遇v4干净拒绝。
+- **发现并修复迁移校验和漂移**：工作树 003/004 为 CRLF（.gitattributes 规定 LF），导致跨 checkout 构建的 Core 互相拒绝数据库；已规范为 LF 并重建 bundle。常驻Core数据集（空壳）已重建，ZCode调试通道现含24个MCP工具（含3个External API工具）。
+- 新bundle六方向复测进行中；Kimi源角色波动仍在观察。不合main、不打标签、不发布。
+
 # 当前执行（2026-09-12）：Kimi 生产链路修复后通过（交付+取消+负测）
 
 **已提交并推送 1eab34d455b77a824b2dcc41155987337e87153c**（39文件，pre-commit 三套冻结+秘密扫描 PASS）；固定源码复测 PASS：evidence/J3/production-kimi/1eab34d（dirty_source=false，任务 SUCCEEDED+PUBLISHED=42+取消 CANCELLED）。dirty 阶段证据保留在 evidence/J3/production-kimi/e99782f-dirty。

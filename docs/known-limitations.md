@@ -15,3 +15,7 @@
 Windows Job helper 使用系统 .NET Framework，尚未完成干净账户、安装卸载、系统退出、断电和长期压力验收。早期受限环境 GPU/桌面测试失败；最新用户环境下软件渲染及 Playwright 通过，目录选择与关闭对话框在测试中使用替身，不宣称原生对话框已经端到端验收。
 
 详细分阶段状态见 progress.md。81 条验收尚未逐项完成，本项目不是 V1.0 完整交付。
+
+迁移校验和按字节计算：工作树必须保持 .gitattributes 规定的 LF（003/004 曾因 CRLF 工作树字节导致跨 checkout 校验和不一致，已规范为 LF；不同字节构建的 Core 会按设计拒绝彼此的数据库）。升级备份的回退闭环已在真实进程上验证（旧版建 v3 → 新版升 v4+备份 → 恢复 → 旧版可开；旧版遇 v4 干净拒绝）。
+
+Kimi K2.7（kimi-code 0.42.0）在 session/load 之后偶发不执行任务指令（曾复现"重答章程 ACK"或漏发交接），Core 一律以 NEEDS_ATTENTION 保守呈现、不伪造结果、不自动重放；跨 Harness 交接六方向已在真实账号上完整通过（详见 evidence/J3/production-pair），但 Kimi 作为源角色时仍存在模型行为波动，非 Core 缺陷。
