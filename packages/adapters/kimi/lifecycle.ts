@@ -23,6 +23,7 @@ export interface KimiLifecycleOptions {
  */
 export class KimiLifecycle {
   readonly peer: NativeRpcPeer;
+  phase = 'CREATED';
   private initialized = false;
   private busy = false;
   private uncertain = false;
@@ -73,6 +74,7 @@ export class KimiLifecycle {
   }
   async initialize() {
     if (this.initialized || this.busy || this.uncertain) throw Error('SESSION_STATE_INVALID');
+    this.phase = 'INITIALIZE';
     this.busy = true;
     try {
       const result = (await this.peer.request('initialize', {
@@ -112,6 +114,7 @@ export class KimiLifecycle {
       if (kind !== undefined && !['stdio', 'http', 'sse'].includes(kind))
         throw Error('ACP_MCP_UNAVAILABLE');
     }
+    this.phase = 'OPEN_SESSION';
     this.busy = true;
     this.loadingId = input.nativeSessionId;
     try {
@@ -149,6 +152,7 @@ export class KimiLifecycle {
       Array.isArray(x.options) ? x.options : [x],
     );
     if (!values.some((x: any) => x?.value === value)) throw Error('ACP_CONFIG_UNAVAILABLE');
+    this.phase = 'CONFIGURE';
     this.busy = true;
     try {
       const result = (await this.peer.request('session/set_config_option', {
@@ -174,6 +178,7 @@ export class KimiLifecycle {
     if (input.epoch !== this.options.epoch) throw Error('EPOCH_MISMATCH');
     if (!this.sessionId || this.busy || this.active || this.uncertain)
       throw Error('NATIVE_QUEUE_FORBIDDEN');
+    this.phase = 'START_PROMPT';
     this.active = { runId: input.runId, terminal: false, cancelled: false };
     try {
       const response = await this.peer.request(

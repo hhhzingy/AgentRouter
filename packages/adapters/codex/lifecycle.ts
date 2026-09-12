@@ -19,6 +19,7 @@ export interface CodexLifecycleOptions {
  */
 export class CodexLifecycle {
   readonly peer: NativeRpcPeer;
+  phase = 'CREATED';
   private initialized = false;
   private initializing = false;
   private opening = false;
@@ -77,6 +78,7 @@ export class CodexLifecycle {
   }
   async initialize() {
     if (this.initialized || this.initializing || this.uncertain) throw Error('ALREADY_INITIALIZED');
+    this.phase = 'INITIALIZE';
     this.initializing = true;
     try {
       await this.peer.request('initialize', {
@@ -99,6 +101,7 @@ export class CodexLifecycle {
   }) {
     if (!this.initialized || this.threadId || this.opening || this.uncertain)
       throw Error('SESSION_STATE_INVALID');
+    this.phase = 'OPEN';
     this.opening = true;
     try {
       const result = (await this.peer.request(
@@ -129,6 +132,7 @@ export class CodexLifecycle {
   }
   async start(input: { runId: string; text: string; effort?: string }) {
     if (!this.threadId || this.active || this.uncertain) throw Error('NATIVE_QUEUE_FORBIDDEN');
+    this.phase = 'START_PROMPT';
     this.active = {
       runId: input.runId,
       terminal: false,

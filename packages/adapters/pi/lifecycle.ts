@@ -3,6 +3,7 @@ import { PiRunEvents } from './events.ts';
 /** A fresh isolated process per business turn; caller owns cwd/profile/extension and stop proof. */
 export class PiLifecycle {
   readonly peer: PiRpcPeer;
+  phase = 'CREATED';
   private opening = false;
   private sessionId?: string;
   private uncertain = false;
@@ -40,6 +41,7 @@ export class PiLifecycle {
     expectedSessionId?: string;
   }) {
     if (this.opening || this.sessionId || this.uncertain) throw Error('SESSION_STATE_INVALID');
+    this.phase = 'OPEN';
     this.opening = true;
     try {
       if (input.sessionPath) {
@@ -82,6 +84,7 @@ export class PiLifecycle {
     if (!this.sessionId || this.active || this.uncertain) throw Error('NATIVE_QUEUE_FORBIDDEN');
     // Native slash commands may bypass normal prompting and execute extension commands.
     if (input.text.trimStart().startsWith('/')) throw Error('NATIVE_COMMAND_FORBIDDEN');
+    this.phase = 'START_PROMPT';
     this.active = { runId: input.runId, accepted: false, terminal: false };
     this.normalizer.start();
     try {
