@@ -109,6 +109,10 @@ export class NativeSessionStore {
             'insert into native_sessions values(?,?,?,?) on conflict(binding_id,epoch) do update set session_ref=excluded.session_ref,updated_at_ms=excluded.updated_at_ms',
           )
           .run(scope.bindingId, scope.epoch, json, Date.now());
+        // 会话镜像：原生引用同时记录到产生它的 RoleSession（仅运行级保存；初始化无会话归属）。
+        this.db
+          .prepare('update role_sessions set native_session_ref=? where id=(select role_session_id from runs where id=?)')
+          .run(json, scope.key);
         const updated = this.db
           .prepare(
             'update bindings set native_session_ref=? where id=? and epoch=? and is_current=1',

@@ -27,7 +27,7 @@ function fixture() {
       workspaceId: p.workspace,
     });
   db.prepare(
-    "insert into runs values('run',?,?,null,null,'MANAGEMENT',1,null,'{}','STARTING',null,null,null,1)",
+    "insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id) values('run',?,?,null,null,'MANAGEMENT',1,null,'{}','STARTING',null,null,null,1,null)",
   ).run(r.role, r.binding);
   cleanups.push(() => {
     db.close();

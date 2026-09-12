@@ -181,7 +181,7 @@ export class Plans extends Projection {
       .run(uid('bootstrap'), role, id, b.epoch, prior + 1, 'PENDING', null, now);
     this.db
       .prepare(
-        'insert into conversation_items(id,project_id,space_id,role_id,kind,title,body,state,at_ms,source_key) values(?,?,?,?,?,?,?,?,?,?)',
+        'insert into conversation_items(id,project_id,space_id,role_id,kind,title,body,state,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,(select id from role_sessions where role_id=? order by seq limit 1))',
       )
       .run(
         uid('conversation'),
@@ -194,6 +194,7 @@ export class Plans extends Projection {
         'PENDING',
         now,
         'charter:' + id,
+        role,
       );
     return this.charter(this.one('select * from role_charters where id=?', id));
   }

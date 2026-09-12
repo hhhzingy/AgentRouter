@@ -7,6 +7,13 @@ export const EXTERNAL_API_METHODS = [
   'externalApi.call',
 ] as const;
 export type ExternalApiMethod = (typeof EXTERNAL_API_METHODS)[number];
+/** 扩展方法前缀：external-api/1 与 roleSession 草案共用同一帧格式与错误信封。 */
+export function isExtensionMethod(method: unknown): boolean {
+  return (
+    (EXTERNAL_API_METHODS as readonly string[]).includes(method as string) ||
+    (typeof method === 'string' && method.startsWith('roleSession.'))
+  );
+}
 export function isExternalApiMethod(method: unknown): method is ExternalApiMethod {
   return (EXTERNAL_API_METHODS as readonly string[]).includes(method as string);
 }
@@ -125,7 +132,7 @@ export function validateExternalApiFrame(frame: unknown): ExternalApiFrame {
   if (
     !frame ||
     typeof frame !== 'object' ||
-    !isExternalApiMethod((frame as ExternalApiFrame).method)
+    !isExtensionMethod((frame as ExternalApiFrame).method)
   )
     throw Error('INVALID_FRAME');
   const f = frame as ExternalApiFrame;
@@ -139,13 +146,16 @@ export function validateExternalApiFrame(frame: unknown): ExternalApiFrame {
     (f.lease_id !== undefined && (typeof f.lease_id !== 'string' || !f.lease_id || f.lease_id.length > 160))
   )
     throw Error('INVALID_FRAME');
-  if (!(paramsByMethod[f.method] as ReturnType<typeof compile>)(f.params ?? {}))
-    throw Error('INVALID_PARAMS');
-  if (f.method === 'externalApi.call' && (!f.client_id || !f.lease_id))
-    throw Error('CONTROL_LEASE_REQUIRED');
+  if (isExternalApiMethod(f.method)) {
+    if (!(paramsByMethod[f.method] as ReturnType<typeof compile>)(f.params ?? {}))
+      throw Error('INVALID_PARAMS');
+    if (f.method === 'externalApi.call' && (!f.client_id || !f.lease_id))
+      throw Error('CONTROL_LEASE_REQUIRED');
+  }
   return f;
 }
-export function validateExternalApiResult(method: ExternalApiMethod, result: unknown): void {
+export function validateExtensionResult(method: string, result: unknown): void {
+  if (!isExternalApiMethod(method)) return; // roleSession 结果由扩展的服务端schema负责
   if (!(resultByMethod[method] as ReturnType<typeof compile>)(result))
     throw Error('EXTERNAL_API_RESULT_INVALID');
 }

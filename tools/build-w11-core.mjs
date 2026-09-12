@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { mkdirSync, copyFileSync } from 'node:fs';
+import { mkdirSync, copyFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 const out = resolve('.local/w11-core');
 mkdirSync(resolve(out, 'migrations'), { recursive: true });
@@ -25,7 +25,7 @@ await build({
   platform: 'node',
   format: 'esm',
 });
-for (const name of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql'])
+for (const name of readdirSync('packages/storage/migrations').filter((f) => f.endsWith('.sql')).sort())
   copyFileSync('packages/storage/migrations/' + name, resolve(out, 'migrations', name));
 copyFileSync('packages/core-service/fixture-harness.mjs', resolve(out, 'fixture-harness.mjs'));
 console.log(out);

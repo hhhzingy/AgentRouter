@@ -212,6 +212,35 @@ export class ManagementGateway {
       { profile_id: profileId, action_id: actionId },
     );
   }
+  /** roleSession.* 草案扩展：经已认证 Client 连接转发；create/switch 走串行队列并要求控制租约。 */
+  private roleSessionCall(method: string, params: Record<string, unknown>, mutation: boolean): Promise<unknown> {
+    const action = async () => {
+      const s = this.get();
+      const lease = mutation ? this.lease : undefined;
+      if (mutation && !lease) throw Error('CONTROL_LEASE_REQUIRED');
+      return (s.request as (m: string, p: unknown, o?: unknown) => Promise<unknown>)(
+        method,
+        params,
+        ...(lease ? [{ leaseId: lease }] : []),
+      );
+    };
+    if (!mutation) return action();
+    const pending = this.serial.then(action, action);
+    this.serial = pending.catch(() => {});
+    return pending;
+  }
+  roleSessionList(roleId: string) {
+    return this.roleSessionCall('roleSession.list', { role_id: roleId }, false);
+  }
+  roleSessionHistory(roleId: string, sessionId: string, limit?: number) {
+    return this.roleSessionCall('roleSession.history', { role_id: roleId, session_id: sessionId, ...(limit ? { limit } : {}) }, false);
+  }
+  roleSessionCreate(roleId: string, name: string) {
+    return this.roleSessionCall('roleSession.create', { role_id: roleId, name }, true);
+  }
+  roleSessionSwitch(roleId: string, sessionId: string) {
+    return this.roleSessionCall('roleSession.switch', { role_id: roleId, session_id: sessionId }, true);
+  }
   async externalApiCall(input: { params: Record<string, unknown> }): Promise<unknown> {
     const action = async () => {
       const s = this.get();

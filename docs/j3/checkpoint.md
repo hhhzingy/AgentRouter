@@ -9,6 +9,14 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续3）：P1 RoleSession 最小切换闭环完成（离线层）
+
+- 迁移005（role_sessions + tasks/runs/conversation_items.role_session_id；升级前 before-v5 备份；存量回填初始会话；新角色创建即播种会话）。
+- roleSession.* 草案扩展（待CCR协商，未入冻结清单）：list/create/switch/history；create/switch 需 controller+本连接租约；switch 幂等（切到当前会话无副作用，generation 不变）。
+- 任务/运行/会话条目创建时打会话戳；对话条目按其任务派生归属——旧任务的迟到写入不会混入当前会话；原生会话保存镜像到产生它的 RoleSession（原生级按会话 resume 属下一增量）。
+- 顺带修复：backupStore/verifyBackup 按完整迁移集校验快照（原 v1-only openStore 在 v5 schema 上失配）；build-w11-core 迁移拷贝改目录驱动；support/registry/journal/store 测试夹具随 schema 演进更新。
+- 全仓 57 文件 389 项 PASS；三套冻结 PASS；迁移 manifest+EOL guard PASS；两 bundle 已重建。MCP 工具 24→28（新增4个roleSession工具）。
+
 # 下一轮执行包登记（2026-09-12）：AgentRouter_NextRound_ZCode_20260912
 
 审查基线 feat/v1-finalization-j3@c32bef0 与实际 HEAD 一致，树干净。包位置 E:/AgentRouter/docs/执行包/AgentRouter_NextRound_ZCode_20260912（已读 00/01/02/09）。

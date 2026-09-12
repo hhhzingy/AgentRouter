@@ -1,8 +1,33 @@
-import type Database from 'better-sqlite3';
-import { mkdirSync, existsSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
+import Database from 'better-sqlite3';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, copyFileSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
-import { openStore } from './index.ts';
+/** 按当前完整迁移集校验快照 schema（与 openApplicationStore 的校验和口径一致）。 */
+function openSnapshot(path: string) {
+  const db = new Database(path);
+  const names = readdirSync(new URL('./migrations/', import.meta.url)).filter((f) =>
+    f.endsWith('.sql'),
+  ).sort();
+  const rows = db.prepare('select version,checksum from schema_migrations order by version').all() as {
+    version: number;
+    checksum: string;
+  }[];
+  if (
+    rows.length !== names.length ||
+    rows.some(
+      (r, i) =>
+        r.version !== i + 1 ||
+        r.checksum !==
+          createHash('sha256')
+            .update(readFileSync(new URL('./migrations/' + names[i], import.meta.url), 'utf8'))
+            .digest('hex'),
+    )
+  ) {
+    db.close();
+    throw Error('BACKUP_SNAPSHOT_MIGRATION_MISMATCH');
+  }
+  return db;
+}
 export async function backupStore(
   db: Database.Database,
   artifactRoot: string,
@@ -12,7 +37,7 @@ export async function backupStore(
   mkdirSync(destination, { recursive: true });
   const target = resolve(destination, 'router.db');
   await db.backup(target);
-  const snapshot = openStore(target);
+  const snapshot = openSnapshot(target);
   try {
     const artifacts = snapshot
       .prepare("select storage_key,sha256,byte_size from artifacts where state='AVAILABLE'")
@@ -51,7 +76,7 @@ export function verifyBackup(destination: string) {
   const manifest = JSON.parse(readFileSync(resolve(destination, 'manifest.json'), 'utf8'));
   if (manifest.protocol !== 'agentrouter/1.0' || manifest.credentialsIncluded !== false)
     throw Error('BACKUP_PROTOCOL');
-  const db = openStore(resolve(destination, 'router.db'));
+  const db = openSnapshot(resolve(destination, 'router.db'));
   try {
     const records = db
       .prepare("select storage_key,sha256,byte_size from artifacts where state='AVAILABLE'")

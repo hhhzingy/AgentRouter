@@ -19,9 +19,9 @@ import type {
   RequestOptions,
 } from './types.ts';
 import {
-  isExternalApiMethod,
+  isExtensionMethod,
   validateExternalApiFrame,
-  validateExternalApiResult,
+  validateExtensionResult,
 } from '../../client-contract/external-api-1.ts';
 export class P1MemoryTransport implements ClientTransport {
   private connection?: string;
@@ -67,7 +67,7 @@ export class P1MemoryTransport implements ClientTransport {
       if (this.connection !== c || generation !== this.generation)
         throw new C1R1Error('CONNECTION_LOST');
       if (opts.signal?.aborted) throw new C1R1Error('REQUEST_CANCELLED', 'AMBIGUOUS');
-      if (isExternalApiMethod(method)) {
+      if (isExtensionMethod(method as string)) {
         const extensionFrame = validateExternalApiFrame({
           v: 1,
           id: 'req_' + randomUUID(),
@@ -89,7 +89,7 @@ export class P1MemoryTransport implements ClientTransport {
           ])) as Response;
           if ('id' in reply && reply.id !== extensionFrame.id) throw new C1R1Error('INVALID_FRAME');
           if ('error' in reply) throw Object.assign(new Error(reply.error.code), reply.error);
-          validateExternalApiResult(method, reply.result);
+          validateExtensionResult(method as string, reply.result);
           return reply.result as MethodMap[M]['result'];
         } finally {
           clearTimeout(extensionTimer);

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 const staged = process.argv.includes('--staged');
 function read(path) {
@@ -10,7 +10,7 @@ function read(path) {
   return r.stdout;
 }
 import { spawnSync } from 'node:child_process';
-const names = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql'];
+const names = readdirSync('packages/storage/migrations').filter((f) => f.endsWith('.sql')).sort();
 const manifestPath = 'docs/api/freeze.migrations.json';
 // --write 仅用于首次生成或显式重生成 manifest；CI/门禁一律校验。
 if (process.argv.includes('--write')) {

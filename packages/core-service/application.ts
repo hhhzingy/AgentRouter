@@ -111,6 +111,7 @@ export class ApplicationService extends Plans {
   private grants = new Map<string, { connection: string; path: string }>();
   onChanged?: () => void;
   externalApi?: import('./external-api-extension.ts').ExternalApiExtension;
+  roleSession?: import('./role-session-extension.ts').RoleSessionExtension;
   nativeAuthorization?: (bindingId: string) => boolean;
   nativeCancelAvailable?: (bindingId?:string)=>boolean;
   nativeToolAuthorization?: (bindingId:string,epoch:number,tool:string)=>boolean;
@@ -317,6 +318,17 @@ export class ApplicationService extends Plans {
       String((raw as { method?: unknown }).method).startsWith('externalApi.')
     )
       return this.externalApi.handle(raw, {
+        principal: c.principal,
+        ...(c.clientId ? { clientId: c.clientId } : {}),
+        ...(c.mode ? { mode: c.mode } : {}),
+        assertControllerLease: (leaseId: string) => this.checkLease(id, leaseId),
+      });
+    if (
+      this.roleSession &&
+      typeof (raw as { method?: unknown })?.method === 'string' &&
+      String((raw as { method?: unknown }).method).startsWith('roleSession.')
+    )
+      return this.roleSession.handle(raw, {
         principal: c.principal,
         ...(c.clientId ? { clientId: c.clientId } : {}),
         ...(c.mode ? { mode: c.mode } : {}),
@@ -1068,7 +1080,7 @@ export class ApplicationService extends Plans {
         throw new C1R1Error('PLAN_STATE_CONFLICT');
       this.db
         .prepare(
-          'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms) values(?,?,?,?,?,?,?,?,?)',
+          'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,role_session_id) values(?,?,?,?,?,?,?,?,?,(select role_session_id from tasks where id=?))',
         )
         .run(
           uid('conversation'),
@@ -1080,6 +1092,7 @@ export class ApplicationService extends Plans {
           '用户续办输入',
           p.body,
           this.clock(),
+          task.id,
         );
       this.db.prepare('update wait_records set ready=1 where task_id=?').run(task.id);
       return { entityId: task.id, revision: this.revision };
@@ -1149,7 +1162,7 @@ export class ApplicationService extends Plans {
           p = JSON.parse(m.payload_json);
         this.db
           .prepare(
-            'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,state,at_ms,source_key) values(?,?,?,?,?,?,?,?,?,?,?) on conflict(source_key) do update set state=excluded.state',
+            'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,state,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,?,coalesce((select t.role_session_id from tasks t where t.id=?),(select s2.id from role_sessions s2 where s2.role_id=? order by s2.seq limit 1))) on conflict(source_key) do update set state=excluded.state',
           )
           .run(
             uid('conversation'),
@@ -1169,6 +1182,8 @@ export class ApplicationService extends Plans {
             this.one('select state from outbox where message_id=?', m.id)?.state ?? 'STORED',
             m.created_at_ms,
             'message:' + m.id + ':' + roleId,
+            m.task_id,
+            roleId,
           );
       }
     }

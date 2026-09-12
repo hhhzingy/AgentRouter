@@ -111,6 +111,10 @@ export class Management {
       this.db
         .prepare('insert into roles values(?,?,?,?,?,?)')
         .run(role, input.spaceId, input.name, input.description, 'ACTIVE', Date.now());
+      // 每个新角色即拥有初始工作会话（迁移005只为存量角色播种）。
+      this.db
+        .prepare("insert into role_sessions(id,role_id,seq,name,state,generation,created_at_ms,activated_at_ms) values('rsess_' || ?, ?, 1, '初始会话', 'ACTIVE', 1, ?, ?)")
+        .run(role, role, Date.now(), Date.now());
       this.db
         .prepare('insert into bindings values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
         .run(

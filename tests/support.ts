@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { openStore } from '../packages/storage/index.ts';
+import { openApplicationStore } from '../packages/storage/application-store.ts';
 import { Core } from '../packages/runtime/core.ts';
 export const request = (
   role: string,
@@ -24,7 +24,7 @@ export function createFixture(clock?: () => number) {
   mkdirSync('.local/tests', { recursive: true });
   const dir = mkdtempSync(resolve('.local/tests/case-'));
   const path = resolve(dir, 'router.db');
-  let db = openStore(path);
+  let db = openApplicationStore(dir);
   db.exec(
     "insert into projects values('project_test','测试','test','test','ACTIVE',1);insert into spaces values('space_test','project_test','测试','ACTIVE',1);insert into policies values('policy_test','project_test',1,'agentrouter/1.0','{}','test',1);",
   );
@@ -65,6 +65,10 @@ export function createFixture(clock?: () => number) {
       1,
     );
     db.prepare('insert into role_slots(role_id) values(?)').run(`role_${letter}`);
+    db.prepare("insert into role_sessions(id,role_id,seq,name,state,generation,created_at_ms,activated_at_ms) values('rsess_' || ?, ?, 1, '初始会话', 'ACTIVE', 1, 1, 1)").run(
+      `role_${letter}`,
+      `role_${letter}`,
+    );
   }
   let core = new Core(db, clock, { allowMock: true });
   return {
@@ -82,7 +86,7 @@ export function createFixture(clock?: () => number) {
     },
     reopen() {
       db.close();
-      db = openStore(path);
+      db = openApplicationStore(dir);
       core = new Core(db, clock, { allowMock: true });
     },
     close() {

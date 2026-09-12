@@ -208,6 +208,7 @@ export class Core {
     const task = id('task');
     this.exec(
       'insert into tasks(id,space_id,requester_role_id,assignee_role_id,parent_task_id,chain_id,policy_id,summary,body,request_json,completion_json,problem_target_json,state,created_at_ms,updated_at_ms) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+
       task,
       p.spaceId,
       p.roleId,
@@ -224,6 +225,7 @@ export class Core {
       this.clock(),
       this.clock(),
     );
+    this.exec('update tasks set role_session_id=? where id=? and role_session_id is null', this.activeSessionId(request.to.id), task);
     this.message(p, request, op, task, heldRun);
     return task;
   }
@@ -273,6 +275,11 @@ export class Core {
         this.message(p, input, row, null);
       }
     });
+  }
+  /** 角色当前活动会话；迁移005保证每个角色恰有一个。 */
+  activeSessionId(roleId: string): string | undefined {
+    return (this.one("select id from role_sessions where role_id=? and state='ACTIVE'", roleId) as
+      { id: string } | undefined)?.id;
   }
   submitFromUser(
     scope: { projectId: string; spaceId: string },
@@ -340,6 +347,7 @@ export class Core {
       now,
       now,
     );
+    this.exec('update tasks set role_session_id=? where id=? and role_session_id is null', this.activeSessionId(input.to.id), task);
     this.exec(
       'insert into messages(id,space_id,task_id,kind,from_kind,to_kind,to_role_id,payload_json,operation_row_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?)',
       message,
@@ -547,7 +555,7 @@ export class Core {
         return this.blocked(roleId, 'resource_locked');
       const run = id('run');
       this.exec(
-        'insert into runs values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         run,
         roleId,
         b.id,
@@ -562,6 +570,7 @@ export class Core {
         null,
         null,
         now,
+        this.one('select role_session_id from tasks where id=?', task.id)?.role_session_id ?? null,
       );
       for (const resource of resources)
         this.exec(

@@ -30,6 +30,8 @@ function v2() {
   const sql = readFileSync('packages/storage/migrations/002-w11-application.sql', 'utf8');
   db.exec(sql);
   db.prepare('insert into schema_migrations values(2,?,?)').run(Date.now(), hash(sql));
+  // 当前 management 代码假设 v5 schema；为旧库补 role_sessions 以便创建角色。
+  db.exec("create table if not exists role_sessions(id text primary key, role_id text not null references roles(id), seq integer not null, name text not null, state text not null default 'ACTIVE', binding_id text, binding_epoch integer, native_session_ref text, generation integer not null default 1, created_at_ms integer not null, activated_at_ms integer not null);");
   const m = new Management(db),
     p = m.createProject('legacy', dir),
     r = m.createRole({
@@ -66,6 +68,8 @@ function v2() {
   ).run(r.role, r.binding);
   db.prepare("insert into run_sources values('old_run','SIMULATED','charter',null,1,1)").run();
   db.prepare("insert into execution_profiles values(?,'SIMULATED','{}',1)").run(r.role);
+  // v2-era 库不得携带 v5 对象；005 会重建 role_sessions 并从 roles 回填。
+  db.exec('DROP TABLE role_sessions');
   db.close();
   return { dir, p, r };
 }
@@ -96,7 +100,7 @@ it('v3 migration FK failure rolls back table replacement and version record', ()
   const f = v2(),
     migrations = resolve(f.dir, 'migrations');
   mkdirSync(migrations);
-  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql'])
+  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql'])
     copyFileSync('packages/storage/migrations/' + n, resolve(migrations, n));
   const path = resolve(migrations, '003-native-execution.sql');
   writeFileSync(
