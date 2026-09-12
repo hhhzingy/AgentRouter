@@ -1,0 +1,13 @@
+{
+  "scope": "DeepSeek Harness ACP层真实单项验证(DEEPSEEK_API_KEY, 授权源 E:/AgentRouter/账号信息/通用API/Deepseek.txt)",
+  "capturedAt": "2026-09-12T11:49:29.199Z",
+  "protocol": "dsh --profile acp (JSON-RPC 2.0 换行帧; 官方@agentclientprotocol SDK)",
+  "results": {
+    "task": "session/prompt 真实API调用 → stopReason=end_turn",
+    "resume": "轮1记忆47→跨进程session/resume→轮2追问回复 \"47\" (上下文真实延续)",
+    "cancel": "长任务进行中发session/cancel → stopReason=cancelled",
+    "note": "首测取消窗口8s模型先完成(end_turn);2.5s窗口复测cancelled,两次均真实API"
+  },
+  "productionE2E": "BLOCKED_BY_CONTRACT — 冻结schema rolePlan.runtime.harness 枚举仅三家,客户端校验拒绝;见 docs/integration/CCR-J3-DRIVER-01.md;测试脚本 --dsh 已备,合同扩展后即可跑",
+  "credentials": "key仅经环境变量进入dsh进程;不落日志/证据/git;key文件不提交"
+}

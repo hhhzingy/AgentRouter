@@ -36,9 +36,20 @@ export class WindowsNativeProcessHost implements SecureProcessHost {
       supervisorSha256: string;
       managedRoot: string;
       stopTimeoutMs?: number;
+      /** zcode/deepseek_harness 的官方 CLI 入口(受信 owner 配置);缺失时对应 harness 拒绝启动。 */
+      zcodeCli?: string;
+      dshBin?: string;
       prepare: (input: Start) => Promise<PreparedWindowsNativeProcess>;
     },
   ) {}
+  private zcodeArgs(): string[] {
+    if (!this.options.zcodeCli) throw Error('ZCODE_CLI_UNCONFIGURED');
+    return [this.options.zcodeCli, 'app-server'];
+  }
+  private dshArgs(): string[] {
+    if (!this.options.dshBin) throw Error('DSH_BIN_UNCONFIGURED');
+    return [this.options.dshBin, '--profile', 'acp'];
+  }
 
   async start(input: Start): Promise<SecureNativeProcess> {
     const o = this.options;
@@ -50,9 +61,9 @@ export class WindowsNativeProcessHost implements SecureProcessHost {
         : c.harness === 'kimi_code'
           ? ['acp']
           : c.harness === 'zcode'
-            ? [c.profileRef, 'app-server']
+            ? this.zcodeArgs()
             : c.harness === 'deepseek_harness'
-              ? [c.profileRef, '--profile', 'acp']
+              ? this.dshArgs()
               : ['--mode', 'rpc'];
     if (
       process.platform !== 'win32' ||

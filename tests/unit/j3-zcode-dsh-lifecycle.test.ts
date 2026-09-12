@@ -78,7 +78,7 @@ it('DshLifecycle:resume走session/resume;未初始化拒绝', async () => {
   const po = driver.open({ cwd: 'E:/ws', nativeSessionId: 'dsh_old' });
   await tick();
   const resume = sent.findLast((x) => x.method === 'session/resume');
-  expect(resume.params).toEqual({ cwd: 'E:/ws', sessionId: 'dsh_old' });
+  expect(resume.params).toEqual({ cwd: 'E:/ws', mcpServers: [], sessionId: 'dsh_old' });
   driver.peer.accept(Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: resume.id, result: { sessionId: 'dsh_old' } }) + '\n'));
   expect((await po).id).toBe('dsh_old');
   driver.peer.disconnect();

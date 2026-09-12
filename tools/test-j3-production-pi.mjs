@@ -12,12 +12,15 @@ if (!process.argv.includes('--live')) throw Error('EXPLICIT_LIVE_FLAG_REQUIRED')
 const kimi = process.argv.includes('--kimi');
 const codex = process.argv.includes('--codex');
 if(kimi&&codex)throw Error('ONE_HARNESS_PER_TEST');
-const harnessLabel=codex?'Codex':kimi?'Kimi':'pi';
-const harness=codex?'codex':kimi?'kimi_code':'pi';
+const dsh = process.argv.includes('--dsh');
+const harnessLabel=codex?'Codex':kimi?'Kimi':dsh?'DeepSeek Harness':'pi';
+const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':'pi';
 const providerId=codex?'agentrouter-codex':kimi?'agentrouter-kimi':'agentrouter-deepseek';
 const modelId=codex?'gpt-5.6-luna':kimi?'kimi-code/kimi-for-coding':'deepseek-v4-flash';
 const effort=codex?'low':kimi?'on':'off';
 const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
+const dshBin='C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js';
+if(kimi&&codex||kimi&&dsh||codex&&dsh)throw Error('ONE_HARNESS_PER_TEST');
 mkdirSync('.local/j3-production-pi', { recursive: true });
 const root = mkdtempSync(resolve('.local/j3-production-pi/run-'));
 const path = (n) => resolve(root, n),
@@ -42,6 +45,8 @@ writeFileSync(
   JSON.stringify({
     isolation: 'LIMITED_ISOLATION',
     managedRoot: codex?resolve('.local/j3-codex'):kimi?resolve('.local/j3-kimi'):path('managed'),
+    dshBin: dshBin,
+    dshHome: dsh?'C:/Users/hap_p/.dsh':undefined,
     workspaceRoot: path('workspace'),
     supervisorExecutable: supervisor,
     supervisorSha256: sha(supervisor),
@@ -57,7 +62,7 @@ writeFileSync(
       {
         id: 'production_'+harness,
         harness, executable, executableSha256:sha(executable),
-        version: codex?'0.153.4':kimi?'0.42.0':'0.85.1',
+        version: codex?'0.153.4':kimi?'0.42.0':dsh?'0.1.5-rc.1':'0.85.1',
         providerId, modelId, effort,
         sessionHome: codex?resolve('.local/j3-codex/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):path('managed/pi'),
       },
@@ -97,7 +102,7 @@ const closed = new Promise((r) =>
   }),
 );
 const report = {
-  scope: codex?'PRODUCTION_CORE_REAL_CODEX':kimi?'PRODUCTION_CORE_REAL_KIMI':'PRODUCTION_CORE_REAL_PI',
+  scope: codex?'PRODUCTION_CORE_REAL_CODEX':kimi?'PRODUCTION_CORE_REAL_KIMI':dsh?'PRODUCTION_CORE_REAL_DEEPSEEK_HARNESS':'PRODUCTION_CORE_REAL_PI',
   status: 'FAIL',
   code_sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   dirty_source: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(),

@@ -51,12 +51,16 @@ export class DshLifecycle {
     this.initialized = true;
   }
   /** 每业务轮新会话(dsh 恢复走 session/resume,由 open 的 nativeSessionId 决定)。 */
-  async open(input: { cwd: string; nativeSessionId?: string }): Promise<{ id: string }> {
+  async open(input: { cwd: string; nativeSessionId?: string; mcpServers?: unknown[] }): Promise<{ id: string }> {
     if (!this.initialized || this.sessionId || this.uncertain) throw Error('SESSION_STATE_INVALID');
     this.phase = 'OPEN';
     const result = (await this.peer.request(
       input.nativeSessionId ? 'session/resume' : 'session/new',
-      { cwd: input.cwd, ...(input.nativeSessionId ? { sessionId: input.nativeSessionId } : {}) },
+      {
+        cwd: input.cwd,
+        mcpServers: input.mcpServers ?? [],
+        ...(input.nativeSessionId ? { sessionId: input.nativeSessionId } : {}),
+      },
     )) as any;
     const id = input.nativeSessionId ?? result?.sessionId;
     if (typeof id !== 'string' || !id) throw Error('NATIVE_IDENTITY_MISMATCH');

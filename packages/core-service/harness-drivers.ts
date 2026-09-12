@@ -175,8 +175,10 @@ export const piDriver: HarnessDriver = {
 export const zcodeDriver: HarnessDriver = {
   harness: 'zcode',
   requiresSessionPath: false,
-  // profileRef 持有官方 CLI 脚本路径;协议入口 app-server。
-  processArgs: (config) => [config.profileRef, 'app-server'],
+  processArgs: () => {
+    if (!zcodeCliRef.path) throw Error('ZCODE_CLI_UNCONFIGURED');
+    return [zcodeCliRef.path, 'app-server'];
+  },
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
     const lifecycle = new ZcodeLifecycle({ write, onEvent, onDisconnect: () => {}, timeoutMs: promptTimeoutMs });
     return {
@@ -206,8 +208,10 @@ export const zcodeDriver: HarnessDriver = {
 export const dshDriver: HarnessDriver = {
   harness: 'deepseek_harness',
   requiresSessionPath: false,
-  // profileRef 持有 dsh CLI 路径;官方 ACP profile。
-  processArgs: (config) => [config.profileRef, '--profile', 'acp'],
+  processArgs: () => {
+    if (!dshBinRef.path) throw Error('DSH_BIN_UNCONFIGURED');
+    return [dshBinRef.path, '--profile', 'acp'];
+  },
   createLifecycle({ config, epoch, write, onEvent, promptTimeoutMs, onApproval }) {
     const lifecycle = new DshLifecycle({ epoch, write, onEvent, promptTimeoutMs, onApproval });
     return {
@@ -218,7 +222,7 @@ export const dshDriver: HarnessDriver = {
         await lifecycle.initialize();
       },
       async open({ config: cfg, process }) {
-        const opened = await lifecycle.open({ cwd: cfg.workspace, nativeSessionId: process.session?.id });
+        const opened = await lifecycle.open({ cwd: cfg.workspace, nativeSessionId: process.session?.id, mcpServers: process.mcpServers });
         return { id: opened.id };
       },
       async start(input) {
@@ -232,7 +236,12 @@ export const dshDriver: HarnessDriver = {
     };
   },
 };
-export function builtInDrivers(): HarnessDriverRegistry {
+const zcodeCliRef: { path?: string } = {};
+const dshBinRef: { path?: string } = {};
+/** 受信宿主在安装运行时注入官方 CLI 入口;驱动只产协议参数。 */
+export function builtInDrivers(cli?: { zcodeCli?: string; dshBin?: string }): HarnessDriverRegistry {
+  zcodeCliRef.path = cli?.zcodeCli;
+  dshBinRef.path = cli?.dshBin;
   const registry = new HarnessDriverRegistry();
   registry.register(codexDriver);
   registry.register(kimiDriver);

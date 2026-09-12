@@ -4,6 +4,7 @@ import { isAbsolute, join, relative, sep } from 'node:path';
 import type { ApplicationService } from '../core-service/application.ts';
 import { NativeExecutionRegistry } from '../core-service/native-registry.ts';
 import { NativeProcessBackend } from '../core-service/native-process-backend.ts';
+import { builtInDrivers } from '../core-service/harness-drivers.ts';
 import { NativeSessionStore } from '../core-service/native-session-store.ts';
 import {
   registerTrustedRole,
@@ -18,6 +19,8 @@ import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
 
 interface Config {
   dshHome?: string;
+  dshBin?: string;
+  zcodeCli?: string;
   isolation: 'LIMITED_ISOLATION';
   managedRoot: string;
   workspaceRoot: string;
@@ -70,7 +73,7 @@ export async function installLocalNativeRuntime(
       throw Error('NATIVE_RUNTIME_HASH_MISMATCH');
   for (const p of c.profiles) {
     if (
-      !((p.harness === 'pi' && p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash' && p.effort === 'off') || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low')) ||
+      !((p.harness === 'pi' && p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash' && p.effort === 'off') || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (p.harness==='deepseek_harness' && p.providerId==='agentrouter-deepseek' && p.modelId==='deepseek-v4-flash' && p.effort==='off')) ||
       !isAbsolute(p.sessionHome) ||
       !isAbsolute(p.executable) ||
       sha(p.executable) !== p.executableSha256
@@ -90,6 +93,8 @@ export async function installLocalNativeRuntime(
     managedRoot: c.managedRoot,
     supervisorExecutable: c.supervisorExecutable,
     supervisorSha256: c.supervisorSha256,
+    zcodeCli: c.zcodeCli,
+    dshBin: c.dshBin,
     prepare: async (input) => {
       if (sha(c.piExtension) !== c.piExtensionSha256) throw Error('NATIVE_EXTENSION_HASH_MISMATCH');
       if (!inside(c.workspaceRoot, input.config.workspace)) throw Error('NATIVE_WORKSPACE_SCOPE');
@@ -129,7 +134,7 @@ export async function installLocalNativeRuntime(
       }
       if (input.config.harness === 'zcode') {
         if (input.config.version !== '0.16.5') throw Error('ZCODE_VERSION_UNVERIFIED');
-        if (!input.config.profileRef || !isAbsolute(input.config.profileRef)) throw Error('ZCODE_RUNTIME_CONFIG_INVALID');
+        if (!c.zcodeCli || !isAbsolute(c.zcodeCli)) throw Error('ZCODE_RUNTIME_CONFIG_INVALID');
         // 受管隔离:沙箱HOME+受管env;真实会话创建需已配置凭据的实例(实验级,不宣称执行闭环)。
         const zhome = join(home, 'zcode-home');
         mkdirSync(zhome, { recursive: true });
@@ -142,11 +147,18 @@ export async function installLocalNativeRuntime(
       }
       if (input.config.harness === 'deepseek_harness') {
         if (input.config.version !== '0.1.5-rc.1') throw Error('DSH_VERSION_UNVERIFIED');
+        if (!c.dshBin || !isAbsolute(c.dshBin)) throw Error('DSH_RUNTIME_CONFIG_INVALID');
         const dshHome = c.dshHome ?? join(home, '.dsh');
         if (!existsSync(join(dshHome, 'profiles'))) throw Error('NATIVE_CREDENTIALS_REQUIRED');
+        const keyText = existsSync(c.credentialFile) ? readFileSync(c.credentialFile, 'utf8') : '';
+        const dshKey = keyText.match(/sk-[A-Za-z0-9_-]{16,}/)?.[0];
+        if (!dshKey) throw Error('NATIVE_CREDENTIALS_REQUIRED');
         const token = bridge.issue(input.handleTool);
         return {
-          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),DSH_HOME:dshHome,AGENTROUTER_MANAGED_ROLE:'1'},
+          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),DSH_HOME:dshHome,DEEPSEEK_API_KEY:dshKey},
+          mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
+          approveKimi:approveManagedKimiRoute,
+          session,
           revoke:()=>bridge.revoke(token),
           saveSession:async()=>{throw Error('DSH_SESSION_SAVE_UNSUPPORTED');},
         };
@@ -242,7 +254,7 @@ export async function installLocalNativeRuntime(
       }
     },
   });
-  const backend = new NativeProcessBackend(host);
+  const backend = new NativeProcessBackend(host, 120000, 10000, builtInDrivers({ zcodeCli: c.zcodeCli, dshBin: c.dshBin }));
   for (const harness of new Set(c.profiles.map(p=>p.harness))) registry.attach(harness, {
     backend,
     cancelSupported: true,
