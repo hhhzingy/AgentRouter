@@ -9,6 +9,14 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续5）：P2-a 驱动注册制完成 + 两个新Harness协议面探明
+
+- **HarnessDriverRegistry 完成（7d05981）**：NativeProcessBackend 三家品牌分支抽取为 HarnessDriver（processArgs/requiresSessionPath/createLifecycle→统一 HarnessLifecycle：phase/initialize/open/start/cancel/accept/disconnect）。verifyCodex 门禁、kimi 配置门禁与审批、pi 会话路径要求行为不变；新驱动经 registry.register 接入，未注册 harness 拒绝 NATIVE_HARNESS_UNSUPPORTED。全仓 57 文件 389 项 PASS。
+- **DeepSeek 官方 ACP 面探明**：dsh --profile acp（官方默认 profile，dsh-acp-app+dsh-acp，deepseek-v4-flash）；协议方法含 session/new/**resume**/list/update/event、turn/end、tool/call、approval/request；interrupted→cancelled。接入点明确；真实任务/恢复/取消闭环需 DeepSeek DUT 凭据（BLOCKED_BY_CREDENTIALS，不冒充）。
+- **ZCode Protocol 面探明**：app-server 帧形 {id,method,params}（换行分帧，无 jsonrpc 键——实验确认）；方法面 session/create/**resume**/list/read/messages/events/subscribe/send/**stop**/fork/setModel/setThoughtLevel 等（官方发行物只读提取）；隔离杠杆 --settings/--disallowed-tools/沙箱HOME/受管env 均已实证。实验级驱动可行；实现前需对 session/create|send|events 做最小真实往返（不猜字段语义）。
+- 层级：驱动注册制=实现+全仓离线回归；两个新驱动=协议面探明(实现未开始)；dsh真实闭环=BLOCKED_BY_CREDENTIALS。
+- 下一动作：P2-c 续——ZCode 实验级驱动(session/create|send|events 最小往返)与 dsh 驱动骨架(注册+启动参数)，或按用户优先级先做 P3/P4。
+
 # 当前执行（2026-09-12 续4）：P1 真实单项验证完成
 
 - **w11-main 装配 RoleSessionExtension**（初版遗漏导致扩展帧落冻结校验并按协议断连；负路径现返回 ROLE_NOT_FOUND 干净错误）。
