@@ -9,6 +9,13 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续4）：P1 真实单项验证完成
+
+- **w11-main 装配 RoleSessionExtension**（初版遗漏导致扩展帧落冻结校验并按协议断连；负路径现返回 ROLE_NOT_FOUND 干净错误）。
+- **真实 MCP 回路 PASS**（临时 Core + SDK 客户端）：建项目/角色(Client API) → MCP router_role_session_list(初始会话1个/active正确) → create(第二代) → switch 切回(g3) → 幂等 switch(g不变) → history 按会话隔离。常驻 Core 已刷新至最新 bundle（pid 2624，ZCode 调试通道 28 工具）。
+- 层级声明：RoleSession=实现+离线测试(3项)+真实单项(MCP回路)；联合覆盖/重复稳定性/整轮稳定性未做——后续随 P2 驱动接入与 GUI 会话页验收。
+- 下一动作：P2 HarnessDriverRegistry 抽取（三家分支→注册制）+ dsh ACP/ZCode app-server 无秘密协议探测深入。
+
 # 当前执行（2026-09-12 续3）：P1 RoleSession 最小切换闭环完成（离线层）
 
 - 迁移005（role_sessions + tasks/runs/conversation_items.role_session_id；升级前 before-v5 备份；存量回填初始会话；新角色创建即播种会话）。
