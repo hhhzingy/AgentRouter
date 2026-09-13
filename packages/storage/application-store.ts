@@ -34,7 +34,7 @@ export function openApplicationStore(
     const rows = db
       .prepare('select version,checksum from schema_migrations order by version')
       .all() as { version: number; checksum: string }[];
-    const sources = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql'].map((name) =>
+    const sources = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql'].map((name) =>
       readFileSync(new URL(name, migrations), 'utf8'),
     );
     const hashes = sources.map((sql) => createHash('sha256').update(sql).digest('hex'));
@@ -111,15 +111,26 @@ export function openApplicationStore(
         mkdirSync(backups, { recursive: true });
         db.prepare('VACUUM INTO ?').run(resolve(backups, 'before-v6-' + randomUUID() + '.db'));
       }
+      // 006 重建含 FK 引用的表:PRAGMA foreign_keys 在事务内是 no-op,须事务外切换;
+      // 事务内完成重建并在提交前做 FK 检查,失败整体回滚且不记录版本。
       db.pragma('foreign_keys=OFF');
       try {
         db.transaction(() => {
           db.exec(sources[5]);
+          if ((db.pragma('foreign_key_check') as unknown[]).length)
+            throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
           db.prepare('insert into schema_migrations values(6,?,?)').run(Date.now(), hashes[5]);
         }).immediate();
       } finally {
         db.pragma('foreign_keys=ON');
       }
+    }
+    if (rows.length < 7) {
+      // 007 恢复 006 丢失的单一当前绑定唯一索引;存量冲突则 CREATE 失败并回滚版本记录(不自动挑选/删除)。
+      db.transaction(() => {
+        db.exec(sources[6]);
+        db.prepare('insert into schema_migrations values(7,?,?)').run(Date.now(), hashes[6]);
+      }).immediate();
     }
     db.pragma('journal_mode=WAL');
     db.pragma('synchronous=FULL');

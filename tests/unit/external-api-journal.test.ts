@@ -110,7 +110,7 @@ it('migrates a v3 database with a recoverable backup and preserves durable claim
   const dataset = db.prepare("select value from app_meta where key='dataset_id'").get();
   db.close();
   db = openApplicationStore(root);
-  expect(db.prepare('select max(version) v from schema_migrations').get()).toEqual({v:6});
+  expect(db.prepare('select max(version) v from schema_migrations').get()).toEqual({v:7});
   expect(db.prepare("select value from app_meta where key='dataset_id'").get()).toEqual(dataset);
   const backupFile = readdirSync(join(root,'backups')).find(n=>n.startsWith('before-v4-'))!;
   const backup = new Database(join(root,'backups',backupFile),{readonly:true});
