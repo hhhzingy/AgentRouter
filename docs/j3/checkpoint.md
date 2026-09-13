@@ -9,6 +9,14 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续11）：39db583 CI 全绿——P3 attachment 与 C1R1P2 均已落地
+
+- 分支头 39db583(plan.ts shapeOk 漏提交已由 39db583 修复提交补齐):两条 CI SUCCESS。树干净。
+- 修复了续10遗留:rolePlan.apply 在 P2 连接上的两个问题——①createRole 的 harness 白名单走 setAllowedHarnesses 视图(management.ts,宿主注入 drivers.list());②mutate 内 validateResponse 对 P2 跳过(动态 harness 响应不走冻结 schema)。
+- 迁移 006 已实测:deepseek_harness 写入 bindings/native_binding_configs 无 CHECK 阻碍。
+- DeepSeek 生产 E2E 剩余唯一阻塞:bootstrap FAILED——dsh 进程在 supervisor spawn 链内启动/握手失败(ACP 层同环境直探三项已验证)。已具备 core stderr 捕获,下一轮专项:对比 supervisor 环境与直探环境差异(PATH/DSH_HOME/TTY/stdio 句柄),修复后即跑完整生产闭环。
+- 排队不变:Kimi fallback(provenance 入 Run)、ZCODE_DUT、真实 SSH(待提权重装)、真机、最终 RC(单一干净 SHA 全量验收后才合 main/tag/发布)。
+
 # 当前执行（2026-09-12 续10）：CCR-J3-DRIVER-01 批准实施——C1R1P2 动态 HarnessId 落地(0c2ad50)
 
 - **C1R1P2 已实施**(用户批准 CCR 后):contract.upgrade 扩展协商(C1R1P1 连接初始化后升级,observer 拒绝);c1r1p2.ts 内存派生放宽校验器(C1R1P1 schema + role-plan v1 schema 的 harness 枚举 → HarnessId 模式,冻结文件字节不变);rolePlan.validate/apply 接受注册表内 harness(deepseek_harness/zcode),未注册 → UNSUPPORTED_HARNESS/CAPABILITY_UNAVAILABLE;旧协议连接快照投影裁剪动态角色(裁剪先于冻结投影)。
