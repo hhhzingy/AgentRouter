@@ -9,6 +9,14 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续8）：执行包P0—P5全部推进完毕,最终候选 5ee6c39
+
+- **最终候选**: release/AgentRouter-j3-5ee6c39f9b06-*(artifact 63804aac…),打包Electron验收 PASS(真实项目创建/重载持久化/截图)。含本会话全部增量:RoleSession、驱动注册制、两新驱动、Participant MCP(stdio+HTTP)、SSH桥、Web控制台。
+- **联合抽查(最终bundle)**: kimi→pi、kimi→codex 通过;pi→kimi 遇已知K2.7波动后按规则停止重试(方向级累计6/6覆盖不变)。证据 evidence/J3/production-pair/7228939-finalbundle。
+- **Kimi 5h限额备选(已查明,未启用)**: kimi-code 0.42.0 内置 deepseek vendor 注册(DEEPSEEK_API_KEY 环境变量,api.deepseek.com,含 deepseek-v4-flash 系模型);限额阻塞时在受管 prepare 注入该环境变量并选用 deepseek 模型即可,无需改配置文件。触发时再实现注入。
+- **执行包完成度**: P0✓ P1✓ P2✓(dsh生产E2E BLOCKED_BY_CONTRACT待CCR) P3✓(网页闭环待ChatGPT连接器权限) P4✓(真机/真实sshd待用户) P5✓(候选PASS,正式发布仍冻结)。
+- **剩余用户动作(不变)**: ①提权重装 OpenSSH Server(sshd.exe 仍缺)后跑真实SSH E2E;②按交接包跑 ChatGPT 网页闭环(需连接器权限);③真机手机验收;④批准 CCR-J3-DRIVER-01 解锁 dsh/zcode 生产E2E;⑤实际验收后合 main/发布(仍冻结)。
+
 # 当前执行（2026-09-12 续7）：用户动作后增量——DeepSeek真实三项/SSH桥/手机仿真/ChatGPT交接包
 
 - **DeepSeek Harness 真实三项(ACP层,授权API key经DEEPSEEK_API_KEY环境变量)**:任务 end_turn;跨进程 session/resume 后上下文延续(轮2回复47);取消 cancelled。协议要点:JSON-RPC 2.0 信封必须显式。证据 evidence/J3/nextround-p0/dsh-acp-real-probes.json。
