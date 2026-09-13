@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { realpathSync, statSync, readdirSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 import type Database from 'better-sqlite3';
@@ -210,22 +210,101 @@ export class ApplicationService extends Plans {
   }
   private participantAttachments = new Map<
     string,
-    { connectionId: string; generation: number }
+    { connectionId: string; generation: number; grantId: string }
   >();
-  /** 角色级参与者挂接:generation 单调递增,新接管使旧连接写权限失效;不占用全局 Controller lease。 */
-  participantAttach(connectionId: string, roleId: string) {
+  /** 聊天级挂接授权(F-03):grant 由管理面签发(全局控制器租约);同角色新签发自动撤销旧 grant,
+   * 旧聊天的在途写与再挂接被服务端拒绝,与进程连接生命周期无关。token 只存哈希。 */
+  private sha256(text: string): string {
+    return createHash('sha256').update(text).digest('hex');
+  }
+  participantGrantIssue(connectionId: string, roleId: string, leaseId: string) {
+    this.checkLease(connectionId, leaseId); // 管理面凭据:全局控制器租约
+    const role = this.roleScope(roleId);
+    const grantId = uid('pgrant');
+    const token = randomBytes(24).toString('hex');
+    return this.db
+      .transaction(() => {
+        const revokedPrior = this.db
+          .prepare("update participant_grants set state='REVOKED', revoked_at_ms=? where role_id=? and state='ACTIVE'")
+          .run(this.clock(), roleId).changes;
+        const generation =
+          (this.db
+            .prepare('select coalesce(max(generation),0) g from participant_grants where role_id=?')
+            .get(roleId) as { g: number }).g + 1;
+        this.db
+          .prepare(
+            'insert into participant_grants(id,role_id,token_hash,state,generation,created_at_ms) values(?,?,?,?,?,?)',
+          )
+          .run(grantId, roleId, this.sha256(token), 'ACTIVE', generation, this.clock());
+        return { grant_id: grantId, token, role_id: roleId, generation, revoked_previous: revokedPrior > 0 };
+      })
+      .immediate();
+  }
+  participantGrantRevoke(connectionId: string, grantId: string, leaseId: string) {
+    this.checkLease(connectionId, leaseId);
+    this.db
+      .transaction(() => {
+        const g = this.db.prepare('select id from participant_grants where id=?').get(grantId);
+        if (!g) throw Error('PARTICIPANT_GRANT_NOT_FOUND');
+        this.db
+          .prepare("update participant_grants set state='REVOKED', revoked_at_ms=? where id=?")
+          .run(this.clock(), grantId);
+        for (const [roleId, a] of this.participantAttachments)
+          if (a.grantId === grantId) this.participantAttachments.delete(roleId);
+      })
+      .immediate();
+    return { grant_id: grantId, state: 'REVOKED' };
+  }
+  participantGrantList(connectionId: string, roleId: string, leaseId: string) {
+    this.checkLease(connectionId, leaseId);
+    this.roleScope(roleId);
+    const rows = this.db
+      .prepare(
+        'select id,role_id,state,generation,created_at_ms,revoked_at_ms from participant_grants where role_id=? order by generation',
+      )
+      .all(roleId) as Record<string, unknown>[];
+    return { grants: rows };
+  }
+  participantAttach(
+    connectionId: string,
+    roleId: string,
+    grantId: string,
+    grantToken: string,
+  ) {
     const c = this.connection(connectionId);
     if (!c.authorized) throw new C1R1Error('SCOPE_DENIED');
-    this.roleScope(roleId); // NOT_FOUND 即拒绝
+    const role = this.roleScope(roleId);
+    if (!grantId || typeof grantToken !== 'string' || !grantToken)
+      throw Error('PARTICIPANT_GRANT_REVOKED');
+    const g = this.db.prepare('select * from participant_grants where id=?').get(grantId) as
+      | { role_id: string; token_hash: string; state: string; generation: number }
+      | undefined;
+    if (!g || g.role_id !== roleId) throw Error('PARTICIPANT_GRANT_NOT_FOUND');
+    if (g.state !== 'ACTIVE' || this.sha256(grantToken) !== g.token_hash)
+      throw Error('PARTICIPANT_GRANT_REVOKED');
     const prev = this.participantAttachments.get(roleId);
-    if (prev && prev.connectionId === connectionId) return { role_id: roleId, generation: prev.generation }; // 同连接幂等
-    const generation = (prev?.generation ?? 0) + 1;
-    this.participantAttachments.set(roleId, { connectionId, generation });
-    return { role_id: roleId, generation };
+    if (prev && prev.connectionId === connectionId && prev.grantId === grantId)
+      return {
+        role_id: roleId,
+        generation: prev.generation,
+        project_id: role.project_id,
+        space_id: role.space_id,
+      }; // 同连接同 grant 幂等
+    this.participantAttachments.set(roleId, { connectionId, generation: g.generation, grantId });
+    return {
+      role_id: roleId,
+      generation: g.generation,
+      project_id: role.project_id,
+      space_id: role.space_id,
+    };
   }
   participantValid(connectionId: string, roleId: string): boolean {
     const a = this.participantAttachments.get(roleId);
-    return !!a && a.connectionId === connectionId;
+    if (!a || a.connectionId !== connectionId) return false;
+    const g = this.db.prepare('select state from participant_grants where id=?').get(a.grantId) as
+      | { state: string }
+      | undefined;
+    return !!g && g.state === 'ACTIVE';
   }
   subscribe(id: string, handler: (e: Event) => void) {
     const c = this.connection(id);
@@ -364,27 +443,69 @@ export class ApplicationService extends Plans {
       this.participant &&
       typeof (raw as { method?: unknown })?.method === 'string' &&
       String((raw as { method?: unknown }).method).startsWith('participant.')
-    )
-      {
-        const method = String((raw as { method?: unknown }).method);
-        if (method === 'participant.attach') {
-          const params = ((raw as { params?: unknown }).params ?? {}) as { role_id?: unknown };
-          const roleId = String(params.role_id ?? '');
-          if (!/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(roleId)) throw new C1R1Error('INVALID_PARAMS');
-          return Promise.resolve({
-            v: 1,
-            id: String((raw as { id?: unknown }).id ?? ''),
-            result: this.participantAttach(id, roleId),
-          });
+    ) {
+      const method = String((raw as { method?: unknown }).method);
+      const params = ((raw as { params?: unknown }).params ?? {}) as Record<string, unknown>;
+      const frameId = String((raw as { id?: unknown }).id ?? '');
+      // 扩展分支的错误必须转 wire 帧;抛出会令 w11-main 销毁整条 socket(F-02)
+      const wireError = (code: string) => ({ v: 1, id: frameId, error: { code } });
+      const leaseId = String(
+        (raw as { lease_id?: unknown }).lease_id ?? params.lease_id ?? '',
+      );
+      try {
+        const reply = (result: unknown) => ({ v: 1, id: frameId, result });
+        const roleId = String(params.role_id ?? '');
+        if (method === 'participant.grant.issue') {
+          if (!/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(roleId))
+            throw Error('INVALID_PARAMS');
+          return Promise.resolve(reply(this.participantGrantIssue(id, roleId, leaseId)));
         }
-      return this.participant.handle(raw, {
-        principal: c.principal,
-        ...(c.clientId ? { clientId: c.clientId } : {}),
-        ...(c.mode ? { mode: c.mode } : {}),
-        assertParticipantAttachment: (roleId: string) => {
-          if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
-        },
-      });
+        if (method === 'participant.grant.revoke') {
+          const grantId = String(params.grant_id ?? '');
+          if (!/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(grantId))
+            throw Error('INVALID_PARAMS');
+          return Promise.resolve(reply(this.participantGrantRevoke(id, grantId, leaseId)));
+        }
+        if (method === 'participant.grant.list') {
+          if (!/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(roleId))
+            throw Error('INVALID_PARAMS');
+          return Promise.resolve(reply(this.participantGrantList(id, roleId, leaseId)));
+        }
+        if (method === 'participant.attach') {
+          if (!/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(roleId))
+            throw Error('INVALID_PARAMS');
+          return Promise.resolve(
+            reply(
+              this.participantAttach(
+                id,
+                roleId,
+                String(params.grant_id ?? ''),
+                typeof params.grant_token === 'string' ? params.grant_token : '',
+              ),
+            ),
+          );
+        }
+        return this.participant.handle(raw, {
+          principal: c.principal,
+          ...(c.clientId ? { clientId: c.clientId } : {}),
+          ...(c.mode ? { mode: c.mode } : {}),
+          assertParticipantAttachment: (targetRole: string) => {
+            if (!this.participantValid(id, targetRole))
+              throw Error('PARTICIPANT_GENERATION_STALE');
+          },
+        });
+      } catch (error) {
+        // 扩展分支错误转 wire 帧;抛出会令 w11-main 销毁整条 socket(F-02)
+        if (error instanceof C1R1Error) throw error;
+        const message = (error as Error).message;
+        return {
+          v: 1,
+          id: frameId,
+          error: {
+            code: /^[A-Z][A-Z0-9_]{1,79}$/.test(message) ? message : 'PARTICIPANT_REQUEST_FAILED',
+          },
+        };
+      }
     }
     if (
       typeof (raw as { method?: unknown })?.method === 'string' &&

@@ -1,5 +1,7 @@
-// Participant MCP 的 Streamable HTTP 入口(供网页 ChatGPT 经 Tailscale Serve 私网 HTTPS 连接)。
-// 认证:Authorization: Bearer <token>;token 由启动参数或 --gen-token 生成,只存 .local,不入库不入 git。
+// Participant MCP 的 Streamable HTTP 入口。云端 ChatGPT 用官方 Secure MCP Tunnel 指向本端口;
+// 手机/tailnet 内查看才使用 Tailscale Serve。认证双层:外层 Bearer token(HTTP 访问控制),
+// 内层聊天级 grant(服务端 participant_grants 表验证,签发需管理面全局租约;同角色新签发撤销旧 grant)。
+// 受控单会话模式:一个入口进程绑定一个 grant/聊天;接管=管理面签发新 grant 并重启入口,旧聊天凭据即失效。
 // 权限:与 stdio 版一致,仅三个参与工具;AGENTROUTER_MANAGED_ROLE=1 不拦截本入口(它就是受管入口),
 //       但必须显式提供 --allow-remote 才绑定非回环地址(默认 127.0.0.1,交给 tailscale serve 暴露)。
 import { createServer } from 'node:http';
@@ -40,8 +42,42 @@ const session = await transport.connect({
   contractRevision: 'C1R1P1',
   mode: 'LOCAL_CORE',
 });
-// Role-scoped attachment:不取全局 controller lease;generation 单调,新接管使旧连接失效。
-const attachInfo = await session.request('participant.attach', { role_id: roleId });
+// grant 引导:--grant/--grant-token 显式 > grant 文件 > --gen-token(经管理面全局租约签发,租约即放即用)
+const grantFile = resolve(data, 'participant-grant-' + roleId + '.json');
+const gi = process.argv.indexOf('--grant');
+const gt = process.argv.indexOf('--grant-token');
+let grantCred;
+if (gi > 0 && gt > 0) grantCred = { grant_id: process.argv[gi + 1], token: process.argv[gt + 1] };
+else if (existsSync(grantFile)) grantCred = JSON.parse(readFileSync(grantFile, 'utf8'));
+else if (genToken) {
+  const snap0 = await session.request('system.snapshot', {});
+  const lease = await session.request(
+    'control.acquire',
+    {},
+    { operationId: 'grant_bootstrap_' + randomUUID(), expectedRevision: snap0.revision, scope: {} },
+  );
+  try {
+    grantCred = await session.request('participant.grant.issue', {
+      role_id: roleId,
+      lease_id: lease.leaseId,
+    });
+  } finally {
+    const snap1 = await session.request('system.snapshot', {});
+    await session.request(
+      'control.release',
+      { lease_id: lease.leaseId },
+      { operationId: 'grant_release_' + randomUUID(), expectedRevision: snap1.revision, scope: {} },
+    );
+  }
+  writeFileSync(grantFile, JSON.stringify({ grant_id: grantCred.grant_id, token: grantCred.token }) + String.fromCharCode(10), { mode: 0o600 });
+} else throw Error('PARTICIPANT_GRANT_REQUIRED(--grant/--grant-token 或 --gen-token)');
+// attach 不占全局租约;服务端按 grant 凭据+generation 验证写权限
+const snap = () => session.request('system.snapshot', {});
+const attachInfo = await session.request('participant.attach', {
+  role_id: roleId,
+  grant_id: grantCred.grant_id,
+  grant_token: grantCred.token,
+});
 const generation = attachInfo.generation;
 const projectId = attachInfo.project_id;
 const spaceId = attachInfo.space_id;

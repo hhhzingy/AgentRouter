@@ -18,6 +18,7 @@ function buildUpTo(dir: string, through: number) {
     '005-role-sessions.sql',
     '006-role-harness-dynamic.sql',
     '007-restore-current-binding-index.sql',
+    '008-participant-grants.sql',
   ];
   const db = new Database(resolve(dir, 'router.db'));
   for (let v = 1; v <= through; v++) {
@@ -72,12 +73,12 @@ it('DB-01:v5→v6→v7 升级恢复 one_current_binding_per_role 且拒绝双当
   ).toThrow(/UNIQUE/);
   db.close();
   const { openApplicationStore } = await import(
-    pathToFileURL(resolve('packages/storage/application-store.ts'))
+    pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
   expect(
     up.prepare('select max(version) v from schema_migrations').get(),
-  ).toEqual({ v: 7 });
+  ).toEqual({ v: 8 });
   // 006 重建 bindings 后 007 恢复了索引
   expect(
     up.prepare("select name from sqlite_master where name='one_current_binding_per_role'").get(),
@@ -104,7 +105,7 @@ it('DB-02:006 缺陷窗口存量(双当前绑定)时 007 显式失败并回滚�
   ).run();
   db.close();
   const { openApplicationStore } = await import(
-    pathToFileURL(resolve('packages/storage/application-store.ts'))
+    pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   expect(() => openApplicationStore(dir, FULL)).toThrow(/UNIQUE|constraint/);
   // 失败后 v6 库仍在(未记录 7),冲突数据原样保留,不自动挑选或删除
@@ -127,7 +128,7 @@ it('DB-03:006 升级失败回滚不记录版本(模拟 FK 违规场景),v5 数�
   const badDir = resolve(caseDir, 'mig-bad');
   mkdirSync(badDir, { recursive: true });
   const { copyFileSync, writeFileSync } = await import('node:fs');
-  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '007-restore-current-binding-index.sql'])
+  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql'])
     copyFileSync(resolve(MIGRATIONS_DIR, n), resolve(badDir, n));
   writeFileSync(
     resolve(badDir, '006-role-harness-dynamic.sql'),
@@ -135,7 +136,7 @@ it('DB-03:006 升级失败回滚不记录版本(模拟 FK 违规场景),v5 数�
       "\nINSERT INTO native_binding_configs VALUES('ghost',1,'pi','{}','h',1);\n",
   );
   const { openApplicationStore } = await import(
-    pathToFileURL(resolve('packages/storage/application-store.ts'))
+    pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   // ghost 绑定不存在 → 提交前 FK 检查必须使升级失败且版本保持 5
   expect(() => openApplicationStore(caseDir, pathToFileURL(badDir + sep))).toThrow(
@@ -155,12 +156,12 @@ it('DB-04:升级幂等——v7 库重复打开不再迁移且索引持续生效'
   seedRealData(db);
   db.close();
   const { openApplicationStore } = await import(
-    pathToFileURL(resolve('packages/storage/application-store.ts'))
+    pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const first = openApplicationStore(dir, FULL);
   first.close();
   const second = openApplicationStore(dir, FULL);
-  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 7 });
+  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 8 });
   expect(
     second
       .prepare("select name from sqlite_master where name='one_current_binding_per_role'")

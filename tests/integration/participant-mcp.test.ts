@@ -54,6 +54,8 @@ it(
     const v = await s.request('rolePlan.validate', { plan });
     await mutate('rolePlan.apply', { plan, plan_hash: v.planHash, confirmed: true, permission_grants: [{ role_key: plan.roles[0].role_key, permissions: plan.roles[0].requested_permissions }] }, { project_id: project.id }, 'apply');
     const roleId = ((await s.request('role.list', { scope: { project_id: project.id } })) as any).items[0].id;
+    const grantA = await s.request('participant.grant.issue' as never, { role_id: roleId } as never, { leaseId: (lease as any).leaseId });
+    const grantToken = (grantA as any).token;
     await setup.close();
     // 角色工作区路径(夹具直接读DB:workspace.canonical_path)
     const db = new Database(resolve(dir, 'core/router.db'), { readonly: true });
@@ -69,7 +71,7 @@ it(
     // stderr 由 transport 管道缓存;失败时用 client.close 后的 pErr 输出
     await client.connect(new StdioClientTransport({
       command: process.execPath,
-      args: [resolve(dir, 'participant.mjs'), resolve(dir, 'core'), roleId as string],
+      args: [resolve(dir, 'participant.mjs'), resolve(dir, 'core'), roleId as string, '--grant', grantA.grant_id as string, '--grant-token', grantToken],
       env: { SystemRoot: process.env.SystemRoot as string, WINDIR: process.env.WINDIR as string, PATH: '', TEMP: dir as string, TMP: dir as string, AGENTROUTER_MANAGED_ROLE: '1' },
       stderr: 'pipe',
     }));

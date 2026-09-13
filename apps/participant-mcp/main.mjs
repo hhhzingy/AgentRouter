@@ -3,8 +3,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts';
 const data = process.argv[2], roleId = process.argv[3];
-process.on('uncaughtException', (e) => { try { require('node:fs').writeFileSync(data + '/participant-crash.log', String(e && e.stack || e)); } catch {} throw e; });
-process.on('unhandledRejection', (e) => { try { require('node:fs').writeFileSync(data + '/participant-crash.log', 'REJECTION:' + String(e && ((e).stack || e))); } catch {} });
+// ESM 无 require:崩溃诊断走 stderr(由 transport 管道捕获),不落盘。
+process.on('uncaughtException', (e) => { console.error('PARTICIPANT_CRASH:', String(e && (e.stack || e))); throw e; });
+process.on('unhandledRejection', (e) => console.error('PARTICIPANT_REJECTION:', String(e && (e.stack || e))));
 if (!data || !roleId || process.env.AGENTROUTER_MANAGED_ROLE !== '1') throw Error('PARTICIPANT_START_DENIED');
 import Database from 'better-sqlite3';
 const db = new Database(data + '/router.db', { readonly: true });
@@ -19,8 +20,25 @@ const session = await transport.connect({
   mode: 'LOCAL_CORE',
 });
 const snap = () => session.request('system.snapshot', {});
-// Role-scoped attachment:不取全局 controller lease;generation 单调,新接管使旧连接失效。
-const attachInfo = await session.request('participant.attach', { role_id: roleId });
+// grant 引导(与 HTTP 入口同流程):显式参数 > grant 文件 > --gen-token(管理面租约即放即用)。
+const { readFileSync: rfs, writeFileSync: wfs, existsSync: exs } = await import('node:fs');
+const { randomUUID } = await import('node:crypto');
+const grantFile = data + '/participant-grant-' + roleId + '.json';
+const gi = process.argv.indexOf('--grant');
+const gt = process.argv.indexOf('--grant-token');
+let grantCred;
+if (gi > 0 && gt > 0) grantCred = { grant_id: process.argv[gi + 1], token: process.argv[gt + 1] };
+else if (exs(grantFile)) grantCred = JSON.parse(rfs(grantFile, 'utf8'));
+else if (process.argv.includes('--gen-token')) {
+  const lease = await session.request('control.acquire', {}, { operationId: 'grant_bootstrap_' + randomUUID(), expectedRevision: (await snap()).revision, scope: {} });
+  try {
+    grantCred = await session.request('participant.grant.issue', { role_id: roleId, lease_id: lease.leaseId });
+  } finally {
+    await session.request('control.release', { lease_id: lease.leaseId }, { operationId: 'grant_release_' + randomUUID(), expectedRevision: (await snap()).revision, scope: {} });
+  }
+  wfs(grantFile, JSON.stringify({ grant_id: grantCred.grant_id, token: grantCred.token }), { mode: 0o600 });
+} else throw Error('PARTICIPANT_GRANT_REQUIRED(--grant/--grant-token 或 --gen-token)');
+const attachInfo = await session.request('participant.attach', { role_id: roleId, grant_id: grantCred.grant_id, grant_token: grantCred.token });
 const attach = attachInfo.generation ?? 1;
 const projectId = attachInfo.project_id;
 const spaceId = attachInfo.space_id;
