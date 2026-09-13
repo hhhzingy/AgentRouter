@@ -93,7 +93,8 @@ const core = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
   },
 });
 // Do not persist raw stderr or any credential-bearing transport body.
-core.stderr.resume();
+const coreErrChunks = [];
+  core.stderr.on('data', (d) => coreErrChunks.push(d));
 let didClose = false;
 const closed = new Promise((r) =>
   core.once('close', (code) => {
@@ -140,6 +141,11 @@ try {
       leaseId: lease.leaseId,
     });
   shutdown = () => mutate('runtime.shutdownCore', {}, {}, 'shutdown');
+  if (dsh) {
+    // C1R1P2:动态 HarnessId 计划需先升级连接协议
+    const up = await s.request('contract.upgrade', { revision: 'C1R1P2' });
+    report.p2upgrade = up && up.revision === 'C1R1P2';
+  }
   const roots = await s.request('filesystem.listRoots', {});
   const project = await mutate(
     'project.create',
@@ -305,6 +311,9 @@ try {
   if (!didClose) core.kill('SIGTERM');
   await Promise.race([closed, new Promise((r) => setTimeout(r, 10000))]);
   report.coreExited = didClose;
+  if (coreErrChunks.length) {
+    try { report.core_stderr = coreErrChunks.join('').slice(-1500); } catch {}
+  }
   writeFileSync(path('report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({ report: path('report.json'), ...report }));
 }

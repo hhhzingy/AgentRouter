@@ -110,7 +110,7 @@ export class NativeExecutionRegistry {
     )
       throw Error('NATIVE_CONFIG_INVALID');
     if (
-      !['codex', 'kimi_code', 'pi'].includes(input.harness) ||
+      !/^[a-z][a-z0-9_]{1,40}$/.test(input.harness) || // HarnessId 合法性由 HarnessDriverRegistry 运行时判定
       !/^[a-f0-9]{64}$/.test(input.executableSha256) ||
       !/^[A-Za-z0-9_-]{1,96}$/.test(input.profileRef)
     )
