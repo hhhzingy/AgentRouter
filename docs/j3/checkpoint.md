@@ -9,6 +9,15 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续9）：下一轮主线第一批——P3 attachment 修复 + 手册/CCR 修订
+
+- **P3 架构修复(fb1b39c)**:ParticipantClient 不再申请全局 Controller lease。新增 participant.attach(Role-scoped,generation 单调,同连接幂等,断连清理);conversation.sendUserInput 与 participant.artifact 走 attachment 旁路(本连接持当前 generation 即免 lease,其余 mutation 仍需全局租约);旧 generation 写入返回 PARTICIPANT_GENERATION_STALE。修复了参与者与 Management/GUI 的 30s 租约争用、网页会话 >30s 写入失败。
+- **测试**:tests/integration/participant-attachment.test.ts(>120s 时钟前进写入、管理面并发 acquire、旧 generation 拒绝、断连重挂 gen3)+ participant-http.test.ts(错 token 401、>1MB 413、token 按角色隔离文件)。全仓 63 文件 399 项 PASS。
+- **HTTP 入口**:请求体 >1MB 拒绝 413;token 按角色隔离文件 participant-token-<roleId>.txt;去 lease 改 attach。
+- **ChatGPT 手册修订**(交接包 01):通道划分——Tailscale Serve 仅手机/tailnet Web 只读;网页 ChatGPT 走官方 Secure MCP Tunnel(桌面端隧道),宿主无 write MCP 权限则 BLOCKED_BY_HOST。
+- **CCR-J3-DRIVER-01 重写(dfe0aed)**:C1R1P1 永久冻结;C1R1P2 = contract.upgrade 扩展协商 + 动态 HarnessId(注册表运行时判定)+ capabilities map + 兼容性测试定义。**待用户批准后实施**;实施完成即跑 DeepSeek 生产 task/resume/cancel/handoff(--dsh 已备)。
+- 其余排队:C1R1P2 实施→DeepSeek 生产闭环;ZCODE_DUT 独立登录流程;Kimi→DeepSeek 显式 fallback profile+provenance;真实 SSH/真机/最终 RC。
+
 # 当前执行（2026-09-12 续8）：执行包P0—P5全部推进完毕,最终候选 5ee6c39
 
 - **最终候选**: release/AgentRouter-j3-5ee6c39f9b06-*(artifact 63804aac…),打包Electron验收 PASS(真实项目创建/重载持久化/截图)。含本会话全部增量:RoleSession、驱动注册制、两新驱动、Participant MCP(stdio+HTTP)、SSH桥、Web控制台。
