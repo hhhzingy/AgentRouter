@@ -19,7 +19,7 @@ const port = Number(process.argv[process.argv.indexOf('--port') + 1] ?? 8790);
 if (!data || !roleId) throw Error('PARTICIPANT_HTTP_ARGS_REQUIRED');
 let token;
 if (tokenArgIndex > 0) token = process.argv[tokenArgIndex + 1];
-const tokenFile = resolve(data, 'participant-token.txt');
+const tokenFile = resolve(data, 'participant-token-' + roleId + '.txt');
 if (!token && genToken) {
   token = randomBytes(24).toString('hex');
   writeFileSync(tokenFile, token + '\n', { mode: 0o600 });
@@ -40,14 +40,11 @@ const session = await transport.connect({
   contractRevision: 'C1R1P1',
   mode: 'LOCAL_CORE',
 });
-const snap = () => session.request('system.snapshot', {});
-const lease = (
-  await session.request(
-    'control.acquire',
-    {},
-    { operationId: 'participant_http_lease', expectedRevision: (await snap()).revision, scope: {} },
-  )
-).leaseId;
+// Role-scoped attachment:不取全局 controller lease;generation 单调,新接管使旧连接失效。
+const attachInfo = await session.request('participant.attach', { role_id: roleId });
+const generation = attachInfo.generation;
+const projectId = attachInfo.project_id;
+const spaceId = attachInfo.space_id;
 const call = async (name, args = {}) => {
   if (name === 'participant_read_inbox') {
     return session.request('conversation.read', { role_id: roleId, limit: 100 });
@@ -60,8 +57,7 @@ const call = async (name, args = {}) => {
       {
         operationId: 'part_' + randomUUID(),
         expectedRevision: (await snap()).revision,
-        scope: {},
-        leaseId: lease,
+        scope: { project_id: projectId, space_id: spaceId },
       },
     );
   }
@@ -70,7 +66,6 @@ const call = async (name, args = {}) => {
     return session.request(
       'participant.artifact',
       { role_id: roleId, name: p.name, content: p.content, ...(p.task_id ? { task_id: p.task_id } : {}) },
-      { leaseId: lease },
     );
   }
   throw Error('TOOL_UNAVAILABLE');
@@ -124,7 +119,17 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
   let body = '';
-  req.on('data', (c) => (body += c));
+  let tooLarge = false;
+  req.on('data', (c) => {
+    body += c;
+    if (Buffer.byteLength(body) > 1048576) {
+      tooLarge = true;
+      res.writeHead(413, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'REQUEST_BODY_TOO_LARGE' }));
+      req.destroy();
+    }
+  });
+  if (tooLarge) return;
   req.on('end', async () => {
     // 无状态模式:每请求独立 Server+Transport(官方推荐);Core 会话与租约在闭包共享。
     const transport = new StreamableHTTPServerTransport({
@@ -152,6 +157,7 @@ httpServer.listen(port, host, () => {
     status: 'STARTED',
     bound: host + ':' + boundPort,
     scope: 'PARTICIPANT_ROLE_TOOLS_ONLY',
+    generation,
     role: roleId.slice(0, 14) + '…',
     nextStep: 'tailscale serve https 127.0.0.1:' + boundPort + ' 后在 ChatGPT 连接器填该 HTTPS URL 与 Bearer token',
   }));

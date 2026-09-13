@@ -10,7 +10,8 @@ export interface ParticipantCallContext {
   principal: string;
   clientId?: string;
   mode?: string;
-  assertControllerLease: (leaseId: string) => void;
+  /** Role-scoped 挂接断言:本连接必须持有该角色当前 generation,替代全局 Controller lease。 */
+  assertParticipantAttachment: (roleId: string) => void;
 }
 const MIME: Record<string, string> = { '.md': 'text/markdown', '.json': 'application/json', '.txt': 'text/plain' };
 export class ParticipantExtension {
@@ -23,7 +24,7 @@ export class ParticipantExtension {
       const frame = validateExternalApiFrame(raw);
       if ((frame.method as string) !== 'participant.artifact') throw Error('UNSUPPORTED_METHOD');
       if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
-      context.assertControllerLease(frame.lease_id!);
+      context.assertParticipantAttachment(String((frame.params as Record<string, unknown>)?.role_id ?? ''));
       const p = (frame.params ?? {}) as Record<string, unknown>;
       const roleId = String(p.role_id ?? '');
       const name = String(p.name ?? '');

@@ -19,7 +19,12 @@ const session = await transport.connect({
   mode: 'LOCAL_CORE',
 });
 const snap = () => session.request('system.snapshot', {});
-const lease = (await session.request('control.acquire', {}, { operationId: 'participant_lease', expectedRevision: (await snap()).revision, scope: {} })).leaseId;
+// Role-scoped attachment:不取全局 controller lease;generation 单调,新接管使旧连接失效。
+const attachInfo = await session.request('participant.attach', { role_id: roleId });
+const attach = attachInfo.generation ?? 1;
+const projectId = attachInfo.project_id;
+const spaceId = attachInfo.space_id;
+console.error('participant attached, generation', attach);
 const server = new Server({ name: 'agentrouter-participant', version: '1.0.0' }, { capabilities: { tools: {} } });
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -34,11 +39,11 @@ const call = async (name, args = {}) => {
   }
   if (name === 'participant_send_user_input') {
     const p = args.params ?? {};
-    return session.request('conversation.sendUserInput', { role_id: roleId, task_id: p.task_id, body: p.body }, { operationId: 'part_' + Math.random().toString(36).slice(2) + Date.now().toString(36), expectedRevision: (await snap()).revision, scope: {}, leaseId: lease });
+    return session.request('conversation.sendUserInput', { role_id: roleId, task_id: p.task_id, body: p.body }, { operationId: 'part_' + Math.random().toString(36).slice(2) + Date.now().toString(36), expectedRevision: (await snap()).revision, scope: { project_id: projectId, space_id: spaceId }, leaseId: 'participant-attachment' });
   }
   if (name === 'participant_register_artifact') {
     const p = args.params ?? {};
-    return session.request('participant.artifact', { role_id: roleId, name: p.name, content: p.content, ...(p.task_id ? { task_id: p.task_id } : {}) }, { leaseId: lease });
+    return session.request('participant.artifact', { role_id: roleId, name: p.name, content: p.content, ...(p.task_id ? { task_id: p.task_id } : {}) });
   }
   throw Error('TOOL_UNAVAILABLE');
 };

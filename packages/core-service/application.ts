@@ -203,6 +203,25 @@ export class ApplicationService extends Plans {
     if (this.lease?.connection === id) this.lease = null;
     for (const [key, g] of this.grants) if (g.connection === id) this.grants.delete(key);
   }
+  private participantAttachments = new Map<
+    string,
+    { connectionId: string; generation: number }
+  >();
+  /** 角色级参与者挂接:generation 单调递增,新接管使旧连接写权限失效;不占用全局 Controller lease。 */
+  participantAttach(connectionId: string, roleId: string) {
+    const c = this.connection(connectionId);
+    if (!c.authorized) throw new C1R1Error('SCOPE_DENIED');
+    this.roleScope(roleId); // NOT_FOUND 即拒绝
+    const prev = this.participantAttachments.get(roleId);
+    if (prev && prev.connectionId === connectionId) return { role_id: roleId, generation: prev.generation }; // 同连接幂等
+    const generation = (prev?.generation ?? 0) + 1;
+    this.participantAttachments.set(roleId, { connectionId, generation });
+    return { role_id: roleId, generation };
+  }
+  participantValid(connectionId: string, roleId: string): boolean {
+    const a = this.participantAttachments.get(roleId);
+    return !!a && a.connectionId === connectionId;
+  }
   subscribe(id: string, handler: (e: Event) => void) {
     const c = this.connection(id);
     c.lastCursor = this.cursor;
@@ -340,12 +359,27 @@ export class ApplicationService extends Plans {
       typeof (raw as { method?: unknown })?.method === 'string' &&
       String((raw as { method?: unknown }).method).startsWith('participant.')
     )
+      {
+        const method = String((raw as { method?: unknown }).method);
+        if (method === 'participant.attach') {
+          const params = ((raw as { params?: unknown }).params ?? {}) as { role_id?: unknown };
+          const roleId = String(params.role_id ?? '');
+          if (!/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(roleId)) throw new C1R1Error('INVALID_PARAMS');
+          return Promise.resolve({
+            v: 1,
+            id: String((raw as { id?: unknown }).id ?? ''),
+            result: this.participantAttach(id, roleId),
+          });
+        }
       return this.participant.handle(raw, {
         principal: c.principal,
         ...(c.clientId ? { clientId: c.clientId } : {}),
         ...(c.mode ? { mode: c.mode } : {}),
-        assertControllerLease: (leaseId: string) => this.checkLease(id, leaseId),
+        assertParticipantAttachment: (roleId: string) => {
+          if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
+        },
       });
+    }
     const request = validateRequest(raw);
     try {
       let result: unknown;
@@ -447,7 +481,14 @@ export class ApplicationService extends Plans {
       return result;
     }
 
-    this.checkLease(id, r.lease_id);
+    // Participant attachment 旁路:仅限 conversation.sendUserInput 且本连接持有该角色的当前 generation。
+    if (
+      !(
+        r.method === 'conversation.sendUserInput' &&
+        this.participantValid(id, String(r.params?.role_id ?? ''))
+      )
+    )
+      this.checkLease(id, r.lease_id);
     const hash = digest({
       method: r.method,
       params: r.params,
