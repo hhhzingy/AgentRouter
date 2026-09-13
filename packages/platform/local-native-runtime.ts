@@ -1,3 +1,4 @@
+import { setAllowedHarnesses } from '../runtime/management.ts';
 import { existsSync, readFileSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { isAbsolute, join, relative, sep } from 'node:path';
@@ -254,7 +255,10 @@ export async function installLocalNativeRuntime(
       }
     },
   });
-  const backend = new NativeProcessBackend(host, 120000, 10000, builtInDrivers({ zcodeCli: c.zcodeCli, dshBin: c.dshBin }));
+  const drivers = builtInDrivers({ zcodeCli: c.zcodeCli, dshBin: c.dshBin });
+  const backend = new NativeProcessBackend(host, 120000, 10000, drivers);
+  app.registeredHarnesses = () => drivers.list();
+  setAllowedHarnesses(drivers.list());
   for (const harness of new Set(c.profiles.map(p=>p.harness))) registry.attach(harness, {
     backend,
     cancelSupported: true,

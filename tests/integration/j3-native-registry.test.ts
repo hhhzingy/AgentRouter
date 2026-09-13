@@ -100,7 +100,7 @@ it('v3 migration FK failure rolls back table replacement and version record', ()
   const f = v2(),
     migrations = resolve(f.dir, 'migrations');
   mkdirSync(migrations);
-  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql'])
+  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql'])
     copyFileSync('packages/storage/migrations/' + n, resolve(migrations, n));
   const path = resolve(migrations, '003-native-execution.sql');
   writeFileSync(

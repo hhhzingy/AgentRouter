@@ -37,7 +37,7 @@ export class P1MemoryTransport implements ClientTransport {
     const generation = ++this.generation,
       c = this.server.open(this.principal, this.authorized);
     this.connection = c;
-    const revision = options.contractRevision ?? 'C1R1P1';
+    let revision = options.contractRevision ?? 'C1R1P1';
     let lease: LeaseVM | null = null;
     let observedCursor = 0,
       overflow = false;
@@ -90,9 +90,47 @@ export class P1MemoryTransport implements ClientTransport {
           if ('id' in reply && reply.id !== extensionFrame.id) throw new C1R1Error('INVALID_FRAME');
           if ('error' in reply) throw Object.assign(new Error(reply.error.code), reply.error);
           validateExtensionResult(method as string, reply.result);
+          if ((method as string) === 'contract.upgrade') revision = 'C1R1P2' as typeof revision;
           return reply.result as MethodMap[M]['result'];
         } finally {
           clearTimeout(extensionTimer);
+        }
+      }
+      console.log('P2TRACE method:', method, 'revision:', revision);
+      if ((revision as string) === 'C1R1P2' && String(method).startsWith('rolePlan.')) {
+        // C1R1P2:rolePlan 帧含动态 HarnessId,冻结枚举不适用;服务端注册表为权威。
+        const isMutation = methodMetadata[method].mutation;
+        const p2frame = {
+          v: 1 as const,
+          id: 'req_' + randomUUID(),
+          method,
+          params,
+          ...(isMutation
+            ? {
+                client_id: options.clientId,
+                operation_id: opts.operationId,
+                expected_revision: opts.expectedRevision,
+                scope: opts.scope,
+                ...(opts.leaseId ? { lease_id: opts.leaseId } : {}),
+              }
+            : {}),
+        };
+        let p2timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const reply = (await Promise.race([
+            this.server.handle(c, p2frame),
+            new Promise<never>((_, reject) => {
+              p2timer = setTimeout(
+                () => reject(new C1R1Error('REQUEST_TIMEOUT', 'AMBIGUOUS')),
+                opts.timeoutMs ?? 10000,
+              );
+            }),
+          ])) as Response;
+          if ('id' in reply && reply.id !== p2frame.id) throw new C1R1Error('INVALID_FRAME');
+          if ('error' in reply) throw Object.assign(new Error(reply.error.code), reply.error);
+          return reply.result as MethodMap[M]['result'];
+        } finally {
+          clearTimeout(p2timer);
         }
       }
       const frame = {

@@ -6,6 +6,7 @@
     "002-w11-application.sql": "d49e1bae041c9703120dc33a08e379710d9d35e9859ca9ac1c90625790b63552",
     "003-native-execution.sql": "617cbb1701d85cd75d552ae990bb3f49246df1ebadc9591446067c8f94ce585b",
     "004-external-api-journal.sql": "fe2645142aefe33643fa163bec2a4063d292150d709eed666ebc30b995dddab9",
-    "005-role-sessions.sql": "1cf43e27223c06c1bd08b4f5db3ec97aa27770222f26766b45e4dfb8e7e7f84b"
+    "005-role-sessions.sql": "1cf43e27223c06c1bd08b4f5db3ec97aa27770222f26766b45e4dfb8e7e7f84b",
+    "006-role-harness-dynamic.sql": "84e9173de9c761ce707d8785cb045db3d40800e52067950aaa864d4de243cab2"
   }
 }

@@ -21,6 +21,9 @@ import {
   type Scope,
 } from '../client-contract/c1r1p1/index.ts';
 import c1 from '../../contracts/client-api.c1.schema.json' with { type: 'json' };
+import { validateRequestP2 } from '../client-contract/c1r1p2.ts';
+import { validatePlanShapeP2 } from '../client-contract/c1r1p2.ts';
+import { validatePlanShape } from '../client-contract/c1r1/index.ts';
 import r1 from '../../contracts/client-api.c1r1.schema.json' with { type: 'json' };
 import { Plans } from './plans.ts';
 const uid = (p: string) => p + '_' + randomUUID();
@@ -94,7 +97,7 @@ type Connection = {
   authorized: boolean;
   clientId?: string;
   mode?: string;
-  revision: RevisionName;
+  revision: RevisionName | 'C1R1P2';
   initialized: boolean;
   lastCursor?: number;
   allowedProjects?: Set<string>;
@@ -113,6 +116,8 @@ export class ApplicationService extends Plans {
   externalApi?: import('./external-api-extension.ts').ExternalApiExtension;
   roleSession?: import('./role-session-extension.ts').RoleSessionExtension;
   participant?: import('./participant-extension.ts').ParticipantExtension;
+  /** C1R1P2:已注册 Harness 列表(由宿主注入 DriverRegistry 视图)。 */
+  registeredHarnesses?: () => string[];
   nativeAuthorization?: (bindingId: string) => boolean;
   nativeCancelAvailable?: (bindingId?:string)=>boolean;
   nativeToolAuthorization?: (bindingId:string,epoch:number,tool:string)=>boolean;
@@ -240,6 +245,7 @@ export class ApplicationService extends Plans {
       methods: methods.filter(
         (m) =>
           (c.revision === 'C1R1P1' ||
+            c.revision === 'C1R1P2' ||
             (c.revision === 'C1R1' ? m in r1['x-methods'] : m in c1['x-methods'])) &&
           (c.revision === 'C1R1P1' || m !== 'provider.listProfiles') &&
           (m !== 'run.cancel' || this.fixtureMode || this.nativeCancelAvailable?.()===true),
@@ -380,7 +386,28 @@ export class ApplicationService extends Plans {
         },
       });
     }
-    const request = validateRequest(raw);
+    if (
+      typeof (raw as { method?: unknown })?.method === 'string' &&
+      (raw as { method?: unknown }).method === 'contract.upgrade'
+    ) {
+      if (!c.initialized || !c.authorized) throw new C1R1Error('NOT_INITIALIZED');
+      if (c.mode !== 'controller') throw new C1R1Error('SCOPE_DENIED');
+      const revision = (raw as { params?: { revision?: unknown } }).params?.revision;
+      if (revision !== 'C1R1P2') throw new C1R1Error('INVALID_PARAMS');
+      c.revision = 'C1R1P2';
+      return {
+        v: 1,
+        id: (raw as { id?: unknown }).id,
+        result: {
+          revision: 'C1R1P2',
+          harnesses: this.registeredHarnesses ? this.registeredHarnesses() : [],
+        },
+      };
+    }
+    const request: any =
+      c.revision === 'C1R1P2'
+        ? validateRequestP2(raw)
+        : validateRequest(raw);
     try {
       let result: unknown;
       const r = request as any;
@@ -406,14 +433,35 @@ export class ApplicationService extends Plans {
         };
       } else {
         if (!c.initialized) throw new C1R1Error('NOT_INITIALIZED');
-        validateDefinition('Request', r, c.revision);
+        if (c.revision !== 'C1R1P2') validateDefinition('Request', r, c.revision);
         if (!this.capabilities(c).methods.includes(r.method))
           throw new C1R1Error('CAPABILITY_UNAVAILABLE');
         result = methodMetadata[r.method as Method].mutation
           ? this.mutate(id, c, r)
           : this.read(id, c, r.method, r.params);
       }
-      result = projectResult(c.revision, r.method, result);
+      if (c.revision === 'C1R1P2') {
+        // P2 响应不投影到冻结枚举(动态 harness),按 C1R1P1 结构原样返回
+      } else {
+        // 旧协议连接的快照裁剪必须先于冻结投影:动态 harness 角色不进入旧客户端视图
+        if (
+          r.method === 'system.snapshot' &&
+          result &&
+          typeof result === 'object' &&
+          Array.isArray((result as { roles?: unknown[] }).roles)
+        ) {
+          const dynamicRoles = new Set(
+            this.all(
+              "select role_id from bindings where harness not in ('codex','kimi_code','pi')",
+            ).map((row) => (row as { role_id: string }).role_id),
+          );
+          if (dynamicRoles.size)
+            (result as { roles: unknown[] }).roles = (result as { roles: unknown[] }).roles.filter(
+              (r) => !dynamicRoles.has((r as { id: string }).id),
+            );
+        }
+        result = projectResult(c.revision, r.method, result);
+      }
       return { v: 1, id: r.id, result };
     } catch (error) {
       let e =
@@ -512,7 +560,8 @@ export class ApplicationService extends Plans {
         if (r.expected_revision !== this.revision) throw new C1R1Error('REVISION_CONFLICT');
         this.next();
         const result = this.write(id, c, r.method, r.params, r.scope, r.operation_id);
-        validateResponse(r.method, result);
+        // C1R1P2 响应含动态 HarnessId,不走冻结响应校验(注册表为权威)
+        if (c.revision !== 'C1R1P2') validateResponse(r.method, result);
         if (this.failNextCommit) {
           this.failNextCommit = false;
           throw new C1R1Error('INTERNAL_ERROR');
@@ -663,7 +712,29 @@ export class ApplicationService extends Plans {
     }
     if (m === 'rolePlan.validate') {
       this.authorize(c, { project_id: p.plan.project_id });
-      return this.validate(p.plan);
+      const v = this.validate(
+        p.plan,
+        c.revision === 'C1R1P2' ? validatePlanShapeP2 : validatePlanShape,
+      );
+      if (
+        v.valid &&
+        c.revision === 'C1R1P2' &&
+        this.registeredHarnesses &&
+        'roles' in p.plan &&
+        Array.isArray((p.plan as { roles?: { runtime?: { harness?: string } }[] }).roles)
+      ) {
+        const allowed = this.registeredHarnesses();
+        for (const r of (p.plan as { roles: { role_key: string; runtime: { harness: string } }[] }).roles)
+          if (!allowed.includes(r.runtime.harness))
+            return {
+              valid: false,
+              planHash: v.planHash,
+              errors: [{ code: 'UNSUPPORTED_HARNESS', field: r.role_key }],
+              warnings: v.warnings,
+              requiredConfirmations: v.requiredConfirmations,
+            } as typeof v;
+      }
+      return v;
     }
     if (m === 'rolePlan.list')
       return this.page(
@@ -977,7 +1048,23 @@ export class ApplicationService extends Plans {
       return this.snapshot().projects.find((x) => x.id === project);
     }
     if(m==='role.createFromSpec')return this.createRoleFromSpec(p,scope.project_id!,scope.space_id!);
-    if (m === 'rolePlan.apply') return this.apply(p, scope.project_id!, c.principal);
+    if (m === 'rolePlan.apply') {
+      if (
+        c.revision === 'C1R1P2' &&
+        this.registeredHarnesses &&
+        Array.isArray(p.plan?.roles) &&
+        !p.plan.roles.every((r: { runtime: { harness: string } }) =>
+          this.registeredHarnesses!().includes(r.runtime.harness),
+        )
+      )
+        throw new C1R1Error('CAPABILITY_UNAVAILABLE');
+      return this.apply(
+        p,
+        scope.project_id!,
+        c.principal,
+        c.revision === 'C1R1P2' ? validatePlanShapeP2 : validatePlanShape,
+      );
+    }
     if (m === 'project.archive') {
       if (p.id !== scope.project_id) throw new C1R1Error('SCOPE_DENIED');
       if (
@@ -1058,7 +1145,7 @@ export class ApplicationService extends Plans {
         ],
         review: { requires_user_confirmation: true, known_risks: [] },
       };
-      if (!this.validate(plan).valid) throw new C1R1Error('PLAN_INVALID');
+      if (!this.validate(plan).valid) throw new C1R1Error('PLAN_INVALID'); // conversation 入口仅 C1 枚举 harness
       const b = this.one('select * from bindings where role_id=? and is_current=1', r.id);
       this.db.prepare('update bindings set is_current=0 where id=?').run(b.id);
       this.db

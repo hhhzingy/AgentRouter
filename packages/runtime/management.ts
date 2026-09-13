@@ -1,3 +1,11 @@
+/** C1R1P2:合法 Harness 集合由宿主注入(默认冻结三家);注册表运行时判定。 */
+let allowedHarnesses = ['codex', 'kimi_code', 'pi'];
+export function setAllowedHarnesses(list: string[]) {
+  allowedHarnesses = list;
+}
+function registeredHarnessList(): string[] {
+  return allowedHarnesses;
+}
 import type Database from 'better-sqlite3';
 import { realpathSync, statSync } from 'node:fs';
 import { id, digest, RouteError, validatePolicy, type Data } from '../protocol/index.ts';
@@ -93,7 +101,7 @@ export class Management {
     model?: Data;
   }) {
     if (
-      !['codex', 'kimi_code', 'pi'].includes(input.harness) ||
+      !(registeredHarnessList().includes(input.harness)) ||
       typeof input.name !== 'string' ||
       !input.name.trim() ||
       input.name.length > 160 ||

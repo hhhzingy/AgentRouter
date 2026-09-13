@@ -34,7 +34,7 @@ export function openApplicationStore(
     const rows = db
       .prepare('select version,checksum from schema_migrations order by version')
       .all() as { version: number; checksum: string }[];
-    const sources = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql'].map((name) =>
+    const sources = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql'].map((name) =>
       readFileSync(new URL(name, migrations), 'utf8'),
     );
     const hashes = sources.map((sql) => createHash('sha256').update(sql).digest('hex'));
@@ -104,6 +104,22 @@ export function openApplicationStore(
         db.exec(sources[4]);
         db.prepare('insert into schema_migrations values(5,?,?)').run(Date.now(), hashes[4]);
       }).immediate();
+    }
+    if (rows.length < 6) {
+      if (existed && rows.length === 5) {
+        const backups = resolve(data, 'backups');
+        mkdirSync(backups, { recursive: true });
+        db.prepare('VACUUM INTO ?').run(resolve(backups, 'before-v6-' + randomUUID() + '.db'));
+      }
+      db.pragma('foreign_keys=OFF');
+      try {
+        db.transaction(() => {
+          db.exec(sources[5]);
+          db.prepare('insert into schema_migrations values(6,?,?)').run(Date.now(), hashes[5]);
+        }).immediate();
+      } finally {
+        db.pragma('foreign_keys=ON');
+      }
     }
     db.pragma('journal_mode=WAL');
     db.pragma('synchronous=FULL');
