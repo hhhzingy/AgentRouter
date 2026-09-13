@@ -25,12 +25,12 @@ export class Plans extends Projection {
   ) {
     super(db);
   }
-  validate(input: unknown): RolePlanValidationVM {
+  validate(input: unknown, shapeOk: (x: unknown) => boolean = validatePlanShape): RolePlanValidationVM {
     const errors: { code: string; field: string }[] = [],
       warnings: { code: string; field: string }[] = [];
     const bad = (code: string, field: string) => errors.push({ code, field });
     const planHash = digest(input);
-    if (!validatePlanShape(input))
+    if (!shapeOk(input))
       return {
         valid: false,
         planHash,
@@ -277,9 +277,9 @@ export class Plans extends Projection {
     this.onRoleCreated?.(created.role);
     return this.snapshot().roles.find((r) => r.id === created.role)!;
   }
-  apply(p: RolePlanApplyParams, project: string, actor: string) {
+  apply(p: RolePlanApplyParams, project: string, actor: string, shapeOk: (x: unknown) => boolean = validatePlanShape) {
     if (p.plan.project_id !== project) throw new C1R1Error('SCOPE_DENIED');
-    const v = this.validate(p.plan);
+    const v = this.validate(p.plan, shapeOk);
     if (!v.valid) throw new C1R1Error('PLAN_INVALID');
     if (v.planHash !== p.plan_hash) throw new C1R1Error('PLAN_HASH_MISMATCH');
     if (

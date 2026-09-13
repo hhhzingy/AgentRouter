@@ -9,6 +9,15 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-12 续10）：CCR-J3-DRIVER-01 批准实施——C1R1P2 动态 HarnessId 落地(0c2ad50)
+
+- **C1R1P2 已实施**(用户批准 CCR 后):contract.upgrade 扩展协商(C1R1P1 连接初始化后升级,observer 拒绝);c1r1p2.ts 内存派生放宽校验器(C1R1P1 schema + role-plan v1 schema 的 harness 枚举 → HarnessId 模式,冻结文件字节不变);rolePlan.validate/apply 接受注册表内 harness(deepseek_harness/zcode),未注册 → UNSUPPORTED_HARNESS/CAPABILITY_UNAVAILABLE;旧协议连接快照投影裁剪动态角色(裁剪先于冻结投影)。
+- **迁移 006**:account_profiles/auth_units/bindings/native_binding_configs 移除 harness CHECK(表重建,FK OFF+检查,before-v6 备份);binding/native_binding_configs 已实测插入 deepseek_harness。
+- **管理面 createRole** 走 setAllowedHarnesses 视图(宿主注入 drivers.list())。
+- 兼容测试 4 项全过(P1 拒绝动态计划/P2 validate+apply/未注册拒绝/旧连接投影);全仓 64 文件 403 项 PASS。
+- **DeepSeek 生产 E2E 进行中**:Plan 应用+Native 配置注册 ✓(006 生效),bootstrap FAILED——dsh 进程在 supervisor 环境内启动/握手失败,原因待查(ACP 层同环境直探已验证可用,差异在 supervisor spawn 链)。已具备 core stderr 捕获,下一轮专项定位。
+- 其余排队:DeepSeek bootstrap 诊断→生产 task/resume/cancel/handoff;Kimi→DeepSeek 显式 fallback(profile+provenance);ZCODE_DUT;SSH/真机;最终 RC。
+
 # 当前执行（2026-09-12 续9）：下一轮主线第一批——P3 attachment 修复 + 手册/CCR 修订
 
 - **P3 架构修复(fb1b39c)**:ParticipantClient 不再申请全局 Controller lease。新增 participant.attach(Role-scoped,generation 单调,同连接幂等,断连清理);conversation.sendUserInput 与 participant.artifact 走 attachment 旁路(本连接持当前 generation 即免 lease,其余 mutation 仍需全局租约);旧 generation 写入返回 PARTICIPANT_GENERATION_STALE。修复了参与者与 Management/GUI 的 30s 租约争用、网页会话 >30s 写入失败。
