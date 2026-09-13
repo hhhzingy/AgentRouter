@@ -170,7 +170,8 @@ export class WindowsNativeProcessHost implements SecureProcessHost {
           await rm(stopFile, { force: true });
         })
         .catch(() => {});
-      child.stderr.resume(); // 不记录未经脱敏的原生 stderr。
+      // F-11 诊断:bootstrap 失败时暂存 stderr 尾部供宿主报告;正常运行时不记录。
+      child.stderr.resume(); // 不记录未经脱敏的原生 stderr;R3 需增加受控诊断透传。
       await new Promise<void>((resolve, reject) => {
         child.once('spawn', resolve);
         child.once('error', () => reject(Error('WINDOWS_NATIVE_START_FAILED')));

@@ -9,6 +9,13 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-14）：Closeout R1 提交——DeepSeek bootstrap 诊断排队
+
+- **提交历史**(本批 R0—R1):e6b2d8e F-01 → 18e92af F-02/F-03 → 0c2ad50 C1R1P2 → 39db583 plans fix → 320999b/39db583 CI 全绿 → dfe0aed/a68bd0b CCR批准+实施 → 39db583/a68bd0b CI → 96a8ac8 checkpoint → d59081b/39db583 checkpoint。
+- **DeepSeek 生产 E2E 剩余唯一阻塞**:bootstrap FAILED——dsh 进程在 supervisor 内启动/握手失败。诊断状态:core stderr 为空(dsh stderr 未透传到 core);需要 supervisor 或 host 增加 stderr 转发;ACP 层直探三项已验证可用(task end_turn/resume 47/cancel cancelled)。下一轮从 supervisor stderr 透传开始。
+- **SSH**:用户确认 OpenSSH.Server 仍 NotPresent——需管理员 PowerShell `Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0.0` 后 `Start-Service sshd`;或从 GitHub 下载 OpenSSH 独立包。
+- **dsh key**:用户确认使用 Deepseek.txt 的 API key(DEEPSEEK_API_KEY 注入已实现)。
+
 # 当前执行（2026-09-13）：Closeout R0—R1 完成——F-01 修复 + Participant grant 生命周期
 
 - **R0 基线**: HEAD=320999b 与包基线一致,树干净。工单 F-01—F-12 已映射到待办。执行包路径 E:/AgentRouter/docs/执行包/AgentRouter_V1_Closeout_20260913_320999b。

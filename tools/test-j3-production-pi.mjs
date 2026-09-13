@@ -311,9 +311,7 @@ try {
   if (!didClose) core.kill('SIGTERM');
   await Promise.race([closed, new Promise((r) => setTimeout(r, 10000))]);
   report.coreExited = didClose;
-  if (coreErrChunks.length) {
-    try { report.core_stderr = coreErrChunks.join('').slice(-1500); } catch {}
-  }
+  try { report.core_stderr = coreErrChunks.join('').slice(-2000); } catch {}
   writeFileSync(path('report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({ report: path('report.json'), ...report }));
 }
