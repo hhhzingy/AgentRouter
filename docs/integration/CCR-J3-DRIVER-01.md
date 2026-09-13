@@ -1,30 +1,35 @@
-# CCR-J3-DRIVER-01:新增 Harness 的冻结合同扩展协商
+# CCR-J3-DRIVER-01(重写版):C1R1P2 动态 HarnessId 与 DriverRegistry 协商
 
-状态:待协商(2026-09-12)。冻结合同文件保持不变;本记录是新 Harness 接入的合同变更提案与临时边界。
+状态:**设计定稿,待批准后实施**(2026-09-12 重写,取代旧"枚举扩两值"方案)。C1/C1R1/C1R1P1 冻结文件保持字节不变。
 
-## 背景
+## 与旧方案的区别
 
-驱动注册制(见 commit 4f55088 与本轮)已支持注册任意 Harness;`zcode` 与 `deepseek_harness` 驱动已实现并通过离线测试。DeepSeek Harness 已在 ACP 层完成真实 API 单项验证(任务 end_turn / 恢复上下文 47 / 取消 cancelled,证据 evidence/J3/nextround-p0/)。
+旧方案:在 C1R1P1 枚举里追加 `zcode`/`deepseek_harness` 两个静态值。
+**问题**:每接一个新 Harness 都要改冻结合同,不可持续;静态枚举与服务端注册状态脱节。
+新方案:**C1R1P2 引入动态 HarnessId + capabilities map**,合法 Harness 集合由服务端 `HarnessDriverRegistry` 在运行时判定,合同不再为每个 Harness 修改。
 
-## 冻结冲突点
+## C1R1P2 设计(草案,实施时以仓库实际代码为准)
 
-- `client-api.c1r1p1.schema.json` capabilities.harnesses:additionalProperties=false,仅 codex/kimi_code/pi;
-- `rolePlan` 的 runtime.harness 枚举同上;客户端传输层(冻结 memory/stdio)在发出与接收两侧均校验该枚举。
+1. **协商**:客户端仍以 C1R1P1 帧完成 `system.initialize`(冻结枚举不写 C1R1P2),随后调用扩展方法 `contract.upgrade { revision: "C1R1P2" }`;服务端校验连接已授权后翻转该连接的 revision。旧客户端/旧 Core 不感知该扩展,行为不变。
+2. **动态 HarnessId**:`rolePlan` 的 `runtime.harness` 对 C1R1P2 连接放宽为 string(HarnessId 模式 `^[a-z][a-z0-9_]{1,40}$`),服务端在 validate/apply 时对照 `HarnessDriverRegistry.has(harness)` 判定:未注册 → `CAPABILITY_UNAVAILABLE`;已注册但宿主未配置(如缺 CLI/凭据)→ `NATIVE_CREDENTIALS_REQUIRED`/等。
+3. **capabilities map**:`contract.upgrade` 结果返回 `harnesses: registry.list()` 与每家能力(`probe` 状态、`create_session`/`cancel` 支持位),来源为服务端注册表,不由客户端声明。
+4. **响应兼容**:C1R1P2 连接的 rolePlan/binding 响应含动态 harness 字符串;C1R1P1 连接的快照/事件投影继续裁剪为三家(现有 capabilities 投影逻辑),互不影响。
+5. **实现载体**:C1R1P1 冻结文件(schema json、c1r1p1/index.ts、generated.ts、p1/types.ts)字节不变;C1R1P2 校验逻辑落在内存派生 schema(枚举放宽)+ 注册表检查,位于新文件与 connection 分支内。
 
-因此:`rolePlan.validate/apply` 携带 `deepseek_harness`/`zcode` 在客户端即被拒(INVALID_FRAME),生产 E2E 无法进行,除非变更冻结合同。
+## 兼容性测试(实施完成定义)
 
-## 提案(下一合同修订 C1R1P2 草案)
+- C1R1P1 客户端发 `deepseek_harness`/`zcode` 计划 → 客户端/服务端均 `INVALID_FRAME`(与今日行为一致);
+- C1R1P1 客户端 `contract.upgrade` 不可见(扩展方法不在其工具/合同面);
+- C1R1P2 客户端升级后:validate/apply 通过注册表判定;未注册 harness 拒绝;
+- 升级后 C1R1P1 第二连接的快照校验不因新 harness 计划而失败(投影裁剪);
+- 事件流对未升级连接不携带动态 harness 计划内容。
 
-1. capabilities.harnesses 增加可选键 `zcode`、`deepseek_harness`(结构与现有条目一致,status 枚举增加 `EXPERIMENTAL`);
-2. RolePlan runtime.harness 枚举增加两值,仅在 contractRevision=C1R1P2 协商开启后生效;旧客户端按 unknown literal 拒绝,行为不变;
-3. 服务端 capabilities() 继续只上报真实 PROBED/EXPERIMENTAL 状态,不虚报 LIVE_TESTED。
+## 实施后立即可跑
 
-## 临时边界(合同变更前)
+- DeepSeek Harness 生产 E2E(task/resume/cancel/handoff,`test-j3-production-pi.mjs --dsh` 已备,DEEPSEEK_API_KEY 注入已实现);
+- ZCode 驱动同等路径(若 ZCODE_DUT 认证就绪;未就绪则标 BLOCKED_BY_CREDENTIALS,不以 Management MCP 连通冒充)。
 
-- DeepSeek Harness:ACP 层真实三项已验证;生产 E2E(经 Core 派发的角色任务)标 `BLOCKED_BY_CONTRACT`;
-- 不允许以 pi+DeepSeek 模型冒充 DeepSeek Harness;不允许绕过客户端校验直发私有帧给冻结端点;
-- 驱动代码与宿主分支保持就绪,合同扩展合入后即可运行 E2E(测试脚本 --dsh 已备)。
+## 批准与回退
 
-## 影响面
-
-冻结文件 sha256(manifest)不变;仅服务端/客户端校验枚举变化需要新 schema 版本与兼容矩阵(旧 Core 拒绝新 harness 计划为正确行为)。
+- 批准即实施 C1R1P2 最小面(上述 1–5);实施后全仓回归 + 兼容性测试全绿方可跑 DeepSeek 生产 E2E;
+- 回退:revision 分支隔离,C1R1P1 路径零改动,关闭 upgrade 扩展即回退。
