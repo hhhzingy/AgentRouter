@@ -9,6 +9,21 @@
   - checkpoint 口径已按包01纠正：覆盖率/单轮成功率/尝试分母分开记录。
 - 下一动作：P1 RoleSession 最小切换闭环。
 
+# 当前执行（2026-09-13）：Closeout R0—R1 完成——F-01 修复 + Participant grant 生命周期
+
+- **R0 基线**: HEAD=320999b 与包基线一致,树干净。工单 F-01—F-12 已映射到待办。执行包路径 E:/AgentRouter/docs/执行包/AgentRouter_V1_Closeout_20260913_320999b。
+- **F-01 修复(e6b2d8e)**: 迁移007恢复 one_current_binding_per_role 唯一索引;006 执行器补提交前 foreign_key_check;存量冲突显式失败不自动修复。测试 DB-01—04(v5→v6→v7升级/冲突安全失败/FK违规回滚/幂等)。
+- **F-02/F-03 修复(18e92af)**: Participant 聊天级 grant 生命周期(participant_grants 表迁移008)。grant_issue/revoke/list 管理面工具(全局租约);participant.attach 需 grant 凭据;同角色新签发撤销旧 grant(PARTICIPANT_GRANT_REVOKED);断连/撤销后写被拒。HTTP入口 body>1MB 413、token 按角色隔离。受控单会话模式:新接管=管理面签发新 grant,旧聊天不能自动重挂或自签发。stdio/http 双入口测试通过。
+- **F-04 C1R1P2 收口**: P2 响应跳过已改为完整 wire 帧;动态能力经 contract.upgrade 返回;旧协议快照裁剪动态角色(裁剪先于冻结投影);兼容测试4项全过。
+- **全仓 66 文件 410 项 PASS**;三套冻结+迁移守卫 PASS。CI 全绿(18e92af)。
+
+## 排队(下一批)
+
+- R3: DeepSeek supervisor bootstrap 诊断(supervisor spawn 链 vs 直探环境差异)
+- R4: 同角色原生 A/B 会话隔离/切回/A→B→A→C/交接包/ACK/GUI(F-05/F-06)
+- R5: Kimi→DeepSeek 显式 fallback(provenance 入 Run);ZCODE_DUT;SSH(待提权重装 sshd);真机
+- R6: 单一干净 SHA 全量验收 + RC 报告(合 main/tag/发布继续冻结)
+
 # 当前执行（2026-09-12 续11）：39db583 CI 全绿——P3 attachment 与 C1R1P2 均已落地
 
 - 分支头 39db583(plan.ts shapeOk 漏提交已由 39db583 修复提交补齐):两条 CI SUCCESS。树干净。
