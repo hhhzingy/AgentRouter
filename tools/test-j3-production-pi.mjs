@@ -273,6 +273,50 @@ try {
   )
     throw Error('TASK_RESULT_NOT_VERIFIED');
   report.checks.push('真实Route工具、指定用户结果、原生终态与全树屏障');
+  if (process.argv.includes('--ab')) {
+    // R4:A→B→A→C 原生会话隔离+交接包 ACK——切回必须恢复各自原生会话
+    const abListA = await call('router_role_session_list', { params: { role_id: target.id } });
+    const sessionA = abListA.active_session_id;
+    const abTask = async (summary, body, expectedSummary, key) => {
+      await call('router_task_dispatch', {
+        request_key: key,
+        expected_revision: (await call('router_status')).snapshot.revision,
+        scope,
+        params: { request: { kind: 'task.request', to: { type: 'role', id: target.id }, summary, body, inputs: [], expected: [expectedSummary], completion: { mode: 'result', to: { type: 'user' } } } },
+      });
+      for (let i = 0; i < 150; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const run = db.prepare("select state from runs where task_id=(select id from tasks where summary=?) order by created_at_ms desc limit 1").get(summary);
+        const result = db.prepare('select publication_state,summary from results where task_id=(select id from tasks where summary=?)').get(summary);
+        db.close();
+        if (run && ['SUCCEEDED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(run.state)) return { run: run.state, result };
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      return { run: 'TIMEOUT', result: null };
+    };
+    const abExpect = (r, want) => {
+      if (!r || r.run !== 'SUCCEEDED' || !r.result || r.result.publication_state !== 'PUBLISHED' || r.result.summary !== want)
+        throw Error('AB_RUN_NOT_VERIFIED');
+    };
+    const createdB = await call('router_role_session_create', { params: { role_id: target.id, name: 'B方向' } });
+    const sessionB = createdB.session.id;
+    abExpect(await abTask('AB任务一', 'Calculate 8+9. Call route_context then route_finish with outcome succeeded, summary 17, body 17, outputs []. The session handoff acknowledgment must be the first line of your reply. After tool success, stop.', '17', 'ab-task-b'), '17');
+    const backA = await call('router_role_session_switch', { params: { role_id: target.id, session_id: sessionA } });
+    if (backA.id !== sessionA) throw Error('AB_SWITCH_BACK_FAILED');
+    abExpect(await abTask('AB任务二', 'Calculate 5+6. Call route_context then route_finish with outcome succeeded, summary 11, body 11, outputs []. The session handoff acknowledgment must be the first line of your reply. After tool success, stop.', '11', 'ab-task-a2'), '11');
+    const createdC = await call('router_role_session_create', { params: { role_id: target.id, name: 'C方向' } });
+    const sessionC = createdC.session.id;
+    abExpect(await abTask('AB任务三', 'Calculate 3+4. Call route_context then route_finish with outcome succeeded, summary 7, body 7, outputs []. The session handoff acknowledgment must be the first line of your reply. After tool success, stop.', '7', 'ab-task-c'), '7');
+    const dbh = new Database(path('core/router.db'), { readonly: true });
+    const acked = dbh.prepare("select count(*) n from role_session_handoffs where state='ACKED'").get().n;
+    const refs = dbh.prepare('select id, native_session_ref from role_sessions where role_id=?').all(target.id);
+    dbh.close();
+    if (acked < 3) throw Error('AB_HANDOFF_ACK_NOT_VERIFIED');
+    const refIds = refs.filter((r) => r.native_session_ref).map((r) => JSON.parse(r.native_session_ref).id);
+    if (refIds.length < 3 || new Set(refIds).size < 3) throw Error('AB_NATIVE_ISOLATION_BROKEN');
+    report.ab = { sessions: [sessionA, sessionB, sessionC], handoffsAcked: acked, nativeRefs: refIds.length };
+    report.checks.push('真实A→B→A→C原生会话隔离与交接包ACK');
+  }
   if (process.argv.includes('--cancel')) {
     const next = await call('router_status');
     const cancelledTask = await call('router_task_dispatch', {

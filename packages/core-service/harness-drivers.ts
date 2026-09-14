@@ -30,6 +30,8 @@ export interface HarnessDriver {
   processArgs(config: Readonly<NativeBindingConfig>): readonly string[];
   /** run 模式下除会话 id 外还必须持有原生会话文件路径（如 pi 的预留文件）。 */
   readonly requiresSessionPath: boolean;
+  /** 无预载会话引用时允许全新会话(如 ACP session/new);缺省 run 必须携带可恢复引用。 */
+  readonly supportsFreshSession?: boolean;
   createLifecycle(input: {
     config: Readonly<NativeBindingConfig>;
     epoch: string;
@@ -211,6 +213,7 @@ export const zcodeDriver: HarnessDriver = {
 export const dshDriver: HarnessDriver = {
   harness: 'deepseek_harness',
   requiresSessionPath: false,
+  supportsFreshSession: true,
   processArgs: () => {
     if (!dshBinRef.path) throw Error('DSH_BIN_UNCONFIGURED');
     return [dshBinRef.path, '--profile', 'acp'];

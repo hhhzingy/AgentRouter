@@ -77,6 +77,7 @@ export function makeStore(overrides: {
     frozenAtMs: D.FIXED_NOW,
     now: () => D.FIXED_NOW,
     call: () => Promise.reject(new Error('not implemented in static test')),
+    callExtension: () => Promise.reject(new Error('not implemented in static test')),
     refresh: () => Promise.resolve(),
     acquireControl: () => Promise.resolve(),
     releaseControl: () => Promise.resolve(),

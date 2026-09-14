@@ -176,3 +176,36 @@ describe('可访问性与缩放', () => {
     expect(readFileSync('apps/desktop/workbench.html','utf8')).toMatch(/lang=["']zh-CN["']/);
   });
 });
+
+describe('工作会话切换(R4)', () => {
+  const withSessions = {
+    ...controller,
+    callExtension: async (method: string) => {
+      if (method === 'roleSession.list')
+        return {
+          sessions: [
+            { id: 'rsess_a', role_id: 'role_zhou', seq: 1, name: '初始会话', state: 'ARCHIVED', generation: 1, created_at_ms: 1, activated_at_ms: 2, hasNativeSession: true },
+            { id: 'rsess_b', role_id: 'role_zhou', seq: 2, name: 'B方向', state: 'ACTIVE', generation: 2, created_at_ms: 3, activated_at_ms: 4 },
+          ],
+          active_session_id: 'rsess_b',
+        };
+      throw Error('UNSUPPORTED_METHOD');
+    },
+  } as typeof controller;
+  it('会话卡在角色页展示,含工作会话标题与切换提示', () => {
+    const html = page(withSessions, <RolePage roleId="role_zhou" />);
+    expect(html).toContain('工作会话');
+    expect(html).toContain('交接包');
+  });
+  it('观察者只读:不出现新建与会话切换控件', () => {
+    const observerStore = {
+      ...withSessions,
+      readOnly: true,
+      connectionState: 'CONNECTED_OBSERVER' as const,
+    } as typeof controller;
+    const html = page(observerStore, <RolePage roleId="role_zhou" />);
+    expect(html).toContain('工作会话');
+    expect(html).not.toContain('新建并切换');
+    expect(html).not.toContain('切换到此会话');
+  });
+});

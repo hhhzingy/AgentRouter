@@ -102,7 +102,12 @@ export async function installLocalNativeRuntime(
       const home = input.config.sessionHome;
       for (const path of ['.pi', 'sessions', 'tmp', 'bin'])
         mkdirSync(join(home, path), { recursive: true });
-      const scope = { bindingId: input.bindingId, epoch: input.epoch, sessionHome: home };
+      const scope = {
+        bindingId: input.bindingId,
+        epoch: input.epoch,
+        sessionHome: home,
+        ...(input.roleSessionId ? { roleSessionId: input.roleSessionId } : {}),
+      };
       const session = sessions.load(scope);
       if(input.config.harness==='codex') {
         if(!c.codexApprovedIdentityFile || !inside(c.managedRoot,c.codexApprovedIdentityFile) || !c.roleBridge || !c.roleBridgeSha256)throw Error('CODEX_RUNTIME_CONFIG_INVALID');

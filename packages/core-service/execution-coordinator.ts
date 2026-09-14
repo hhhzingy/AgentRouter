@@ -202,9 +202,29 @@ export class ExecutionCoordinator {
     const a = this.app;
     let terminal: string | undefined,
       broken = false;
+    const roleSessionId = a.one('select role_session_id from runs where id=?', dispatch.id)
+      ?.role_session_id as string | null | undefined;
+    const pendingHandoff = roleSessionId
+      ? (a
+          .one(
+            "select id,package_json,package_hash,from_session_id from role_session_handoffs where to_session_id=? and state='PENDING' order by created_at_ms desc limit 1",
+            roleSessionId,
+          ) as any)
+      : null;
+    const handoff = pendingHandoff
+      ? {
+          id: pendingHandoff.id,
+          packageJson: pendingHandoff.package_json,
+          packageHash: pendingHandoff.package_hash,
+          fromName:
+            (
+              a.one('select name from role_sessions where id=?', pendingHandoff.from_session_id) as any
+            )?.name ?? null,
+        }
+      : null;
     const child = this.launch(
       dispatch.id,
-      { mode: 'run', bindingId:b.id, roleId:dispatch.principal.roleId, epoch: b.epoch, charterHash:charter.hash, charter:JSON.parse(charter.spec_json), request: dispatch.request, scenario, handleTool:(tool:string,operationId:string,input:any)=>this.routeTool(dispatch,tool,operationId,input) },
+      { mode: 'run', bindingId:b.id, roleId:dispatch.principal.roleId, epoch: b.epoch, charterHash:charter.hash, charter:JSON.parse(charter.spec_json), request: dispatch.request, scenario, ...(roleSessionId ? { roleSessionId } : {}), ...(handoff ? { handoff } : {}), handleTool:(tool:string,operationId:string,input:any)=>this.routeTool(dispatch,tool,operationId,input) },
       (event) => {
         if (event.epoch !== b.epoch) {
           this.audit(charter.project_id, 'STALE_RUN_EVENT');
@@ -244,6 +264,10 @@ export class ExecutionCoordinator {
               );
             if (event.kind === 'diagnostic') this.audit(charter.project_id, 'NATIVE_' + (event.phase ?? '') + '_' + event.code);
             if (event.kind === 'accepted') a.core.accepted(dispatch.id);
+            if (event.kind === 'handoff_ack' && typeof event.handoffId === 'string')
+              a.db
+                .prepare("update role_session_handoffs set state='ACKED', acked_at_ms=? where id=? and state='PENDING'")
+                .run(a.clock(), event.handoffId);
             if (!a.fixtureMode && event.kind === 'text' && typeof event.text==='string') this.conversation(dispatch,'ASSISTANT_MESSAGE','原生输出',event.text,event.key);
             if (event.kind === 'gap')
               this.conversation(dispatch, 'GAP', '历史缺口', '缺失内容未重建', event.key);

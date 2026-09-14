@@ -27,6 +27,8 @@ export interface SecureProcessHost {
     epoch: number;
     args: readonly string[];
     effectivePermissions: unknown;
+    /** 运行所属 RoleSession;原生会话引用按会话隔离(A/B 切换)时由存储按此键读取。 */
+    roleSessionId?: string;
     handleTool: (tool: string, operationId: string, input: unknown) => Promise<unknown>;
   }): Promise<SecureNativeProcess>;
 }
@@ -76,6 +78,18 @@ export class NativeProcessBackend implements ExecutionBackend {
     let phase = "HOST_START";
     let bootstrapText="";
     const bootstrapAck="AGENTROUTER_CHARTER_ACK:"+packet.charterHash;
+    // 会话交接(A/B 切换):目标会话首运行必须先 ACK 交接包,ACK 前 Route 工具保持拒绝。
+    const handoff =
+      packet.mode === 'run' &&
+      packet.handoff &&
+      typeof (packet.handoff as any).id === 'string' &&
+      typeof (packet.handoff as any).packageJson === 'string' &&
+      typeof (packet.handoff as any).packageHash === 'string'
+        ? (packet.handoff as { id: string; packageJson: string; packageHash: string; fromName?: string })
+        : null;
+    const handoffAck = handoff ? 'AGENTROUTER_HANDOFF_ACK:' + handoff.packageHash : '';
+    let handoffAcked = !handoff;
+    let handoffText = '';
     let seq = 0,
       accepted = false,
       started = false;
@@ -147,6 +161,13 @@ export class NativeProcessBackend implements ExecutionBackend {
       if (e.type === 'TextDelta') {
         if(packet.mode==='bootstrap')bootstrapText=(bootstrapText+e.text).slice(-16384);
         else frame({ kind: 'text', text: e.text });
+        if (handoff && !handoffAcked) {
+          handoffText = (handoffText + e.text).slice(-16384);
+          if (handoffText.includes(handoffAck)) {
+            handoffAcked = true;
+            frame({ kind: 'handoff_ack', handoffId: handoff.id, packageHash: handoff.packageHash });
+          }
+        }
       }
       if (e.type === 'RunSettled') {
         if (!['succeeded', 'failed', 'cancelled'].includes(e.outcome)) {
@@ -173,6 +194,7 @@ export class NativeProcessBackend implements ExecutionBackend {
         epoch: packet.epoch,
         args,
         effectivePermissions: structuredClone(packet.effectivePermissions),
+        ...(packet.roleSessionId ? { roleSessionId: String(packet.roleSessionId) } : {}),
         handleTool: async (tool, op, input) => {
           if (
             r.finishing ||
@@ -181,11 +203,12 @@ export class NativeProcessBackend implements ExecutionBackend {
             !r.lifecycle ||
             !started ||
             packet.mode !== 'run' ||
+            (handoff && !handoffAcked) ||
             !routeTools.has(tool) ||
             typeof packet.handleTool !== 'function' ||
             !op
           )
-            throw Error('NATIVE_TOOL_DENIED');
+            throw Error(handoff && !handoffAcked ? 'HANDOFF_ACK_REQUIRED' : 'NATIVE_TOOL_DENIED');
           if (!accepted) {
             accepted = true;
             frame({ kind: 'accepted' });
@@ -210,11 +233,13 @@ export class NativeProcessBackend implements ExecutionBackend {
         await r.finish(true);
         return;
       }
-      if (
-        packet.mode === 'run' &&
-        (!r.process.session?.id || (driver.requiresSessionPath && !r.process.session?.path))
-      )
-        throw Error('NATIVE_SESSION_REQUIRED');
+      if (packet.mode === 'run') {
+        if (driver.requiresSessionPath && !r.process.session?.path)
+          throw Error('NATIVE_SESSION_REQUIRED');
+        // 无引用时仅 supportsFreshSession 驱动可全新开场(新会话首运行);其余必须可恢复。
+        if (!r.process.session?.id && !driver.supportsFreshSession)
+          throw Error('NATIVE_SESSION_REQUIRED');
+      }
       if (
         !packet.charter ||
         typeof packet.charterHash !== 'string' ||
@@ -263,9 +288,9 @@ export class NativeProcessBackend implements ExecutionBackend {
         await r.finish(true);
         return;
       }
-      const text =
+      const runText =
         packet.mode === 'bootstrap'
-          ? instructions
+          ? ''
           : typeof driver.runPrompt === 'function'
             ? driver.runPrompt({
                 request: packet.request,
@@ -273,6 +298,13 @@ export class NativeProcessBackend implements ExecutionBackend {
                 charterHash: String(packet.charterHash),
               })
             : JSON.stringify(packet.request);
+      const handoffText_prompt = handoff
+        ? '会话交接:你从工作会话"' + (handoff.fromName ?? handoff.id) + '"接续,交接包内容如下:\n' +
+          handoff.packageJson + '\n' +
+          '开始任务前,必须先在回复最开头单独一行完全一致地确认收到:' + handoffAck + '\n' +
+          '该确认完成之前,所有工具调用都会被拒绝。\n'
+        : '';
+      const text = packet.mode === 'bootstrap' ? instructions : handoffText_prompt + runText;
       // ACP has no prompt acceptance event; conservatively remain DISPATCHED until native terminal.
       started = true;
       phase="START_PROMPT";

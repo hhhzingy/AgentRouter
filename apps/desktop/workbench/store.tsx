@@ -58,6 +58,8 @@ export interface WorkbenchStore {
     params: MethodMap[M]['params'],
     explicitScope?:Scope,
   ): Promise<MethodMap[M]['result']>;
+  /** roleSession.* 等草案扩展：不经冻结 capability 清单与操作账本；写操作需控制器租约。 */
+  callExtension: (method: string, params: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
   acquireControl: () => Promise<void>;
   releaseControl: () => Promise<void>;
@@ -204,6 +206,20 @@ export function StoreProvider({
     },
     [session, refresh, hello.capabilities],
   );
+  const callExtension = useCallback(
+    async (method: string, params: Record<string, unknown>): Promise<unknown> => {
+      if (!method.startsWith('roleSession.')) throw Error('UNSUPPORTED_METHOD');
+      const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
+      if (mutation && !lease.current && session.connectionState() !== 'CONNECTED_CONTROLLER')
+        throw Error('CONTROL_LEASE_REQUIRED');
+      const result = await session.request(method as never, params as never, {
+        ...(lease.current ? { leaseId: lease.current.leaseId } : {}),
+      } as never);
+      if (mutation) await refresh();
+      return result;
+    },
+    [session, refresh],
+  );
   const value = useMemo<WorkbenchStore | null>(() => {
     if (!snapshot) return null;
     const state = hello.connectionState;
@@ -228,6 +244,7 @@ export function StoreProvider({
       frozenAtMs,
       now: clock,
       call,
+      callExtension,
       refresh,
       acquireControl: async() => {try{await control('control.acquire');}catch(e){setProblem(errorMessage(e));throw e;}},
       releaseControl: () => control('control.release'),

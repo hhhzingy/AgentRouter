@@ -129,6 +129,8 @@ export function RolePage({ roleId }: { roleId: string }) {
             <HistoryPanel scope={{project_id:project?.id,space_id:role.spaceId}} roleId={role.id}/>
             <Composer role={role} spaceId={role.spaceId} />
           </Card>
+
+          <SessionWorkflow roleId={role.id} />
         </div>
 
         {settingsOpen&&<Drawer title="角色设置" onClose={()=>setSettingsOpen(false)}><div className="role-col-side">
@@ -251,6 +253,98 @@ export function RolePage({ roleId }: { roleId: string }) {
         </div></Drawer>}
       </div>
     </div>
+  );
+}
+
+/** 工作会话切换(R4):同一角色下 A/B 会话隔离;切换生成交接包,目标会话首运行须 ACK。 */
+function SessionWorkflow({ roleId }: { roleId: string }) {
+  const s = useStore();
+  const [data, setData] = useState<{ sessions: { id: string; name: string; seq: number; state: string; generation: number; hasNativeSession?: boolean }[]; active_session_id: string } | null>(null);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const load = React.useCallback(async () => {
+    try {
+      const v = (await s.callExtension('roleSession.list', { role_id: roleId })) as { sessions: { id: string; name: string; seq: number; state: string; generation: number; hasNativeSession?: boolean }[]; active_session_id: string };
+      setData(v);
+      setError('');
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }, [roleId, s]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const act = async (method: string, params: Record<string, unknown>) => {
+    setBusy(true);
+    try {
+      await s.callExtension(method, params);
+      await load();
+      setError('');
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card>
+      <h3>工作会话</h3>
+      <p className="muted">
+        同一角色可开多个工作会话；切换会生成交接包，新会话首次运行需确认收到后才会开放工具。
+      </p>
+      {!s.readOnly && (
+        <form
+          className="role-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!name.trim()) return;
+            void act('roleSession.create', { role_id: roleId, name: name.trim() }).then(() => setName(''));
+          }}
+        >
+          <label>
+            新会话名称
+            <input
+              maxLength={80}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="例如：换一个实现方向"
+            />
+          </label>
+          <button className="btn" disabled={busy || !name.trim()} type="submit">
+            新建并切换
+          </button>
+        </form>
+      )}
+      {data && (
+        <ul className="spec-list" data-testid="session-list">
+          {data.sessions.map((w) => (
+            <li key={w.id}>
+              <span>
+                #{w.seq} {w.name}{' '}
+                {w.id === data.active_session_id ? (
+                  <Badge tone="active">当前</Badge>
+                ) : (
+                  <Badge tone="neutral">已归档</Badge>
+                )}{' '}
+                {w.hasNativeSession ? <Badge tone="ok">有原生会话</Badge> : null}
+                {' · '}G{w.generation}
+              </span>
+              {!s.readOnly && w.id !== data.active_session_id && (
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void act('roleSession.switch', { role_id: roleId, session_id: w.id })}
+                >
+                  切换到此会话
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p role="alert">{error}</p>}
+    </Card>
   );
 }
 

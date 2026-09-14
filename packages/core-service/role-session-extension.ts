@@ -4,6 +4,7 @@ import {
   extensionErrorReply,
 } from '../client-contract/external-api-1.ts';
 import { Ajv2020 } from 'ajv/dist/2020.js';
+import { createHash } from 'node:crypto';
 /** roleSession.* 草案扩展（待CCR协商，未入冻结清单）。
  * 同一稳定Role ID下的多工作会话：列表/新建/切换/会话历史。
  * Binding/epoch 仍归执行授权；本扩展只管理会话归属与历史隔离。 */
@@ -114,6 +115,7 @@ export class RoleSessionExtension {
       this.db
         .prepare('insert into role_sessions(id,role_id,seq,name,state,binding_id,binding_epoch,generation,created_at_ms,activated_at_ms) values(?,?,?,?,?,?,?,?,?,?)')
         .run(id, roleId, Number(current.seq) + 1, name, 'ACTIVE', current.binding_id, current.binding_epoch, generation, this.clock(), this.clock());
+      this.buildHandoff(roleId, current, this.db.prepare('select * from role_sessions where id=?').get(id) as Record<string, unknown>);
       return this.vm(this.db.prepare('select * from role_sessions where id=?').get(id) as Record<string, unknown>);
     }).immediate();
   }
@@ -131,8 +133,41 @@ export class RoleSessionExtension {
       const generation = Math.max(Number(current.generation), Number(target.generation)) + 1;
       this.db.prepare("update role_sessions set state='ARCHIVED', activated_at_ms=? where id=?").run(this.clock(), current.id);
       this.db.prepare("update role_sessions set state='ACTIVE', generation=?, activated_at_ms=? where id=?").run(generation, this.clock(), target.id);
+      this.buildHandoff(roleId, current, target);
       return this.vm(this.db.prepare('select * from role_sessions where id=?').get(target.id) as Record<string, unknown>);
     }).immediate();
+  }
+
+  /** 交接包:切出会话的状态快照;目标会话首运行须先 ACK(原生 run 内核验)才可调用 Route 工具。 */
+  private buildHandoff(roleId: string, from: Record<string, unknown>, to: Record<string, unknown>) {
+    const items = this.db
+      .prepare(
+        'select seq,kind,title,substr(body,1,500) as body,at_ms from conversation_items where role_session_id=? order by seq desc limit 20',
+      )
+      .all(from.id)
+      .reverse();
+    const openTasks = this.db
+      .prepare(
+        "select id,summary,state from tasks where role_session_id=? and state not in ('DELIVERED','HANDED_OFF','PARTIAL','FAILED','CANCELLED') order by created_at_ms desc limit 10",
+      )
+      .all(from.id);
+    const charter = this.db
+      .prepare('select hash from role_charters where role_id=? order by revision desc limit 1')
+      .get(roleId) as { hash?: string } | undefined;
+    const pkg = {
+      from: { id: from.id, name: from.name },
+      charterHash: charter?.hash ?? null,
+      openTasks,
+      recent: items,
+      handedOffAtMs: this.clock(),
+    };
+    const json = JSON.stringify(pkg);
+    const hash = createHash('sha256').update(json).digest('hex');
+    this.db
+      .prepare(
+        "insert into role_session_handoffs(id,role_id,from_session_id,to_session_id,package_json,package_hash,state,created_at_ms) values(?,?,?,?,?,?,'PENDING',?)",
+      )
+      .run('rhand_' + globalThis.crypto.randomUUID(), roleId, from.id, to.id, json, hash, this.clock());
   }
   private history(roleId: string, sessionId: string, limit: number) {
     this.assertRole(roleId);

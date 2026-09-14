@@ -5,6 +5,8 @@ export interface NativeSessionScope {
   bindingId: string;
   epoch: number;
   sessionHome: string;
+  /** 指定后 load/save 以 RoleSession 的原生引用为准(A/B 会话隔离);缺省保持 binding 级行为。 */
+  roleSessionId?: string;
 }
 export interface NativeSessionGuard extends NativeSessionScope {
   key: string;
@@ -78,6 +80,21 @@ export class NativeSessionStore {
   }
   load(scope: NativeSessionScope): NativeSessionReference | undefined {
     const b = this.binding(scope);
+    if (scope.roleSessionId) {
+      // A/B 会话隔离:优先读该 RoleSession 自己的原生引用;切回旧会话必须恢复其当时会话。
+      const rs = this.db
+        .prepare('select native_session_ref from role_sessions where id=? and role_id=?')
+        .get(scope.roleSessionId, b.role_id) as any;
+      if (!rs) throw Error('ROLE_SESSION_NOT_FOUND');
+      if (rs.native_session_ref)
+        return this.reference(scope, b.harness, JSON.parse(rs.native_session_ref));
+      // 仅初始会话(seq 最小)继承 bootstrap 创建的 binding 级会话;
+      // create/switch 出的新会话一律全新,不得续用其它会话的原生上下文。
+      const initial = this.db
+        .prepare('select id from role_sessions where role_id=? order by seq limit 1')
+        .get(b.role_id) as { id: string } | undefined;
+      if (!initial || initial.id !== scope.roleSessionId) return undefined;
+    }
     const row = this.db
       .prepare('select session_ref from native_sessions where binding_id=? and epoch=?')
       .get(scope.bindingId, scope.epoch) as any;
@@ -110,9 +127,15 @@ export class NativeSessionStore {
           )
           .run(scope.bindingId, scope.epoch, json, Date.now());
         // 会话镜像：原生引用同时记录到产生它的 RoleSession（仅运行级保存；初始化无会话归属）。
-        this.db
-          .prepare('update role_sessions set native_session_ref=? where id=(select role_session_id from runs where id=?)')
-          .run(json, scope.key);
+        if (scope.roleSessionId) {
+          const rsUpdated = this.db
+            .prepare('update role_sessions set native_session_ref=? where id=?')
+            .run(json, scope.roleSessionId);
+          if (rsUpdated.changes !== 1) throw Error('ROLE_SESSION_NOT_FOUND');
+        } else
+          this.db
+            .prepare('update role_sessions set native_session_ref=? where id=(select role_session_id from runs where id=?)')
+            .run(json, scope.key);
         const updated = this.db
           .prepare(
             'update bindings set native_session_ref=? where id=? and epoch=? and is_current=1',
