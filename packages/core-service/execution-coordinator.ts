@@ -479,9 +479,11 @@ export class ExecutionCoordinator {
   }
   private conversation(d: Dispatch, kind: string, title: string, body: string, key: string) {
     const a = this.app;
+    const roleSessionId = a.one('select role_session_id from runs where id=?', d.id)?.role_session_id ?? null;
+    const sourceId = d.id + ':' + key;
     a.db
       .prepare(
-        'insert or ignore into conversation_items(id,project_id,space_id,role_id,task_id,run_id,kind,title,body,at_ms,source_key) values(?,?,?,?,?,?,?,?,?,?,?)',
+        'insert or ignore into conversation_items(id,project_id,space_id,role_id,task_id,run_id,kind,title,body,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,?,?)',
       )
       .run(
         uid('conversation'),
@@ -494,8 +496,19 @@ export class ExecutionCoordinator {
         title,
         body.slice(0, 4096),
         a.clock(),
-        d.id + ':' + key,
+        sourceId,
+        roleSessionId,
       );
+    a.contextStore.appendConversation({
+      roleId: d.principal.roleId,
+      sourceWorkSessionId: roleSessionId,
+      sourceId,
+      kind: kind as import('./role-context-store.ts').PortableContextKind,
+      title,
+      body,
+      taskId: d.taskId,
+      runId: d.id,
+    });
   }
   private audit(project: string, kind: string) {
     this.app.db

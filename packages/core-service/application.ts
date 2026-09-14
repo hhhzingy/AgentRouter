@@ -26,6 +26,7 @@ import { validatePlanShapeP2 } from '../client-contract/c1r1p2.ts';
 import { validatePlanShape } from '../client-contract/c1r1/index.ts';
 import r1 from '../../contracts/client-api.c1r1.schema.json' with { type: 'json' };
 import { Plans } from './plans.ts';
+import { RoleContextStore } from './role-context-store.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 const methods: Method[] = [
   'system.initialize',
@@ -115,6 +116,7 @@ export class ApplicationService extends Plans {
   onChanged?: () => void;
   externalApi?: import('./external-api-extension.ts').ExternalApiExtension;
   roleSession?: import('./role-session-extension.ts').RoleSessionExtension;
+  readonly contextStore: RoleContextStore;
   participant?: import('./participant-extension.ts').ParticipantExtension;
   /** C1R1P2:已注册 Harness 列表(由宿主注入 DriverRegistry 视图)。 */
   registeredHarnesses?: () => string[];
@@ -130,6 +132,7 @@ export class ApplicationService extends Plans {
     clock = () => Date.now(),
   ) {
     super(db, clock);
+    this.contextStore = new RoleContextStore(db, clock);
     this.instanceId =
       this.one("select value from app_meta where key='dataset_id'").value + '_' + randomUUID();
     this.core = new Core(db, clock, {
@@ -1422,7 +1425,18 @@ export class ApplicationService extends Plans {
       const roleIds = [...new Set([m.from_role_id, m.to_role_id].filter(Boolean))] as string[];
       for (const roleId of roleIds) {
         const r = this.roleScope(roleId),
-          p = JSON.parse(m.payload_json);
+          p = JSON.parse(m.payload_json),
+          kind = (m.from_kind === 'user'
+            ? 'USER_MESSAGE'
+            : m.kind === 'notice'
+              ? 'NOTICE'
+              : m.kind === 'task.result'
+                ? 'ROUTE_RESULT'
+                : 'ROUTE_TASK') as import('./role-context-store.ts').PortableContextKind,
+          title = m.from_kind === 'user' ? '用户' : (p.summary ?? 'Route'),
+          body = String(p.body ?? ''),
+          state = this.one('select state from outbox where message_id=?', m.id)?.state ?? 'STORED',
+          sourceId = 'message:' + m.id + ':' + roleId;
         this.db
           .prepare(
             'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,state,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,?,coalesce((select t.role_session_id from tasks t where t.id=?),(select s2.id from role_sessions s2 where s2.role_id=? order by s2.seq limit 1))) on conflict(source_key) do update set state=excluded.state',
@@ -1433,21 +1447,27 @@ export class ApplicationService extends Plans {
             m.space_id,
             roleId,
             m.task_id,
-            m.from_kind === 'user'
-              ? 'USER_MESSAGE'
-              : m.kind === 'notice'
-                ? 'NOTICE'
-                : m.kind === 'task.result'
-                  ? 'ROUTE_RESULT'
-                  : 'ROUTE_TASK',
-            m.from_kind === 'user' ? '用户' : (p.summary ?? 'Route'),
-            String(p.body ?? '').slice(0, 4096),
-            this.one('select state from outbox where message_id=?', m.id)?.state ?? 'STORED',
+            kind,
+            title,
+            body.slice(0, 4096),
+            state,
             m.created_at_ms,
-            'message:' + m.id + ':' + roleId,
+            sourceId,
             m.task_id,
             roleId,
           );
+        const item = this.one('select role_session_id from conversation_items where source_key=?', sourceId);
+        this.contextStore.appendConversation({
+          roleId,
+          sourceWorkSessionId: item?.role_session_id ?? null,
+          sourceId,
+          kind,
+          title,
+          body,
+          state,
+          taskId: m.task_id ?? null,
+          atMs: Number(m.created_at_ms),
+        });
       }
     }
   }
