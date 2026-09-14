@@ -41,6 +41,8 @@ socket.on('data', (b) => {
         return;
       }
       upstreamReady = true;
+      for (const item of upstreamQueue) socket.write(item);
+      upstreamQueue = [];
       for (const item of downstreamQueue) process.stdout.write(item);
       downstreamQueue.length = 0;
       continue;

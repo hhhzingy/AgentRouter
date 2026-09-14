@@ -106,11 +106,11 @@ it('migrates a v3 database with a recoverable backup and preserves durable claim
   let db = openApplicationStore(root);
   cleanup.push(() => { if(db.open) db.close(); rmSync(root,{recursive:true}); });
   db.exec(
-    "DROP TABLE role_session_handoffs; DROP TABLE external_api_calls; DROP TABLE participant_grants; DROP TABLE role_sessions; ALTER TABLE tasks DROP COLUMN role_session_id; ALTER TABLE runs DROP COLUMN role_session_id; ALTER TABLE conversation_items DROP COLUMN role_session_id; DELETE FROM schema_migrations WHERE version>=4;");
+    "DROP TABLE role_session_handoffs; DROP TABLE external_api_calls; DROP TABLE participant_grants; DROP TABLE role_sessions; ALTER TABLE tasks DROP COLUMN role_session_id; ALTER TABLE runs DROP COLUMN role_session_id; ALTER TABLE conversation_items DROP COLUMN role_session_id; ALTER TABLE runs DROP COLUMN execution_provenance; ALTER TABLE execution_profiles DROP COLUMN fallback_json; DELETE FROM schema_migrations WHERE version>=4;");
   const dataset = db.prepare("select value from app_meta where key='dataset_id'").get();
   db.close();
   db = openApplicationStore(root);
-  expect(db.prepare('select max(version) v from schema_migrations').get()).toEqual({v:9});
+  expect(db.prepare('select max(version) v from schema_migrations').get()).toEqual({v:10});
   expect(db.prepare("select value from app_meta where key='dataset_id'").get()).toEqual(dataset);
   const backupFile = readdirSync(join(root,'backups')).find(n=>n.startsWith('before-v4-'))!;
   const backup = new Database(join(root,'backups',backupFile),{readonly:true});

@@ -5,6 +5,14 @@ import type { Dispatch } from '../runtime/core.ts';
 import type { ApplicationService } from './application.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 /** 单一应用协调层；进程 I/O 由后端负责。Fixture 与 Native 共用调度/收尾；生产必须通过可信运行器安全授权。 */
+// provenance 的 model 字段只取受信绑定内的模型描述,损坏数据不阻断溯源。
+function safeModel(modelJson: unknown): unknown {
+  try {
+    return JSON.parse(String(modelJson ?? '{}'));
+  } catch {
+    return null;
+  }
+}
 export class ExecutionCoordinator {
   private scheduled = false;
   private active = new Map<string, () => void>();
@@ -34,7 +42,7 @@ export class ExecutionCoordinator {
       throw Error('INVALID_FIXTURE');
     this.app.db
       .prepare(
-        "insert into execution_profiles values(?,'SIMULATED',?,1) on conflict(role_id) do update set scenario_json=excluded.scenario_json,verified=1",
+        "insert into execution_profiles(role_id,source,scenario_json,verified) values(?,'SIMULATED',?,1) on conflict(role_id) do update set scenario_json=excluded.scenario_json,verified=1",
       )
       .run(role, JSON.stringify(scenario));
     this.kick();
@@ -70,6 +78,12 @@ export class ExecutionCoordinator {
         continue;
       }
       if (d.state !== 'DELIVERED') continue;
+      // 显式降级已触发:停止向该 profile 派发,直到操作者处理(切换计划或清除降级)。
+      if (profile.fallback_json) {
+        try {
+          if (JSON.parse(profile.fallback_json).triggered) continue;
+        } catch {}
+      }
       const dispatch = a.db
         .transaction(() => {
           const dispatch = a.core.dispatch(profile.role_id);
@@ -94,8 +108,7 @@ export class ExecutionCoordinator {
       }
     }
   }
-  private resources(b: any) {
-    const a = this.app,
+  private resources(b: any) {    const a = this.app,
       w = a.one('select canonical_path from workspaces where id=?', b.workspace_id);
     return ['workspace:' + w.canonical_path, ...(b.auth_unit_id ? ['auth:' + b.auth_unit_id] : [])];
   }
@@ -201,7 +214,8 @@ export class ExecutionCoordinator {
   private run(dispatch: Dispatch, b: any, charter: any, scenario: any) {
     const a = this.app;
     let terminal: string | undefined,
-      broken = false;
+      broken = false,
+      lastDiagnostic = '';
     const roleSessionId = a.one('select role_session_id from runs where id=?', dispatch.id)
       ?.role_session_id as string | null | undefined;
     const pendingHandoff = roleSessionId
@@ -303,6 +317,7 @@ export class ExecutionCoordinator {
                 .prepare('update run_sources set native_terminal=1 where run_id=?')
                 .run(dispatch.id);
             }
+            if (event.kind === 'diagnostic' && typeof event.code === 'string') lastDiagnostic = event.code;
             a.event(charter.project_id, a.fixtureMode ? 'FixtureEvent' : 'NativeEvent', dispatch.id);
           })
           .immediate();
@@ -328,6 +343,55 @@ export class ExecutionCoordinator {
                 this.deliverPublished();
                 a.syncConversation();
               } else this.unknown(dispatch.id);
+              // 执行溯源:Core 记录实际执行来源与显式降级判定;模型/客户端声明不入 provenance。
+              const fbRow = a.one(
+                'select fallback_json from execution_profiles where role_id=?',
+                dispatch.principal.roleId,
+              ) as { fallback_json?: string | null } | undefined;
+              let fallback: Record<string, unknown> | null = null;
+              if (terminal === 'failed' && fbRow?.fallback_json) {
+                try {
+                  const fb = JSON.parse(fbRow.fallback_json) as {
+                    harness?: string;
+                    reason_codes?: string[];
+                    triggered?: unknown;
+                  };
+                  const hit = (fb.reason_codes ?? []).find((c) => lastDiagnostic.includes(c));
+                  if (fb.harness && hit && !fb.triggered) {
+                    fallback = {
+                      to: fb.harness,
+                      reason: lastDiagnostic,
+                      matched_code: hit,
+                      at_ms: a.clock(),
+                      dispatched: false,
+                    };
+                    // 显式降级触发态写入 profile(权威派发门);操作者切换计划后清除,不静默重派。
+                    a.db
+                      .prepare('update execution_profiles set fallback_json=? where role_id=?')
+                      .run(
+                        JSON.stringify({
+                          harness: fb.harness,
+                          reason_codes: fb.reason_codes,
+                          triggered: { at_ms: a.clock(), reason: lastDiagnostic, from_run: dispatch.id },
+                        }),
+                        dispatch.principal.roleId,
+                      );
+                  }
+                } catch {}
+              }
+              a.db
+                .prepare('update runs set execution_provenance=? where id=?')
+                .run(
+                  JSON.stringify({
+                    harness: b.harness,
+                    model: safeModel(b.model_json),
+                    outcome: terminal ?? 'unknown',
+                    diagnostic: lastDiagnostic || null,
+                    fallback,
+                    recorded_at_ms: a.clock(),
+                  }),
+                  dispatch.id,
+                );
               a.event(charter.project_id, a.fixtureMode ? 'FixtureProcessExited' : 'NativeProcessExited', dispatch.id);
             })
             .immediate();

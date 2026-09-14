@@ -152,7 +152,7 @@ export class NativeExecutionRegistry {
           .run(bindingId, epoch, input.harness, json, hash(json), Date.now());
         this.db
           .prepare(
-            "insert into execution_profiles values(?,'NATIVE','{}',1) on conflict(role_id) do update set source='NATIVE',scenario_json='{}',verified=1",
+            "insert into execution_profiles(role_id,source,scenario_json,verified) values(?,'NATIVE','{}',1) on conflict(role_id) do update set source='NATIVE',scenario_json='{}',verified=1",
           )
           .run(binding.role_id);
       })

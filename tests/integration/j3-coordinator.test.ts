@@ -348,7 +348,7 @@ it('OFFLINE ACP 首条可信工具请求先持久 accepted，再进入真实 Cor
     );
     // Seed only prior Bootstrap completion; this case certifies neither Bootstrap nor OS isolation.
     f.db.prepare("update bootstrap_deliveries set state='DELIVERED' where role_id=?").run(role.id);
-    f.db.prepare("insert into execution_profiles values(?,'NATIVE','{}',1)").run(role.id);
+    f.db.prepare("insert into execution_profiles(role_id,source,scenario_json,verified) values(?,'NATIVE','{}',1)").run(role.id);
     f.server.nativeAuthorization = (id) => id === binding.id;
     f.server.nativeToolAuthorization = (id, epoch, tool) =>
       id === binding.id &&

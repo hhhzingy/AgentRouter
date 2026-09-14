@@ -164,6 +164,29 @@ export class Management {
       throw new RouteError('ROLE_HAS_ACTIVE_RUN', 'CONFLICT');
     this.db.prepare('update roles set status=? where id=?').run(status, role);
   }
+  /** 显式降级登记(Kimi 配额等→指定 harness)。仅策略声明,不自动改写任务或绑定。 */
+  setProfileFallback(role: string, fallback: unknown) {
+    if (!this.row('select role_id from execution_profiles where role_id=?', role))
+      throw new RouteError('INVALID_ROLE');
+    if (fallback === null || fallback === undefined) {
+      this.db.prepare('update execution_profiles set fallback_json=null where role_id=?').run(role);
+      return;
+    }
+    const f = fallback as { harness?: unknown; reason_codes?: unknown };
+    if (
+      typeof f !== 'object' ||
+      typeof f.harness !== 'string' ||
+      !/^[a-z][a-z0-9_]{1,40}$/.test(f.harness) ||
+      !Array.isArray(f.reason_codes) ||
+      !f.reason_codes.length ||
+      !f.reason_codes.every((c) => typeof c === 'string' && /^[A-Z][A-Z0-9_]{1,39}$/.test(c)) ||
+      Object.keys(f).some((k) => !['harness', 'reason_codes'].includes(k))
+    )
+      throw new RouteError('INVALID_FALLBACK_CONFIG');
+    this.db
+      .prepare('update execution_profiles set fallback_json=? where role_id=?')
+      .run(JSON.stringify({ harness: f.harness, reason_codes: f.reason_codes }), role);
+  }
   publishPolicy(project: string, content: Data) {
     validatePolicy(content);
     return this.db.transaction(() => {

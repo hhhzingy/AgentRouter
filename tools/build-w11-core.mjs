@@ -28,4 +28,6 @@ await build({
 for (const name of readdirSync('packages/storage/migrations').filter((f) => f.endsWith('.sql')).sort())
   copyFileSync('packages/storage/migrations/' + name, resolve(out, 'migrations', name));
 copyFileSync('packages/core-service/fixture-harness.mjs', resolve(out, 'fixture-harness.mjs'));
+// SSH stdio 桥:无第三方依赖,原样分发(sshd forced command 调起)。
+copyFileSync('apps/ssh-bridge/main.mjs', resolve(out, 'ssh-bridge.mjs'));
 console.log(out);
