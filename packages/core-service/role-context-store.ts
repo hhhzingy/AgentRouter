@@ -63,39 +63,42 @@ export interface ContextSyncPlan {
 }
 
 const FORBIDDEN_KEY = /(?:secret|credential|password|authorization|api[_-]?key|private[_-]?key|hidden[_-]?reasoning|\bkv\b|environment[_-]?variable)/i;
-const MAX_PORTABLE_JSON_BYTES = 1024 * 1024;
+export const MAX_PORTABLE_JSON_BYTES = 1024 * 1024;
 
-function stable(value: unknown): string {
+export function stablePortableJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return '[' + value.map(stable).join(',') + ']';
+  if (Array.isArray(value)) return '[' + value.map(stablePortableJson).join(',') + ']';
   const object = value as Record<string, unknown>;
   return (
     '{' +
     Object.keys(object)
       .sort()
-      .map((key) => JSON.stringify(key) + ':' + stable(object[key]))
+      .map((key) => JSON.stringify(key) + ':' + stablePortableJson(object[key]))
       .join(',') +
     '}'
   );
 }
 
-function assertPortable(value: unknown, path = '$') {
+export function assertPortableContext(value: unknown, path = '$') {
   if (typeof value === 'function' || typeof value === 'symbol' || value === undefined)
     throw Error('PORTABLE_CONTEXT_INVALID');
   if (typeof value === 'string' && Buffer.byteLength(value, 'utf8') > MAX_PORTABLE_JSON_BYTES)
     throw Error('PORTABLE_CONTEXT_TOO_LARGE');
   if (!value || typeof value !== 'object') return;
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertPortable(item, path + '[' + index + ']'));
+    value.forEach((item, index) => assertPortableContext(item, path + '[' + index + ']'));
     return;
   }
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
     if (FORBIDDEN_KEY.test(key)) throw Error('PORTABLE_CONTEXT_FORBIDDEN_FIELD');
-    assertPortable(item, path + '.' + key);
+    assertPortableContext(item, path + '.' + key);
   }
-  if (Buffer.byteLength(stable(value), 'utf8') > MAX_PORTABLE_JSON_BYTES)
+  if (Buffer.byteLength(stablePortableJson(value), 'utf8') > MAX_PORTABLE_JSON_BYTES)
     throw Error('PORTABLE_CONTEXT_TOO_LARGE');
 }
+
+const stable = stablePortableJson;
+const assertPortable = assertPortableContext;
 
 function parseJson(value: string): unknown {
   try {
@@ -389,6 +392,10 @@ export class RoleContextStore {
   }
 
   private receipt(row: any): ContextSyncReceipt {
+    const state = this.one(
+      'select fidelity from role_session_context_state where role_session_id=?',
+      row.target_work_session_id,
+    );
     return {
       operationId: row.operation_id,
       roleId: row.role_id,
@@ -399,7 +406,7 @@ export class RoleContextStore {
       stableMarker: row.stable_marker,
       state: row.state,
       nativeReceipt: row.native_receipt_json ? parseJson(row.native_receipt_json) : undefined,
-      fidelity: row.state === 'CONFIRMED' ? 'EXACT' : 'UNKNOWN',
+      fidelity: row.state === 'CONFIRMED' ? (state?.fidelity ?? 'UNKNOWN') : 'UNKNOWN',
     };
   }
 }
