@@ -195,7 +195,9 @@ describe('工作会话切换(R4)', () => {
   it('会话卡在角色页展示,含工作会话标题与切换提示', () => {
     const html = page(withSessions, <RolePage roleId="role_zhou" />);
     expect(html).toContain('工作会话');
-    expect(html).toContain('交接包');
+    expect(html).toContain('迁移保真度');
+    expect(html).toContain('新建并继承上下文');
+    expect(html).not.toContain('G1');
   });
   it('观察者只读:不出现新建与会话切换控件', () => {
     const observerStore = {
@@ -205,7 +207,7 @@ describe('工作会话切换(R4)', () => {
     } as typeof controller;
     const html = page(observerStore, <RolePage roleId="role_zhou" />);
     expect(html).toContain('工作会话');
-    expect(html).not.toContain('新建并切换');
-    expect(html).not.toContain('切换到此会话');
+    expect(html).not.toContain('>新建并继承上下文<');
+    expect(html).not.toContain('>继续已有<');
   });
 });

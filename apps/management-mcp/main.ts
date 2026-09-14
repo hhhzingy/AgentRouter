@@ -33,25 +33,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     })),
     {
       name: 'router_role_session_list',
-      description: 'AgentRouter roleSession草案扩展：列出指定角色的全部工作会话与当前活动会话。',
+      description: 'AgentRouter RoleSession 连续性：列出指定角色的工作会话与当前活动会话。',
       inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id'], properties: { role_id: { type: 'string' } } } } },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     {
+      name: 'router_role_session_preflight',
+      description: 'AgentRouter RoleSession 连续性：评估目标 Harness 可继续的最新会话、新建并继承上下文的可用性与迁移保真度。',
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id'], properties: { role_id: { type: 'string' }, target_harness: { type: 'string' }, session_id: { type: 'string' } } } } },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    {
       name: 'router_role_session_history',
-      description: 'AgentRouter roleSession草案扩展：读取指定会话的对话历史（按会话隔离，旧会话写入不会混入当前会话）。',
+      description: 'AgentRouter RoleSession 连续性：读取指定会话的可观察对话历史（按会话隔离）。',
       inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'session_id'], properties: { role_id: { type: 'string' }, session_id: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 } } } } },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     {
       name: 'router_role_session_create',
-      description: 'AgentRouter roleSession草案扩展：为角色新建工作会话并切换为活动（需要控制租约；generation递增）。',
-      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'name'], properties: { role_id: { type: 'string' }, name: { type: 'string', maxLength: 80 } } } } },
+      description: 'AgentRouter RoleSession 连续性：新建并激活工作会话，继承最大可迁移上下文（需要控制租约）。',
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'name'], properties: { role_id: { type: 'string' }, name: { type: 'string', maxLength: 80 }, target_harness: { type: 'string' } } } } },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     {
       name: 'router_role_session_switch',
-      description: 'AgentRouter roleSession草案扩展：切换/切回指定会话（幂等；切到当前会话无副作用；需要控制租约）。',
+      description: 'AgentRouter RoleSession 连续性：继续指定的已有会话（切换幂等；需要控制租约）。',
       inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'session_id'], properties: { role_id: { type: 'string' }, session_id: { type: 'string' } } } } },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
@@ -135,10 +141,12 @@ server.setRequestHandler(CallToolRequestSchema, async (r) => {
       let result: unknown;
       if (r.params.name === 'router_role_session_list')
         result = await gateway.roleSessionList(String(q.role_id ?? ''));
+      else if (r.params.name === 'router_role_session_preflight')
+        result = await gateway.roleSessionPreflight(String(q.role_id ?? ''), q.target_harness ? String(q.target_harness) : undefined, q.session_id ? String(q.session_id) : undefined);
       else if (r.params.name === 'router_role_session_history')
         result = await gateway.roleSessionHistory(String(q.role_id ?? ''), String(q.session_id ?? ''), q.limit ? Number(q.limit) : undefined);
       else if (r.params.name === 'router_role_session_create')
-        result = await gateway.roleSessionCreate(String(q.role_id ?? ''), String(q.name ?? ''));
+        result = await gateway.roleSessionCreate(String(q.role_id ?? ''), String(q.name ?? ''), q.target_harness ? String(q.target_harness) : undefined);
       else if (r.params.name === 'router_role_session_switch')
         result = await gateway.roleSessionSwitch(String(q.role_id ?? ''), String(q.session_id ?? ''));
       else throw Error('TOOL_UNAVAILABLE');

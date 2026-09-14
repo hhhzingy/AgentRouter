@@ -1,5 +1,5 @@
 import { validateManagementInput } from './schema.ts';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   methodMetadata,
   validateDefinition,
@@ -212,17 +212,40 @@ export class ManagementGateway {
       { profile_id: profileId, action_id: actionId },
     );
   }
-  /** roleSession.* 草案扩展：经已认证 Client 连接转发；create/switch 走串行队列并要求控制租约。 */
+  /** RoleSession 连续性扩展：读取经已认证连接转发；create/switch 串行执行并要求控制租约。 */
   private roleSessionCall(method: string, params: Record<string, unknown>, mutation: boolean): Promise<unknown> {
     const action = async () => {
       const s = this.get();
       const lease = mutation ? this.lease : undefined;
       if (mutation && !lease) throw Error('CONTROL_LEASE_REQUIRED');
-      return (s.request as (m: string, p: unknown, o?: unknown) => Promise<unknown>)(
-        method,
-        params,
-        ...(lease ? [{ leaseId: lease }] : []),
-      );
+      const request = s.request as (
+        method: string,
+        params: unknown,
+        options?: RequestOptions,
+      ) => Promise<any>;
+      if (!mutation) return request(method, params);
+      const snapshot = (await request('system.snapshot', {})) as { revision: number };
+      const preflightParams = {
+        role_id: params.role_id,
+        ...(typeof params.session_id === 'string'
+          ? { session_id: params.session_id }
+          : typeof params.target_harness === 'string'
+            ? { target_harness: params.target_harness }
+            : {}),
+      };
+      const preflight = (await request('roleSession.preflight', preflightParams)) as {
+        preflight_hash?: unknown;
+      };
+      if (typeof preflight.preflight_hash !== 'string') throw Error('PREFLIGHT_REQUIRED');
+      const requestKey = 'mcp_rs_' + randomUUID();
+      const operationId = 'mcp_' + createHash('sha256').update(requestKey).digest('hex');
+      return request(method, params, {
+        leaseId: lease!,
+        requestKey,
+        operationId,
+        expectedRevision: Number(snapshot.revision),
+        preflightHash: preflight.preflight_hash,
+      });
     };
     if (!mutation) return action();
     const pending = this.serial.then(action, action);
@@ -232,11 +255,14 @@ export class ManagementGateway {
   roleSessionList(roleId: string) {
     return this.roleSessionCall('roleSession.list', { role_id: roleId }, false);
   }
+  roleSessionPreflight(roleId: string, targetHarness?: string, sessionId?: string) {
+    return this.roleSessionCall('roleSession.preflight', { role_id: roleId, ...(targetHarness ? { target_harness: targetHarness } : {}), ...(sessionId ? { session_id: sessionId } : {}) }, false);
+  }
   roleSessionHistory(roleId: string, sessionId: string, limit?: number) {
     return this.roleSessionCall('roleSession.history', { role_id: roleId, session_id: sessionId, ...(limit ? { limit } : {}) }, false);
   }
-  roleSessionCreate(roleId: string, name: string) {
-    return this.roleSessionCall('roleSession.create', { role_id: roleId, name }, true);
+  roleSessionCreate(roleId: string, name: string, targetHarness?: string) {
+    return this.roleSessionCall('roleSession.create', { role_id: roleId, name, ...(targetHarness ? { target_harness: targetHarness } : {}) }, true);
   }
   roleSessionSwitch(roleId: string, sessionId: string) {
     return this.roleSessionCall('roleSession.switch', { role_id: roleId, session_id: sessionId }, true);

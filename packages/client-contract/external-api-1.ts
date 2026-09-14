@@ -7,7 +7,7 @@ export const EXTERNAL_API_METHODS = [
   'externalApi.call',
 ] as const;
 export type ExternalApiMethod = (typeof EXTERNAL_API_METHODS)[number];
-/** 扩展方法前缀：external-api/1 与 roleSession 草案共用同一帧格式与错误信封。 */
+/** 扩展方法前缀：external-api/1 与 RoleSession 连续性共用同一帧格式与错误信封。 */
 export function isExtensionMethod(method: unknown): boolean {
   return (
     (EXTERNAL_API_METHODS as readonly string[]).includes(method as string) ||
@@ -123,6 +123,10 @@ export interface ExternalApiFrame {
   params?: Record<string, unknown>;
   client_id?: string;
   lease_id?: string;
+  request_key?: string;
+  operation_id?: string;
+  expected_revision?: number;
+  preflight_hash?: string;
 }
 /** 扩展错误码不进入冻结 ErrorCode 枚举；仅允许保守的大写诊断码，绝不携带上游细节。 */
 export function extensionErrorCode(error: unknown): string {
@@ -146,7 +150,11 @@ export function validateExternalApiFrame(frame: unknown): ExternalApiFrame {
     f.id.length > 160 ||
     (f.params !== undefined && (typeof f.params !== 'object' || f.params === null || Array.isArray(f.params))) ||
     (f.client_id !== undefined && (typeof f.client_id !== 'string' || !f.client_id || f.client_id.length > 160)) ||
-    (f.lease_id !== undefined && (typeof f.lease_id !== 'string' || !f.lease_id || f.lease_id.length > 160))
+    (f.lease_id !== undefined && (typeof f.lease_id !== 'string' || !f.lease_id || f.lease_id.length > 160)) ||
+    (f.request_key !== undefined && (typeof f.request_key !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(f.request_key))) ||
+    (f.operation_id !== undefined && (typeof f.operation_id !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(f.operation_id))) ||
+    (f.expected_revision !== undefined && (!Number.isSafeInteger(f.expected_revision) || f.expected_revision < 0)) ||
+    (f.preflight_hash !== undefined && (typeof f.preflight_hash !== 'string' || !/^[a-f0-9]{64}$/.test(f.preflight_hash)))
   )
     throw Error('INVALID_FRAME');
   if (isExternalApiMethod(f.method)) {

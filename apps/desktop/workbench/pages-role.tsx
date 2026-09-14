@@ -256,18 +256,83 @@ export function RolePage({ roleId }: { roleId: string }) {
   );
 }
 
-/** 工作会话切换(R4):同一角色下 A/B 会话隔离;切换生成交接包,目标会话首运行须 ACK。 */
+type RoleSessionRow = {
+  id: string;
+  name: string;
+  seq: number;
+  state: string;
+  harness?: string;
+  migration_fidelity?: string;
+  hasNativeSession?: boolean;
+};
+
+type RoleSessionPreflight = {
+  target_harness?: string;
+  recommended_action?: 'CONTINUE_EXISTING' | 'CREATE_NEW_INHERIT';
+  resume_candidate?: { id: string; name?: string; seq?: number } | null;
+  new_session_available?: boolean;
+  migration_fidelity?: string;
+  reason_code?: string;
+};
+
+function migrationFidelityLabel(value?: string) {
+  return (
+    {
+      EXACT: '完整',
+      COMPRESSED: '已压缩',
+      PARTIAL: '部分',
+      UNKNOWN: '待评估',
+      BLOCKED: '已阻止',
+    }[value ?? 'UNKNOWN'] ?? '待评估'
+  );
+}
+
+function recommendationLabel(value?: string) {
+  return value === 'CONTINUE_EXISTING' ? '继续已有' : '新建并继承上下文';
+}
+
+function preflightReasonLabel(value?: string) {
+  return (
+    {
+      NATIVE_SESSION_RESUMABLE: '已有原生会话可继续。',
+      NO_WORK_SESSION_FOR_HARNESS: '目标 Harness 暂无可继续的工作会话。',
+      NATIVE_SESSION_NOT_AVAILABLE: '目标工作会话没有可恢复的原生会话。',
+      WORKSPACE_AFFINITY_MISMATCH: '工作区不兼容，建议新建工作会话。',
+      TARGET_HARNESS_REQUIRES_BINDING: '目标 Harness 与当前角色绑定不一致，请先更新运行配置。',
+      ROLE_SESSION_NOT_FOUND: '指定工作会话不存在。',
+    }[value ?? ''] ?? 'Core 尚未给出可继续的原生会话。'
+  );
+}
+
+function migrationNeedsAttention(value?: string) {
+  return value === 'BLOCKED' || value === 'PARTIAL' || value === 'UNKNOWN';
+}
+
+/** 工作会话连续性：每个 WorkSession 固定绑定 Harness/Driver 与 Native Session。 */
 function SessionWorkflow({ roleId }: { roleId: string }) {
   const s = useStore();
-  const [data, setData] = useState<{ sessions: { id: string; name: string; seq: number; state: string; generation: number; hasNativeSession?: boolean }[]; active_session_id: string } | null>(null);
+  const [data, setData] = useState<{ sessions: RoleSessionRow[]; active_session_id: string } | null>(null);
+  const [preflight, setPreflight] = useState<RoleSessionPreflight | null>(null);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [preflightError, setPreflightError] = useState('');
   const load = React.useCallback(async () => {
     try {
-      const v = (await s.callExtension('roleSession.list', { role_id: roleId })) as { sessions: { id: string; name: string; seq: number; state: string; generation: number; hasNativeSession?: boolean }[]; active_session_id: string };
+      const v = (await s.callExtension('roleSession.list', { role_id: roleId })) as {
+        sessions: RoleSessionRow[];
+        active_session_id: string;
+      };
       setData(v);
       setError('');
+      try {
+        const p = (await s.callExtension('roleSession.preflight', { role_id: roleId })) as RoleSessionPreflight;
+        setPreflight(p);
+        setPreflightError('');
+      } catch (e) {
+        setPreflight(null);
+        setPreflightError(errorMessage(e));
+      }
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -291,7 +356,7 @@ function SessionWorkflow({ roleId }: { roleId: string }) {
     <Card>
       <h3>工作会话</h3>
       <p className="muted">
-        同一角色可开多个工作会话；切换会生成交接包，新会话首次运行需确认收到后才会开放工具。
+        每个工作会话固定绑定一个 Harness/Driver 与 Native Session。可继续已有会话，或新建会话并继承最大可迁移上下文；迁移保真度由 Core 判定。
       </p>
       {!s.readOnly && (
         <form
@@ -303,7 +368,7 @@ function SessionWorkflow({ roleId }: { roleId: string }) {
           }}
         >
           <label>
-            新会话名称
+            新工作会话名称
             <input
               maxLength={80}
               value={name}
@@ -312,10 +377,31 @@ function SessionWorkflow({ roleId }: { roleId: string }) {
             />
           </label>
           <button className="btn" disabled={busy || !name.trim()} type="submit">
-            新建并切换
+            新建并继承上下文
           </button>
         </form>
       )}
+      {preflight && (
+        <div className="session-preflight" data-testid="session-preflight" role="status">
+          <p>
+            目标 Harness：{preflight.target_harness ?? '待评估'}{' · '}
+            建议：{recommendationLabel(preflight.recommended_action)}{' · '}
+            迁移保真度：{migrationFidelityLabel(preflight.migration_fidelity)}
+          </p>
+          <p className={migrationNeedsAttention(preflight.migration_fidelity) ? 'hint tone-warning' : 'hint'}>
+            {preflightReasonLabel(preflight.reason_code)}
+            {preflight.recommended_action === 'CONTINUE_EXISTING' && preflight.resume_candidate?.name
+              ? ' 候选：' + preflight.resume_candidate.name + '。'
+              : preflight.new_session_available
+                ? ' 新建工作会话始终可用。'
+                : ''}
+          </p>
+          {preflight.migration_fidelity === 'BLOCKED' && (
+            <p className="hint tone-warning">当前上下文迁移被 Core 安全阻止；不会静默截断上下文。</p>
+          )}
+        </div>
+      )}
+      {preflightError && <p className="hint tone-warning">恢复建议暂不可用：{preflightError}</p>}
       {data && (
         <ul className="spec-list" data-testid="session-list">
           {data.sessions.map((w) => (
@@ -327,16 +413,21 @@ function SessionWorkflow({ roleId }: { roleId: string }) {
                 ) : (
                   <Badge tone="neutral">已归档</Badge>
                 )}{' '}
-                {w.hasNativeSession ? <Badge tone="ok">有原生会话</Badge> : null}
-                {' · '}G{w.generation}
+                Harness {w.harness ?? '未知'}{' · '}
+                迁移保真度：{migrationFidelityLabel(w.migration_fidelity)}{' '}
+                {w.hasNativeSession ? (
+                  <Badge tone="ok">可继续</Badge>
+                ) : (
+                  <Badge tone="neutral">待新建原生会话</Badge>
+                )}
               </span>
-              {!s.readOnly && w.id !== data.active_session_id && (
+              {!s.readOnly && w.id !== data.active_session_id && w.hasNativeSession && (
                 <button
                   className="btn"
                   disabled={busy}
                   onClick={() => void act('roleSession.switch', { role_id: roleId, session_id: w.id })}
                 >
-                  切换到此会话
+                  继续已有
                 </button>
               )}
             </li>

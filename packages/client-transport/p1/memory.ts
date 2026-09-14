@@ -77,6 +77,10 @@ export class P1MemoryTransport implements ClientTransport {
           ...(params ? { params } : {}),
           client_id: options.clientId,
           ...(opts.leaseId ? { lease_id: opts.leaseId } : {}),
+          ...(opts.requestKey ? { request_key: opts.requestKey } : {}),
+          ...(opts.operationId ? { operation_id: opts.operationId } : {}),
+          ...(opts.expectedRevision !== undefined ? { expected_revision: opts.expectedRevision } : {}),
+          ...(opts.preflightHash ? { preflight_hash: opts.preflightHash } : {}),
         });
         let extensionTimer: ReturnType<typeof setTimeout> | undefined;
         try {

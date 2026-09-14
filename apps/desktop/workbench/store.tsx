@@ -58,7 +58,7 @@ export interface WorkbenchStore {
     params: MethodMap[M]['params'],
     explicitScope?:Scope,
   ): Promise<MethodMap[M]['result']>;
-  /** roleSession.* 等草案扩展：不经冻结 capability 清单与操作账本；写操作需控制器租约。 */
+  /** roleSession.* 连续性扩展：不经冻结 capability 清单；写操作仍需控制器租约与 Core 校验。 */
   callExtension: (method: string, params: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
   acquireControl: () => Promise<void>;
@@ -212,10 +212,40 @@ export function StoreProvider({
       const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
       if (mutation && !lease.current && session.connectionState() !== 'CONNECTED_CONTROLLER')
         throw Error('CONTROL_LEASE_REQUIRED');
-      const result = await session.request(method as never, params as never, {
-        ...(lease.current ? { leaseId: lease.current.leaseId } : {}),
-      } as never);
-      if (mutation) await refresh();
+      const request = session.request as (
+        extensionMethod: string,
+        extensionParams: unknown,
+        options?: {
+          leaseId?: string;
+          requestKey?: string;
+          operationId?: string;
+          expectedRevision?: number;
+          preflightHash?: string;
+        },
+      ) => Promise<any>;
+      if (!mutation) return request(method, params);
+      const snapshot = (await request('system.snapshot', {})) as { revision: number };
+      const preflightParams = {
+        role_id: params.role_id,
+        ...(typeof params.session_id === 'string'
+          ? { session_id: params.session_id }
+          : typeof params.target_harness === 'string'
+            ? { target_harness: params.target_harness }
+            : {}),
+      };
+      const preflight = (await request('roleSession.preflight', preflightParams)) as {
+        preflight_hash?: unknown;
+      };
+      if (typeof preflight.preflight_hash !== 'string') throw Error('PREFLIGHT_REQUIRED');
+      const requestKey = 'ui_rs_' + crypto.randomUUID();
+      const result = await request(method, params, {
+        leaseId: lease.current?.leaseId,
+        requestKey,
+        operationId: requestKey,
+        expectedRevision: Number(snapshot.revision),
+        preflightHash: preflight.preflight_hash,
+      });
+      await refresh();
       return result;
     },
     [session, refresh],

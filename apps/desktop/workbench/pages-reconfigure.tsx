@@ -218,7 +218,7 @@ export function ReconfigurePage({ projectId }: { projectId: string }) {
           <h3>重构已提交（COMMITTED）</h3>
           <p>
             原组已归档，角色按处置方案迁移。<b>此操作不能在界面内撤销</b>；
-            拆组的旧上下文假设不自动失效，请通过新的 Charter 与交接包重建共识。
+            拆组的旧上下文假设不自动失效，请通过新的 Charter 与上下文同步重建共识。
           </p>
           <Button variant="primary" onClick={() => (location.hash = `#/project/${projectId}`)}>
             返回项目
