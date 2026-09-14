@@ -16,6 +16,31 @@
 - **SSH**:用户确认 OpenSSH.Server 仍 NotPresent——需管理员 PowerShell `Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0.0` 后 `Start-Service sshd`;或从 GitHub 下载 OpenSSH 独立包。
 - **dsh key**:用户确认使用 Deepseek.txt 的 API key(DEEPSEEK_API_KEY 注入已实现)。
 
+# 当前执行（2026-09-14）：Closeout R2 完成 + R3 排队——全部 410 项 PASS
+
+- **R2 C1R1P2 收口确认**:兼容测试 4 项全过(P1 拒绝动态计划/P2 validate+apply/未注册拒绝/旧连接投影裁剪)。旧协议连接快照裁剪先于冻结投影。
+- **R3 DeepSeek**:P2 升级+Plan 应用+Native 注册(006 无 CHECK 阻碍)全通过;bootstrap FAILED——全量 env 诊断排除 env 差异;根因在 supervisor 内 dsh 子进程 stderr 未透传到 core(需修改 Supervisor.cs 或 host 增加 stderr 管道)。ACP 层直探三项(task/resume/cancel)已验证可用。
+- **全仓 66 文件 410 项 PASS**;三套冻结+迁移守卫 PASS。
+
+## 排队(R2→R6)
+
+- **R3**: Supervisor.cs 增加 stderr 透传管道(或 host 层 NativeProcessBackend 读 supervisor stderr 尾部写入 FAILED attempt)→ 修复后跑 DeepSeek 生产 task/resume/cancel/handoff
+- **R4**: NativeSessionStore 接入 RoleSession(NativeSessionRef 按 session 而非 binding);A/B 会话隔离/切回/A→B→A→C;交接包+ACK;GUI RolePage 会话切换工作流
+- **R5**: Kimi→DeepSeek 显式 fallback(provenance 入 Run);ZCODE_DUT 独立登录;SSH 安装(NotPresent,见下);真机
+- **R6**: 单一干净 SHA 全量验收 + RC 报告
+
+## 用户动作
+
+1. SSH:OpenSSH Server NotPresent(Add-WindowsCapability 静默失败)。尝试 GitHub 独立包:
+   ```powershell
+   # 管理员 PowerShell
+   curl -L -o C:/temp/OpenSSH-Win64.zip https://github.com/PowerShell/Win32-OpenSSH/releases/download/v9.5.0.0p1-Beta/OpenSSH-Win64.zip
+   Expand-Archive C:/temp/OpenSSH-Win64.zip C:/temp/OpenSSH
+   C:/temp/OpenSSH/OpenSSH-Win64/install-sshd.ps1
+   Start-Service sshd
+   ```
+2. 真机手机:装 Tailscale → 访问控制台
+
 # 当前执行（2026-09-13）：Closeout R0—R1 完成——F-01 修复 + Participant grant 生命周期
 
 - **R0 基线**: HEAD=320999b 与包基线一致,树干净。工单 F-01—F-12 已映射到待办。执行包路径 E:/AgentRouter/docs/执行包/AgentRouter_V1_Closeout_20260913_320999b。
