@@ -81,6 +81,36 @@ export interface ContextCompressionBackend {
   compress(input: ContextCompressionBackendInput): Promise<ContextCompressionResult>;
 }
 
+/**
+ * Driver-owned native compaction. The Router supplies only the target budget;
+ * Portable Context and Core authoritative state never cross this boundary.
+ */
+export interface NativeCompactionBackendInput {
+  roleId: string;
+  targetWorkSessionId: string;
+  operationId: string;
+  mode: ContextMigrationMode;
+  targetFreeBudgetTokens: number;
+  maxContextTokens: number;
+  currentUsageTokens: number;
+}
+
+export interface NativeCompactionResult {
+  /** Optional post-compaction values observed from the native session. */
+  maxContextTokens?: number | null;
+  currentUsageTokens?: number | null;
+  /** Used when the Driver reports reclaimed capacity instead of usage. */
+  freedTokens?: number;
+  source?: ContextBudgetSource;
+}
+
+export interface NativeCompactionBackend {
+  readonly id: string;
+  readonly provider: string;
+  readonly model: string;
+  compact(input: NativeCompactionBackendInput): Promise<NativeCompactionResult>;
+}
+
 export interface ContextCompressionPolicy {
   enabled: boolean;
   allowedBackendIds?: readonly string[];
@@ -103,6 +133,7 @@ export interface ContextMigrationInput {
   authoritativeState?: CoreAuthoritativeState;
   compressionBackend?: ContextCompressionBackend;
   compressionPolicy?: ContextCompressionPolicy;
+  nativeCompactionBackend?: NativeCompactionBackend;
 }
 
 export interface ContextMigrationPreflight {
@@ -133,6 +164,19 @@ export interface ContextMigrationPlan extends ContextMigrationPreflight {
     outputBytes?: number;
     coveredFromSeq?: number;
     coveredThroughSeq?: number;
+    nativeCompaction?: {
+      attempted: boolean;
+      used: boolean;
+      backendId: string;
+      provider: string;
+      model: string;
+      requestedFreeTokens: number;
+      freedTokens?: number;
+      maxContextTokensBefore: number;
+      maxContextTokensAfter: number;
+      currentUsageTokensBefore: number;
+      currentUsageTokensAfter: number;
+    };
   };
 }
 
@@ -559,6 +603,18 @@ export function assessContextBudget(
   };
 }
 
+function budgetRecommendation(
+  budget: ContextBudgetAssessment,
+): ContextMigrationPreflight['recommendation'] {
+  return budget.status === 'FIT' ? 'FIT' : budget.status === 'COMPRESS_REQUIRED' ? 'COMPRESS' : 'BLOCK';
+}
+
+function budgetFidelity(
+  recommendation: ContextMigrationPreflight['recommendation'],
+): ContextFidelity {
+  return recommendation === 'FIT' ? 'EXACT' : recommendation === 'COMPRESS' ? 'COMPRESSED' : 'BLOCKED';
+}
+
 function compressionHash(entries: readonly PortableContextEntry[]): string {
   return digest(entries.map((entry) => ({
     context_seq: entry.contextSeq,
@@ -617,7 +673,7 @@ export class ContextMigrationService {
     assertPortableContext(authoritativeState);
     const entries = sync.entries.map(inlineOrReference);
     const budget = assessContextBudget(input.mode, authoritativeState, entries, input.budget);
-    const recommendation = budget.status === 'FIT' ? 'FIT' : budget.status === 'COMPRESS_REQUIRED' ? 'COMPRESS' : 'BLOCK';
+    const recommendation = budgetRecommendation(budget);
     return {
       operationId,
       roleId: input.roleId,
@@ -628,7 +684,7 @@ export class ContextMigrationService {
       entries,
       budget,
       recommendation,
-      fidelity: recommendation === 'FIT' ? 'EXACT' : recommendation === 'COMPRESS' ? 'COMPRESSED' : 'BLOCKED',
+      fidelity: budgetFidelity(recommendation),
     };
   }
 
@@ -648,7 +704,7 @@ export class ContextMigrationService {
   }
 
   async build(input: ContextMigrationInput): Promise<ContextMigrationPlan> {
-    const preflight = this.preflight(input);
+    let preflight = this.preflight(input);
     if (preflight.recommendation === 'BLOCK') {
       this.audit(preflight.roleId, {
         status: 'BLOCKED',
@@ -668,6 +724,132 @@ export class ContextMigrationService {
     let entries = [...preflight.entries];
     let fidelity: ContextFidelity = preflight.fidelity;
     const compression: ContextMigrationPlan['compression'] = { used: false };
+    if (preflight.recommendation === 'COMPRESS' && input.nativeCompactionBackend) {
+      const native = input.nativeCompactionBackend;
+      const before = preflight.budget;
+      const requestedFreeTokens = Math.max(
+        1,
+        before.requiredTokens - (before.availableTokens ?? 0),
+      );
+      let result: NativeCompactionResult;
+      try {
+        result = await native.compact({
+          roleId: preflight.roleId,
+          targetWorkSessionId: preflight.targetWorkSessionId,
+          operationId: preflight.operationId,
+          mode: preflight.mode,
+          targetFreeBudgetTokens: requestedFreeTokens,
+          maxContextTokens: before.maxContextTokens!,
+          currentUsageTokens: before.currentUsageTokens!,
+        });
+        if (!result || typeof result !== 'object') throw Error('NATIVE_COMPACTION_INVALID');
+        if (
+          result.maxContextTokens !== undefined &&
+          result.maxContextTokens !== null &&
+          (!Number.isSafeInteger(result.maxContextTokens) || result.maxContextTokens < 1)
+        )
+          throw Error('NATIVE_COMPACTION_INVALID_MAX');
+        if (
+          result.currentUsageTokens !== undefined &&
+          result.currentUsageTokens !== null &&
+          (!Number.isSafeInteger(result.currentUsageTokens) || result.currentUsageTokens < 0)
+        )
+          throw Error('NATIVE_COMPACTION_INVALID_USAGE');
+        if (
+          result.freedTokens !== undefined &&
+          (!Number.isSafeInteger(result.freedTokens) || result.freedTokens < 0)
+        )
+          throw Error('NATIVE_COMPACTION_INVALID_FREED');
+        if (
+          result.source !== undefined &&
+          !(['EXACT', 'CATALOG', 'ESTIMATED', 'UNKNOWN'] as const).includes(result.source)
+        )
+          throw Error('NATIVE_COMPACTION_INVALID_SOURCE');
+
+        const maxContextTokens = result.maxContextTokens ?? before.maxContextTokens!;
+        const currentUsageTokens =
+          result.currentUsageTokens ??
+          (result.freedTokens !== undefined
+            ? Math.max(0, before.currentUsageTokens! - result.freedTokens)
+            : before.currentUsageTokens!);
+        const budget = assessContextBudget(
+          preflight.mode,
+          preflight.authoritativeState,
+          preflight.entries,
+          {
+            ...input.budget,
+            maxContextTokens,
+            currentUsageTokens,
+            source: result.source ?? before.source,
+          },
+        );
+        const recommendation = budgetRecommendation(budget);
+        preflight = {
+          ...preflight,
+          budget,
+          recommendation,
+          fidelity: budgetFidelity(recommendation),
+        };
+        fidelity = preflight.fidelity;
+        Object.assign(compression, {
+          nativeCompaction: {
+            attempted: true,
+            used: true,
+            backendId: native.id,
+            provider: native.provider,
+            model: native.model,
+            requestedFreeTokens,
+            ...(result.freedTokens !== undefined ? { freedTokens: result.freedTokens } : {}),
+            maxContextTokensBefore: before.maxContextTokens!,
+            maxContextTokensAfter: maxContextTokens,
+            currentUsageTokensBefore: before.currentUsageTokens!,
+            currentUsageTokensAfter: currentUsageTokens,
+          },
+        });
+        this.audit(preflight.roleId, {
+          status: 'SUCCEEDED',
+          mechanism: 'native_compaction',
+          backend_id: native.id,
+          provider: native.provider,
+          model: native.model,
+          mode: preflight.mode,
+          target_work_session_id: preflight.targetWorkSessionId,
+          requested_free_tokens: requestedFreeTokens,
+          ...(result.freedTokens !== undefined ? { freed_tokens: result.freedTokens } : {}),
+          max_context_tokens_before: before.maxContextTokens,
+          max_context_tokens_after: maxContextTokens,
+          current_usage_tokens_before: before.currentUsageTokens,
+          current_usage_tokens_after: currentUsageTokens,
+          recommendation,
+        });
+      } catch (error) {
+        Object.assign(compression, {
+          nativeCompaction: {
+            attempted: true,
+            used: false,
+            backendId: native.id,
+            provider: native.provider,
+            model: native.model,
+            requestedFreeTokens,
+            maxContextTokensBefore: before.maxContextTokens!,
+            maxContextTokensAfter: before.maxContextTokens!,
+            currentUsageTokensBefore: before.currentUsageTokens!,
+            currentUsageTokensAfter: before.currentUsageTokens!,
+          },
+        });
+        this.audit(preflight.roleId, {
+          status: 'FAILED',
+          mechanism: 'native_compaction',
+          backend_id: native.id,
+          provider: native.provider,
+          model: native.model,
+          mode: preflight.mode,
+          target_work_session_id: preflight.targetWorkSessionId,
+          requested_free_tokens: requestedFreeTokens,
+          reason: error instanceof Error ? error.message : 'NATIVE_COMPACTION_FAILED',
+        });
+      }
+    }
     if (preflight.recommendation === 'COMPRESS') {
       const backend = input.compressionBackend;
       const policy = input.compressionPolicy ?? { enabled: false };
