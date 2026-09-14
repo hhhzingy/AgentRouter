@@ -294,3 +294,25 @@ Codex 切号及重启 INCLUDED_LAST_DUT_ONLY，最后执行。DEV hzxpro 认证�
 MCP 固定源码6bfdb79a6cb570ff22545935278115e2073b9c53已push；15项固定源码实测和326项原回归通过，证据evidence/J3/management-mcp/6bfdb79/report.json；工作项https://github.com/hhhzingy/AgentRouter/issues/1。当前开发工具刷新与managed启动接线待完成。
 
 用户已启用agentrouter-management；本会话运行时仍unknown MCP server，勿重复要求启用或重启hzxpro。SDK已实际连通常驻Core：LOCAL_CORE/mock=false/revision=1，observer13工具；见connection-followup.json。6bfdb79与a7a8eb8四次CI均success。直接工具调用仍NOT_AVAILABLE，生产接线继续待办。
+
+# 当前执行（2026-09-13/14 续12—13）：R3—R6 完成——RC 候选 99411d9 全绿，合并/发布冻结待用户验收
+
+- **R3(46e0df2)**:DeepSeek 生产闭环打通——dsh saveSession 落地(原硬编码 UNSUPPORTED 致 bootstrap 必败);
+  C1R1P2 widen 兼容 client-api 冻结 schema 的 anyOf[{const}] 三元 harness 枚举(原只认 enum,P2 客户端校验
+  实际未放宽);c1r1p1 validateFrame/validateDefinition 对 C1R1P2 连接走放宽 schema;旧协议连接投影裁剪扩展
+  到 runs/role.list/run.list;dshDriver.runPrompt 在 resume 会话中显式作废 bootstrap 一次性 ACK 指令
+  (deepseek-v4-flash 复读 ACK 致任务轮空转,工程对策)。--live --dsh 连续 2 次 PASS。
+- **R4(3a6354e)**:migration 009 role_session_handoffs;原生会话引用按 RoleSession 键控(仅初始会话继承
+  bootstrap 的 binding 级引用,create/switch 新会话全新);交接包 create/switch 时生成,目标会话首运行 prompt
+  前置交接包+ACK 指令,ACK 前 Route 工具拒绝(HANDOFF_ACK_REQUIRED),ACK 文本→handoff_ack 帧→ACKED;
+  dshDriver.supportsFreshSession(无引用可 session/new);GUI store.callExtension+RolePage 工作会话卡。
+  真实验收 --dsh --ab:A→B→A→C 三会话/3 交接包全 ACKED/3 原生引用互异/4 run SUCCEEDED。
+- **R5(cee0093)**:migration 010 runs.execution_provenance + execution_profiles.fallback_json;run 终态 Core 写
+  溯源;Kimi→DeepSeek 显式降级=操作者登记策略(setProfileFallback),命中 reason_codes 写触发态并阻断派发,
+  不静默重派;ssh-bridge 修复早到上游帧丢失并进入 w11-core 构建;tools/test-ssh-production.mjs 真实 E2E 就绪。
+- **R6(99411d9,树干净)**:p1 stdio 用例超时 30s 消除唯一 flake;候选 SHA 上全量 418/418、typecheck/lint/
+  spec/contract/migrations/doctor 全过;四条活体 E2E 全 PASS(pi/kimi/dsh/dsh --ab;kimi 首跑复现已记载的
+  模型行为波动,复跑过,Core 保守呈现)。RC 报告:docs/reports/R6-RC-99411d9.md。
+- **待用户**:①SSH 提权执行 .local/ssh-e2e/install-auth.ps1 一次后重跑 test-ssh-production --live;
+  ②ZCode 桌面版无独立 CLI,ZCODE_DUT 待 CLI 安装+登录;③真机 Tailscale;④合 main/tag/发布继续冻结,
+  等待对 99411d9 的验收批准。
