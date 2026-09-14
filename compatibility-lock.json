@@ -32,12 +32,12 @@
   "harnesses": [
     {
       "id": "codex",
-      "binary_path": "%USERPROFILE%\\AppData\\Local\\OpenAI\\Codex\\bin\\8e5b6932251c2c1c\\codex.exe",
-      "sha256": "e5aa76d19c7c94e2e9ef9b707d590206a73ac0e97c8ddc8382181242494bef75",
-      "version": "codex-cli 0.153.4",
+      "binary_path": null,
+      "sha256": null,
+      "version": null,
       "protocol": "app-server",
       "capabilities": {},
-      "status": "PROBED",
+      "status": "BLOCKED_ENV",
       "evidence": [
         "evidence/M00/environment.json"
       ],
@@ -47,8 +47,8 @@
     {
       "id": "kimi_code",
       "binary_path": "%USERPROFILE%\\.kimi-code\\bin\\kimi.exe",
-      "sha256": "285debb7c882704fd942b70a3a116804d9955f39bff3428a0f6a64559e4a56a1",
-      "version": "0.41.0",
+      "sha256": "015e9ecfea02a491d47f5d3fb4db47b070c163d25a88ee54fcb6489328117d5d",
+      "version": "0.42.0",
       "protocol": "acp-negotiated",
       "capabilities": {},
       "status": "PROBED",

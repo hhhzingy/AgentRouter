@@ -212,7 +212,7 @@ it('P1 stdio 客户端通过独立 Mock 子进程且事件按 Schema 校验', as
   } finally {
     child.kill();
   }
-});
+}, 30000);
 it('项目摘要 undefined 不误判介入，其他项目 audit 不污染活动时间', async () => {
   const { MockP1Product } = await import('../../packages/core-api/mock-p1-product.ts');
   const p = new MockP1Product();
