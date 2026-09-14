@@ -11,6 +11,7 @@
     "007-restore-current-binding-index.sql": "e9014b8c880eb65a0331e87a1467c5161e467b5e4c295485d34720c5fa02620b",
     "008-participant-grants.sql": "3860a9960b1cc2af729af76c30a93965e9137ebf7838298ace9e46cd1b6ee719",
     "009-role-session-handoffs.sql": "7e11cc46de84c211073820879684fa417f7ede44c7cbfcba5752bd5a24f94deb",
-    "010-run-provenance.sql": "a2a8662a6a479f2475d6e85ba5183252501df5417517217230a017cb5eaf26dc"
+    "010-run-provenance.sql": "a2a8662a6a479f2475d6e85ba5183252501df5417517217230a017cb5eaf26dc",
+    "011-work-session-continuity.sql": "8103e00209659b8b3a27556f1c5bd3690acc4cc953f732987cdc6cd3c12a2b01"
   }
 }
