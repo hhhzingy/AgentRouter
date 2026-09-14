@@ -161,7 +161,7 @@ export async function installLocalNativeRuntime(
           approveKimi:approveManagedKimiRoute,
           session,
           revoke:()=>bridge.revoke(token),
-          saveSession:async()=>{throw Error('DSH_SESSION_SAVE_UNSUPPORTED');},
+          saveSession:async(ref,guard)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
         };
       }
       if (input.config.harness === 'kimi_code') {

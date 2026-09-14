@@ -231,7 +231,7 @@ try {
   const call = async (name, args = {}) => {
     const r = await client.callTool({ name, arguments: args });
     const v = JSON.parse(r.content[0].text);
-    if (r.isError) throw Error(v.error);
+    if (r.isError) throw Error(name + ' -> ' + v.error);
     return v;
   };
   const status = await call('router_status');
@@ -302,6 +302,7 @@ try {
   report.status = 'PASS_TASK_AND_BOOTSTRAP';
 } catch (error) {
   report.error = /^[A-Z0-9_]{1,96}$/.test(error.message) ? error.message : 'CHECK_FAILED';
+  report.error_stack = String(error.stack ?? '').split('\n').slice(0, 6).join(' | ');
 } finally {
   try {
     await shutdown?.();

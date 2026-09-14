@@ -564,22 +564,24 @@ export class ApplicationService extends Plans {
       if (c.revision === 'C1R1P2') {
         // P2 响应不投影到冻结枚举(动态 harness),按 C1R1P1 结构原样返回
       } else {
-        // 旧协议连接的快照裁剪必须先于冻结投影:动态 harness 角色不进入旧客户端视图
-        if (
-          r.method === 'system.snapshot' &&
-          result &&
-          typeof result === 'object' &&
-          Array.isArray((result as { roles?: unknown[] }).roles)
-        ) {
-          const dynamicRoles = new Set(
-            this.all(
-              "select role_id from bindings where harness not in ('codex','kimi_code','pi')",
-            ).map((row) => (row as { role_id: string }).role_id),
-          );
-          if (dynamicRoles.size)
-            (result as { roles: unknown[] }).roles = (result as { roles: unknown[] }).roles.filter(
-              (r) => !dynamicRoles.has((r as { id: string }).id),
-            );
+        // 旧协议连接的投影裁剪必须先于冻结校验:动态 harness 角色及其运行不进入旧客户端视图
+        const dynamicRoles = new Set(
+          this.all(
+            "select role_id from bindings where harness not in ('codex','kimi_code','pi')",
+          ).map((row) => (row as { role_id: string }).role_id),
+        );
+        if (dynamicRoles.size && result && typeof result === 'object') {
+          const res = result as Record<string, unknown>;
+          const byRole = (v: { id?: string; roleId?: string }) =>
+            !dynamicRoles.has(String(v.roleId ?? v.id));
+          if (r.method === 'system.snapshot') {
+            if (Array.isArray(res.roles)) res.roles = (res.roles as never[]).filter(byRole);
+            if (Array.isArray(res.runs)) res.runs = (res.runs as never[]).filter(byRole);
+          }
+          if (r.method === 'role.list' && Array.isArray(res.items))
+            res.items = (res.items as never[]).filter(byRole);
+          if (r.method === 'run.list' && Array.isArray(res.items))
+            res.items = (res.items as never[]).filter(byRole);
         }
         result = projectResult(c.revision, r.method, result);
       }

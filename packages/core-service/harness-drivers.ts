@@ -38,6 +38,9 @@ export interface HarnessDriver {
     promptTimeoutMs: number;
     onApproval?: NativeRpcOptions['onRequest'];
   }): HarnessLifecycle;
+  /** 可选:run 模式任务轮的 prompt 组装。缺省为 request JSON 原文;
+   * 供弱模型 harness 在 resume 会话中显式作废 bootstrap 一次性指令。 */
+  runPrompt?(input: { request: unknown; charter: unknown; charterHash: string }): string;
 }
 export class HarnessDriverRegistry {
   private drivers = new Map<string, HarnessDriver>();
@@ -211,6 +214,15 @@ export const dshDriver: HarnessDriver = {
   processArgs: () => {
     if (!dshBinRef.path) throw Error('DSH_BIN_UNCONFIGURED');
     return [dshBinRef.path, '--profile', 'acp'];
+  },
+  /** resume 会话仍含 bootstrap 一次性 ACK 指令,弱模型会复读;任务轮显式作废并重申章程。 */
+  runPrompt({ request, charter, charterHash }) {
+    return (
+      'Bootstrap 阶段已结束:此前"回复 '+`AGENTROUTER_CHARTER_ACK:${charterHash}`+' 一次"的指令已作废,本轮回复中不得再出现该确认,也不再禁止工具。\n' +
+      '生效中的角色章程(须继续遵守):' + JSON.stringify(charter) + '\n' +
+      '本轮任务请求:' + JSON.stringify(request) + '\n' +
+      '直接执行该任务:先用 route_context 取上下文,业务结果用 route_finish 提交。'
+    );
   },
   createLifecycle({ config, epoch, write, onEvent, promptTimeoutMs, onApproval }) {
     const lifecycle = new DshLifecycle({ epoch, write, onEvent, promptTimeoutMs, onApproval });

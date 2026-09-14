@@ -263,7 +263,16 @@ export class NativeProcessBackend implements ExecutionBackend {
         await r.finish(true);
         return;
       }
-      const text = packet.mode === 'bootstrap' ? instructions : JSON.stringify(packet.request);
+      const text =
+        packet.mode === 'bootstrap'
+          ? instructions
+          : typeof driver.runPrompt === 'function'
+            ? driver.runPrompt({
+                request: packet.request,
+                charter: packet.charter,
+                charterHash: String(packet.charterHash),
+              })
+            : JSON.stringify(packet.request);
       // ACP has no prompt acceptance event; conservatively remain DISPATCHED until native terminal.
       started = true;
       phase="START_PROMPT";

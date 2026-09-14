@@ -4,12 +4,17 @@ import r1 from '../../../contracts/client-api.c1r1.schema.json' with { type: 'js
 import c1 from '../../../contracts/client-api.c1.schema.json' with { type: 'json' };
 import { methodMetadata, type Method, type Request } from './generated.ts';
 import { C1R1Error } from '../c1r1/index.ts';
+import { validateFrameP2, validateDefinitionP2 } from '../c1r1p2.ts';
 export { C1R1Error, canonical, digest, assertSameSpace, validatePlanShape } from '../c1r1/index.ts';
 export * from './generated.ts';
-export type RevisionName = 'C1' | 'C1R1' | 'C1R1P1';
+export type RevisionName = 'C1' | 'C1R1' | 'C1R1P1' | 'C1R1P2';
 const ajv = new Ajv2020({ strict: false, inlineRefs: false });
 for (const s of [schema, r1, c1]) ajv.addSchema(s);
 export function validateDefinition(name: string, x: unknown, revision: RevisionName = 'C1R1P1') {
+  if (revision === 'C1R1P2') {
+    validateDefinitionP2(name, x);
+    return;
+  }
   const source = revision === 'C1' ? c1 : revision === 'C1R1' ? r1 : schema;
   if (!ajv.getSchema(source.$id + '#/$defs/' + name)?.(x)) throw new C1R1Error('INVALID_FRAME');
 }
@@ -19,6 +24,10 @@ export function validateRequest(x: unknown): Request {
   return x as Request;
 }
 export function validateFrame(x: unknown, revision: RevisionName = 'C1R1P1') {
+  if (revision === 'C1R1P2') {
+    validateFrameP2(x);
+    return;
+  }
   const s = revision === 'C1' ? c1 : revision === 'C1R1' ? r1 : schema;
   if (!ajv.getSchema(s.$id)?.(x)) throw new C1R1Error('INVALID_FRAME');
 }

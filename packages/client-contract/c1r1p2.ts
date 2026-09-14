@@ -25,11 +25,30 @@ function widen(node: unknown): unknown {
     clone.pattern = HARNESS_ID_PATTERN;
     return clone;
   }
+  // client-api 冻结 schema 用 anyOf[{const}] 三元组表达同一枚举,一并放宽。
+  const a = obj.anyOf;
+  if (
+    Array.isArray(a) &&
+    a.length === 3 &&
+    a.every((t) => t && typeof t === 'object' && !Array.isArray(t))
+  ) {
+    const consts = (a as Record<string, unknown>[]).map((t) => t['const']).sort();
+    if (
+      JSON.stringify(consts) === JSON.stringify(['codex', 'kimi_code', 'pi'])
+    ) {
+      const clone = { ...obj };
+      clone.type = 'string';
+      clone.pattern = HARNESS_ID_PATTERN;
+      delete clone.anyOf;
+      return clone;
+    }
+  }
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) out[k] = widen(v);
   return out;
 }
 let cached: {
+  validateFrame: (x: unknown) => boolean;
   validateRequest: (x: unknown) => boolean;
   validateDefinition: (name: string, x: unknown) => boolean;
 } | null = null;
@@ -39,6 +58,7 @@ function build() {
   const ajv = new Ajv2020({ strict: false, inlineRefs: false });
   ajv.addSchema(widened);
   cached = {
+    validateFrame: (x) => !!ajv.getSchema(widened.$id)?.(x),
     validateRequest: (x) => !!ajv.getSchema(widened.$id + '#/$defs/Request')?.(x),
     validateDefinition: (name, x) =>
       !!ajv.getSchema(widened.$id + '#/$defs/' + name)?.(x),
@@ -54,6 +74,10 @@ export function validateRequestP2<T>(x: T): T {
 }
 export function validateDefinitionP2(name: string, x: unknown): void {
   if (!build().validateDefinition(name, x)) throw Error('INVALID_FRAME');
+}
+/** P2 连接的整帧校验:结构与 C1R1P1 帧一致,仅 harness 值域开放。 */
+export function validateFrameP2(x: unknown): void {
+  if (!build().validateFrame(x)) throw Error('INVALID_FRAME');
 }
 let planShapeP2: ((x: unknown) => boolean) | null = null;
 /** C1R1P2 的 plan 形状校验:role-plan v1 schema 的内存副本上放宽 harness 枚举。 */
