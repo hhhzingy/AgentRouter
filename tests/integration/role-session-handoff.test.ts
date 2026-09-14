@@ -1,15 +1,16 @@
 import { it, expect, afterEach } from 'vitest';
-import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { Management } from '../../packages/runtime/management.ts';
 import { NativeSessionStore } from '../../packages/core-service/native-session-store.ts';
 import { RoleSessionExtension } from '../../packages/core-service/role-session-extension.ts';
+
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup();
 });
+
 function fixture() {
   const root = resolve('.local/j3-session-tests');
   mkdirSync(root, { recursive: true });
@@ -32,9 +33,8 @@ function fixture() {
     db.prepare(
       "insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id) values(?,?,?,null,null,'MANAGEMENT',1,null,'{}','STARTING',null,null,null,1,?)",
     ).run(id, r.role, r.binding, roleSessionId);
-  run('runA', null);
   const sessionA = (db.prepare('select id from role_sessions where role_id=? order by seq limit 1').get(r.role) as { id: string }).id;
-  db.prepare('update runs set role_session_id=? where id=?').run(sessionA, 'runA');
+  run('runA', sessionA);
   const ext = new RoleSessionExtension(db);
   const store = new NativeSessionStore(db);
   const scope = (key: string, roleSessionId?: string) => ({
@@ -54,85 +54,123 @@ function fixture() {
   return { db, store, ext, scope, path, dir, r, p, sessionA };
 }
 
-it('原生会话引用按 RoleSession 键控:A/B 各自保存,切回 A 读回 A 的原生会话', () => {
+function call(
+  ext: RoleSessionExtension,
+  method: string,
+  roleId: string,
+  params: Record<string, unknown>,
+  id: string,
+) {
+  const context = { principal: 'h', mode: 'controller', assertControllerLease: () => {} };
+  const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
+  const mutationParams = { role_id: roleId, ...params };
+  const preflight = mutation
+    ? (ext.handle(
+        {
+          v: 1,
+          id: id + '-preflight',
+          method: 'roleSession.preflight',
+          params: {
+            role_id: roleId,
+            ...(typeof params.session_id === 'string' ? { session_id: params.session_id } : {}),
+            ...(typeof params.target_harness === 'string' ? { target_harness: params.target_harness } : {}),
+          },
+        } as never,
+        context as never,
+      ) as { result?: { preflight_hash?: string } })
+    : undefined;
+  return ext.handle(
+    {
+      v: 1,
+      id,
+      method,
+      params: mutationParams,
+      client_id: 't',
+      lease_id: 'x',
+      ...(mutation
+        ? {
+            request_key: 'test_' + id,
+            operation_id: id,
+            expected_revision: 0,
+            preflight_hash: preflight?.result?.preflight_hash,
+          }
+        : {}),
+    } as never,
+    context as never,
+  ) as { result?: any; error?: { code?: string } };
+}
+
+it('原生会话引用按 WorkSession 键控；新 WorkSession 不覆盖旧 binding 快照', () => {
   const f = fixture();
   const { db, store, ext, scope, path, r, sessionA } = f;
-  // A 下首运行保存 → A 持有自己的原生引用
   store.save(scope('runA', sessionA), { id: 'native-a', path });
-  expect(store.load(scope('runA', sessionA))).toEqual({ id: 'native-a', path: realpathSync(path) });
-  // create B:交接包 A→B;B 下运行保存自己的引用
-  const created = ext.handle(
-    { v: 1, id: 'c1', method: 'roleSession.create', params: { role_id: r.role, name: 'B方向' }, client_id: 't', lease_id: 'x' } as never,
-    { principal: 'h', mode: 'controller', assertControllerLease: () => {} } as never,
-  ) as { result?: { session?: { id: string } } };
-  const sessionB = created.result!.session!.id;
   db.prepare("update runs set state='SUCCEEDED' where id='runA'").run();
+
+  const created = call(ext, 'roleSession.create', r.role, { name: 'B方向' }, 'create-b');
+  expect(created.error).toBeUndefined();
+  const sessionB = created.result.session.id as string;
   db.prepare(
     "insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id) values('runB',?,?,null,null,'MANAGEMENT',1,null,'{}','STARTING',null,null,null,1,?)",
   ).run(r.role, r.binding, sessionB);
   store.save(scope('runB', sessionB), { id: 'native-b', path });
-  // 隔离:A 读 A,B 读 B;binding 级(最近一次)为 B
+  db.prepare("update runs set state='SUCCEEDED' where id='runB'").run();
+
   expect(store.load(scope('runA', sessionA))!.id).toBe('native-a');
   expect(store.load(scope('runB', sessionB))!.id).toBe('native-b');
-  expect(store.load(scope('runB'))!.id).toBe('native-b');
-  // 新建会话在尚未保存自己的引用前为全新(undefined),不得续用 A 的原生上下文
-  const createdC0 = ext.handle(
-    { v: 1, id: 'c2', method: 'roleSession.create', params: { role_id: r.role, name: 'C方向' }, client_id: 't', lease_id: 'x' } as never,
-    { principal: 'h', mode: 'controller', assertControllerLease: () => {} } as never,
-  ) as { result?: { session?: { id: string } } };
-  expect(store.load(scope('runC', createdC0.result!.session!.id))).toBeUndefined();
-  // 切回 A 后运行:load 仍按会话取回 native-a(A→B→A 恢复)
+  expect(
+    (db.prepare('select native_session_ref from role_sessions where id=?').get(sessionA) as any).native_session_ref,
+  ).toContain('native-a');
+  expect(
+    (db.prepare('select native_session_ref from role_sessions where id=?').get(sessionB) as any).native_session_ref,
+  ).toContain('native-b');
+  expect(
+    (db.prepare('select native_session_ref from bindings where id=?').get(r.binding) as any).native_session_ref,
+  ).toContain('native-a');
+
+  const createdC = call(ext, 'roleSession.create', r.role, { name: 'C方向' }, 'create-c');
+  expect(createdC.error).toBeUndefined();
+  const sessionC = createdC.result.session.id as string;
+  expect(store.load(scope('runC', sessionC))).toBeUndefined();
   expect(store.load(scope('runA', sessionA))!.id).toBe('native-a');
 });
 
-it('交接包:create/switch 均产出 PENDING 包(A→B→A→C),包哈希为内容 sha256', () => {
+it('切换只生成 fresh activation epoch；V1.0 handoff 数据保持审计只读', () => {
   const f = fixture();
   const { db, ext, r, sessionA } = f;
-  const call = (method: string, params: Record<string, unknown>) =>
-    ext.handle(
-      { v: 1, id: 'x', method, params: { role_id: r.role, ...params }, client_id: 't', lease_id: 'x' } as never,
-      { principal: 'h', mode: 'controller', assertControllerLease: () => {} } as never,
-    ) as { result?: Record<string, unknown> };
-  const handoffs = () =>
-    db.prepare('select * from role_session_handoffs order by created_at_ms, id').all() as Record<string, string>[];
-  expect(handoffs()).toHaveLength(0);
-  const created = call('roleSession.create', { name: 'B方向' })!.result!.session! as unknown as { id: string };
-  // 会话 A 下留一条对话,交接包应包含它
+  db.prepare("update runs set state='SUCCEEDED' where id='runA'").run();
+  const legacy = JSON.stringify({ legacy: true });
   db.prepare(
-    "insert into conversation_items(id,project_id,space_id,role_id,kind,title,body,state,at_ms,source_key,role_session_id) values('ci1',?,?,?,'ASSISTANT_MESSAGE','原生输出','A 会话尾随输出','PENDING',?,'k1',?)",
-  ).run(f.p.project, f.p.space, r.role, 1, sessionA);
-  const switchBack = call('roleSession.switch', { session_id: sessionA })!; // B→A
-  expect(switchBack.result).toBeTruthy();
-  const createdC = call('roleSession.create', { name: 'C方向' })!.result!.session! as unknown as { id: string }; // A→C
-  const rows = handoffs();
-  expect(rows).toHaveLength(3);
-  expect(rows.map((h) => [h.from_session_id, h.to_session_id, h.state])).toEqual([
-    [sessionA, created.id, 'PENDING'],
-    [created.id, sessionA, 'PENDING'],
-    [sessionA, createdC.id, 'PENDING'],
+    "insert into role_session_handoffs(id,role_id,from_session_id,to_session_id,package_json,package_hash,state,created_at_ms) values('legacy-handoff',?,?,?,?,?,'PENDING',1)",
+  ).run(r.role, sessionA, sessionA, legacy, 'legacy-hash');
+
+  const b = call(ext, 'roleSession.create', r.role, { name: 'B方向' }, 'create-b');
+  const sessionB = b.result.session.id as string;
+  const back = call(ext, 'roleSession.switch', r.role, { session_id: sessionA }, 'switch-a');
+  expect(back.error).toBeUndefined();
+  const c = call(ext, 'roleSession.create', r.role, { name: 'C方向' }, 'create-c');
+  expect(c.error).toBeUndefined();
+
+  const handoff = db.prepare('select * from role_session_handoffs where id=?').get('legacy-handoff') as any;
+  expect(handoff.state).toBe('PENDING');
+  expect(handoff.package_hash).toBe('legacy-hash');
+  expect(db.prepare('select count(*) as n from role_session_handoffs').get()).toMatchObject({ n: 1 });
+
+  const activations = db
+    .prepare('select role_session_id,state,activation_epoch,operation_id from role_session_activations where role_id=? order by activation_epoch')
+    .all(r.role) as any[];
+  expect(activations.map((a) => [a.role_session_id, a.state])).toEqual([
+    [sessionA, 'ENDED'],
+    [sessionB, 'ENDED'],
+    [sessionA, 'ENDED'],
+    [c.result.session.id, 'ACTIVE'],
   ]);
-  for (const h of rows)
-    expect(h.package_hash).toBe(createHash('sha256').update(h.package_json).digest('hex'));
-  const pkg = JSON.parse(rows[0].package_json!);
-  expect(pkg.from.id).toBe(sessionA);
-  expect(pkg.from.name).toBe('初始会话');
-  expect(Array.isArray(pkg.openTasks)).toBe(true);
-  expect(Array.isArray(pkg.recent)).toBe(true);
-  // C 的交接包在 B 尚未 ACK 时也可同时存在;ACK 由原生 run 帧推进(coordinator 分支)
+  expect(activations.map((a) => a.activation_epoch)).toEqual([1, 2, 3, 4]);
+  expect(activations.map((a) => a.operation_id)).toEqual(['role-create', 'create-b', 'switch-a', 'create-c']);
 });
 
-it('交接包 ACK 状态推进:PENDING → ACKED(coordinator handoff_ack 帧语义)', () => {
+it('有活动 native run 时禁止切换 WorkSession', () => {
   const f = fixture();
-  const { db, ext, r } = f;
-  ext.handle(
-    { v: 1, id: 'x', method: 'roleSession.create', params: { role_id: r.role, name: 'B' }, client_id: 't', lease_id: 'x' } as never,
-    { principal: 'h', mode: 'controller', assertControllerLease: () => {} } as never,
-  );
-  const h = db.prepare("select id,package_hash from role_session_handoffs where state='PENDING'").get() as { id: string; package_hash: string };
-  expect(h.package_hash).toMatch(/^[a-f0-9]{64}$/);
-  // 与 native-process-backend 的 handoff_ack 帧 same 契约:coordinator 仅接受 PENDING→ACKED
-  db.prepare("update role_session_handoffs set state='ACKED', acked_at_ms=? where id=? and state='PENDING'").run(1, h.id);
-  const acked = db.prepare('select state,acked_at_ms from role_session_handoffs where id=?').get(h.id) as { state: string; acked_at_ms: number };
-  expect(acked.state).toBe('ACKED');
-  expect(acked.acked_at_ms).toBe(1);
+  const result = call(f.ext, 'roleSession.create', f.r.role, { name: 'B方向' }, 'create-b');
+  expect(result.result).toBeUndefined();
+  expect(result.error?.code ?? '').toContain('ROLE_SESSION_SWITCH_BLOCKED');
 });

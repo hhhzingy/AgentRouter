@@ -330,6 +330,7 @@ it('OFFLINE ACP 首条可信工具请求先持久 accepted，再进入真实 Cor
   const f = await fixture(() => Date.now(), false);
   let coordinator: ExecutionCoordinator | undefined;
   try {
+    f.plan.roles[0].runtime.harness = 'kimi_code';
     const validation = await f.s.request('rolePlan.validate', { plan: f.plan });
     await f.write(
       'rolePlan.apply',
@@ -337,7 +338,6 @@ it('OFFLINE ACP 首条可信工具请求先持久 accepted，再进入真实 Cor
       { project_id: f.project.id },
     );
     const role = (await f.s.request('system.snapshot', {})).roles[0];
-    f.db.prepare("update bindings set harness='kimi_code' where role_id=?").run(role.id);
     const binding = f.server.one(
       'select * from bindings where role_id=? and is_current=1',
       role.id,

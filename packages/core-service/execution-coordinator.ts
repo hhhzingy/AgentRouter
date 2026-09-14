@@ -3,6 +3,7 @@ import type { ExecutionBackend, ExecutionExit } from './execution-backend.ts';
 import { completionAllowed } from './execution-backend.ts';
 import type { Dispatch } from '../runtime/core.ts';
 import type { ApplicationService } from './application.ts';
+import { ContextMigrationService } from './context-migration.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 /** 单一应用协调层；进程 I/O 由后端负责。Fixture 与 Native 共用调度/收尾；生产必须通过可信运行器安全授权。 */
 // provenance 的 model 字段只取受信绑定内的模型描述,损坏数据不阻断溯源。
@@ -17,10 +18,12 @@ export class ExecutionCoordinator {
   private scheduled = false;
   private active = new Map<string, () => void>();
   private stopping = false;
+  private readonly contextMigration: ContextMigrationService;
   constructor(
     readonly app: ApplicationService,
     readonly backend: ExecutionBackend,
   ) {
+    this.contextMigration = new ContextMigrationService(app.db, app.contextStore, app.clock);
     app.onChanged = () => this.kick();
   }
   kick() {
@@ -97,14 +100,17 @@ export class ExecutionCoordinator {
         })
         .immediate();
       if (dispatch) {
-        this.run(dispatch, b, charter, {
+        void this.run(dispatch, b, charter, {
           ...scenario,
           ...(dispatch.kind === 'CONTINUATION' && scenario.continuationSteps
             ? { steps: scenario.continuationSteps }
             : {}),
           ...(scenario.bySummary?.[dispatch.request.summary] ?? {}),
+        }).then(() => a.notify()).catch(() => {
+          this.unknown(dispatch.id);
+          a.notify();
+          this.kick();
         });
-        a.notify();
       }
     }
   }
@@ -211,34 +217,94 @@ export class ExecutionCoordinator {
       .run(child.pid ?? null, attempt);
     a.notify();
   }
-  private run(dispatch: Dispatch, b: any, charter: any, scenario: any) {
+  private contextBudget(b: any, mode: 'DELTA' | 'FULL') {
+    if (this.app.fixtureMode)
+      return { maxContextTokens: 1000000, currentUsageTokens: 0, source: 'ESTIMATED' as const };
+    const parsedModel = safeModel(b.model_json);
+    const model =
+      parsedModel && typeof parsedModel === 'object'
+        ? (parsedModel as Record<string, unknown>)
+        : {};
+    const numberFrom = (keys: string[]) => {
+      for (const key of keys) {
+        const value = model[key];
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return value;
+      }
+      return null;
+    };
+    const maxContextTokens = numberFrom(['max_context_tokens', 'context_window_tokens', 'context_tokens']);
+    const currentUsageTokens =
+      mode === 'FULL'
+        ? 0
+        : numberFrom(['current_context_tokens', 'context_usage_tokens', 'used_context_tokens']);
+    return {
+      maxContextTokens,
+      currentUsageTokens,
+      source: maxContextTokens === null ? ('UNKNOWN' as const) : ('CATALOG' as const),
+    };
+  }
+  private async buildContextPlan(
+    dispatch: Dispatch,
+    b: any,
+  ): Promise<import('./context-migration.ts').ContextMigrationPlan | null> {
+    const a = this.app;
+    const run = a.one(
+      "select r.role_session_id,a.operation_id,s.seq from runs r left join role_session_activations a on a.id=r.activation_id left join role_sessions s on s.id=r.role_session_id where r.id=?",
+      dispatch.id,
+    );
+    if (!run?.role_session_id || ['role-create', 'v1.0-backfill', 'core-dispatch'].includes(String(run.operation_id)))
+      return null;
+    const state = a.one(
+      'select synced_through_seq from role_session_context_state where role_session_id=?',
+      run.role_session_id,
+    );
+    const mode = Number(state?.synced_through_seq ?? 0) > 0 ? 'DELTA' : 'FULL';
+    return this.contextMigration.build({
+      roleId: dispatch.principal.roleId,
+      targetWorkSessionId: String(run.role_session_id),
+      operationId: 'ctx_' + dispatch.id,
+      mode,
+      budget: this.contextBudget(b, mode),
+      taskId: dispatch.taskId,
+      runId: dispatch.id,
+    });
+  }
+  private async run(dispatch: Dispatch, b: any, charter: any, scenario: any) {
     const a = this.app;
     let terminal: string | undefined,
       broken = false,
       lastDiagnostic = '';
-    const roleSessionId = a.one('select role_session_id from runs where id=?', dispatch.id)
-      ?.role_session_id as string | null | undefined;
-    const pendingHandoff = roleSessionId
-      ? (a
-          .one(
-            "select id,package_json,package_hash,from_session_id from role_session_handoffs where to_session_id=? and state='PENDING' order by created_at_ms desc limit 1",
-            roleSessionId,
-          ) as any)
-      : null;
-    const handoff = pendingHandoff
-      ? {
-          id: pendingHandoff.id,
-          packageJson: pendingHandoff.package_json,
-          packageHash: pendingHandoff.package_hash,
-          fromName:
-            (
-              a.one('select name from role_sessions where id=?', pendingHandoff.from_session_id) as any
-            )?.name ?? null,
-        }
-      : null;
+    const runRow = a.one('select role_session_id,activation_id from runs where id=?', dispatch.id);
+    const roleSessionId = runRow?.role_session_id as string | null | undefined;
+    let contextPlan: import('./context-migration.ts').ContextMigrationPlan | null = null;
+    try {
+      contextPlan = await this.buildContextPlan(dispatch, b);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'CONTEXT_MIGRATION_FAILED';
+      this.audit(charter.project_id, /^[A-Z][A-Z0-9_]{1,95}$/.test(code) ? code : 'CONTEXT_MIGRATION_FAILED');
+      this.unknown(dispatch.id);
+      return;
+    }
     const child = this.launch(
       dispatch.id,
-      { mode: 'run', bindingId:b.id, roleId:dispatch.principal.roleId, epoch: b.epoch, charterHash:charter.hash, charter:JSON.parse(charter.spec_json), request: dispatch.request, scenario, ...(roleSessionId ? { roleSessionId } : {}), ...(handoff ? { handoff } : {}), handleTool:(tool:string,operationId:string,input:any)=>this.routeTool(dispatch,tool,operationId,input) },
+      {
+        mode: 'run',
+        bindingId: b.id,
+        roleId: dispatch.principal.roleId,
+        epoch: b.epoch,
+        charterHash: charter.hash,
+        charter: JSON.parse(charter.spec_json),
+        request: dispatch.request,
+        scenario,
+        ...(roleSessionId ? { roleSessionId } : {}),
+        ...(dispatch.principal.activationId ? { activationId: dispatch.principal.activationId } : {}),
+        ...(dispatch.principal.activationEpoch !== undefined
+          ? { activationEpoch: dispatch.principal.activationEpoch }
+          : {}),
+        ...(contextPlan ? { contextSync: contextPlan.envelope } : {}),
+        handleTool: (tool: string, operationId: string, input: any) =>
+          this.routeTool(dispatch, tool, operationId, input),
+      },
       (event) => {
         if (event.epoch !== b.epoch) {
           this.audit(charter.project_id, 'STALE_RUN_EVENT');
@@ -260,6 +326,20 @@ export class ExecutionCoordinator {
           )
         )
           return;
+        if (contextPlan && event.kind === 'context_confirmed') {
+          if (event.stableMarker !== contextPlan.envelope.stable_marker)
+            throw Error('CONTEXT_SYNC_MARKER_MISMATCH');
+          this.contextMigration.confirm(
+            contextPlan,
+            event.nativeReceipt ?? { marker: event.stableMarker },
+            event.nativeHistoryCursor,
+          );
+        }
+        if (contextPlan && event.kind === 'accepted' && a.fixtureMode)
+          this.contextMigration.confirm(
+            contextPlan,
+            { marker: contextPlan.envelope.stable_marker, source: 'fixture-native' },
+          );
         a.db
           .transaction(() => {
             a.db
@@ -273,16 +353,20 @@ export class ExecutionCoordinator {
                 dispatch.taskId,
                 dispatch.id,
                 event.key,
-                JSON.stringify({ kind: event.kind, source: a.fixtureMode ? 'SIMULATED' : 'NATIVE' }),
+                JSON.stringify({
+                  kind: event.kind,
+                  source: a.fixtureMode ? 'SIMULATED' : 'NATIVE',
+                  ...(event.kind === 'context_confirmed'
+                    ? { stable_marker: event.stableMarker }
+                    : {}),
+                }),
                 a.clock(),
               );
-            if (event.kind === 'diagnostic') this.audit(charter.project_id, 'NATIVE_' + (event.phase ?? '') + '_' + event.code);
+            if (event.kind === 'diagnostic')
+              this.audit(charter.project_id, 'NATIVE_' + (event.phase ?? '') + '_' + event.code);
             if (event.kind === 'accepted') a.core.accepted(dispatch.id);
-            if (event.kind === 'handoff_ack' && typeof event.handoffId === 'string')
-              a.db
-                .prepare("update role_session_handoffs set state='ACKED', acked_at_ms=? where id=? and state='PENDING'")
-                .run(a.clock(), event.handoffId);
-            if (!a.fixtureMode && event.kind === 'text' && typeof event.text==='string') this.conversation(dispatch,'ASSISTANT_MESSAGE','原生输出',event.text,event.key);
+            if (!a.fixtureMode && event.kind === 'text' && typeof event.text === 'string')
+              this.conversation(dispatch, 'ASSISTANT_MESSAGE', '原生输出', event.text, event.key);
             if (event.kind === 'gap')
               this.conversation(dispatch, 'GAP', '历史缺口', '缺失内容未重建', event.key);
             if (event.kind === 'tool') {
@@ -317,7 +401,8 @@ export class ExecutionCoordinator {
                 .prepare('update run_sources set native_terminal=1 where run_id=?')
                 .run(dispatch.id);
             }
-            if (event.kind === 'diagnostic' && typeof event.code === 'string') lastDiagnostic = event.code;
+            if (event.kind === 'diagnostic' && typeof event.code === 'string')
+              lastDiagnostic = event.code;
             a.event(charter.project_id, a.fixtureMode ? 'FixtureEvent' : 'NativeEvent', dispatch.id);
           })
           .immediate();
@@ -392,7 +477,11 @@ export class ExecutionCoordinator {
                   }),
                   dispatch.id,
                 );
-              a.event(charter.project_id, a.fixtureMode ? 'FixtureProcessExited' : 'NativeProcessExited', dispatch.id);
+              a.event(
+                charter.project_id,
+                a.fixtureMode ? 'FixtureProcessExited' : 'NativeProcessExited',
+                dispatch.id,
+              );
             })
             .immediate();
         } catch {

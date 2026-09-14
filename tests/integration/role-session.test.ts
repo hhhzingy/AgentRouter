@@ -56,12 +56,41 @@ async function fixture() {
   );
   const snap2 = await s.request('system.snapshot', {});
   const roleId = (snap2.roles as { id: string }[])[0].id;
-  const rs = async (method: string, params: Record<string, unknown>, withLease = true) =>
-    s.request(
+  let rsN = 0;
+  const rs = async (method: string, params: Record<string, unknown>, withLease = true) => {
+    const leaseId = (lease as { leaseId: string }).leaseId;
+    if (!withLease || !['roleSession.create', 'roleSession.switch'].includes(method))
+      return s.request(
+        method as never,
+        params as never,
+        ...(withLease ? [{ leaseId }] : []),
+      ) as unknown as Promise<Record<string, unknown>>;
+    const snap = await s.request('system.snapshot', {});
+    const preflightParams = {
+      role_id: params.role_id,
+      ...(typeof params.session_id === 'string'
+        ? { session_id: params.session_id }
+        : typeof params.target_harness === 'string'
+          ? { target_harness: params.target_harness }
+          : {}),
+    };
+    const preflight = (await s.request(
+      'roleSession.preflight' as never,
+      preflightParams as never,
+    )) as unknown as { preflight_hash: string };
+    const requestKey = 'test_rs_' + ++rsN;
+    return s.request(
       method as never,
       params as never,
-      ...(withLease ? [{ leaseId: (lease as { leaseId: string }).leaseId }] : []),
+      {
+        leaseId,
+        requestKey,
+        operationId: requestKey,
+        expectedRevision: snap.revision,
+        preflightHash: preflight.preflight_hash,
+      } as never,
     ) as unknown as Promise<Record<string, unknown>>;
+  };
   return { dir, db, server, s, write, project, roleId, rs, async close() { await transport.close(); db.close(); } };
 }
 

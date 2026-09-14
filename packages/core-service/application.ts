@@ -435,13 +435,24 @@ export class ApplicationService extends Plans {
       this.roleSession &&
       typeof (raw as { method?: unknown })?.method === 'string' &&
       String((raw as { method?: unknown }).method).startsWith('roleSession.')
-    )
-      return this.roleSession.handle(raw, {
+    ) {
+      const method = String((raw as { method?: unknown }).method);
+      const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
+      const reply = this.roleSession.handle(raw, {
         principal: c.principal,
         ...(c.clientId ? { clientId: c.clientId } : {}),
         ...(c.mode ? { mode: c.mode } : {}),
         assertControllerLease: (leaseId: string) => this.checkLease(id, leaseId),
+        assertRevision: (expectedRevision: number) => {
+          if (this.revision !== expectedRevision) throw Error('REVISION_MISMATCH');
+        },
+        commitRevision: () => {
+          this.next();
+        },
       });
+      if (mutation) this.onChanged?.();
+      return reply;
+    }
     if (
       this.participant &&
       typeof (raw as { method?: unknown })?.method === 'string' &&

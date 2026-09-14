@@ -9,6 +9,8 @@ export interface Identity {
   roleId: string;
   bindingId: string;
   epoch: number;
+  activationId?: string;
+  activationEpoch?: number;
   spaceId: string;
   projectId: string;
   runId?: string;
@@ -80,6 +82,21 @@ export class Core {
       b.project_id !== p.projectId
     )
       throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+    if (p.activationId !== undefined) {
+      const activation = this.one(
+        "select id,role_id,binding_id,binding_epoch,activation_epoch,state from role_session_activations where id=?",
+        p.activationId,
+      );
+      if (
+        !activation ||
+        activation.state !== 'ACTIVE' ||
+        activation.role_id !== p.roleId ||
+        activation.binding_id !== p.bindingId ||
+        activation.binding_epoch !== p.epoch ||
+        (p.activationEpoch !== undefined && activation.activation_epoch !== p.activationEpoch)
+      )
+        throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+    }
     if (p.management) return b; // Only a trusted local application service constructs this; bridge never accepts Identity from payload.
     const r = this.one('select * from runs where id=?', p.runId ?? '');
     if (
@@ -472,6 +489,67 @@ export class Core {
     this.exec('update role_slots set blocked_reason=? where role_id=?', reason, role);
     return null;
   }
+  /**
+   * A WorkSession id is durable user history. Execution authorization is a
+   * separate, short-lived activation record. A binding change or WS switch
+   * therefore always receives a fresh activation epoch.
+   */
+  private ensureActiveActivation(roleId: string, binding: Data, roleSessionId: string) {
+    const session = this.one(
+      'select id,role_id,harness,driver_id,workspace_affinity_json from role_sessions where id=? and role_id=? and state=\'ACTIVE\'',
+      roleSessionId,
+      roleId,
+    );
+    if (!session) return null;
+    if (session.harness && session.harness !== binding.harness) return null;
+    if (!session.harness) {
+      this.exec(
+        'update role_sessions set harness=?,driver_id=?,workspace_affinity_json=? where id=? and harness is null',
+        binding.harness,
+        binding.harness,
+        JSON.stringify({ workspace_id: binding.workspace_id }),
+        roleSessionId,
+      );
+    }
+    const active = this.one(
+      "select id,role_session_id,binding_id,binding_epoch,activation_epoch from role_session_activations where role_id=? and state='ACTIVE'",
+      roleId,
+    );
+    if (
+      active &&
+      active.role_session_id === roleSessionId &&
+      active.binding_id === binding.id &&
+      active.binding_epoch === binding.epoch
+    )
+      return active;
+    const now = this.clock();
+    if (active)
+      this.exec(
+        "update role_session_activations set state='ENDED',ended_at_ms=? where id=? and state='ACTIVE'",
+        now,
+        active.id,
+      );
+    const activationEpoch = Number(
+      this.one('select coalesce(max(activation_epoch),0) as n from role_session_activations where role_id=?', roleId)?.n ?? 0,
+    ) + 1;
+    const id = 'rsa_' + globalThis.crypto.randomUUID();
+    this.exec(
+      'insert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,operation_id,created_at_ms,activated_at_ms) values(?,?,?,?,?,?,\'ACTIVE\',?,?,?)',
+      id,
+      roleId,
+      roleSessionId,
+      binding.id,
+      binding.epoch,
+      activationEpoch,
+      'core-dispatch',
+      now,
+      now,
+    );
+    return this.one(
+      'select id,role_session_id,binding_id,binding_epoch,activation_epoch from role_session_activations where id=?',
+      id,
+    );
+  }
   dispatch(roleId: string): Dispatch | null {
     return this.tx(() => {
       const p = this.management(roleId),
@@ -553,9 +631,13 @@ export class Core {
       }
       if (resources.some((r) => this.one('select * from resource_leases where resource_key=?', r)))
         return this.blocked(roleId, 'resource_locked');
+      const roleSessionId = (this.one('select role_session_id from tasks where id=?', task.id)?.role_session_id ?? null) as string | null;
+      if (!roleSessionId) return this.blocked(roleId, 'work_session_missing');
+      const activation = this.ensureActiveActivation(roleId, b, roleSessionId);
+      if (!activation) return this.blocked(roleId, 'work_session_binding_mismatch');
       const run = id('run');
       this.exec(
-        'insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id,activation_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         run,
         roleId,
         b.id,
@@ -570,7 +652,8 @@ export class Core {
         null,
         null,
         now,
-        this.one('select role_session_id from tasks where id=?', task.id)?.role_session_id ?? null,
+        roleSessionId,
+        activation.id,
       );
       for (const resource of resources)
         this.exec(
@@ -616,7 +699,14 @@ export class Core {
         id: run,
         taskId: task.id,
         kind,
-        principal: { ...p, management: false, runId: run, taskId: task.id },
+        principal: {
+          ...p,
+          management: false,
+          runId: run,
+          taskId: task.id,
+          activationId: activation.id,
+          activationEpoch: activation.activation_epoch,
+        },
         request: JSON.parse(task.request_json),
       };
     });
@@ -645,6 +735,15 @@ export class Core {
       const b = this.one('select * from bindings where id=?', run.binding_id)!;
       if (epoch !== run.binding_epoch || !b.is_current || b.epoch !== epoch)
         throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+      if (run.activation_id) {
+        const activation = this.one(
+          'select binding_id,binding_epoch from role_session_activations where id=? and role_id=?',
+          run.activation_id,
+          run.role_id,
+        );
+        if (!activation || activation.binding_id !== run.binding_id || activation.binding_epoch !== run.binding_epoch)
+          throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+      }
       if (evidence.replay) return;
       if (['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(run.state)) return;
       if (run.state === 'UNKNOWN') throw new RouteError('RECONCILIATION_REQUIRED', 'AMBIGUOUS');

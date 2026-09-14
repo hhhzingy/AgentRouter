@@ -1,12 +1,17 @@
 import type Database from 'better-sqlite3';
+import { createHash } from 'node:crypto';
 import { realpathSync, statSync, existsSync } from 'node:fs';
 import { isAbsolute, relative, sep, dirname, basename, join } from 'node:path';
+
 export interface NativeSessionScope {
   bindingId: string;
   epoch: number;
   sessionHome: string;
-  /** 指定后 load/save 以 RoleSession 的原生引用为准(A/B 会话隔离);缺省保持 binding 级行为。 */
+  /** WorkSession 维度；缺省仅为 V1.0 binding 兼容入口。 */
   roleSessionId?: string;
+  /** 每次恢复/运行的短期激活身份，不等同于 roleSessionId。 */
+  activationId?: string;
+  activationEpoch?: number;
 }
 export interface NativeSessionGuard extends NativeSessionScope {
   key: string;
@@ -16,9 +21,11 @@ export interface NativeSessionReference {
   id: string;
   path?: string;
 }
+
 /** Trusted host storage only; never accept session references from model or Route payloads. */
 export class NativeSessionStore {
   constructor(private db: Database.Database) {}
+
   private binding(scope: NativeSessionScope) {
     const b = this.db
       .prepare('select * from bindings where id=? and epoch=? and is_current=1')
@@ -26,6 +33,26 @@ export class NativeSessionStore {
     if (!b) throw Error('SESSION_BINDING_REVOKED');
     return b;
   }
+
+  private activation(scope: NativeSessionScope, binding: any) {
+    if (!scope.roleSessionId || !scope.activationId) return;
+    const a = this.db
+      .prepare(
+        "select id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state from role_session_activations where id=?",
+      )
+      .get(scope.activationId) as any;
+    if (
+      !a ||
+      a.state !== 'ACTIVE' ||
+      a.role_id !== binding.role_id ||
+      a.role_session_id !== scope.roleSessionId ||
+      a.binding_id !== scope.bindingId ||
+      a.binding_epoch !== scope.epoch ||
+      (scope.activationEpoch !== undefined && a.activation_epoch !== scope.activationEpoch)
+    )
+      throw Error('SESSION_ACTIVATION_REVOKED');
+  }
+
   private reference(
     scope: NativeSessionScope,
     harness: string,
@@ -78,22 +105,30 @@ export class NativeSessionStore {
     }
     return ref;
   }
+
+  private isInitial(roleId: string, roleSessionId: string) {
+    const initial = this.db
+      .prepare('select id from role_sessions where role_id=? order by seq limit 1')
+      .get(roleId) as { id: string } | undefined;
+    return initial?.id === roleSessionId;
+  }
+
   load(scope: NativeSessionScope): NativeSessionReference | undefined {
     const b = this.binding(scope);
     if (scope.roleSessionId) {
-      // A/B 会话隔离:优先读该 RoleSession 自己的原生引用;切回旧会话必须恢复其当时会话。
+      this.activation(scope, b);
       const rs = this.db
-        .prepare('select native_session_ref from role_sessions where id=? and role_id=?')
+        .prepare(
+          'select native_session_ref,harness,driver_id,workspace_affinity_json from role_sessions where id=? and role_id=?',
+        )
         .get(scope.roleSessionId, b.role_id) as any;
       if (!rs) throw Error('ROLE_SESSION_NOT_FOUND');
+      if (rs.harness && rs.harness !== b.harness)
+        throw Error('SESSION_WORK_SESSION_BINDING_MISMATCH');
       if (rs.native_session_ref)
         return this.reference(scope, b.harness, JSON.parse(rs.native_session_ref));
-      // 仅初始会话(seq 最小)继承 bootstrap 创建的 binding 级会话;
-      // create/switch 出的新会话一律全新,不得续用其它会话的原生上下文。
-      const initial = this.db
-        .prepare('select id from role_sessions where role_id=? order by seq limit 1')
-        .get(b.role_id) as { id: string } | undefined;
-      if (!initial || initial.id !== scope.roleSessionId) return undefined;
+      // 仅初始会话兼容 bootstrap 创建的 binding 级会话；新 WorkSession 不继承隐藏 native 上下文。
+      if (!this.isInitial(b.role_id, scope.roleSessionId)) return undefined;
     }
     const row = this.db
       .prepare('select session_ref from native_sessions where binding_id=? and epoch=?')
@@ -102,40 +137,62 @@ export class NativeSessionStore {
     if (b.native_session_ref !== row.session_ref) throw Error('SESSION_REFERENCE_DIVERGED');
     return this.reference(scope, b.harness, JSON.parse(row.session_ref));
   }
+
   save(scope: NativeSessionGuard, input: NativeSessionReference) {
     this.db
       .transaction(() => {
         if (!scope.isCurrent()) throw Error('SESSION_SAVE_REVOKED');
         const b = this.binding(scope);
+        this.activation(scope, b);
         const liveRun = this.db
           .prepare(
-            "select id from runs where id=? and binding_id=? and binding_epoch=? and state in ('STARTING','RUNNING','WAITING_APPROVAL')",
+            "select id,role_session_id,activation_id from runs where id=? and binding_id=? and binding_epoch=? and state in ('STARTING','RUNNING','WAITING_APPROVAL')",
           )
-          .get(scope.key, scope.bindingId, scope.epoch);
+          .get(scope.key, scope.bindingId, scope.epoch) as any;
         const liveInit = this.db
           .prepare(
             "select id from initialization_attempts where id=? and role_id=? and epoch=? and state in ('STARTING','RUNNING')",
           )
           .get(scope.key, b.role_id, scope.epoch);
         if (!liveRun && !liveInit) throw Error('SESSION_EXECUTION_REVOKED');
+        if (
+          scope.roleSessionId &&
+          liveRun &&
+          (liveRun.role_session_id !== scope.roleSessionId ||
+            (scope.activationId !== undefined && liveRun.activation_id !== scope.activationId))
+        )
+          throw Error('SESSION_ACTIVATION_REVOKED');
         const ref = this.reference(scope, b.harness, input, !!liveInit);
         if (!scope.isCurrent()) throw Error('SESSION_SAVE_REVOKED');
         const json = JSON.stringify(ref);
+        const hash = createHash('sha256').update(json).digest('hex');
+
+        if (scope.roleSessionId) {
+          const rs = this.db
+            .prepare('select native_session_ref from role_sessions where id=? and role_id=?')
+            .get(scope.roleSessionId, b.role_id) as any;
+          if (!rs) throw Error('ROLE_SESSION_NOT_FOUND');
+          if (rs.native_session_ref && rs.native_session_ref !== json)
+            throw Error('SESSION_ROLE_SESSION_REFERENCE_DIVERGED');
+          const rsUpdated = this.db
+            .prepare(
+              'update role_sessions set native_session_ref=?,native_session_ref_hash=?,native_session_bound_at_ms=? where id=? and role_id=? and (native_session_ref is null or native_session_ref=?)',
+            )
+            .run(json, hash, Date.now(), scope.roleSessionId, b.role_id, json);
+          if (rsUpdated.changes !== 1) throw Error('SESSION_ROLE_SESSION_REFERENCE_DIVERGED');
+
+          // 仅 bootstrap 初始会话保留 binding/native_sessions 镜像；后续 WorkSession 不得覆盖它。
+          if (!this.isInitial(b.role_id, scope.roleSessionId)) {
+            if (!scope.isCurrent()) throw Error('SESSION_SAVE_REVOKED');
+            return;
+          }
+        }
+
         this.db
           .prepare(
             'insert into native_sessions values(?,?,?,?) on conflict(binding_id,epoch) do update set session_ref=excluded.session_ref,updated_at_ms=excluded.updated_at_ms',
           )
           .run(scope.bindingId, scope.epoch, json, Date.now());
-        // 会话镜像：原生引用同时记录到产生它的 RoleSession（仅运行级保存；初始化无会话归属）。
-        if (scope.roleSessionId) {
-          const rsUpdated = this.db
-            .prepare('update role_sessions set native_session_ref=? where id=?')
-            .run(json, scope.roleSessionId);
-          if (rsUpdated.changes !== 1) throw Error('ROLE_SESSION_NOT_FOUND');
-        } else
-          this.db
-            .prepare('update role_sessions set native_session_ref=? where id=(select role_session_id from runs where id=?)')
-            .run(json, scope.key);
         const updated = this.db
           .prepare(
             'update bindings set native_session_ref=? where id=? and epoch=? and is_current=1',

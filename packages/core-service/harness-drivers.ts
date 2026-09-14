@@ -112,6 +112,7 @@ export const codexDriver: HarnessDriver = {
   harness: 'codex',
   contextCapabilities: { ...unknownDriverContextCapabilities('codex'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: false,
+  supportsFreshSession: true,
   processArgs: () => ['app-server'],
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
     const lifecycle = new CodexLifecycle({ write, onEvent });
@@ -148,6 +149,7 @@ export const kimiDriver: HarnessDriver = {
   harness: 'kimi_code',
   contextCapabilities: { ...unknownDriverContextCapabilities('kimi_code'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: false,
+  supportsFreshSession: true,
   processArgs: () => ['acp'],
   createLifecycle({ config, epoch, write, onEvent, promptTimeoutMs, onApproval }) {
     const lifecycle = new KimiLifecycle({
@@ -191,6 +193,7 @@ export const piDriver: HarnessDriver = {
   harness: 'pi',
   contextCapabilities: { ...unknownDriverContextCapabilities('pi'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: true,
+  supportsFreshSession: true,
   processArgs: () => ['--mode', 'rpc'],
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
     const lifecycle = new PiLifecycle({ write, onEvent, promptTimeoutMs });

@@ -14,6 +14,12 @@ export class Management {
   private row(sql: string, ...args: any[]) {
     return this.db.prepare(sql).get(...args) as Data | undefined;
   }
+  private v11RoleSessions() {
+    return Boolean(
+      this.row("select 1 as ok from sqlite_master where type='table' and name='role_session_activations'") &&
+        this.row("select 1 as ok from pragma_table_info('role_sessions') where name='harness'"),
+    );
+  }
   private directory(input: string) {
     if (typeof input !== 'string' || !input || input.startsWith('\\\\'))
       throw new RouteError('LOCAL_DIRECTORY_REQUIRED');
@@ -146,6 +152,29 @@ export class Management {
           Date.now(),
         );
       this.db.prepare('insert into role_slots(role_id) values(?)').run(role);
+      if (this.v11RoleSessions()) {
+        const sessionId = 'rsess_' + role;
+        const now = Date.now();
+        const bindingRow = this.row('select epoch from bindings where id=?', binding) as { epoch: number };
+        this.db
+          .prepare(
+            'update role_sessions set binding_id=?,binding_epoch=?,harness=?,driver_id=?,workspace_affinity_json=? where id=?',
+          )
+          .run(binding, bindingRow.epoch, input.harness, input.harness, JSON.stringify({ workspace_id: input.workspaceId }), sessionId);
+        this.db
+          .prepare('insert into role_context_heads(role_id,head_seq,updated_at_ms) values(?,0,?)')
+          .run(role, now);
+        this.db
+          .prepare(
+            "insert into role_session_context_state(role_session_id,role_id,synced_through_seq,fidelity,updated_at_ms) values(?,?,0,'UNKNOWN',?)",
+          )
+          .run(sessionId, role, now);
+        this.db
+          .prepare(
+            "insert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,operation_id,created_at_ms,activated_at_ms) values(?,?,?,?,?,1,'ACTIVE','role-create',?,?)",
+          )
+          .run(id('activation'), role, sessionId, binding, bindingRow.epoch, now, now);
+      }
     })();
     return { role, binding };
   }
