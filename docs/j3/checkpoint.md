@@ -316,3 +316,12 @@ MCP 固定源码6bfdb79a6cb570ff22545935278115e2073b9c53已push；15项固定源
 - **待用户**:①SSH 提权执行 .local/ssh-e2e/install-auth.ps1 一次后重跑 test-ssh-production --live;
   ②ZCode 桌面版无独立 CLI,ZCODE_DUT 待 CLI 安装+登录;③真机 Tailscale;④合 main/tag/发布继续冻结,
   等待对 99411d9 的验收批准。
+
+# 当前执行（2026-09-14 续14）：SSH 真实 E2E PASS——五条活体全绿，交接文档就绪
+
+- 用户提权执行 install-auth.ps1(installed);测试侧修复三处:非提权读 administrators_authorized_keys
+  EPERM 不再误判未安装(以 ssh 实测为准)、观察者写拒绝探针按冻结 schema 补全 lease_id 变更信封、
+  Core 数据目录对齐 forced command(<root>/data)。PRODUCTION_SSH_BRIDGE_REAL_SSHD PASS(7122799):
+  真实sshd→forced command→ssh-bridge→命名管道,C1初始化/真实读/写拒绝(CONTROL_LEASE_REQUIRED)。
+- 交接文档:docs/reports/交接文档-2026-09-14.md。待用户:RC 验收批准(合 main/tag/发布冻结中)、
+  ZCode CLI 安装(ZCODE_DUT)、真机 Tailscale。
