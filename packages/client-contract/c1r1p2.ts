@@ -1,10 +1,17 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import contractP1 from '../../contracts/client-api.c1r1p1.schema.json' with { type: 'json' };
 import planSchemaV1 from '../../contracts/agentrouter-role-plan.v1.schema.json' with { type: 'json' };
+import {
+  validateFrame as validateFrameP1,
+  validateResponse as validateResponseP1,
+  type RevisionName,
+} from '../client-contract/c1r1p1/index.ts';
+import { methodMetadata, type Method } from '../client-contract/c1r1p1/generated.ts';
 import { randomUUID } from 'node:crypto';
 /** C1R1P2(草案,CCR-J3-DRIVER-01):在冻结 schema 的内存副本上做唯一放宽——
  * harness 枚举(codex/kimi_code/pi)开放为 HarnessId 模式串;合法集合由服务端
- * HarnessDriverRegistry 运行时判定。冻结文件本身字节不变。 */
+ * HarnessDriverRegistry 运行时判定。冻结文件本身字节不变。P1 冻结门禁见
+ * tools/check-client-p1-freeze.mjs;本模块是唯一允许感知 C1R1P2 的校验入口。 */
 export const C1R1P2_REVISION = 'C1R1P2';
 const HARNESS_ID_PATTERN = '^[a-z][a-z0-9_]{1,40}$';
 function widen(node: unknown): unknown {
@@ -92,4 +99,25 @@ export function validatePlanShapeP2(x: unknown): boolean {
 }
 export function newOperationId(): string {
   return 'p2_' + randomUUID();
+}
+/** 按 revision 路由的客户端帧/结果校验:P2 走内存放宽副本,其余转发冻结 C1R1P1 校验器。
+ * 参数序与冻结校验器一致(validateFrame(x, revision)/validateResponse(method, x, revision)),
+ * 冻结的 c1r1p1/index.ts 不感知 P2;调用方(传输层)一律经本入口,禁止直传 P2 进冻结校验。 */
+export function validateFrameForRevision(x: unknown, revision: RevisionName | 'C1R1P2'): void {
+  if (revision === 'C1R1P2') {
+    validateFrameP2(x);
+    return;
+  }
+  validateFrameP1(x, revision);
+}
+export function validateResponseForRevision(
+  method: Method,
+  x: unknown,
+  revision: RevisionName | 'C1R1P2',
+): void {
+  if (revision === 'C1R1P2') {
+    validateDefinitionP2(methodMetadata[method].result, x);
+    return;
+  }
+  validateResponseP1(method, x, revision);
 }

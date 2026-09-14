@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
   C1R1Error,
-  validateFrame,
-  validateResponse,
   methodMetadata,
   type CoreHelloVM,
   type Method,
@@ -11,6 +9,10 @@ import {
   type Response,
   type Event,
 } from '../../client-contract/c1r1p1/index.ts';
+import {
+  validateFrameForRevision,
+  validateResponseForRevision,
+} from '../../client-contract/c1r1p2.ts';
 import type {
   ClientTransport,
   ClientServer,
@@ -45,7 +47,7 @@ export class P1MemoryTransport implements ClientTransport {
     const listeners = new Map<(e: Event) => void, number>();
     const sourceUnsub = this.server.subscribe(c, (e: Event) => {
       if (generation !== this.generation) return;
-      validateFrame(e, revision);
+      validateFrameForRevision(e, revision);
       if (e.cursor <= observedCursor) return;
       buffered.set(e.cursor, e);
       if (buffered.size > 1000) {
@@ -148,7 +150,7 @@ export class P1MemoryTransport implements ClientTransport {
             }
           : {}),
       };
-      validateFrame(frame, revision);
+      validateFrameForRevision(frame, revision);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const result = await Promise.race([
@@ -160,10 +162,10 @@ export class P1MemoryTransport implements ClientTransport {
             );
           }),
         ]);
-        validateFrame(result, revision);
+        validateFrameForRevision(result, revision);
         const reply = result as Response;
         if ('error' in reply) throw Object.assign(new Error(reply.error.code), reply.error);
-        validateResponse(method, reply.result, revision);
+        validateResponseForRevision(method, reply.result, revision);
         if (method === 'control.acquire' || method === 'control.renew')
           lease = reply.result as LeaseVM;
         if (method === 'control.release') lease = null;

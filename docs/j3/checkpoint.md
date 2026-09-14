@@ -325,3 +325,12 @@ MCP 固定源码6bfdb79a6cb570ff22545935278115e2073b9c53已push；15项固定源
   真实sshd→forced command→ssh-bridge→命名管道,C1初始化/真实读/写拒绝(CONTROL_LEASE_REQUIRED)。
 - 交接文档:docs/reports/交接文档-2026-09-14.md。待用户:RC 验收批准(合 main/tag/发布冻结中)、
   ZCode CLI 安装(ZCODE_DUT)、真机 Tailscale。
+
+# 当前执行（2026-09-14 续15）：CI 冻结门禁修复——c1r1p1/index.ts 字节还原,P2 路由移入 c1r1p2
+
+- push 后 CI "W11 integration and P1 gates" 抓到 FROZEN_CONTRACT_CHANGED(c1r1p1/index.ts):
+  R4 时把 RevisionName 扩展与 P2 分支写进了冻结文件。修复:该文件字节还原(对照 46e0df2~1),
+  新增 c1r1p2.validateFrameForRevision/validateResponseForRevision(参数序与冻结校验器一致),
+  memory.ts 四处调用改走路由入口;冻结门禁本地化进提交前流程。
+- 验证:check-client-p1-freeze PASS、全量 418/418、typecheck OK、--live --dsh 复跑 PASS(42 PUBLISHED)。
+  教训:本地必须跑 node tools/check-client-p1-freeze.mjs(此前只在 CI 跑)。
