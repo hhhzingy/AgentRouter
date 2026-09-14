@@ -3,7 +3,7 @@
 ## 基线 / 当前 / 阶段
 
 - Baseline SHA：`338fcffc001a5ed8e93c00051605f7c6e4eea74a`。
-- Current SHA（RC implementation）：V11-09 提交完成后记录。
+- Current SHA（RC implementation）：`b1b56f12e818e328b516a8b174a693221c28ff87`。
 - Branch：`feat/v1.1-context-continuity`。
 - Stage：V11-09 Real E2E / Release Candidate；不合并 main，不创建 tag/release。
 
