@@ -8,7 +8,7 @@ mkdirSync('.local/ssh-e2e', { recursive: true });
 const root = resolve('.local/ssh-e2e');
 const path = (n) => resolve(root, n);
 rmSync(path('data'), { recursive: true, force: true });
-for (const dir of ['data/core', 'data/workspace']) mkdirSync(path(dir), { recursive: true });
+for (const dir of ['data', 'data/workspace']) mkdirSync(path(dir), { recursive: true });
 const user = process.env.USERNAME ?? process.env.USER;
 if (!user) throw Error('SSH_USER_UNKNOWN');
 const report = {
@@ -32,14 +32,14 @@ try {
       PATH: process.env.PATH,
       TEMP: root,
       TMP: root,
-      AGENTROUTER_DATA: path('data/core'),
+      AGENTROUTER_DATA: path('data'),
       AGENTROUTER_PROJECT_ROOTS: JSON.stringify([path('data/workspace')]),
     },
   });
-  for (let i = 0; i < 100 && !existsSync(path('data/core/endpoint.json')); i++)
+  for (let i = 0; i < 100 && !existsSync(path('data/endpoint.json')); i++)
     await new Promise((r) => setTimeout(r, 100));
-  if (!existsSync(path('data/core/endpoint.json'))) throw Error('CORE_START_FAILED');
-  const endpoint = JSON.parse(readFileSync(path('data/core/endpoint.json'), 'utf8'));
+  if (!existsSync(path('data/endpoint.json'))) throw Error('CORE_START_FAILED');
+  const endpoint = JSON.parse(readFileSync(path('data/endpoint.json'), 'utf8'));
   if (!String(endpoint.address).startsWith('\\\\.\\pipe\\AgentRouter-')) throw Error('INVALID_ENDPOINT');
   report.checks.push('真实Core命名管道endpoint就绪');
 
@@ -63,20 +63,22 @@ try {
     '} else { Write-Output ' + "'already-present'" + ' }',
   ].join('\n');
   writeFileSync(path('install-auth.ps1'), ps1 + '\n', 'utf8');
-  let present = false;
+  // 非提权进程对该文件读/写均 EPERM:读不到不视为未安装,交由 ssh 实测判定。
+  let present = null; // true/false=可读且判定;null=不可读(非提权),交由 ssh 实测判定
   try {
     present = readFileSync(authPath, 'utf8').includes('agentrouter-ssh-e2e');
   } catch {
-    throw Error('PENDING_ELEVATED_INSTALL: powershell -NoProfile -ExecutionPolicy Bypass -File ' + path('install-auth.ps1'));
+    report.auth_readable = false;
   }
-  if (!present) {
+  if (present === false) {
     try {
       appendFileSync(authPath, '# agentrouter-ssh-e2e\n' + authLine + '\n', 'utf8');
       report.checks.push('追加forced-command授权行');
     } catch {
       throw Error('PENDING_ELEVATED_INSTALL: powershell -NoProfile -ExecutionPolicy Bypass -File ' + path('install-auth.ps1'));
     }
-  } else report.checks.push('forced-command授权行已就绪');
+  } else if (present === true) report.checks.push('forced-command授权行已就绪');
+  else report.checks.push('授权行状态不可读(非提权),以ssh实测为准');
 
   // 3) 真实 ssh 连接(独立 known_hosts,不动用户既有记录)
   ssh = spawn(
@@ -95,6 +97,11 @@ try {
   let buf = '';
   const pending = new Map();
   let seq = 0;
+  const sshErr = [];
+  ssh.stderr.on('data', (d) => {
+    sshErr.push(d.toString());
+    if (sshErr.length <= 6) report.ssh_stderr_tail = sshErr.join('').slice(-400);
+  });
   ssh.stdout.on('data', (b) => {
     buf += b.toString('utf8');
     let i;
@@ -138,8 +145,28 @@ try {
   if (snap.error || typeof snap.result?.revision !== 'number') throw Error('SSH_READ_FAILED');
   report.checks.push('SSH观察者真实读(system.snapshot)');
 
-  // 5) 观察者写被拒
-  const denied = await request('project.create', { name: 'ssh-e2e-不应成功', path_handle: 'x' });
+  // 5) 观察者写被拒(变更帧必须带完整信封才入冻结校验;缺租约被拒)
+  const denied = await new Promise((res, rej) => {
+    const id = 'ssh_req_' + ++seq;
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      rej(Error('REQUEST_TIMEOUT:project.create(observer)'));
+    }, 15000);
+    pending.set(id, { timer, resolve: res });
+    ssh.stdin.write(
+      JSON.stringify({
+        v: 1,
+        id,
+        method: 'project.create',
+        params: { name: 'ssh-e2e-不应成功', path_handle: 'x' },
+        client_id: 'ssh_e2e_observer',
+        operation_id: 'ssh_deny_1',
+        expected_revision: snap.result.revision,
+        scope: {},
+        lease_id: 'ssh_e2e_no_lease',
+      }) + '\n',
+    );
+  });
   if (!denied.error || !['SCOPE_DENIED', 'CONTROL_LEASE_REQUIRED'].includes(denied.error.code))
     throw Error('SSH_WRITE_NOT_DENIED');
   report.checks.push('SSH观察者写被拒(冻结合同口径)');
