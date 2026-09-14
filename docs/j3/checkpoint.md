@@ -16,6 +16,16 @@
 - **SSH**:用户确认 OpenSSH.Server 仍 NotPresent——需管理员 PowerShell `Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0.0` 后 `Start-Service sshd`;或从 GitHub 下载 OpenSSH 独立包。
 - **dsh key**:用户确认使用 Deepseek.txt 的 API key(DEEPSEEK_API_KEY 注入已实现)。
 
+# 当前执行（2026-09-14 续）：R1/R2 提交收口 + SSH/DeepSeek 状态更新
+
+- **SSH 已确认**: 用户从 GitHub 独立包安装成功，sshd Running + Automatic。用户需追加一条管理员命令将公钥写入 administrators_authorized_keys（因 hap_p 在 Administrators 组，sshd_config Match Group 块覆盖了用户目录 authorized_keys）：
+  ```powershell
+  Copy-Item "$env:USERPROFILE\.ssh\id_ed25519.pub" "C:\ProgramData\sshdministrators_authorized_keys" -Force; icacls "C:\ProgramData\sshdministrators_authorized_keys" /inheritance:r /grant "SYSTEM:F" /grant "BUILTIN\Administrators:F"
+  ```
+  SSH 桥本地自测已 PASS；真实 SSH E2E 待 auth 修复后跑。
+- **DeepSeek bootstrap 诊断结论**: 全量 process env / 最小 env / supervisor 直spawn 均导致 bootstrap FAILED；ACP 直探(task end_turn/resume 47/cancel cancelled)在同一 dsh 环境下验证可用。根因在 supervisor.exe 中间层的 stdio 或 args 透传——dsh 子进程 stderr 未透传到 core(需修改 Supervisor.cs 或 host 层增加管道)。无 Infinite 重试。
+- **全仓 66 文件 410 项 PASS**;迁移 manifest 含 001—008;三套冻结 PASS。
+
 # 当前执行（2026-09-14）：Closeout R2 完成 + R3 排队——全部 410 项 PASS
 
 - **R2 C1R1P2 收口确认**:兼容测试 4 项全过(P1 拒绝动态计划/P2 validate+apply/未注册拒绝/旧连接投影裁剪)。旧协议连接快照裁剪先于冻结投影。
