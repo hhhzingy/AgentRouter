@@ -42,13 +42,17 @@
 - TypeScript `--noEmit`：通过。
 - C1/C1R1/C1R1P1 freeze、contract generation、migration manifest：通过。
 - lint：通过。
+- spec-check：36 passed / 0 failed；doctor：PASS（3 个 Harness，输出脱敏）。
+- B0、W11、J1、J2 Electron 桌面回归：全部通过。
 - 历史敏感信息扫描：通过；未报告 findings，输出已脱敏。
 
 ## Live / Packaged
 
-- 本阶段代码路径已用受控 fixture 验证；真实 DeepSeek、Pi、Kimi native session 仍需用户环境中的显式认证与 live harness 条件。
+- Windows packaged RC 已从干净 SHA `ba2bac654b24275672a8b9ef31fdd7e72da54d5a` 构建，`sourceDirty=false`；packaged Core/IPC/Fixture 禁用检查通过。
+- Packaged Electron GUI 通过 preload、LOCAL_CORE SQLite 创建、重载持久化检查；产物目录为 `release/AgentRouter-j3-ba2bac654b24-69439413-d7dc-4912-a3e5-ac2408863bea`。
+- B0 预览 mock、W11 LOCAL_CORE 生命周期、J1 GUI/Fixture 和 J2 GUI/Fixture 全部通过；未启动真实 Harness。
+- 真实 DeepSeek、Pi、Kimi native session、SSH live 和用户 smoke 仍需用户环境中的显式认证/授权。
 - 真正外部 compression backend 未声明为已认证；无 backend 或容量不足时保持安全阻止，不静默截断。
-- Packaged Electron、SSH 与真实用户 smoke 将在当前干净提交后继续执行/记录；不触碰现有 Codex/ZCode 活动会话和认证。
 
 ## Compatibility / Data migration
 
