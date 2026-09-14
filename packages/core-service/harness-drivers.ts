@@ -6,6 +6,14 @@ import { DshLifecycle } from '../adapters/dsh/lifecycle.ts';
 import type { NativeRpcOptions } from '../adapters/shared/rpc-peer.ts';
 import type { NativeBindingConfig } from './native-registry.ts';
 import type { SecureNativeProcess } from './native-process-backend.ts';
+import {
+  capabilityRecord,
+  unknownDriverContextCapabilities,
+  validateDriverContextCapabilities,
+  type DriverCapabilityEvidence,
+  type DriverCapabilityRecord,
+  type DriverContextCapabilities,
+} from './driver-context-capabilities.ts';
 /** 统一生命周期/事件/能力面；各 Harness 的原生协议不同，由驱动适配。
  * 进程启动、凭据、停止证明仍归受信宿主，不进入驱动。 */
 export interface HarnessLifecycle {
@@ -26,6 +34,13 @@ export interface HarnessLifecycle {
 }
 export interface HarnessDriver {
   readonly harness: string;
+  readonly driverVersion?: string;
+  /** Static capability snapshot; UNKNOWN is the required default without evidence. */
+  readonly contextCapabilities?: DriverContextCapabilities;
+  readonly capabilityEvidence?: readonly DriverCapabilityEvidence[];
+  probeContextCapabilities?(input: {
+    config: Readonly<NativeBindingConfig>;
+  }): Promise<DriverCapabilityRecord> | DriverCapabilityRecord;
   /** 受管进程的协议入口参数；隔离与凭据参数由宿主注入，不在此。 */
   processArgs(config: Readonly<NativeBindingConfig>): readonly string[];
   /** run 模式下除会话 id 外还必须持有原生会话文件路径（如 pi 的预留文件）。 */
@@ -46,6 +61,8 @@ export interface HarnessDriver {
 }
 export class HarnessDriverRegistry {
   private drivers = new Map<string, HarnessDriver>();
+  private capabilityRecords = new Map<string, DriverCapabilityRecord>();
+
   register(driver: HarnessDriver): void {
     if (
       !driver ||
@@ -55,7 +72,12 @@ export class HarnessDriverRegistry {
       typeof driver.createLifecycle !== 'function'
     )
       throw Error('DRIVER_REGISTRATION_INVALID');
+    const capabilities = validateDriverContextCapabilities(
+      driver.contextCapabilities ?? unknownDriverContextCapabilities(driver.harness, driver.driverVersion),
+    );
+    if (capabilities.harness !== driver.harness) throw Error('DRIVER_CAPABILITIES_HARNESS_MISMATCH');
     this.drivers.set(driver.harness, driver);
+    this.capabilityRecords.set(driver.harness, capabilityRecord(capabilities, driver.capabilityEvidence));
   }
   has(harness: string): boolean {
     return this.drivers.has(harness);
@@ -68,9 +90,27 @@ export class HarnessDriverRegistry {
   list(): string[] {
     return [...this.drivers.keys()].sort();
   }
+  capabilities(harness: string): DriverCapabilityRecord {
+    this.require(harness);
+    const record = this.capabilityRecords.get(harness);
+    if (!record) throw Error('DRIVER_CAPABILITIES_MISSING');
+    return { capabilities: { ...record.capabilities }, evidence: [...record.evidence] };
+  }
+  async probeContextCapabilities(
+    harness: string,
+    input: { config: Readonly<NativeBindingConfig> },
+  ): Promise<DriverCapabilityRecord> {
+    const driver = this.require(harness);
+    if (!driver.probeContextCapabilities) return this.capabilities(harness);
+    const record = await driver.probeContextCapabilities(input);
+    const capabilities = validateDriverContextCapabilities(record.capabilities);
+    if (capabilities.harness !== harness) throw Error('DRIVER_CAPABILITIES_HARNESS_MISMATCH');
+    return { capabilities, evidence: [...record.evidence] };
+  }
 }
 export const codexDriver: HarnessDriver = {
   harness: 'codex',
+  contextCapabilities: { ...unknownDriverContextCapabilities('codex'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: false,
   processArgs: () => ['app-server'],
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
@@ -106,6 +146,7 @@ export const codexDriver: HarnessDriver = {
 };
 export const kimiDriver: HarnessDriver = {
   harness: 'kimi_code',
+  contextCapabilities: { ...unknownDriverContextCapabilities('kimi_code'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: false,
   processArgs: () => ['acp'],
   createLifecycle({ config, epoch, write, onEvent, promptTimeoutMs, onApproval }) {
@@ -148,6 +189,7 @@ export const kimiDriver: HarnessDriver = {
 };
 export const piDriver: HarnessDriver = {
   harness: 'pi',
+  contextCapabilities: { ...unknownDriverContextCapabilities('pi'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: true,
   processArgs: () => ['--mode', 'rpc'],
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
@@ -179,6 +221,7 @@ export const piDriver: HarnessDriver = {
 };
 export const zcodeDriver: HarnessDriver = {
   harness: 'zcode',
+  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: false,
   processArgs: () => {
     if (!zcodeCliRef.path) throw Error('ZCODE_CLI_UNCONFIGURED');
@@ -212,6 +255,7 @@ export const zcodeDriver: HarnessDriver = {
 };
 export const dshDriver: HarnessDriver = {
   harness: 'deepseek_harness',
+  contextCapabilities: { ...unknownDriverContextCapabilities('deepseek_harness'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => {
