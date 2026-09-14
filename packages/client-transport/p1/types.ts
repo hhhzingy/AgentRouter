@@ -19,8 +19,6 @@ export type RequestOptions = {
   expectedRevision?: number;
   scope?: Scope;
   leaseId?: string;
-  requestKey?: string;
-  preflightHash?: string;
   timeoutMs?: number;
   signal?: AbortSignal;
 };

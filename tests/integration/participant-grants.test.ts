@@ -130,6 +130,10 @@ it('PART-01/02/03:签发grant→attach→真实WAITING_INPUT任务 sendUserInput
     expect(r.entityId).toBe(task);
     const items = f.db.prepare("select count(*) c from conversation_items where task_id=? and body='回答A'").get(task) as { c: number };
     expect(items.c).toBe(1);
+    const taskSession = f.db.prepare('select role_session_id from tasks where id=?').get(task) as { role_session_id: string };
+    const context = f.db.prepare('select portable_kind,source_work_session_id,content_json from role_context_entries where role_id=? order by context_seq desc limit 1').get(f.roleId) as { portable_kind: string; source_work_session_id: string; content_json: string };
+    expect(context).toMatchObject({ portable_kind: 'USER_MESSAGE', source_work_session_id: taskSession.role_session_id });
+    expect(JSON.parse(context.content_json)).toMatchObject({ body: '回答A', task_id: task });
     const wr = f.db.prepare('select ready from wait_records where task_id=?').get(task) as { ready: number };
     expect(wr.ready).toBe(1);
     // 正路径产物

@@ -111,7 +111,7 @@ it('uses native compaction first, rechecks the budget, and waits for a native re
     });
     expect(f.store.state(f.sessionB).syncedThroughSeq).toBe(0);
 
-    service.confirm(plan, { native_receipt: 'confirmed' });
+    service.confirm(plan, { marker: plan.envelope.stable_marker });
     expect(f.store.state(f.sessionB)).toMatchObject({ syncedThroughSeq: 1, fidelity: 'EXACT' });
   } finally {
     f.db.close();

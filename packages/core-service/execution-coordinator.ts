@@ -318,6 +318,25 @@ export class ExecutionCoordinator {
           this.audit(charter.project_id, 'STALE_BINDING_EVENT');
           return;
         }
+        const activation = runRow?.activation_id
+          ? a.one(
+              'select role_session_id,binding_id,binding_epoch,activation_epoch,state from role_session_activations where id=?',
+              runRow.activation_id,
+            )
+          : null;
+        if (
+          roleSessionId &&
+          (!activation ||
+            activation.role_session_id !== roleSessionId ||
+            activation.binding_id !== b.id ||
+            Number(activation.binding_epoch) !== b.epoch ||
+            activation.state !== 'ACTIVE' ||
+            (dispatch.principal.activationEpoch !== undefined &&
+              Number(activation.activation_epoch) !== dispatch.principal.activationEpoch))
+        ) {
+          this.audit(charter.project_id, 'STALE_ACTIVATION_EVENT');
+          return;
+        }
         if (
           a.one(
             'select seq from events where run_id=? and native_event_key=?',
@@ -335,11 +354,6 @@ export class ExecutionCoordinator {
             event.nativeHistoryCursor,
           );
         }
-        if (contextPlan && event.kind === 'accepted' && a.fixtureMode)
-          this.contextMigration.confirm(
-            contextPlan,
-            { marker: contextPlan.envelope.stable_marker, source: 'fixture-native' },
-          );
         a.db
           .transaction(() => {
             a.db

@@ -100,6 +100,12 @@ export function assertPortableContext(value: unknown, path = '$') {
 const stable = stablePortableJson;
 const assertPortable = assertPortableContext;
 
+function nativeMarker(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const marker = (value as Record<string, unknown>).marker;
+  return typeof marker === 'string' ? marker : undefined;
+}
+
 function parseJson(value: string): unknown {
   try {
     return JSON.parse(value);
@@ -164,8 +170,7 @@ export class RoleContextStore {
     const metadataJson = stable(input.metadata ?? {});
     const contentHash = createHash('sha256').update(contentJson).digest('hex');
     const now = input.createdAtMs ?? this.clock();
-    return this.db
-      .transaction(() => {
+    const write = () => {
         this.ensureRole(input.roleId, now);
         this.ensureSession(input.roleId, input.sourceWorkSessionId, now);
         const existing = this.one(
@@ -200,8 +205,10 @@ export class RoleContextStore {
           .prepare('update role_context_heads set head_seq=?,updated_at_ms=? where role_id=? and head_seq<?')
           .run(contextSeq, now, input.roleId, contextSeq);
         return { inserted: true, contextSeq, contentHash };
-      })
-      .immediate();
+      };
+    // Coordinator may append visible context while its event transaction is open.
+    // Reuse that transaction instead of attempting an unsupported nested BEGIN.
+    return this.db.inTransaction ? write() : this.db.transaction(write).immediate();
   }
 
   appendConversation(input: {
@@ -369,6 +376,7 @@ export class RoleContextStore {
         if (!row) throw Error('CONTEXT_SYNC_OPERATION_NOT_FOUND');
         if (row.state === 'CONFIRMED') return this.receipt(row);
         if (row.state === 'FAILED') throw Error('CONTEXT_SYNC_OPERATION_FAILED');
+        if (nativeMarker(nativeReceipt) !== row.stable_marker) throw Error('CONTEXT_SYNC_MARKER_MISMATCH');
         const state = this.one('select * from role_session_context_state where role_session_id=?', row.target_work_session_id);
         if (!state) throw Error('ROLE_SESSION_CONTEXT_STATE_NOT_FOUND');
         const cursorJson = nativeHistoryCursor === undefined ? state.native_history_cursor_json : stable(nativeHistoryCursor);

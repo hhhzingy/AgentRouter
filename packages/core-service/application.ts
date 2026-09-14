@@ -1355,9 +1355,11 @@ export class ApplicationService extends Plans {
           'user_input'
       )
         throw new C1R1Error('PLAN_STATE_CONFLICT');
+      const atMs = this.clock();
+      const sourceId = 'conversation-input:' + operation;
       this.db
         .prepare(
-          'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,role_session_id) values(?,?,?,?,?,?,?,?,?,(select role_session_id from tasks where id=?))',
+          'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,(select role_session_id from tasks where id=?))',
         )
         .run(
           uid('conversation'),
@@ -1368,9 +1370,20 @@ export class ApplicationService extends Plans {
           'USER_MESSAGE',
           '用户续办输入',
           p.body,
-          this.clock(),
+          atMs,
+          sourceId,
           task.id,
         );
+      this.contextStore.appendConversation({
+        roleId: p.role_id,
+        sourceWorkSessionId: task.role_session_id ?? null,
+        sourceId,
+        kind: 'USER_MESSAGE',
+        title: '用户续办输入',
+        body: p.body,
+        taskId: task.id,
+        atMs,
+      });
       this.db.prepare('update wait_records set ready=1 where task_id=?').run(task.id);
       return { entityId: task.id, revision: this.revision };
     }
@@ -1448,9 +1461,18 @@ export class ApplicationService extends Plans {
           body = String(p.body ?? ''),
           state = this.one('select state from outbox where message_id=?', m.id)?.state ?? 'STORED',
           sourceId = 'message:' + m.id + ':' + roleId;
+        const taskSession = this.one(
+          'select rs.id from tasks t join role_sessions rs on rs.id=t.role_session_id and rs.role_id=? where t.id=?',
+          roleId,
+          m.task_id,
+        );
+        const roleSessionId =
+          taskSession?.id ??
+          this.one("select id from role_sessions where role_id=? and state='ACTIVE' order by seq desc limit 1", roleId)?.id ??
+          null;
         this.db
           .prepare(
-            'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,state,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,?,coalesce((select t.role_session_id from tasks t where t.id=?),(select s2.id from role_sessions s2 where s2.role_id=? order by s2.seq limit 1))) on conflict(source_key) do update set state=excluded.state',
+            'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,state,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,?,?) on conflict(source_key) do update set state=excluded.state,role_session_id=excluded.role_session_id',
           )
           .run(
             uid('conversation'),
@@ -1464,8 +1486,7 @@ export class ApplicationService extends Plans {
             state,
             m.created_at_ms,
             sourceId,
-            m.task_id,
-            roleId,
+            roleSessionId,
           );
         const item = this.one('select role_session_id from conversation_items where source_key=?', sourceId);
         this.contextStore.appendConversation({

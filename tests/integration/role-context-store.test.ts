@@ -45,6 +45,8 @@ it('append-only index 去重、Delta 排除 target WS，且 cursor 只在 receip
     const prepared = f.store.prepare(plan);
     expect(prepared.state).toBe('PREPARED');
     expect(f.store.state(f.sessionB).syncedThroughSeq).toBe(0);
+    expect(() => f.store.confirm(plan.operationId, { marker: 'wrong-marker' })).toThrow('CONTEXT_SYNC_MARKER_MISMATCH');
+    expect(f.store.state(f.sessionB).syncedThroughSeq).toBe(0);
     f.store.confirm(plan.operationId, { marker: plan.stableMarker });
     expect(f.store.state(f.sessionB).syncedThroughSeq).toBe(3);
     expect(f.store.planDelta(f.role, f.sessionB, 'op-delta-2').entries).toEqual([]);

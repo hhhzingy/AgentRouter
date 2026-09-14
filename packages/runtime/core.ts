@@ -502,6 +502,19 @@ export class Core {
     );
     if (!session) return null;
     if (session.harness && session.harness !== binding.harness) return null;
+    if (session.driver_id && session.driver_id !== binding.harness) return null;
+    if (session.workspace_affinity_json) {
+      let affinity: unknown;
+      try {
+        affinity = JSON.parse(session.workspace_affinity_json);
+      } catch {
+        return null;
+      }
+      if (!affinity || typeof affinity !== 'object' || Array.isArray(affinity)) return null;
+      const workspaceId = (affinity as Record<string, unknown>).workspace_id;
+      if (workspaceId !== undefined && workspaceId !== null && workspaceId !== binding.workspace_id)
+        return null;
+    }
     if (!session.harness) {
       this.exec(
         'update role_sessions set harness=?,driver_id=?,workspace_affinity_json=? where id=? and harness is null',

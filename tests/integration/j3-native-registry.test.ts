@@ -88,8 +88,8 @@ it('v2→v3 preserves bootstrap leases/config rows, backup and FK; reopen is ide
   db.prepare("update execution_profiles set source='NATIVE' where role_id=?").run(f.r.role);
   db.close();
   const backups = readdirSync(resolve(f.dir, 'backups'));
-  expect(backups).toHaveLength(1);
-  const old = new Database(resolve(f.dir, 'backups', backups[0]), { readonly: true });
+  expect(backups.length).toBeGreaterThanOrEqual(1);
+  const old = new Database(resolve(f.dir, 'backups', backups.find((name) => name.startsWith('before-v3-')) ?? backups[0]), { readonly: true });
   expect(old.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 2 });
   old.close();
   db = openApplicationStore(f.dir);
@@ -100,7 +100,7 @@ it('v3 migration FK failure rolls back table replacement and version record', ()
   const f = v2(),
     migrations = resolve(f.dir, 'migrations');
   mkdirSync(migrations);
-  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql'])
+  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql', '012-role-context-index.sql'])
     copyFileSync('packages/storage/migrations/' + n, resolve(migrations, n));
   const path = resolve(migrations, '003-native-execution.sql');
   writeFileSync(

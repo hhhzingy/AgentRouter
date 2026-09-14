@@ -113,18 +113,40 @@ export class NativeSessionStore {
     return initial?.id === roleSessionId;
   }
 
+  private workSession(scope: NativeSessionScope, binding: any) {
+    if (!scope.roleSessionId) return undefined;
+    const rs = this.db
+      .prepare(
+        'select id,harness,driver_id,workspace_affinity_json,native_session_ref from role_sessions where id=? and role_id=?',
+      )
+      .get(scope.roleSessionId, binding.role_id) as any;
+    if (!rs) throw Error('ROLE_SESSION_NOT_FOUND');
+    if (
+      (rs.harness && rs.harness !== binding.harness) ||
+      (rs.driver_id && rs.driver_id !== binding.harness)
+    )
+      throw Error('SESSION_WORK_SESSION_BINDING_MISMATCH');
+    if (rs.workspace_affinity_json) {
+      let affinity: unknown;
+      try {
+        affinity = JSON.parse(rs.workspace_affinity_json);
+      } catch {
+        throw Error('SESSION_WORKSPACE_AFFINITY_INVALID');
+      }
+      if (!affinity || typeof affinity !== 'object' || Array.isArray(affinity))
+        throw Error('SESSION_WORKSPACE_AFFINITY_INVALID');
+      const workspaceId = (affinity as Record<string, unknown>).workspace_id;
+      if (workspaceId !== undefined && workspaceId !== null && workspaceId !== binding.workspace_id)
+        throw Error('SESSION_WORKSPACE_AFFINITY_MISMATCH');
+    }
+    return rs;
+  }
+
   load(scope: NativeSessionScope): NativeSessionReference | undefined {
     const b = this.binding(scope);
     if (scope.roleSessionId) {
       this.activation(scope, b);
-      const rs = this.db
-        .prepare(
-          'select native_session_ref,harness,driver_id,workspace_affinity_json from role_sessions where id=? and role_id=?',
-        )
-        .get(scope.roleSessionId, b.role_id) as any;
-      if (!rs) throw Error('ROLE_SESSION_NOT_FOUND');
-      if (rs.harness && rs.harness !== b.harness)
-        throw Error('SESSION_WORK_SESSION_BINDING_MISMATCH');
+      const rs = this.workSession(scope, b)!;
       if (rs.native_session_ref)
         return this.reference(scope, b.harness, JSON.parse(rs.native_session_ref));
       // 仅初始会话兼容 bootstrap 创建的 binding 级会话；新 WorkSession 不继承隐藏 native 上下文。
@@ -144,6 +166,7 @@ export class NativeSessionStore {
         if (!scope.isCurrent()) throw Error('SESSION_SAVE_REVOKED');
         const b = this.binding(scope);
         this.activation(scope, b);
+        const workSession = this.workSession(scope, b);
         const liveRun = this.db
           .prepare(
             "select id,role_session_id,activation_id from runs where id=? and binding_id=? and binding_epoch=? and state in ('STARTING','RUNNING','WAITING_APPROVAL')",
@@ -168,9 +191,7 @@ export class NativeSessionStore {
         const hash = createHash('sha256').update(json).digest('hex');
 
         if (scope.roleSessionId) {
-          const rs = this.db
-            .prepare('select native_session_ref from role_sessions where id=? and role_id=?')
-            .get(scope.roleSessionId, b.role_id) as any;
+          const rs = workSession!;
           if (!rs) throw Error('ROLE_SESSION_NOT_FOUND');
           if (rs.native_session_ref && rs.native_session_ref !== json)
             throw Error('SESSION_ROLE_SESSION_REFERENCE_DIVERGED');

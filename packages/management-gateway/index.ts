@@ -11,6 +11,10 @@ import type {
   ClientTransport,
   RequestOptions,
 } from '../client-transport/p1/types.ts';
+type ManagementRequestOptions = RequestOptions & {
+  requestKey?: string;
+  preflightHash?: string;
+};
 export const managementMethods: Record<string, Method> = {
   router_status: 'system.snapshot',
   router_projects: 'project.list',
@@ -115,7 +119,7 @@ export class ManagementGateway {
         return old.result;
       }
     }
-    const options: RequestOptions = {};
+    const options: ManagementRequestOptions = {};
     if (tool.mutation) {
       if (
         !input.request_key ||
@@ -221,7 +225,7 @@ export class ManagementGateway {
       const request = s.request as (
         method: string,
         params: unknown,
-        options?: RequestOptions,
+        options?: ManagementRequestOptions,
       ) => Promise<any>;
       if (!mutation) return request(method, params);
       const snapshot = (await request('system.snapshot', {})) as { revision: number };

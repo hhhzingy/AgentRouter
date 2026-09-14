@@ -126,7 +126,7 @@ it('over-budget full context blocks without an authorized backend and compresses
     expect(compressed.compression.used).toBe(true);
     expect(compressed.envelope.authoritative_state).toEqual(initial.authoritativeState);
     expect(compressed.envelope.portable_context.entries).toHaveLength(1);
-    service.confirm(compressed, { native_receipt: 'confirmed' });
+    service.confirm(compressed, { marker: compressed.envelope.stable_marker });
     expect(f.store.state(f.sessionB)).toMatchObject({ syncedThroughSeq: 1, fidelity: 'COMPRESSED' });
   } finally {
     f.db.close();

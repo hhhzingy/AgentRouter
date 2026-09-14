@@ -25,6 +25,10 @@ import {
   validateExternalApiFrame,
   validateExtensionResult,
 } from '../../client-contract/external-api-1.ts';
+type ExtensionRequestOptions = RequestOptions & {
+  requestKey?: string;
+  preflightHash?: string;
+};
 export class P1MemoryTransport implements ClientTransport {
   private connection?: string;
   private generation = 0;
@@ -70,6 +74,7 @@ export class P1MemoryTransport implements ClientTransport {
         throw new C1R1Error('CONNECTION_LOST');
       if (opts.signal?.aborted) throw new C1R1Error('REQUEST_CANCELLED', 'AMBIGUOUS');
       if (isExtensionMethod(method as string)) {
+        const extensionOptions = opts as ExtensionRequestOptions;
         const extensionFrame = validateExternalApiFrame({
           v: 1,
           id: 'req_' + randomUUID(),
@@ -77,10 +82,10 @@ export class P1MemoryTransport implements ClientTransport {
           ...(params ? { params } : {}),
           client_id: options.clientId,
           ...(opts.leaseId ? { lease_id: opts.leaseId } : {}),
-          ...(opts.requestKey ? { request_key: opts.requestKey } : {}),
+          ...(extensionOptions.requestKey ? { request_key: extensionOptions.requestKey } : {}),
           ...(opts.operationId ? { operation_id: opts.operationId } : {}),
           ...(opts.expectedRevision !== undefined ? { expected_revision: opts.expectedRevision } : {}),
-          ...(opts.preflightHash ? { preflight_hash: opts.preflightHash } : {}),
+          ...(extensionOptions.preflightHash ? { preflight_hash: extensionOptions.preflightHash } : {}),
         });
         let extensionTimer: ReturnType<typeof setTimeout> | undefined;
         try {
