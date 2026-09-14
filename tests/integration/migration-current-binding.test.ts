@@ -22,6 +22,7 @@ function buildUpTo(dir: string, through: number) {
     '009-role-session-handoffs.sql',
     '010-run-provenance.sql',
     '011-work-session-continuity.sql',
+    '012-role-context-index.sql',
   ];
   const db = new Database(resolve(dir, 'router.db'));
   for (let v = 1; v <= through; v++) {
@@ -81,7 +82,7 @@ it('DB-01:v5→v6→v7 升级恢复 one_current_binding_per_role 且拒绝双当
   const up = openApplicationStore(dir, FULL);
   expect(
     up.prepare('select max(version) v from schema_migrations').get(),
-  ).toEqual({ v: 11 });
+  ).toEqual({ v: 12 });
   // 006 重建 bindings 后 007 恢复了索引
   expect(
     up.prepare("select name from sqlite_master where name='one_current_binding_per_role'").get(),
@@ -131,7 +132,7 @@ it('DB-03:006 升级失败回滚不记录版本(模拟 FK 违规场景),v5 数�
   const badDir = resolve(caseDir, 'mig-bad');
   mkdirSync(badDir, { recursive: true });
   const { copyFileSync, writeFileSync } = await import('node:fs');
-  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql'])
+  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql', '012-role-context-index.sql'])
     copyFileSync(resolve(MIGRATIONS_DIR, n), resolve(badDir, n));
   writeFileSync(
     resolve(badDir, '006-role-harness-dynamic.sql'),
@@ -164,7 +165,7 @@ it('DB-04:升级幂等——v7 库重复打开不再迁移且索引持续生效'
   const first = openApplicationStore(dir, FULL);
   first.close();
   const second = openApplicationStore(dir, FULL);
-  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 11 });
+  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 12 });
   expect(
     second
       .prepare("select name from sqlite_master where name='one_current_binding_per_role'")
@@ -182,7 +183,7 @@ it('DB-05:011 回填 WorkSession metadata/activation 且 immutable reference 受
   db.close();
   const { openApplicationStore } = await import(pathToFileURL(resolve('packages/storage/application-store.ts')).href);
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 11 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 12 });
   expect(up.prepare('select harness,driver_id,workspace_affinity_json from role_sessions where id=\'rs1\'').get()).toMatchObject({
     harness: 'pi', driver_id: 'pi', workspace_affinity_json: '{"workspace_id":"w1"}',
   });
@@ -205,7 +206,7 @@ it('DB-06:011 迁移失败时保持 v10 版本和 V1.0 数据', async () => {
   const badDir = resolve(dir, 'mig-bad');
   mkdirSync(badDir, { recursive: true });
   const { copyFileSync, writeFileSync } = await import('node:fs');
-  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql'])
+  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql', '012-role-context-index.sql'])
     copyFileSync(resolve(MIGRATIONS_DIR, n), resolve(badDir, n));
   writeFileSync(resolve(badDir, '011-work-session-continuity.sql'), readFileSync(resolve(MIGRATIONS_DIR, '011-work-session-continuity.sql'), 'utf8') + "\ninsert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,created_at_ms,activated_at_ms) values('ghost_activation','ghost','rs1','b1',1,99,'ACTIVE',1,1);\n");
   const { openApplicationStore } = await import(pathToFileURL(resolve('packages/storage/application-store.ts')).href);
@@ -213,6 +214,50 @@ it('DB-06:011 迁移失败时保持 v10 版本和 V1.0 数据', async () => {
   const check = new Database(resolve(dir, 'router.db'));
   expect(check.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 10 });
   expect(check.prepare('select count(*) c from tasks').get()).toEqual({ c: 1 });
+  check.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+it('DB-07:012 建立 Role Context head/state/receipt，并保持 entry append-only', async () => {
+  mkdirSync('.local/w11-tests', { recursive: true });
+  const dir = mkdtempSync(resolve('.local/w11-tests', 'db07-'));
+  const db = buildUpTo(dir, 11);
+  seedRealData(db);
+  db.close();
+  const { openApplicationStore } = await import(pathToFileURL(resolve('packages/storage/application-store.ts')).href);
+  const up = openApplicationStore(dir, FULL);
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 12 });
+  expect(up.prepare('select * from role_context_heads where role_id=\'r1\'').get()).toMatchObject({ role_id: 'r1', head_seq: 0 });
+  expect(up.prepare('select role_session_id,synced_through_seq,fidelity from role_session_context_state where role_session_id=\'rs1\'').get()).toMatchObject({ role_session_id: 'rs1', synced_through_seq: 0, fidelity: 'UNKNOWN' });
+  up.prepare('insert into role_context_entries(role_id,context_seq,source_work_session_id,source_kind,source_id,portable_kind,content_hash,content_json,metadata_json,created_at_ms) values(?,?,?,?,?,?,?,?,?,?)').run('r1', 1, 'rs1', 'conversation', 'ci1', 'ASSISTANT_MESSAGE', 'hash-1', '{"text":"visible"}', '{}', 1);
+  up.prepare('update role_context_heads set head_seq=1,updated_at_ms=2 where role_id=\'r1\'').run();
+  expect(() => up.prepare('update role_context_entries set content_json=\'{"text":"changed"}\' where role_id=\'r1\' and context_seq=1').run()).toThrow('ROLE_CONTEXT_ENTRY_APPEND_ONLY');
+  expect(() => up.prepare('delete from role_context_entries where role_id=\'r1\' and context_seq=1').run()).toThrow('ROLE_CONTEXT_ENTRY_APPEND_ONLY');
+  expect(() => up.prepare('update role_context_heads set head_seq=0,updated_at_ms=3 where role_id=\'r1\'').run()).toThrow('ROLE_CONTEXT_HEAD_NOT_MONOTONIC');
+  up.prepare('insert into role_context_sync_receipts(operation_id,role_id,target_work_session_id,from_seq,through_seq,payload_hash,stable_marker,state,created_at_ms) values(?,?,?,?,?,?,?,?,?)').run('op-1', 'r1', 'rs1', 0, 1, 'hash-1', 'AGENTROUTER_CONTEXT_SYNC:op-1:hash-1', 'PREPARED', 1);
+  expect(up.prepare('select state,stable_marker from role_context_sync_receipts where operation_id=\'op-1\'').get()).toMatchObject({ state: 'PREPARED', stable_marker: 'AGENTROUTER_CONTEXT_SYNC:op-1:hash-1' });
+  up.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+it('DB-08:012 迁移失败时保持 v11 版本、旧任务和无 Context 表', async () => {
+  mkdirSync('.local/w11-tests', { recursive: true });
+  const dir = mkdtempSync(resolve('.local/w11-tests', 'db08-'));
+  const db = buildUpTo(dir, 11);
+  seedRealData(db);
+  db.close();
+  const badDir = resolve(dir, 'mig-bad');
+  mkdirSync(badDir, { recursive: true });
+  const { copyFileSync, writeFileSync } = await import('node:fs');
+  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql', '012-role-context-index.sql'])
+    copyFileSync(resolve(MIGRATIONS_DIR, n), resolve(badDir, n));
+  writeFileSync(resolve(badDir, '012-role-context-index.sql'), readFileSync(resolve(MIGRATIONS_DIR, '012-role-context-index.sql'), 'utf8') + "\ninsert into role_context_entries(role_id,context_seq,source_kind,source_id,portable_kind,content_hash,content_json,metadata_json,created_at_ms) values('ghost',1,'test','bad','NOTICE','bad','{}','{}',1);\n");
+  const { openApplicationStore } = await import(pathToFileURL(resolve('packages/storage/application-store.ts')).href);
+  expect(() => openApplicationStore(dir, pathToFileURL(badDir + sep))).toThrow(/FOREIGN KEY|foreign key/);
+  const check = new Database(resolve(dir, 'router.db'));
+  expect(check.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 11 });
+  expect(check.prepare('select count(*) c from tasks').get()).toEqual({ c: 1 });
+  expect(check.prepare("select name from sqlite_master where name='role_context_heads'").get()).toBeUndefined();
   check.close();
   rmSync(dir, { recursive: true, force: true });
 });
