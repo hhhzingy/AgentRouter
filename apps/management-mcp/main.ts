@@ -4,6 +4,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts';
 import { managementInputSchema } from '../../packages/management-gateway/schema.ts';
 import { ManagementGateway } from '../../packages/management-gateway/index.ts';
+import { roleSessionCommandProperties, validateRoleSessionCommand } from '../../packages/management-gateway/role-session-command.ts';
 const data = process.argv[2],
   mode = process.argv[3] ?? 'observer',
   clientId = process.argv[4] ?? 'mcp_management_codex';
@@ -111,7 +112,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
-  ],
+  ].map((tool) => ['router_role_session_create', 'router_role_session_switch'].includes(tool.name) ? {
+    ...tool,
+    description: tool.description + ' 保存 request_key、expected_revision 与 preflight_hash；响应丢失时原样重试整个命令。',
+    inputSchema: {
+      ...tool.inputSchema,
+      required: ['params', 'request_key', 'expected_revision', 'preflight_hash'],
+      properties: { ...tool.inputSchema.properties, ...roleSessionCommandProperties },
+    },
+  } : tool),
 }));
 server.setRequestHandler(CallToolRequestSchema, async (r) => {
   try {
@@ -146,9 +155,9 @@ server.setRequestHandler(CallToolRequestSchema, async (r) => {
       else if (r.params.name === 'router_role_session_history')
         result = await gateway.roleSessionHistory(String(q.role_id ?? ''), String(q.session_id ?? ''), q.limit ? Number(q.limit) : undefined);
       else if (r.params.name === 'router_role_session_create')
-        result = await gateway.roleSessionCreate(String(q.role_id ?? ''), String(q.name ?? ''), q.target_harness ? String(q.target_harness) : undefined);
+        result = await gateway.roleSessionCreate(String(q.role_id ?? ''), String(q.name ?? ''), q.target_harness ? String(q.target_harness) : undefined, validateRoleSessionCommand(a));
       else if (r.params.name === 'router_role_session_switch')
-        result = await gateway.roleSessionSwitch(String(q.role_id ?? ''), String(q.session_id ?? ''));
+        result = await gateway.roleSessionSwitch(String(q.role_id ?? ''), String(q.session_id ?? ''), validateRoleSessionCommand(a));
       else throw Error('TOOL_UNAVAILABLE');
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
     }

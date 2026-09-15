@@ -1,5 +1,6 @@
 import { validateManagementInput } from './schema.ts';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
+import { validateRoleSessionCommand, type RoleSessionCommand } from './role-session-command.ts';
 import {
   methodMetadata,
   validateDefinition,
@@ -217,7 +218,7 @@ export class ManagementGateway {
     );
   }
   /** RoleSession 连续性扩展：读取经已认证连接转发；create/switch 串行执行并要求控制租约。 */
-  private roleSessionCall(method: string, params: Record<string, unknown>, mutation: boolean): Promise<unknown> {
+  private roleSessionCall(method: string, params: Record<string, unknown>, mutation: boolean, command?: RoleSessionCommand): Promise<unknown> {
     const action = async () => {
       const s = this.get();
       const lease = mutation ? this.lease : undefined;
@@ -228,27 +229,15 @@ export class ManagementGateway {
         options?: ManagementRequestOptions,
       ) => Promise<any>;
       if (!mutation) return request(method, params);
-      const snapshot = (await request('system.snapshot', {})) as { revision: number };
-      const preflightParams = {
-        role_id: params.role_id,
-        ...(typeof params.session_id === 'string'
-          ? { session_id: params.session_id }
-          : typeof params.target_harness === 'string'
-            ? { target_harness: params.target_harness }
-            : {}),
-      };
-      const preflight = (await request('roleSession.preflight', preflightParams)) as {
-        preflight_hash?: unknown;
-      };
-      if (typeof preflight.preflight_hash !== 'string') throw Error('PREFLIGHT_REQUIRED');
-      const requestKey = 'mcp_rs_' + randomUUID();
+      const metadata = validateRoleSessionCommand(command);
+      const requestKey = metadata.request_key;
       const operationId = 'mcp_' + createHash('sha256').update(requestKey).digest('hex');
       return request(method, params, {
         leaseId: lease!,
         requestKey,
         operationId,
-        expectedRevision: Number(snapshot.revision),
-        preflightHash: preflight.preflight_hash,
+        expectedRevision: metadata.expected_revision,
+        preflightHash: metadata.preflight_hash,
       });
     };
     if (!mutation) return action();
@@ -265,11 +254,11 @@ export class ManagementGateway {
   roleSessionHistory(roleId: string, sessionId: string, limit?: number) {
     return this.roleSessionCall('roleSession.history', { role_id: roleId, session_id: sessionId, ...(limit ? { limit } : {}) }, false);
   }
-  roleSessionCreate(roleId: string, name: string, targetHarness?: string) {
-    return this.roleSessionCall('roleSession.create', { role_id: roleId, name, ...(targetHarness ? { target_harness: targetHarness } : {}) }, true);
+  roleSessionCreate(roleId: string, name: string, targetHarness?: string, command?: RoleSessionCommand) {
+    return this.roleSessionCall('roleSession.create', { role_id: roleId, name, ...(targetHarness ? { target_harness: targetHarness } : {}) }, true, command);
   }
-  roleSessionSwitch(roleId: string, sessionId: string) {
-    return this.roleSessionCall('roleSession.switch', { role_id: roleId, session_id: sessionId }, true);
+  roleSessionSwitch(roleId: string, sessionId: string, command?: RoleSessionCommand) {
+    return this.roleSessionCall('roleSession.switch', { role_id: roleId, session_id: sessionId }, true, command);
   }
   async externalApiCall(input: { params: Record<string, unknown> }): Promise<unknown> {
     const action = async () => {
