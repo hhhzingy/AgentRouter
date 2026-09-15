@@ -14,7 +14,12 @@ it.skipIf(process.env.AGENTROUTER_V11_ZCODE_ISOLATED_PROBE !== '1').each(['sessi
   const root = mkdtempSync(resolve('.local/zcode-isolated-probes/list-'));
   const home = join(root, 'home'), workspace = join(root, 'workspace');
   mkdirSync(home); mkdirSync(workspace); mkdirSync(join(workspace, '.git'));
-  prepareManagedZcodeProfile(home);
+  // create 需非秘密 model/provider 配置(实测:缺 model 键即 -32603 Model config is missing)。
+  // 无 apiKey、不发 prompt:create 仅物化 runtime,不需认证。
+  prepareManagedZcodeProfile(home, {
+    main: 'zai/glm-4.6',
+    provider: { id: 'zai', kind: 'openai-compatible', baseURL: 'https://api.z.ai/api/paas/v4', name: 'Z.AI' },
+  });
   const child = spawn(process.execPath, [runtime, 'app-server'], { cwd: workspace, windowsHide: true,
     stdio: ['pipe', 'pipe', 'pipe'], env: {
       SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR,

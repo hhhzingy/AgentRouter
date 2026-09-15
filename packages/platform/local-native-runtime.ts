@@ -18,7 +18,7 @@ import { ApprovedProvider, deepSeekPolicy } from '../security/approved-provider.
 import { createPiProviderBroker } from './pi-provider-broker.ts';
 import { prepareManagedKimiProfile, approveManagedKimiRoute } from './kimi-managed-profile.ts';
 import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
-import { prepareManagedZcodeProfile } from './zcode-managed-profile.ts';
+import { prepareManagedZcodeProfile, zcodeApiKeyPattern, type ZcodeModelProviderConfig } from './zcode-managed-profile.ts';
 import { DeepSeekContextCompressionBackend, type DeepSeekCompressionConfig } from '../core-service/deepseek-context-compression.ts';
 
 interface Config {
@@ -26,6 +26,10 @@ interface Config {
   dshHome?: string;
   dshBin?: string;
   zcodeCli?: string;
+  /** 非秘密 ZCode model/provider allowlist 设置(owner 配置,绝不经 MCP/model/renderer 传入)。 */
+  zcodeProvider?: ZcodeModelProviderConfig;
+  /** owner 授权的 ZCode API key 文件;存在即注入 env 认证(apiKey 模式)。缺失时由官方 oauth DUT 登录。 */
+  zcodeCredentialFile?: string;
   isolation: 'LIMITED_ISOLATION';
   managedRoot: string;
   workspaceRoot: string;
@@ -156,12 +160,22 @@ export async function installLocalNativeRuntime(
         if (!c.zcodeCli || !isAbsolute(c.zcodeCli)) throw Error('ZCODE_RUNTIME_CONFIG_INVALID');
         if (!c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256)
           throw Error('ZCODE_ROLE_BRIDGE_INVALID');
-        // 受管隔离:沙箱HOME+受管env;真实会话创建需已配置凭据的实例(实验级,不宣称执行闭环)。
-        // Windows 宿主强制 HOME/USERPROFILE=sessionHome；配置必须写到同一个根。
-        const { home: zhome } = prepareManagedZcodeProfile(home);
+        if (!c.zcodeProvider) throw Error('ZCODE_MODEL_CONFIG_REQUIRED');
+        // 受管隔离:沙箱HOME+受管env;非秘密 model/provider 由 owner 配置写入受管 config.json。
+        // Windows 宿主强制 HOME/USERPROFILE=sessionHome;配置必须写到同一个根。
+        const { home: zhome } = prepareManagedZcodeProfile(home, c.zcodeProvider);
+        // apiKey 模式:owner 授权文件仅在此读取,注入 env 后不落日志/配置;缺失则依赖官方 oauth DUT 登录。
+        let zcodeKey: string | undefined;
+        if (c.zcodeCredentialFile) {
+          if (!isAbsolute(c.zcodeCredentialFile)) throw Error('ZCODE_CREDENTIAL_PATH_INVALID');
+          const text = existsSync(c.zcodeCredentialFile) ? readFileSync(c.zcodeCredentialFile, 'utf8') : '';
+          const candidate = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? '';
+          if (candidate && !zcodeApiKeyPattern.test(candidate)) throw Error('ZCODE_CREDENTIAL_FORMAT_UNRECOGNIZED');
+          zcodeKey = candidate || undefined;
+        }
         const token = bridge.issue(input.handleTool);
         return {
-          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1'},
+          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1',...(zcodeKey?{ZCODE_API_KEY:zcodeKey}:{})},
           revoke:()=>bridge.revoke(token),
           mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
           session,
