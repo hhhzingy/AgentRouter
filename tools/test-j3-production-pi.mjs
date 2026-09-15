@@ -13,10 +13,11 @@ const kimi = process.argv.includes('--kimi');
 const codex = process.argv.includes('--codex');
 if(kimi&&codex)throw Error('ONE_HARNESS_PER_TEST');
 const dsh = process.argv.includes('--dsh');
+const bailian = process.argv.includes('--bailian'); // pi→百炼(DashScope MaaS)绑定
 const harnessLabel=codex?'Codex':kimi?'Kimi':dsh?'DeepSeek Harness':'pi';
 const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':'pi';
-const providerId=codex?'agentrouter-codex':kimi?'agentrouter-kimi':'agentrouter-deepseek';
-const modelId=codex?'gpt-5.6-luna':kimi?'kimi-code/kimi-for-coding':'deepseek-v4-flash';
+const providerId=codex?'agentrouter-codex':kimi?'agentrouter-kimi':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
+const modelId=codex?'gpt-5.6-luna':kimi?'kimi-code/kimi-for-coding':bailian?'qwen3.8-flash':'deepseek-v4-flash';
 const effort=codex?'low':kimi?'on':'off';
 const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
 const dshBin='C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js';
@@ -54,7 +55,8 @@ writeFileSync(
     piEntrySha256: sha(entry),
     piExtension: extension,
     piExtensionSha256: sha(extension),
-    credentialFile: 'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
+    credentialFile: bailian?'E:/AgentRouter/账号信息/通用API/百炼.txt':'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
+    ...(bailian?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
     kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json',
     codexApprovedIdentityFile:resolve('.local/j3-codex/dut-fj/approved-identity.json'),
     roleBridge:resolve('.local/w11-core/role-bridge.mjs'),roleBridgeSha256:sha(resolve('.local/w11-core/role-bridge.mjs')),

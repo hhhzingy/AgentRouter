@@ -5,13 +5,22 @@ import { request } from 'node:https';
 const file = process.argv[2];
 if (!file) throw Error('CREDENTIAL_PATH_REQUIRED');
 const text = readFileSync(file, 'utf8');
-const keys = [...new Set(text.match(/sk-[A-Za-z0-9_-]{10,}/g) ?? [])];
-const origins = [...new Set((text.match(/https?:\/\/[^\s"']+/g) ?? []).map(s => { try { return new URL(s).origin; } catch { return null; } }).filter(Boolean))];
-if (keys.length !== 1) { console.log(JSON.stringify({ status: 'BLOCKED_PROVIDER_BINDING', reason: 'KEY_CARDINALITY', keyCount: keys.length })); process.exit(0); }
+// 用户澄清的标签格式: base_url (OpenAI) / <url> / api_key / <key> / model / <model>
+const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+const valueAfter = (label) => {
+  const i = lines.findIndex(l => l.toLowerCase().startsWith(label.toLowerCase()));
+  return i >= 0 && i + 1 < lines.length ? lines[i + 1] : undefined;
+};
+const origins = [...new Set(lines.filter(l => /^https?:\/\//.test(l)).map(s => { try { return new URL(s).origin + new URL(s).pathname.replace(/\/$/, ''); } catch { return null; } }).filter(Boolean))];
+// 兼容 OpenAI 的完整 base 已含 /compatible-mode/v1;仍尝试补齐后缀以防裸主机
+const keyCandidate = valueAfter('api_key');
+const keys = keyCandidate && !/\s/.test(keyCandidate) && keyCandidate.length >= 8 && keyCandidate.length <= 512 ? [keyCandidate] : [];
+if (keys.length !== 1) { console.log(JSON.stringify({ status: 'BLOCKED_PROVIDER_BINDING', reason: 'KEY_UNREADABLE', hasHttp: origins.length > 0 })); process.exit(0); }
 if (origins.length < 1) { console.log(JSON.stringify({ status: 'BLOCKED_PROVIDER_BINDING', reason: 'ENDPOINT_MISSING' })); process.exit(0); }
+const labeledModel = valueAfter('model');
 const origin = new URL(origins[0]);
-// 兼容模式:优先原 origin;若标准 dashscope 用 /compatible-mode/v1,专有 MaaS 工作空间常直接挂 /v1 或 /compatible-mode/v1。
-const bases = [origin.origin + '/compatible-mode/v1', origin.origin + '/v1', origin.origin];
+// 优先用户标注的 base(含 /compatible-mode/v1);再补标准变体
+const bases = [origins[0], ...(origins[0].endsWith('/v1') ? [] : [origins[0] + '/compatible-mode/v1', origins[0] + '/v1'])];
 function call(baseUrl, body) {
   return new Promise((resolve) => {
     const u = new URL(baseUrl + '/chat/completions');
@@ -39,10 +48,11 @@ for (const base of bases) {
   out.triedBases.push({ base, http: mm.http, modelCount: mm.ids.length });
   if (mm.http === 200 && mm.ids.length) { chosen = base; modelIds = mm.ids; break; }
 }
-if (!chosen) { out.status = 'BLOCKED_PROVIDER_BINDING'; out.reason = 'NO_MODELS_ENDPOINT_200'; console.log(JSON.stringify(out)); process.exit(0); }
+if (!chosen) { out.status = 'BLOCKED_PROVIDER_BINDING'; out.reason = 'NO_MODELS_ENDPOINT_200'; out.note = 'models 非200不必然阻塞:部分MaaS不开放列模型,改用标注模型直探chat'; chosen = origins[0]; }
 out.apiType = 'openai-compatible';
-// 选一个模型:优先 qwen*;否则首个
-const model = modelIds.find(m => /qwen.*(max|plus|turbo)/i.test(m)) || modelIds.find(m => /qwen/i.test(m)) || modelIds[0];
+// 模型:优先用户标注(labeledModel),其次 qwen 系,再次首个
+const model = (labeledModel && (modelIds.includes(labeledModel) || modelIds.length === 0) ? labeledModel
+  : modelIds.find(m => /qwen.*(max|plus|turbo)/i.test(m)) || modelIds.find(m => /qwen/i.test(m)) || modelIds[0]);
 out.model = model; out.modelCount = modelIds.length; out.modelIdsSample = modelIds.slice(0, 8);
 // 小 chat(极小 max_tokens)
 const c = await call(chosen, { model, messages: [{ role: 'user', content: 'reply with the single word: ok' }], max_tokens: 8, temperature: 0 });
@@ -51,6 +61,6 @@ else out.chat = 'HTTP_' + (c.http || c.err || 'ERR');
 // 受控 tool-calling 往返:一个必调工具
 const tc = await call(chosen, { model, messages: [{ role: 'user', content: 'Use the get_time tool now.' }], max_tokens: 64, temperature: 0,
   tools: [{ type: 'function', function: { name: 'get_time', description: 'Return current time', parameters: { type: 'object', properties: {}, required: [] } } }], tool_choice: 'auto' });
-let toolCalled = false; try { const j = JSON.parse(tc.body); toolCalled = !!j.choices?.[0]?.message?.tool_calls?.length; out.toolCalling = toolCalling ? 'PASS' : 'NO_TOOLCALL'; } catch { out.toolCalling = 'PARSE_OR_HTTP_' + (tc.http || 'ERR'); }
+let toolCalled = false; try { const j = JSON.parse(tc.body); toolCalled = !!j.choices?.[0]?.message?.tool_calls?.length; out.toolCalling = toolCalled ? 'PASS' : 'NO_TOOLCALL'; } catch { out.toolCalling = 'PARSE_OR_HTTP_' + (tc.http || 'ERR'); }
 out.status = out.chat === 'PASS' ? (out.toolCalling === 'PASS' ? 'PASS' : 'PARTIAL_NO_TOOLCALL') : 'BLOCKED_PROVIDER_BINDING';
 console.log(JSON.stringify(out));

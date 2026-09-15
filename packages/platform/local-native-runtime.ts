@@ -15,6 +15,7 @@ import {
 import { WindowsNativeProcessHost } from './windows-native-process-host.ts';
 import { createNativeRoleBridge } from '../role-bridge/native-server.ts';
 import { ApprovedProvider, deepSeekPolicy } from '../security/approved-provider.ts';
+import { parseLabeledCredential } from '../security/labeled-credential.ts';
 import { createPiProviderBroker } from './pi-provider-broker.ts';
 import { prepareManagedKimiProfile, approveManagedKimiRoute } from './kimi-managed-profile.ts';
 import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
@@ -41,6 +42,9 @@ interface Config {
   piExtensionSha256: string;
   credentialFile: string;
   kimiCredentialSource?: string;
+  /** pi→百炼绑定(owner 配置):指定凭据文件(标签格式)与 provider 身份;缺省保持 agentrouter-deepseek。 */
+  piProvider?: { providerId: string; modelId: string; contextWindowTokens: number; maxOutputTokens: number };
+  piCredentialFile?: string;
   codexApprovedIdentityFile?: string;
   roleBridge?: string;
   roleBridgeSha256?: string;
@@ -81,8 +85,13 @@ export async function installLocalNativeRuntime(
     if (!/^[a-f0-9]{64}$/.test(hash) || sha(file) !== hash)
       throw Error('NATIVE_RUNTIME_HASH_MISMATCH');
   for (const p of c.profiles) {
+    const piOk =
+      (p.harness === 'pi' &&
+        p.providerId === (c.piProvider?.providerId ?? 'agentrouter-deepseek') &&
+        p.modelId === (c.piProvider ? c.piProvider.modelId : 'deepseek-v4-flash') &&
+        p.effort === 'off');
     if (
-      !((p.harness === 'pi' && p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash' && p.effort === 'off') || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (p.harness==='deepseek_harness' && p.providerId==='agentrouter-deepseek' && p.modelId==='deepseek-v4-flash' && p.effort==='off')) ||
+      !((piOk) || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (p.harness==='deepseek_harness' && p.providerId==='agentrouter-deepseek' && p.modelId==='deepseek-v4-flash' && p.effort==='off')) ||
       !isAbsolute(p.sessionHome) ||
       !isAbsolute(p.executable) ||
       sha(p.executable) !== p.executableSha256
@@ -216,14 +225,30 @@ export async function installLocalNativeRuntime(
         };
       }
       // Read the explicitly authorized source only inside the trusted provider, never into child env.
-      const provider = new ApprovedProvider({ ...deepSeekPolicy, timeoutMs: 60000 }, async () => {
-        const keys = [
-          ...new Set(readFileSync(c.credentialFile, 'utf8').match(/sk-[A-Za-z0-9_-]{16,}/g) ?? []),
-        ];
-        if (keys.length !== 1) throw Error('CREDENTIAL_FORMAT_UNRECOGNIZED');
-        return keys[0];
-      });
-      const broker = await createPiProviderBroker(provider);
+      // 百炼绑定:标签格式凭据 + compatible-mode base;缺省保持 agentrouter-deepseek 原路径。
+      const piProviderId = c.piProvider?.providerId ?? 'agentrouter-deepseek';
+      const piModelId = c.piProvider?.modelId ?? 'deepseek-v4-flash';
+      const piContextWindow = c.piProvider?.contextWindowTokens ?? 65536;
+      const piMaxTokens = c.piProvider?.maxOutputTokens ?? 1024;
+      let provider: ApprovedProvider;
+      if (c.piProvider && c.piCredentialFile) {
+        if (!isAbsolute(c.piCredentialFile)) throw Error('PI_CREDENTIAL_PATH_INVALID');
+        const cred = parseLabeledCredential(readFileSync(c.piCredentialFile, 'utf8'));
+        const u = new URL(cred.baseUrl);
+        provider = new ApprovedProvider(
+          { origin: u.origin, path: u.pathname + '/chat/completions', models: [piModelId], timeoutMs: 60000 },
+          async () => cred.apiKey,
+        );
+      } else {
+        provider = new ApprovedProvider({ ...deepSeekPolicy, timeoutMs: 60000 }, async () => {
+          const keys = [
+            ...new Set(readFileSync(c.credentialFile, 'utf8').match(/sk-[A-Za-z0-9_-]{16,}/g) ?? []),
+          ];
+          if (keys.length !== 1) throw Error('CREDENTIAL_FORMAT_UNRECOGNIZED');
+          return keys[0];
+        });
+      }
+      const broker = await createPiProviderBroker(provider, piModelId, piMaxTokens);
       const token = bridge.issue(input.handleTool);
       const { capability } = broker; // Generated loopback capability, never the upstream credential.
       const modelPath = join(home, '.pi', 'models.json');
@@ -232,19 +257,19 @@ export async function installLocalNativeRuntime(
           modelPath,
           JSON.stringify({
             providers: {
-              'agentrouter-deepseek': {
+              [piProviderId]: {
                 baseUrl: broker.baseUrl,
                 api: 'openai-completions',
                 apiKey: capability,
                 compat: { supportsDeveloperRole: false, supportsReasoningEffort: false },
                 models: [
                   {
-                    id: 'deepseek-v4-flash',
-                    name: 'DeepSeek',
+                    id: piModelId,
+                    name: piModelId,
                     reasoning: false,
                     input: ['text'],
-                    contextWindow: 65536,
-                    maxTokens: 1024,
+                    contextWindow: piContextWindow,
+                    maxTokens: piMaxTokens,
                   },
                 ],
               },

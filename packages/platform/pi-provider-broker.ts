@@ -20,7 +20,7 @@ function canonical(value: unknown): string {
 }
 
 /** Trusted parent owns the provider; the child receives only a revocable loopback capability. */
-export async function createPiProviderBroker(provider: ApprovedProvider) {
+export async function createPiProviderBroker(provider: ApprovedProvider, model = 'deepseek-v4-flash', maxTokensCap = 1024) {
   const capability = randomBytes(32).toString('hex');
   const sockets = new Set<Socket>();
   const pending = new Set<Promise<unknown>>();
@@ -81,7 +81,7 @@ export async function createPiProviderBroker(provider: ApprovedProvider) {
       }
       const input = body as Record<string, unknown>;
       if (
-        input.model !== 'deepseek-v4-flash' ||
+        input.model !== model ||
         input.stream !== true ||
         !Array.isArray(input.messages) ||
         input.messages.length === 0 ||
@@ -97,11 +97,11 @@ export async function createPiProviderBroker(provider: ApprovedProvider) {
         return;
       }
       const request: Record<string, unknown> = {
-        model: 'deepseek-v4-flash',
+        model,
         messages: input.messages,
         stream: true,
         thinking: { type: 'disabled' },
-        max_tokens: Math.min(Number(input.max_tokens ?? 1024), 1024),
+        max_tokens: Math.min(Number(input.max_tokens ?? 1024), maxTokensCap),
       };
       for (const key of ['tools', 'tool_choice', 'parallel_tool_calls', 'temperature']) {
         if (input[key] !== undefined) request[key] = input[key];
