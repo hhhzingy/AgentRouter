@@ -231,7 +231,8 @@ export const zcodeDriver: HarnessDriver = {
     return [zcodeCliRef.path, 'app-server'];
   },
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
-    const lifecycle = new ZcodeLifecycle({ write, onEvent, onDisconnect: () => {}, timeoutMs: promptTimeoutMs });
+    const lifecycle = new ZcodeLifecycle({ write, onEvent,
+      onDisconnect: reason => onEvent({ type: 'Disconnected', reason }), timeoutMs: promptTimeoutMs });
     return {
       get phase() {
         return lifecycle.phase;

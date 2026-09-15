@@ -21,7 +21,7 @@ it('ZcodeLifecycle:session/create往返+事件分发+响应按id关联+断连拒
   const opened = await p;
   expect(opened.id).toBe('sess_1');
   driver.accept(Buffer.from(JSON.stringify({ method: 'session/event', params: { kind: 'message' } }) + '\n'));
-  expect(events).toHaveLength(1);
+  expect(events).toHaveLength(0); // 未绑定当前 run/turn 的通知不得进入产品事件。
   const ps = driver.start({ runId: 'r1', text: 'hello' });
   await tick();
   const sendFrame = sent.find((x) => x.method === 'session/send');

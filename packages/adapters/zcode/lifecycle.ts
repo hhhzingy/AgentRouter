@@ -5,7 +5,7 @@ import { NativeRpcError } from '../shared/rpc-peer.ts';
  * 会话创建依赖已登录/已配置的 ZCode 实例(沙箱无凭据时挂起)——执行闭环未认证前不宣称可用。 */
 export interface ZcodeLifecycleOptions {
   write: (bytes: Buffer) => Promise<void>;
-  onEvent: (event: { type: string; payload: unknown }) => void;
+  onEvent: (event: { type: string; payload?: unknown; runId?: string; threadId?: string; turnId?: string; text?: string; outcome?: string }) => void;
   onDisconnect: (reason: string) => void;
   timeoutMs?: number;
 }
@@ -15,13 +15,13 @@ export class ZcodeLifecycle {
   private pending = new Map<string, { resolve: (v: any) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   private notifications = new Map<string, (params: unknown) => void>();
   private sessionId?: string;
+  private active?: { runId: string; turnId?: string; seq: number };
   phase = 'CREATED';
   constructor(private readonly options: ZcodeLifecycleOptions) {}
   /** app-server 无独立 initialize 握手;连接即协议生效。 */
   async initialize(): Promise<void> {
     this.phase = 'INITIALIZE';
-    this.notifications.set('session/event', (params) =>
-      this.options.onEvent({ type: 'session/event', payload: params }));
+    this.notifications.set('session/event', (params) => this.sessionEvent(params));
   }
   async open(input: { workspacePath: string; workspaceKey: string }): Promise<{ id: string }> {
     if (this.closed) throw new NativeRpcError('RPC_CLOSED', 'none-proven');
@@ -43,8 +43,45 @@ export class ZcodeLifecycle {
   }
   async start(input: { runId: string; text: string }): Promise<void> {
     if (!this.sessionId) throw new NativeRpcError('ZCODE_SESSION_REQUIRED', 'none-proven');
+    if (this.active) throw new NativeRpcError('ZCODE_RUN_ACTIVE', 'none-proven');
     this.phase = 'START_PROMPT';
+    this.active = { runId: input.runId, seq: 0 };
     await this.request('session/send', { sessionId: this.sessionId, content: input.text, inputId: input.runId });
+  }
+  private sessionEvent(value: unknown): void {
+    if (!value || typeof value !== 'object' || this.closed || !this.active) return;
+    const e = value as Record<string, any>;
+    const p = e.payload;
+    const active = this.active;
+    if (e.sessionId !== this.sessionId || typeof e.turnId !== 'string' || !e.turnId
+      || !Number.isSafeInteger(e.seq) || e.seq <= active.seq || !p || typeof p !== 'object'
+      || (p.inputId !== undefined && p.inputId !== active.runId)) return;
+    if (e.type === 'turn.started') {
+      if (p.inputId !== active.runId || active.turnId) return;
+      active.turnId = e.turnId;
+      active.seq = e.seq;
+      // 原生开始事件不是持久化 receipt；不附 acceptedPromptHash。
+      this.options.onEvent({ type: 'RunAccepted', runId: active.runId, threadId: this.sessionId, turnId: e.turnId });
+      return;
+    }
+    if (e.turnId !== active.turnId) return;
+    active.seq = e.seq;
+    const identity = { runId: active.runId, threadId: this.sessionId, turnId: e.turnId };
+    if (e.type === 'model.streaming' && p.kind === 'text_delta' && typeof p.delta === 'string')
+      this.options.onEvent({ type: 'TextDelta', ...identity, text: p.delta });
+    if (e.type === 'tool.updated' && typeof p.toolCallId === 'string')
+      this.options.onEvent({ type: 'ToolUpdate', ...identity,
+        payload: { toolCallId: p.toolCallId, kind: p.kind, toolName: p.toolName } });
+    if (e.type === 'permission.requested')
+      this.options.onEvent({ type: 'PermissionRequested', ...identity,
+        payload: { requestId: p.requestId, toolCallId: p.toolCallId, toolName: p.toolName } });
+    const outcome = e.type === 'turn.failed' ? 'failed' : e.type === 'turn.completed'
+      ? p.resultType === 'success' ? 'succeeded' : p.resultType === 'cancelled' ? 'cancelled' : undefined
+      : undefined;
+    if (outcome) {
+      this.active = undefined;
+      this.options.onEvent({ type: 'RunSettled', ...identity, outcome });
+    }
   }
   async cancel(): Promise<void> {
     if (!this.sessionId) return;
