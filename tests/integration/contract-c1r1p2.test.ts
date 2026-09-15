@@ -143,13 +143,17 @@ it('升级连接的快照/事件不破坏 C1R1P1 第二连接(投影裁剪)', as
     const snap = (await s2.request('system.snapshot', {})) as any;
     // 动态 harness 角色对旧协议连接不可见(投影裁剪)
     expect(snap.roles).toHaveLength(0);
+    await s2.request('contract.upgrade' as never, { revision: 'C1R1P2' } as never);
+    const upgraded = await s2.request('system.snapshot', {});
+    expect(upgraded.roles).toHaveLength(1);
+    expect(upgraded.roles[0].harness).toBe('deepseek_harness');
     await t2.close();
   } finally {
     await f.close();
   }
 });
 
-it('contract.upgrade 需要已授权连接;未知 revision 拒绝', async () => {
+it('contract.upgrade 允许 observer 升级读取;未知 revision 拒绝', async () => {
   const f = await fixture();
   try {
     const t = new P1MemoryTransport(f.server, 'human_x');
@@ -160,7 +164,8 @@ it('contract.upgrade 需要已授权连接;未知 revision 拒绝', async () => 
     });
     await expect(
       obs.request('contract.upgrade' as never, { revision: 'C1R1P2' } as never),
-    ).rejects.toMatchObject({ message: 'SCOPE_DENIED' });
+    ).resolves.toMatchObject({ revision: 'C1R1P2' });
+    await t.close();
     await expect(
       f.s.request('contract.upgrade' as never, { revision: 'C9' } as never),
     ).rejects.toMatchObject({ message: 'INVALID_PARAMS' });

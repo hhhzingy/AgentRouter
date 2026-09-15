@@ -544,7 +544,7 @@ export class ApplicationService extends Plans {
       (raw as { method?: unknown }).method === 'contract.upgrade'
     ) {
       if (!c.initialized || !c.authorized) throw new C1R1Error('NOT_INITIALIZED');
-      if (c.mode !== 'controller') throw new C1R1Error('SCOPE_DENIED');
+      // 协议协商仅改变读取投影；observer 的写权限仍由 mutate 单独拒绝。
       const revision = (raw as { params?: { revision?: unknown } }).params?.revision;
       if (revision !== 'C1R1P2') throw new C1R1Error('INVALID_PARAMS');
       c.revision = 'C1R1P2';
