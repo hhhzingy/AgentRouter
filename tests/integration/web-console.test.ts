@@ -5,9 +5,9 @@ import { resolve } from 'node:path';
 import { build } from 'esbuild';
 import { get } from 'node:http';
 
-const httpGet = (url: string) =>
+const httpGet = (url: string, headers: Record<string, string> = {}) =>
   new Promise<{ status: number; body: string }>((res, rej) => {
-    get(url, (r) => {
+    get(url, { headers }, (r) => {
       let b = '';
       r.on('data', (c) => (b += c));
       r.on('end', () => res({ status: r.statusCode ?? 0, body: b }));
@@ -68,6 +68,11 @@ it(
       const snap = JSON.parse(response.body);
       expect(snap.connected).toBe(true);
       expect(snap.updatedAt).toBeGreaterThan(0);
+      expect(typeof snap.dataId).toBe('string');
+      expect(typeof snap.serverInstanceId).toBe('string');
+      expect((await httpGet(address + '/api/snapshot', {host:'evil.test'})).status).toBe(403);
+      expect((await httpGet(address + '/api/snapshot', {origin:'https://evil.test'})).status).toBe(403);
+      expect((await fetch(address + '/api/snapshot', {method:'POST'})).status).toBe(405);
       expect(Array.isArray(snap.projects)).toBe(true);
       const page = (await httpGet(address + '/')).body;
       expect(page).toContain('AgentRouter 控制台');

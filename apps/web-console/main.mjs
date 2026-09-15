@@ -1,12 +1,11 @@
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts';
 import { createSnapshotSource } from './snapshot-source.mjs';
+import { allowReadRequest, privateServeOrigin } from './access-policy.ts';
 // P4 v1 只读控制台:本机 127.0.0.1 HTTP 观察者;TLS/私网暴露由 Tailscale Serve 完成(用户执行)。
 const data = process.argv[2];
 const port = Number(process.argv[3] ?? 8787);
+const serveOrigin = privateServeOrigin(process.env.AGENTROUTER_WEB_SERVE_ORIGIN);
 if (!data) throw Error('WEB_CONSOLE_DATA_REQUIRED');
 const transport = new LocalCoreTransport(data);
 const snapshot = createSnapshotSource(transport);
@@ -15,10 +14,10 @@ const page = `<!doctype html>
 <title>AgentRouter 控制台(只读)</title>
 <style>
  body{font-family:system-ui,sans-serif;margin:0;background:#0f1420;color:#e8ecf4}
- header{padding:12px 16px;background:#161d2e;position:sticky;top:0;display:flex;gap:12px;align-items:baseline}
+ header{padding:12px 16px;background:#161d2e;position:sticky;top:0;display:flex;flex-wrap:wrap;gap:12px;align-items:baseline}
  h1{font-size:16px;margin:0} .host{font-size:12px;color:#8fa0b8}
  main{padding:12px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
- section{background:#161d2e;border-radius:10px;padding:12px} h2{font-size:13px;margin:0 0 8px;color:#9fb3cc}
+ section{background:#161d2e;border-radius:10px;padding:12px;min-width:0;overflow:auto;overflow-wrap:anywhere} h2{font-size:13px;margin:0 0 8px;color:#9fb3cc}
  table{width:100%;border-collapse:collapse;font-size:12px} td,th{padding:4px 6px;text-align:left;border-bottom:1px solid #232c40}
  .pill{font-size:11px;padding:2px 8px;border-radius:99px;background:#233152} .ok{background:#1d3a2a} .warn{background:#4a3a1d}
  footer{padding:8px 16px;font-size:11px;color:#66748c}
@@ -42,7 +41,7 @@ const page = `<!doctype html>
      const s = await response.json();
      if (s.connected !== true || !Number.isFinite(s.updatedAt) || !['projects','roles','tasks','runs'].every(k=>Array.isArray(s[k]))) throw Error('INVALID_SNAPSHOT');
      document.getElementById('health').textContent = 'Core 已连接';
-     document.getElementById('host').textContent = '最近更新 ' + new Date(s.updatedAt).toLocaleTimeString();
+     document.getElementById('host').textContent = '最近更新 ' + new Date(s.updatedAt).toLocaleTimeString() + ' · 数据集 ' + s.dataId + ' · Core ' + s.serverInstanceId;
      rows(document.getElementById('projects'), [{label:'项目',get:p=>p.name},{label:'状态',get:p=>p.status}], s.projects ?? []);
      rows(document.getElementById('roles'), [{label:'角色',get:r=>r.name},{label:'Harness',get:r=>r.harness},{label:'引导',get:r=>r.bootstrapState}], s.roles ?? []);
      rows(document.getElementById('tasks'), [{label:'任务',get:t=>t.summary},{label:'状态',get:t=>t.state}], s.tasks ?? []);
@@ -55,6 +54,12 @@ const page = `<!doctype html>
 const server = createServer(async (req, res) => {
   res.setHeader('cache-control', 'no-store');
   res.setHeader('x-content-type-options', 'nosniff');
+  res.setHeader('referrer-policy', 'no-referrer');
+  res.setHeader('x-frame-options', 'DENY');
+  const bound = server.address();
+  if (!bound || typeof bound === 'string' || !allowReadRequest(req.headers, bound.port, serveOrigin)) {
+    res.writeHead(403).end(); return;
+  }
   if (req.method !== 'GET') { res.writeHead(405, {allow:'GET'}).end(); return; }
   try {
     if (req.url === '/api/snapshot') {
