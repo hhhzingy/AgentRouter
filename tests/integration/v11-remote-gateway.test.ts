@@ -97,6 +97,26 @@ it('REMOTE: 未配对/坏 token 不得连接;坏 Origin 拒绝;PAIR-05 与本地
   } finally { await g.stop(); }
 });
 
+it('Z6 静态控制台:GET / 返回带 CSP 的 HTML;配对响应含 HttpOnly Secure cookie', async () => {
+  const f = env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices, consoleHtml: '<!doctype html><title>AR</title>' });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
+  try {
+    const home = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: '127.0.0.1' } });
+    expect(home.status).toBe(200);
+    expect(home.headers.get('content-type')).toContain('text/html');
+    expect(home.headers.get('content-security-policy')).toContain("script-src 'self' 'unsafe-inline'");
+    const p = f.devices.createPairing({ displayName: 'phone', kind: 'MOBILE', ttlMs: 30000 });
+    const pair = await fetch(`http://127.0.0.1:${port}/pair`, { method: 'POST', body: JSON.stringify({ challenge: p.challenge }), headers: { host: '127.0.0.1' } });
+    const pairHdr = pair.headers.get('set-cookie') ?? '';
+    expect(pairHdr).toMatch(/ar_device=[^;]+/);
+    expect(pairHdr.toLowerCase()).toContain('httponly');
+    expect(pairHdr.toLowerCase()).toContain('secure');
+    expect(pairHdr.toLowerCase()).toContain('samesite=strict');
+  } finally { await gateway.close(); f.db.close(); }
+});
+
 it('PAIR-06 revoke: 撤销后凭据认证失败', async () => {
   const g = await boot();
   try {
