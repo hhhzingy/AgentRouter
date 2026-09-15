@@ -3,7 +3,7 @@ import type { ExecutionBackend, ExecutionExit } from './execution-backend.ts';
 import { completionAllowed } from './execution-backend.ts';
 import type { Dispatch } from '../runtime/core.ts';
 import type { ApplicationService } from './application.ts';
-import { ContextMigrationService } from './context-migration.ts';
+import { ContextMigrationService, type ContextCompressionBackend, type ContextCompressionPolicy } from './context-migration.ts';
 import { blockBeforeLaunch } from './precheck-blocked.ts';
 import { assertNativeContextReceipt } from './native-context-receipt.ts';
 const uid = (p: string) => p + '_' + randomUUID();
@@ -24,6 +24,10 @@ export class ExecutionCoordinator {
   constructor(
     readonly app: ApplicationService,
     readonly backend: ExecutionBackend,
+    private readonly contextCompression?: {
+      compressionBackend: ContextCompressionBackend;
+      compressionPolicy: ContextCompressionPolicy;
+    },
   ) {
     this.contextMigration = new ContextMigrationService(app.db, app.contextStore, app.clock);
     app.onChanged = () => this.kick();
@@ -269,6 +273,7 @@ export class ExecutionCoordinator {
       budget: this.contextBudget(b, mode),
       taskId: dispatch.taskId,
       runId: dispatch.id,
+      ...this.contextCompression,
     });
   }
   private async run(dispatch: Dispatch, b: any, charter: any, scenario: any) {

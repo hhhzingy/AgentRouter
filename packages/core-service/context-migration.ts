@@ -627,7 +627,7 @@ function compressionHash(entries: readonly PortableContextEntry[]): string {
   })));
 }
 
-/** A local deterministic backend used by tests and explicitly opted-in local profiles. */
+/** 仅测试使用的元数据桩；不是生产压缩后端。 */
 export const deterministicPortableCompressionBackend: ContextCompressionBackend = {
   id: 'local.deterministic-portable-summary',
   provider: 'local',
@@ -868,18 +868,23 @@ export class ContextMigrationService {
         throw new ContextMigrationError('CONTEXT_MIGRATION_TOO_LARGE');
       }
       const originalEntries = preflight.sync.entries;
-      const inputTokens = estimateContextTokens(originalEntries);
-      const inputBytes = estimateContextBytes(originalEntries);
+      const transferEntries = preflight.entries;
+      const inputTokens = estimateContextTokens(transferEntries);
+      const inputBytes = estimateContextBytes(transferEntries);
       let result: ContextCompressionResult;
       try {
         result = await backend.compress({
           roleId: preflight.roleId,
-          entries: originalEntries,
+          entries: transferEntries,
           budgetTokens: preflight.budget.portableBudgetTokens!,
           inputTokens,
           inputBytes,
         });
         assertPortableContext(result.summary);
+        const seqs = originalEntries.map(entry => entry.contextSeq);
+        if (!seqs.length || result.coveredFromSeq !== Math.min(...seqs)
+          || result.coveredThroughSeq !== Math.max(...seqs))
+          throw Error('CONTEXT_COMPRESSION_COVERAGE_MISMATCH');
       } catch (error) {
         this.audit(preflight.roleId, {
           status: 'FAILED',
@@ -961,7 +966,6 @@ export class ContextMigrationService {
       });
     }
 
-    this.store.prepare(preflight.sync);
     const envelope: ContextSyncEnvelope = {
       type: 'AGENTROUTER_CONTEXT_SYNC',
       operation_id: preflight.operationId,
@@ -979,6 +983,9 @@ export class ContextMigrationService {
       },
     };
     assertPortableContext(envelope);
+    if (preflight.budget.availableTokens === null || estimateContextTokens(envelope) > preflight.budget.availableTokens)
+      throw new ContextMigrationError('CONTEXT_MIGRATION_TOO_LARGE', 'final-envelope-over-budget');
+    this.store.prepare(preflight.sync);
     return { ...preflight, entries, fidelity, envelope, compression };
   }
 
