@@ -19,4 +19,17 @@
 
 ## 范围
 
+## 第二次：持久计量验证
+
+- tested_source_sha：40c592977da7faba2b429bde0477091b2d914fba；工作树干净，11:29（Asia/Shanghai）。
+- 1/1 通过，无重试。累计两次真实压缩调用均通过；第二次是修复计量持久性后的验证，不覆盖第一次证据。
+- 本地 DB：E:/AgentRouter/.worktrees/v1.1-context-continuity/.local/tests/case-My8nwu/router.db。
+- ContextCompressionProviderAttempt：requestedModel=resolvedModel=deepseek-flash；inputBytes=32594（真正完整请求）；outputBytes=1600；providerInputTokens=8344；providerOutputTokens=514。
+- 本地输入上界=32594，方法 UTF8_BYTE_UPPER_BOUND，与 Provider 实际 usage 分开记录。
+- wire inputHash=dbc06115540f29dca3d8c508e059a224de83770459629bfcf8a67662bf2e72e7。
+- Core 原始 Portable 输入=29656 字节；摘要 hash=68ec6dedf3d876d80c8090590c2a37afe0419a35d33b17941a8d67e2035fde95。
+- 包含 Provider 安全边界的相关离线回归：4 文件、24/24 通过。未跑全仓/打包验收。
+
+## 当前范围
+
 仅小规模压缩 smoke。窗口容量仍依赖官方文档，未做边界探测；1M token 来源、分段、语义覆盖、引用读取、最终 256K 原生目标与 receipt 均未验收。不是整体验收或发布许可。
