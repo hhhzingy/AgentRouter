@@ -18,6 +18,7 @@ import { ApprovedProvider, deepSeekPolicy } from '../security/approved-provider.
 import { createPiProviderBroker } from './pi-provider-broker.ts';
 import { prepareManagedKimiProfile, approveManagedKimiRoute } from './kimi-managed-profile.ts';
 import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
+import { prepareManagedZcodeProfile } from './zcode-managed-profile.ts';
 import { DeepSeekContextCompressionBackend, type DeepSeekCompressionConfig } from '../core-service/deepseek-context-compression.ts';
 
 interface Config {
@@ -156,8 +157,8 @@ export async function installLocalNativeRuntime(
         if (!c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256)
           throw Error('ZCODE_ROLE_BRIDGE_INVALID');
         // 受管隔离:沙箱HOME+受管env;真实会话创建需已配置凭据的实例(实验级,不宣称执行闭环)。
-        const zhome = join(home, 'zcode-home');
-        mkdirSync(zhome, { recursive: true });
+        // Windows 宿主强制 HOME/USERPROFILE=sessionHome；配置必须写到同一个根。
+        const { home: zhome } = prepareManagedZcodeProfile(home);
         const token = bridge.issue(input.handleTool);
         return {
           env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1'},
