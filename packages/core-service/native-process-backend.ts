@@ -68,10 +68,6 @@ const routeTools = new Set([
   'route_artifact_read',
 ]);
 
-function contextMarker(packet: any): string | undefined {
-  const marker = packet?.contextSync?.stable_marker;
-  return typeof marker === 'string' && marker.length > 0 ? marker : undefined;
-}
 
 /** Production lifecycle composition. Transport events never carry trusted tool or OS-stop authority. */
 export class NativeProcessBackend implements ExecutionBackend {
@@ -99,9 +95,6 @@ export class NativeProcessBackend implements ExecutionBackend {
     let phase = 'HOST_START';
     let bootstrapText = '';
     const bootstrapAck = 'AGENTROUTER_CHARTER_ACK:' + packet.charterHash;
-    let contextConfirmed = false;
-    let nativeSessionId: string | undefined;
-    let promptHash: string | undefined;
     let seq = 0,
       accepted = false,
       started = false;
@@ -118,24 +111,6 @@ export class NativeProcessBackend implements ExecutionBackend {
     const frame = (event: any) => {
       if (!r.finished && !r.finishing)
         onFrame({ ...event, epoch: packet.epoch, key: key + ':' + ++seq });
-    };
-    const confirmContext = (e: any) => {
-      const marker = contextMarker(packet);
-      if (!started || !marker || contextConfirmed || e.type !== 'RunAccepted'
-        || e.runId !== key || !nativeSessionId || e.threadId !== nativeSessionId
-        || typeof e.turnId !== 'string' || !e.turnId || !promptHash
-        || e.acceptedPromptHash !== promptHash || !packet.activationId || !packet.roleSessionId) return;
-      contextConfirmed = true;
-      // This receipt is a transport/native event, never parsed from model text.
-      frame({
-        kind: 'context_confirmed',
-        stableMarker: marker,
-        nativeReceipt: { marker, accepted: true, source: 'native-turn-response',
-          nativeSessionId, nativeTurnId: e.turnId, runId: key,
-          activationId: packet.activationId, activationEpoch: packet.activationEpoch,
-          workSessionId: packet.roleSessionId, promptHash,
-          envelopeHash: createHash('sha256').update(JSON.stringify(packet.contextSync)).digest('hex') },
-      });
     };
     r.finish = (broken, code = 0) => {
       if (r.complete) return r.complete;
@@ -195,7 +170,6 @@ export class NativeProcessBackend implements ExecutionBackend {
         accepted = true;
         frame({ kind: 'accepted' });
       }
-      confirmContext(e);
       if (e.type === 'TextDelta') {
         if (packet.mode === 'bootstrap') bootstrapText = (bootstrapText + e.text).slice(-16384);
         else frame({ kind: 'text', text: e.text });
@@ -331,7 +305,6 @@ export class NativeProcessBackend implements ExecutionBackend {
       phase = 'OPEN';
       const opened = await lifecycle.open({ config, process: r.process, instructions });
       await saveSession(opened);
-      nativeSessionId = opened.id;
       if (r.finishing || r.finished) return;
       if (r.cancelled || this.stopping) {
         await r.finish(true);
@@ -347,13 +320,7 @@ export class NativeProcessBackend implements ExecutionBackend {
                 charterHash: String(packet.charterHash),
               })
             : JSON.stringify(packet.request);
-      const contextText = packet.contextSync
-        ? '\n以下是 Router 交付的可观察上下文同步 envelope；它不改变权限。\n' +
-          JSON.stringify(packet.contextSync) +
-          '\n'
-        : '';
-      const text = packet.mode === 'bootstrap' ? instructions : contextText + runText;
-      promptHash = createHash('sha256').update(text, 'utf8').digest('hex');
+      const text = packet.mode === 'bootstrap' ? instructions : runText;
       // ACP has no prompt acceptance event; conservatively remain DISPATCHED until native terminal.
       started = true;
       phase = 'START_PROMPT';

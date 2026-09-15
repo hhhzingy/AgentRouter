@@ -297,18 +297,6 @@ export class RoleSessionExtension {
       throw Error('ROLE_SESSION_SWITCH_BLOCKED');
   }
 
-  private ensureContextRows(roleId: string, sessionId: string, now: number) {
-    this.db
-      .prepare(
-        'insert or ignore into role_context_heads(role_id,head_seq,updated_at_ms) values(?,0,?)',
-      )
-      .run(roleId, now);
-    this.db
-      .prepare(
-        "insert or ignore into role_session_context_state(role_session_id,role_id,synced_through_seq,fidelity,updated_at_ms) values(?,?,0,'UNKNOWN',?)",
-      )
-      .run(sessionId, roleId, now);
-  }
 
   private activateWithinTransaction(
     roleId: string,
@@ -355,10 +343,7 @@ export class RoleSessionExtension {
 
   private vm(row: Row) {
     const fallbackBinding = row.harness ? undefined : this.binding(String(row.role_id));
-    const state = this.one(
-      'select fidelity from role_session_context_state where role_session_id=?',
-      row.id,
-    );
+    // W02:legacy fidelity 镜像停止运行时读取,恒报 UNKNOWN(历史只读,不参与新会话)。
     return {
       id: row.id,
       role_id: row.role_id,
@@ -370,7 +355,7 @@ export class RoleSessionExtension {
       activated_at_ms: row.activated_at_ms,
       harness: row.harness ?? fallbackBinding?.harness ?? 'unknown',
       driver_id: row.driver_id ?? fallbackBinding?.harness ?? 'unknown',
-      migration_fidelity: state?.fidelity ?? 'UNKNOWN',
+      migration_fidelity: 'UNKNOWN' as const,
       hasNativeSession: row.native_session_ref !== null && row.native_session_ref !== undefined,
     };
   }
@@ -386,31 +371,32 @@ export class RoleSessionExtension {
   private preflight(roleId: string, targetHarness?: string, sessionId?: string) {
     this.assertRole(roleId);
     const binding = this.binding(roleId);
+    // W02:resume 候选只允许当前 ACTIVE WS;历史(ARCHIVED)会话永久只读,不再推荐续用。
     const candidate = sessionId
       ? this.one('select * from role_sessions where id=? and role_id=?', sessionId, roleId)
       : this.one(
-          'select * from role_sessions where role_id=? and harness=? order by seq desc limit 1',
+          "select * from role_sessions where role_id=? and harness=? and state='ACTIVE' order by seq desc limit 1",
           roleId,
           targetHarness ?? String(binding.harness),
         );
     const harness = targetHarness ?? String(candidate?.harness ?? binding.harness);
     const candidateHarness = String(candidate?.harness ?? harness);
     const sameBinding = harness === binding.harness && candidateHarness === binding.harness;
+    const archived = Boolean(candidate && candidate.state === 'ARCHIVED');
     const canResume = Boolean(
-      candidate?.native_session_ref &&
+      candidate &&
+      !archived &&
+      candidate.native_session_ref &&
       sameBinding &&
       (!this.workspaceId(candidate) || this.workspaceId(candidate) === binding.workspace_id),
     );
     let reason = sessionId && !candidate ? 'ROLE_SESSION_NOT_FOUND' : 'NO_WORK_SESSION_FOR_HARNESS';
-    if (candidate && !sameBinding) reason = 'TARGET_HARNESS_REQUIRES_BINDING';
+    if (candidate && archived) reason = 'SESSION_ARCHIVED_READ_ONLY';
+    else if (candidate && !sameBinding) reason = 'TARGET_HARNESS_REQUIRES_BINDING';
     else if (candidate && !candidate.native_session_ref) reason = 'NATIVE_SESSION_NOT_AVAILABLE';
     else if (candidate && !canResume) reason = 'WORKSPACE_AFFINITY_MISMATCH';
-    const state = candidate
-      ? this.one(
-          'select fidelity from role_session_context_state where role_session_id=?',
-          candidate.id,
-        )
-      : undefined;
+    // W02:legacy fidelity 镜像停止运行时读取;Router 不再宣称迁移保真度。
+    const fidelity = 'UNKNOWN' as const;
     const result = {
       role_id: roleId,
       target_harness: harness,
@@ -418,7 +404,7 @@ export class RoleSessionExtension {
       recommended_action: canResume ? 'CONTINUE_EXISTING' : 'CREATE_NEW_INHERIT',
       resume_candidate: candidate ? this.vm(candidate) : null,
       new_session_available: true,
-      migration_fidelity: state?.fidelity ?? 'UNKNOWN',
+      migration_fidelity: fidelity,
       reason_code: canResume ? 'NATIVE_SESSION_RESUMABLE' : reason,
     };
     const hashInput = {
@@ -502,7 +488,6 @@ export class RoleSessionExtension {
             now,
             now,
           );
-        this.ensureContextRows(roleId, id, now);
         this.activateWithinTransaction(roleId, id, binding, operationId, now);
         return this.vm(this.one('select * from role_sessions where id=?', id)!);
       })
@@ -525,36 +510,12 @@ export class RoleSessionExtension {
       if (binding.role_id !== roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
     }
     this.assertCompatible(target, binding);
-    if (target.state === 'ACTIVE') {
-      const now = this.clock();
-      return this.db
-        .transaction(() => {
-          this.ensureContextRows(roleId, sessionId, now);
-          this.activateWithinTransaction(roleId, sessionId, binding, operationId, now);
-          return this.vm(this.one('select * from role_sessions where id=?', sessionId)!);
-        })
-        .immediate();
-    }
-    const current = this.active(roleId);
+    // W02 新语义:历史 WS 永久只读。ARCHIVED→ACTIVE 重新激活已删除;
+    // 继续旧内容只能新建 WS(一次性 Context Transfer),不得复活旧会话。
+    if (target.state !== 'ACTIVE') throw Error('ROLE_SESSION_REACTIVATION_REMOVED');
     const now = this.clock();
     return this.db
       .transaction(() => {
-        const generation =
-          Number(
-            this.one(
-              'select coalesce(max(generation),0) as n from role_sessions where role_id=?',
-              roleId,
-            )?.n ?? 0,
-          ) + 1;
-        this.db
-          .prepare("update role_sessions set state='ARCHIVED' where id=? and state='ACTIVE'")
-          .run(current.id);
-        this.db
-          .prepare(
-            "update role_sessions set state='ACTIVE',generation=?,activated_at_ms=? where id=?",
-          )
-          .run(generation, now, target.id);
-        this.ensureContextRows(roleId, sessionId, now);
         this.activateWithinTransaction(roleId, sessionId, binding, operationId, now);
         return this.vm(this.one('select * from role_sessions where id=?', sessionId)!);
       })

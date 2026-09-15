@@ -13,7 +13,7 @@ import seed from '../../fixtures/client-c1r1/two-groups.plan.json' with { type: 
 import { validateDefinition } from '../../packages/client-contract/c1r1p1/index.ts';
 import { NativeSessionStore } from '../../packages/core-service/native-session-store.ts';
 
-it('公共会话接口 A→B→A 保留 WS 身份，建立 fresh activation；提交失败整体回滚', async () => {
+it('W02 公共会话接口 A→B(跨Harness)→C 保留 WS 身份与 fresh activation；切回历史被拒绝；提交失败整体回滚', async () => {
   mkdirSync('.local/l1-cross-tests', { recursive: true });
   const dir = mkdtempSync(resolve('.local/l1-cross-tests/case-'));
   const db = openApplicationStore(dir);
@@ -54,15 +54,21 @@ it('公共会话接口 A→B→A 保留 WS 身份，建立 fresh activation；�
     expect(b.error).toBeUndefined();
     expect(b.result.session.harness).toBe('kimi_code');
     validateDefinition('PlanModelSelection', JSON.parse(app.one('select model_json from bindings where is_current=1').model_json));
+    // W02 新语义:切回 ARCHIVED 的原始会话被显式拒绝,历史永久只读
     const back = await command('roleSession.switch', { session_id: original.id });
-    expect(back.error).toBeUndefined();
-    expect(back.result.id).toBe(original.id);
+    expect(back.error?.code).toBe('ROLE_SESSION_REACTIVATION_REMOVED');
+    // 继续前进:新建 C(同 Harness)
+    const cs = await command('roleSession.create', { name: 'C' });
+    expect(cs.error).toBeUndefined();
     expect(app.one('select binding_id from role_sessions where id=?', original.id).binding_id).toBe(original.binding_id);
     expect(app.all('select activation_epoch from role_session_activations order by activation_epoch')).toEqual([{ activation_epoch: 1 }, { activation_epoch: 2 }, { activation_epoch: 3 }]);
     expect(app.one('select count(*) n from bindings where is_current=1')).toEqual({ n: 1 });
-    expect(app.one('select count(*) n from native_binding_configs')).toEqual({ n: 3 });
-    expect(app.one('select count(*) n from role_sessions')).toEqual({ n: 2 });
+    expect(app.one('select count(*) n from native_binding_configs')).toEqual({ n: 2 });
+    expect(app.one('select count(*) n from role_sessions')).toEqual({ n: 3 });
+    // 原始会话历史只读:native ref 原样保留;C 尚无原生引用(load 为空,不伪造),激活已不属于 A
     const active = app.one("select * from role_session_activations where state='ACTIVE'");
-    expect(new NativeSessionStore(db).load({ bindingId: active.binding_id, epoch: active.binding_epoch, roleSessionId: original.id, activationId: active.id, activationEpoch: active.activation_epoch, sessionHome: profiles[0].sessionHome })).toEqual({ id: 'native-original' });
+    expect(active.role_session_id).not.toBe(original.id);
+    expect(new NativeSessionStore(db).load({ bindingId: active.binding_id, epoch: active.binding_epoch, roleSessionId: active.role_session_id, activationId: active.id, activationEpoch: active.activation_epoch, sessionHome: profiles[0].sessionHome })).toBeUndefined();
+    expect(JSON.parse(String(app.one('select native_session_ref from role_sessions where id=?', original.id).native_session_ref))).toEqual({ id: 'native-original' });
   } finally { db.close(); }
 });

@@ -173,7 +173,7 @@ server.listen(address, async () => {
       application.nativeAuthorization = (binding) => registry.authorized(binding);
       application.nativeCancelAvailable = (binding) => binding ? registry.canCancel(binding) : registry.anyCancel();
       application.nativeToolAuthorization = (binding,epoch,tool) => registry.toolAuthorized(binding,epoch,tool);
-      driver = new ExecutionCoordinator(application,new NativeBackend(registry),nativeRuntime?.contextCompression);
+      driver = new ExecutionCoordinator(application,new NativeBackend(registry));
       // Native runtime is explicit opt-in; configuration is not a Harness certification.
     }
     application.onShutdown = () => void shutdown();

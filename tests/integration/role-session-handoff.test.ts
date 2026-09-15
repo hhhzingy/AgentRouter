@@ -134,7 +134,7 @@ it('原生会话引用按 WorkSession 键控；新 WorkSession 不覆盖旧 bind
   expect(store.load(scope('runA', sessionA))!.id).toBe('native-a');
 });
 
-it('切换只生成 fresh activation epoch；V1.0 handoff 数据保持审计只读', () => {
+it('W02 新语义:切回历史会话被拒绝;V1.0 handoff 数据保持审计只读且不新增', () => {
   const f = fixture();
   const { db, ext, r, sessionA } = f;
   db.prepare("update runs set state='SUCCEEDED' where id='runA'").run();
@@ -145,27 +145,29 @@ it('切换只生成 fresh activation epoch；V1.0 handoff 数据保持审计只�
 
   const b = call(ext, 'roleSession.create', r.role, { name: 'B方向' }, 'create-b');
   const sessionB = b.result.session.id as string;
+  // W02:切回 ARCHIVED 会话被显式拒绝(历史永久只读)
   const back = call(ext, 'roleSession.switch', r.role, { session_id: sessionA }, 'switch-a');
-  expect(back.error).toBeUndefined();
+  expect(back.error?.code).toBe('ROLE_SESSION_REACTIVATION_REMOVED');
   const c = call(ext, 'roleSession.create', r.role, { name: 'C方向' }, 'create-c');
   expect(c.error).toBeUndefined();
 
+  // V1.0 handoff 行保持审计只读,产品路径不新增 handoff 记录
   const handoff = db.prepare('select * from role_session_handoffs where id=?').get('legacy-handoff') as any;
   expect(handoff.state).toBe('PENDING');
   expect(handoff.package_hash).toBe('legacy-hash');
   expect(db.prepare('select count(*) as n from role_session_handoffs').get()).toMatchObject({ n: 1 });
 
+  // activation 链:role-create → create-b → create-c(无复活 switch)
   const activations = db
     .prepare('select role_session_id,state,activation_epoch,operation_id from role_session_activations where role_id=? order by activation_epoch')
     .all(r.role) as any[];
   expect(activations.map((a) => [a.role_session_id, a.state])).toEqual([
     [sessionA, 'ENDED'],
     [sessionB, 'ENDED'],
-    [sessionA, 'ENDED'],
     [c.result.session.id, 'ACTIVE'],
   ]);
-  expect(activations.map((a) => a.activation_epoch)).toEqual([1, 2, 3, 4]);
-  expect(activations.map((a) => a.operation_id)).toEqual(['role-create', 'create-b', 'switch-a', 'create-c']);
+  expect(activations.map((a) => a.activation_epoch)).toEqual([1, 2, 3]);
+  expect(activations.map((a) => a.operation_id)).toEqual(['role-create', 'create-b', 'create-c']);
 });
 
 it('有活动 native run 时禁止切换 WorkSession', () => {

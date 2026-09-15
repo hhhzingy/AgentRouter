@@ -162,14 +162,6 @@ export class Management {
           )
           .run(binding, bindingRow.epoch, input.harness, input.harness, JSON.stringify({ workspace_id: input.workspaceId }), sessionId);
         this.db
-          .prepare('insert into role_context_heads(role_id,head_seq,updated_at_ms) values(?,0,?)')
-          .run(role, now);
-        this.db
-          .prepare(
-            "insert into role_session_context_state(role_session_id,role_id,synced_through_seq,fidelity,updated_at_ms) values(?,?,0,'UNKNOWN',?)",
-          )
-          .run(sessionId, role, now);
-        this.db
           .prepare(
             "insert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,operation_id,created_at_ms,activated_at_ms) values(?,?,?,?,?,1,'ACTIVE','role-create',?,?)",
           )

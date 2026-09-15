@@ -114,7 +114,7 @@ it('角色创建即有初始会话；任务与会话条目归入活动会话', a
   } finally { await f.close(); }
 });
 
-it('新建会话/切回/幂等switch；两边历史按会话隔离；旧任务迟到的对话仍归旧会话', async () => {
+it('新建会话(W02 新语义)：旧会话永久只读,切回被拒绝;两边历史按会话隔离', async () => {
   const f = await fixture();
   try {
     const first = await f.rs('roleSession.list', { role_id: f.roleId });
@@ -141,17 +141,21 @@ it('新建会话/切回/幂等switch；两边历史按会话隔离；旧任务�
     );
     const task2 = f.db.prepare('select role_session_id from tasks order by created_at_ms desc limit 1').get() as { role_session_id: string };
     expect(task2.role_session_id).toBe(created.session.id);
-    // 切回A；再切一次A（幂等，generation不变）
-    const back = (await f.rs('roleSession.switch', { role_id: f.roleId, session_id: sessionA })) as { id: string; generation: number };
-    expect(back.id).toBe(sessionA);
-    const backAgain = (await f.rs('roleSession.switch', { role_id: f.roleId, session_id: sessionA })) as { generation: number };
-    expect(backAgain.generation).toBe(back.generation);
-    // 任务一的迟到对话条目写入时任务一已属A——即使当前活动会话是A，验证派生来源是任务而非当前活动
+    // W02 新语义:切回 ARCHIVED 的 A 被显式拒绝(历史永久只读)
+    let reactivationError: string | undefined;
+    try {
+      await f.rs('roleSession.switch', { role_id: f.roleId, session_id: sessionA });
+    } catch (e) { reactivationError = (e as Error).message; }
+    expect(reactivationError).toBe('ROLE_SESSION_REACTIVATION_REMOVED');
+    // switch 到当前 ACTIVE 会话:幂等无副作用
+    const again = (await f.rs('roleSession.switch', { role_id: f.roleId, session_id: created.session.id })) as { id: string; generation: number };
+    expect(again.id).toBe(created.session.id);
+    // 任务一的迟到对话条目验证派生来源是任务而非当前活动
     const item = f.db.prepare('select role_session_id from conversation_items where task_id=(select id from tasks where summary=? )').get('任务一') as { role_session_id: string };
     expect(item.role_session_id).toBe(sessionA);
     const item2 = f.db.prepare('select role_session_id from conversation_items where task_id=(select id from tasks where summary=?)').get('任务二') as { role_session_id: string };
     expect(item2.role_session_id).toBe(created.session.id);
-    // history 按会话隔离
+    // history 按会话隔离(A 只读仍可读)
     const taskId = (summary: string) => (f.db.prepare('select id from tasks where summary=?').get(summary) as { id: string }).id;
     const t1 = taskId('任务一'), t2 = taskId('任务二');
     const hA = (await f.rs('roleSession.history', { role_id: f.roleId, session_id: sessionA })) as { items: { task_id: string | null }[] };
@@ -177,4 +181,29 @@ it('create/switch需要控制器租约；未知角色/会话拒绝；观察者�
       observer.request('roleSession.create' as never, { role_id: roleId, name: 'nope' } as never),
     ).rejects.toMatchObject({ message: 'CONTROL_LEASE_REQUIRED' });
   } finally { await db.close(); }
+});
+
+it('W02: legacy Context 表物理改名后,产品路径(新建/历史/快照)不再依赖其存在', async () => {
+  const f = await fixture();
+  try {
+    // 物理改名 = 最强 spy:任何 runtime 触碰 legacy 表立即 "no such table"
+    for (const t of ['role_context_heads', 'role_context_entries', 'role_session_context_state', 'role_context_sync_receipts', 'role_session_handoffs']) {
+      const exists = f.db.prepare("select 1 from sqlite_master where type='table' and name=?").get(t);
+      if (exists) f.db.exec(`alter table ${t} rename to ${t}__audit_only`);
+    }
+    let spyError: string | undefined;
+    try {
+      await f.rs('roleSession.create', { role_id: f.roleId, name: '改名后新建' });
+    } catch (e) { spyError = (e as Error).message; }
+    if (spyError) console.log('W02-SPY-ERROR:', spyError);
+    expect(spyError).toBeUndefined();
+    const created = await f.rs('roleSession.create', { role_id: f.roleId, name: '改名后新建-2' });
+    expect((created.session as { state: string }).state).toBe('ACTIVE');
+    const list = await f.rs('roleSession.list', { role_id: f.roleId });
+    expect((list as { active_session_id: string }).active_session_id).toBe((created.session as { id: string }).id);
+    const h = await f.rs('roleSession.history', { role_id: f.roleId, session_id: (list as { active_session_id: string }).active_session_id, limit: 5 });
+    expect(Array.isArray((h as { items: unknown[] }).items)).toBe(true);
+    const snap = await f.s.request('system.snapshot', {});
+    expect(Array.isArray((snap as { roles: unknown[] }).roles)).toBe(true);
+  } finally { await f.close(); }
 });

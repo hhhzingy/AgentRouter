@@ -421,14 +421,8 @@ function SessionWorkflow({ roleId }: { roleId: string }) {
                   <Badge tone="neutral">待新建原生会话</Badge>
                 )}
               </span>
-              {!s.readOnly && w.id !== data.active_session_id && w.hasNativeSession && (
-                <button
-                  className="btn"
-                  disabled={busy}
-                  onClick={() => void act('roleSession.switch', { role_id: roleId, session_id: w.id })}
-                >
-                  继续已有
-                </button>
+              {w.id !== data.active_session_id && (
+                <span className="hint">历史(只读)</span>
               )}
             </li>
           ))}

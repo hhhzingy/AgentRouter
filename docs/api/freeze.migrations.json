@@ -14,6 +14,7 @@
     "010-run-provenance.sql": "a2a8662a6a479f2475d6e85ba5183252501df5417517217230a017cb5eaf26dc",
     "011-work-session-continuity.sql": "8103e00209659b8b3a27556f1c5bd3690acc4cc953f732987cdc6cd3c12a2b01",
     "012-role-context-index.sql": "c3ba6d048be3af633128309f4248a0e4a60d2d169eb9640a00ba58e559bafaa3",
-    "013-remote-devices.sql": "aa8e1ab630a01742235a6b5123584abf2f23b1f859a9d2db249880fbdb592ddc"
+    "013-remote-devices.sql": "aa8e1ab630a01742235a6b5123584abf2f23b1f859a9d2db249880fbdb592ddc",
+    "014-context-convergence.sql": "96c142acbc52b46d7bb5930034e124a595416a414e8969b84e606a246832e04f"
   }
 }

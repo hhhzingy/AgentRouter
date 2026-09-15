@@ -20,10 +20,8 @@ import { createPiProviderBroker } from './pi-provider-broker.ts';
 import { prepareManagedKimiProfile, approveManagedKimiRoute } from './kimi-managed-profile.ts';
 import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
 import { prepareManagedZcodeProfile, zcodeApiKeyPattern, type ZcodeModelProviderConfig } from './zcode-managed-profile.ts';
-import { DeepSeekContextCompressionBackend, type DeepSeekCompressionConfig } from '../core-service/deepseek-context-compression.ts';
 
 interface Config {
-  contextCompression?: DeepSeekCompressionConfig;
   dshHome?: string;
   dshBin?: string;
   zcodeCli?: string;
@@ -111,15 +109,6 @@ export async function installLocalNativeRuntime(
     )
       throw Error('NATIVE_HOME_SCOPE');
   }
-  const compressionBackend = c.contextCompression ? new DeepSeekContextCompressionBackend(c.contextCompression, async () => {
-    // 沿用 owner 明确授权文件；只在受信边界内加载，绝不写入角色配置或日志。
-    const keys = [...new Set(readFileSync(c.credentialFile, 'utf8').match(/sk-[A-Za-z0-9_-]{16,}/g) ?? [])];
-    if (keys.length !== 1) throw Error('CREDENTIAL_FORMAT_UNRECOGNIZED');
-    return keys[0];
-  }, attempt => {
-    app.db.prepare('insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(NULL,?,?,?,?)')
-      .run('trusted_compression', 'ContextCompressionProviderAttempt', JSON.stringify(attempt), app.clock());
-  }) : undefined;
   const bridge = await createNativeRoleBridge();
   const sessions = new NativeSessionStore(app.db);
   const host = new WindowsNativeProcessHost({
@@ -380,10 +369,6 @@ export async function installLocalNativeRuntime(
     'route_artifact_read',
   ]);
   return {
-    contextCompression: compressionBackend ? {
-      compressionBackend,
-      compressionPolicy: { enabled: true, allowedBackendIds: [compressionBackend.id] },
-    } : undefined,
     close: async () => {
       await backend.stop();
       await bridge.close();

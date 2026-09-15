@@ -3,9 +3,7 @@ import type { ExecutionBackend, ExecutionExit } from './execution-backend.ts';
 import { completionAllowed } from './execution-backend.ts';
 import type { Dispatch } from '../runtime/core.ts';
 import type { ApplicationService } from './application.ts';
-import { ContextMigrationService, type ContextCompressionBackend, type ContextCompressionPolicy } from './context-migration.ts';
 import { blockBeforeLaunch } from './precheck-blocked.ts';
-import { assertNativeContextReceipt } from './native-context-receipt.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 /** 单一应用协调层；进程 I/O 由后端负责。Fixture 与 Native 共用调度/收尾；生产必须通过可信运行器安全授权。 */
 // provenance 的 model 字段只取受信绑定内的模型描述,损坏数据不阻断溯源。
@@ -20,16 +18,10 @@ export class ExecutionCoordinator {
   private scheduled = false;
   private active = new Map<string, () => void>();
   private stopping = false;
-  private readonly contextMigration: ContextMigrationService;
   constructor(
     readonly app: ApplicationService,
     readonly backend: ExecutionBackend,
-    private readonly contextCompression?: {
-      compressionBackend: ContextCompressionBackend;
-      compressionPolicy: ContextCompressionPolicy;
-    },
   ) {
-    this.contextMigration = new ContextMigrationService(app.db, app.contextStore, app.clock);
     app.onChanged = () => this.kick();
   }
   kick() {
@@ -223,57 +215,6 @@ export class ExecutionCoordinator {
       .run(child.pid ?? null, attempt);
     a.notify();
   }
-  private contextBudget(b: any, mode: 'DELTA' | 'FULL', newNativeSession = false) {
-    if (this.app.fixtureMode)
-      return { maxContextTokens: 1000000, currentUsageTokens: 0, source: 'ESTIMATED' as const };
-    const parsedModel = safeModel(b.model_json);
-    const model =
-      parsedModel && typeof parsedModel === 'object'
-        ? (parsedModel as Record<string, unknown>)
-        : {};
-    const numberFrom = (keys: string[]) => {
-      for (const key of keys) {
-        const value = model[key];
-        if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return value;
-      }
-      return null;
-    };
-    const maxContextTokens = numberFrom(['max_context_tokens', 'context_window_tokens', 'context_tokens']);
-    // FULL 是迁移范围，不是原生历史为空的证据；旧 model_json 也不是当前占用探测。
-    const currentUsageTokens = newNativeSession ? 0 : null;
-    return {
-      maxContextTokens,
-      currentUsageTokens,
-      source: maxContextTokens === null ? ('UNKNOWN' as const) : ('CATALOG' as const),
-    };
-  }
-  private async buildContextPlan(
-    dispatch: Dispatch,
-    b: any,
-  ): Promise<import('./context-migration.ts').ContextMigrationPlan | null> {
-    const a = this.app;
-    const run = a.one(
-      "select r.role_session_id,a.operation_id,s.seq,s.native_session_ref from runs r left join role_session_activations a on a.id=r.activation_id left join role_sessions s on s.id=r.role_session_id where r.id=?",
-      dispatch.id,
-    );
-    if (!run?.role_session_id || ['role-create', 'v1.0-backfill', 'core-dispatch'].includes(String(run.operation_id)))
-      return null;
-    const state = a.one(
-      'select synced_through_seq from role_session_context_state where role_session_id=?',
-      run.role_session_id,
-    );
-    const mode = Number(state?.synced_through_seq ?? 0) > 0 ? 'DELTA' : 'FULL';
-    return this.contextMigration.build({
-      roleId: dispatch.principal.roleId,
-      targetWorkSessionId: String(run.role_session_id),
-      operationId: 'ctx_' + dispatch.id,
-      mode,
-      budget: this.contextBudget(b, mode, run.native_session_ref === null),
-      taskId: dispatch.taskId,
-      runId: dispatch.id,
-      ...this.contextCompression,
-    });
-  }
   private async run(dispatch: Dispatch, b: any, charter: any, scenario: any) {
     const a = this.app;
     let terminal: string | undefined,
@@ -281,16 +222,6 @@ export class ExecutionCoordinator {
       lastDiagnostic = '';
     const runRow = a.one('select role_session_id,activation_id from runs where id=?', dispatch.id);
     const roleSessionId = runRow?.role_session_id as string | null | undefined;
-    let contextPlan: import('./context-migration.ts').ContextMigrationPlan | null = null;
-    try {
-      contextPlan = await this.buildContextPlan(dispatch, b);
-    } catch (error) {
-      const code = error instanceof Error ? error.message : 'CONTEXT_MIGRATION_FAILED';
-      this.audit(charter.project_id, /^[A-Z][A-Z0-9_]{1,95}$/.test(code) ? code : 'CONTEXT_MIGRATION_FAILED');
-      blockBeforeLaunch(a.db, dispatch.id, code, a.clock());
-      a.event(charter.project_id, 'PrecheckBlocked', dispatch.id);
-      return;
-    }
     const child = this.launch(
       dispatch.id,
       {
@@ -307,7 +238,6 @@ export class ExecutionCoordinator {
         ...(dispatch.principal.activationEpoch !== undefined
           ? { activationEpoch: dispatch.principal.activationEpoch }
           : {}),
-        ...(contextPlan ? { contextSync: contextPlan.envelope } : {}),
         handleTool: (tool: string, operationId: string, input: any) =>
           this.routeTool(dispatch, tool, operationId, input),
       },
@@ -351,24 +281,6 @@ export class ExecutionCoordinator {
           )
         )
           return;
-        if (contextPlan && event.kind === 'context_confirmed') {
-          if (!a.fixtureMode) {
-            const ws = a.one('select native_session_ref from role_sessions where id=?', roleSessionId);
-            const ref = ws?.native_session_ref ? JSON.parse(ws.native_session_ref) : null;
-            assertNativeContextReceipt(event.nativeReceipt, {
-              runId: dispatch.id, workSessionId: String(roleSessionId),
-              activationId: String(runRow?.activation_id), activationEpoch: Number(activation?.activation_epoch),
-              nativeSessionId: ref?.id ?? '', envelope: contextPlan.envelope,
-            });
-          }
-          if (event.stableMarker !== contextPlan.envelope.stable_marker)
-            throw Error('CONTEXT_SYNC_MARKER_MISMATCH');
-          this.contextMigration.confirm(
-            contextPlan,
-            event.nativeReceipt ?? { marker: event.stableMarker },
-            event.nativeHistoryCursor,
-          );
-        }
         a.db
           .transaction(() => {
             a.db
@@ -385,9 +297,6 @@ export class ExecutionCoordinator {
                 JSON.stringify({
                   kind: event.kind,
                   source: a.fixtureMode ? 'SIMULATED' : 'NATIVE',
-                  ...(event.kind === 'context_confirmed'
-                    ? { stable_marker: event.stableMarker }
-                    : {}),
                 }),
                 a.clock(),
               );
