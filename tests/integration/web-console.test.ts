@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, existsSync, cpSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
 import { get } from 'node:http';
@@ -21,7 +21,9 @@ it(
     mkdirSync('.local/w11-tests', { recursive: true });
     const dir = mkdtempSync(resolve('.local/w11-tests/web-'));
     mkdirSync(resolve(dir, 'workspace'), { recursive: true });
-    const core = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
+    cpSync('packages/storage/migrations', resolve(dir, 'migrations'), { recursive: true });
+    await build({ entryPoints: ['apps/core-daemon/w11-main.ts'], outfile: resolve(dir, 'core.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external' });
+    const core = spawn(process.execPath, [resolve(dir, 'core.mjs')], {
       windowsHide: true,
       stdio: ['ignore', 'ignore', 'ignore'],
       env: {
@@ -61,12 +63,26 @@ it(
       for (let i = 0; i < 100 && !address; i++) await new Promise((r) => setTimeout(r, 100));
       if (!address) console.log('SERVER OUT:', JSON.stringify(out.join('')));
       expect(address).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-      const snap = JSON.parse((await httpGet(address + '/api/snapshot')).body);
+      const response = await httpGet(address + '/api/snapshot');
+      expect(response.status).toBe(200);
+      const snap = JSON.parse(response.body);
+      expect(snap.connected).toBe(true);
+      expect(snap.updatedAt).toBeGreaterThan(0);
       expect(Array.isArray(snap.projects)).toBe(true);
       const page = (await httpGet(address + '/')).body;
       expect(page).toContain('AgentRouter 控制台');
       expect(page).toContain('viewport');
       expect(page).toContain('只读');
+      expect(page).toContain('if (!response.ok)');
+      expect(page).not.toContain('HEALTH ');
+      expect(page).toContain('数据可能过期');
+      const exited = new Promise<void>(r => core.once('exit', () => r()));
+      core.kill();
+      await exited;
+      await new Promise(r => setTimeout(r, 1100));
+      const unavailable = await httpGet(address + '/api/snapshot');
+      expect(unavailable.status).toBe(503);
+      expect(JSON.parse(unavailable.body)).toEqual({ error: 'CORE_UNAVAILABLE' });
     } finally {
       server.kill();
       core.kill();
