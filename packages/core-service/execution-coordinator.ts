@@ -223,7 +223,7 @@ export class ExecutionCoordinator {
       .run(child.pid ?? null, attempt);
     a.notify();
   }
-  private contextBudget(b: any, mode: 'DELTA' | 'FULL') {
+  private contextBudget(b: any, mode: 'DELTA' | 'FULL', newNativeSession = false) {
     if (this.app.fixtureMode)
       return { maxContextTokens: 1000000, currentUsageTokens: 0, source: 'ESTIMATED' as const };
     const parsedModel = safeModel(b.model_json);
@@ -239,10 +239,8 @@ export class ExecutionCoordinator {
       return null;
     };
     const maxContextTokens = numberFrom(['max_context_tokens', 'context_window_tokens', 'context_tokens']);
-    const currentUsageTokens =
-      mode === 'FULL'
-        ? 0
-        : numberFrom(['current_context_tokens', 'context_usage_tokens', 'used_context_tokens']);
+    // FULL 是迁移范围，不是原生历史为空的证据；旧 model_json 也不是当前占用探测。
+    const currentUsageTokens = newNativeSession ? 0 : null;
     return {
       maxContextTokens,
       currentUsageTokens,
@@ -255,7 +253,7 @@ export class ExecutionCoordinator {
   ): Promise<import('./context-migration.ts').ContextMigrationPlan | null> {
     const a = this.app;
     const run = a.one(
-      "select r.role_session_id,a.operation_id,s.seq from runs r left join role_session_activations a on a.id=r.activation_id left join role_sessions s on s.id=r.role_session_id where r.id=?",
+      "select r.role_session_id,a.operation_id,s.seq,s.native_session_ref from runs r left join role_session_activations a on a.id=r.activation_id left join role_sessions s on s.id=r.role_session_id where r.id=?",
       dispatch.id,
     );
     if (!run?.role_session_id || ['role-create', 'v1.0-backfill', 'core-dispatch'].includes(String(run.operation_id)))
@@ -270,7 +268,7 @@ export class ExecutionCoordinator {
       targetWorkSessionId: String(run.role_session_id),
       operationId: 'ctx_' + dispatch.id,
       mode,
-      budget: this.contextBudget(b, mode),
+      budget: this.contextBudget(b, mode, run.native_session_ref === null),
       taskId: dispatch.taskId,
       runId: dispatch.id,
       ...this.contextCompression,

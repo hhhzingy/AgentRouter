@@ -530,7 +530,7 @@ export function assessContextBudget(
 ): ContextBudgetAssessment {
   const budget = validateBudget(input);
   const max = budget.maxContextTokens ?? null;
-  const usage = budget.currentUsageTokens ?? (mode === 'FULL' ? 0 : null);
+  const usage = budget.currentUsageTokens ?? null;
   const reservedTokens =
     budget.systemReserveTokens + budget.taskReserveTokens + budget.outputReserveTokens + budget.safetyMarginTokens;
   const authoritativeTokens = estimateContextTokens(authoritativeState);
@@ -539,7 +539,7 @@ export function assessContextBudget(
   const availableTokens = max === null || usage === null ? null : max - usage - reservedTokens;
   const portableBudgetTokens = availableTokens === null ? null : availableTokens - authoritativeTokens;
   const reasonCodes: string[] = [];
-  if (max === null || (mode === 'DELTA' && usage === null)) {
+  if (max === null || usage === null) {
     reasonCodes.push('TARGET_CONTEXT_BUDGET_UNKNOWN');
     return {
       status: 'BLOCKED',

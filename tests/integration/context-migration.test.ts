@@ -1,5 +1,5 @@
-import { afterEach, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { Management } from '../../packages/runtime/management.ts';
@@ -10,15 +10,11 @@ import {
   deterministicPortableCompressionBackend,
 } from '../../packages/core-service/context-migration.ts';
 
-const roots: string[] = [];
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
+// 用户要求保留测试文件；每次使用新目录，不自动删除。
 
 function fixture() {
   mkdirSync('.local/v11-context-tests', { recursive: true });
   const dir = mkdtempSync(resolve('.local/v11-context-tests/migration-'));
-  roots.push(dir);
   const db = openApplicationStore(dir);
   const management = new Management(db);
   const project = management.createProject('Context migration test', dir);
@@ -54,7 +50,7 @@ it('new WS uses full visible context, references large entries, and keeps author
       targetWorkSessionId: f.sessionB,
       operationId: 'full-fit',
       mode: 'FULL',
-      budget: { maxContextTokens: 100_000, source: 'EXACT' },
+      budget: { maxContextTokens: 100_000, currentUsageTokens: 0, source: 'EXACT' },
     });
     expect(generous.recommendation).toBe('FIT');
     expect(generous.entries[0].transfer_mode).toBe('REFERENCE');
@@ -64,7 +60,7 @@ it('new WS uses full visible context, references large entries, and keeps author
       targetWorkSessionId: f.sessionB,
       operationId: 'full-fit',
       mode: 'FULL',
-      budget: { maxContextTokens: 100_000, source: 'EXACT' },
+      budget: { maxContextTokens: 100_000, currentUsageTokens: 0, source: 'EXACT' },
     });
     expect(fit.envelope.authoritative_state).toEqual(exact);
     expect(fit.compression.used).toBe(false);
@@ -95,15 +91,16 @@ it('over-budget full context blocks without an authorized backend and compresses
       targetWorkSessionId: f.sessionB,
       operationId: 'full-compress',
       mode: 'FULL',
-      budget: { maxContextTokens: 100_000, source: 'EXACT' },
+      budget: { maxContextTokens: 100_000, currentUsageTokens: 0, source: 'EXACT' },
     });
-    const maxContextTokens = initial.budget.authoritativeTokens + initial.budget.reservedTokens + 160;
+    // 保留最终 envelope/entry 元数据预算，仍远小于本测试 Portable 原文。
+    const maxContextTokens = initial.budget.authoritativeTokens + initial.budget.reservedTokens + 1000;
     const input = {
       roleId: f.role,
       targetWorkSessionId: f.sessionB,
       operationId: 'full-compress',
       mode: 'FULL' as const,
-      budget: { maxContextTokens, source: 'EXACT' as const },
+      budget: { maxContextTokens, currentUsageTokens: 0, source: 'EXACT' as const },
     };
     expect(service.preflight(input).recommendation).toBe('COMPRESS');
     await expect(service.build(input)).rejects.toMatchObject({ code: 'CONTEXT_MIGRATION_TOO_LARGE' });
