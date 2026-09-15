@@ -29,7 +29,11 @@ it.skipIf(process.env.AGENTROUTER_V11_DEEPSEEK_LIVE !== '1')('真实 DeepSeek �
       const keys = [...new Set(text.match(/sk-[A-Za-z0-9_-]{16,}/g) ?? [])];
       if (keys.length !== 1 || !text.includes('https://api.deepseek.com')) throw Error('AUTHORIZED_CREDENTIAL_INVALID');
       return keys[0];
-    }, a => attempts.push(a));
+    }, a => {
+      attempts.push(a);
+      f.db.prepare('insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(?,?,?,?,?)')
+        .run('project_test', 'live-compression-test', 'ContextCompressionProviderAttempt', JSON.stringify(a), Date.now());
+    });
     const coordinator = new ExecutionCoordinator(app, { launch() { throw Error('NATIVE_LAUNCH_FORBIDDEN'); }, cancel: () => false, stop: async () => {} },
       { compressionBackend: backend, compressionPolicy: { enabled: true, allowedBackendIds: [backend.id] } });
     f.core.send(f.core.management('role_a'), 'live-compression-task', request('role_b'));
