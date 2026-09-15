@@ -4,6 +4,7 @@ import { completionAllowed } from './execution-backend.ts';
 import type { Dispatch } from '../runtime/core.ts';
 import type { ApplicationService } from './application.ts';
 import { ContextMigrationService } from './context-migration.ts';
+import { blockBeforeLaunch } from './precheck-blocked.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 /** 单一应用协调层；进程 I/O 由后端负责。Fixture 与 Native 共用调度/收尾；生产必须通过可信运行器安全授权。 */
 // provenance 的 model 字段只取受信绑定内的模型描述,损坏数据不阻断溯源。
@@ -282,7 +283,8 @@ export class ExecutionCoordinator {
     } catch (error) {
       const code = error instanceof Error ? error.message : 'CONTEXT_MIGRATION_FAILED';
       this.audit(charter.project_id, /^[A-Z][A-Z0-9_]{1,95}$/.test(code) ? code : 'CONTEXT_MIGRATION_FAILED');
-      this.unknown(dispatch.id);
+      blockBeforeLaunch(a.db, dispatch.id, code, a.clock());
+      a.event(charter.project_id, 'PrecheckBlocked', dispatch.id);
       return;
     }
     const child = this.launch(
