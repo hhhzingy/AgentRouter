@@ -1,4 +1,5 @@
 import { setAllowedHarnesses } from '../runtime/management.ts';
+import { transitionWorkSessionBinding } from '../core-service/work-session-transition.ts';
 import { existsSync, readFileSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { isAbsolute, join, relative, sep } from 'node:path';
@@ -294,6 +295,8 @@ export async function installLocalNativeRuntime(
         'route_artifact_read',
       ].includes(tool),
   });
+  app.roleSessionTransition = (role, harness, sessionId) =>
+    transitionWorkSessionBinding(app, registry, c.profiles, role, harness, sessionId);
   app.onRoleCreated = (role) => {
     registerTrustedRole(app, registry, role, c.profiles);
   };

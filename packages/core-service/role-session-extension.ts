@@ -18,6 +18,7 @@ export interface RoleSessionDispatchContext {
   assertControllerLease: (leaseId: string) => void;
   assertRevision?: (expectedRevision: number) => void;
   commitRevision?: () => void;
+  transitionBinding?: (roleId: string, harness: string, sessionId?: string) => Record<string, any>;
 }
 
 type Row = Record<string, any>;
@@ -147,6 +148,7 @@ export class RoleSessionExtension {
               String(p.name),
               p.target_harness as string | undefined,
               operationId,
+              context.transitionBinding,
             ),
           };
         } else if (method === 'roleSession.switch') {
@@ -158,7 +160,7 @@ export class RoleSessionExtension {
               metadata,
               this.preflight(String(p.role_id), undefined, String(p.session_id)),
             );
-          result = this.switch(String(p.role_id), String(p.session_id), operationId);
+          result = this.switch(String(p.role_id), String(p.session_id), operationId, context.transitionBinding);
         } else if (method === 'roleSession.history') {
           if (!historyParams(p)) throw Error('INVALID_PARAMS');
           result = this.history(String(p.role_id), String(p.session_id), Number(p.limit ?? 200));
@@ -450,12 +452,16 @@ export class RoleSessionExtension {
     name: string,
     targetHarness: string | undefined,
     operationId: string,
+    transition?: RoleSessionDispatchContext['transitionBinding'],
   ) {
     this.assertRole(roleId);
     this.safeToSwitch(roleId);
-    const binding = this.binding(roleId);
-    if (targetHarness && targetHarness !== binding.harness)
-      throw Error('ROLE_SESSION_TARGET_HARNESS_REQUIRES_BINDING');
+    let binding = this.binding(roleId);
+    if (targetHarness && targetHarness !== binding.harness) {
+      if (!transition) throw Error('ROLE_SESSION_TARGET_HARNESS_UNAVAILABLE');
+      binding = transition(roleId, targetHarness);
+      if (binding.harness !== targetHarness || binding.role_id !== roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
+    }
     const current = this.active(roleId);
     const now = this.clock();
     const id = 'rsess_' + globalThis.crypto.randomUUID();
@@ -503,7 +509,7 @@ export class RoleSessionExtension {
       .immediate();
   }
 
-  private switch(roleId: string, sessionId: string, operationId: string) {
+  private switch(roleId: string, sessionId: string, operationId: string, transition?: RoleSessionDispatchContext['transitionBinding']) {
     this.assertRole(roleId);
     this.safeToSwitch(roleId);
     const target = this.one(
@@ -512,7 +518,12 @@ export class RoleSessionExtension {
       roleId,
     );
     if (!target) throw Error('ROLE_SESSION_NOT_FOUND');
-    const binding = this.binding(roleId);
+    let binding = this.binding(roleId);
+    if (target.harness && target.harness !== binding.harness) {
+      if (!transition) throw Error('ROLE_SESSION_TARGET_HARNESS_UNAVAILABLE');
+      binding = transition(roleId, target.harness, sessionId);
+      if (binding.role_id !== roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
+    }
     this.assertCompatible(target, binding);
     if (target.state === 'ACTIVE') {
       const now = this.clock();

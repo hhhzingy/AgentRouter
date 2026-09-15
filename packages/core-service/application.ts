@@ -116,6 +116,7 @@ export class ApplicationService extends Plans {
   onChanged?: () => void;
   externalApi?: import('./external-api-extension.ts').ExternalApiExtension;
   roleSession?: import('./role-session-extension.ts').RoleSessionExtension;
+  roleSessionTransition?: import('./role-session-extension.ts').RoleSessionDispatchContext['transitionBinding'];
   readonly contextStore: RoleContextStore;
   participant?: import('./participant-extension.ts').ParticipantExtension;
   /** C1R1P2:已注册 Harness 列表(由宿主注入 DriverRegistry 视图)。 */
@@ -444,6 +445,7 @@ export class ApplicationService extends Plans {
       };
       let committed = false;
       const reply = this.roleSession.handle(raw, {
+        transitionBinding: this.roleSessionTransition,
         principal: c.principal,
         assertRoleAccess: (roleId, clientId) => {
           if (mutation && clientId !== c.clientId) throw Error('CONTROL_LEASE_REQUIRED');
