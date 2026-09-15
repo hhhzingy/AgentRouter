@@ -5,6 +5,7 @@ import type { Dispatch } from '../runtime/core.ts';
 import type { ApplicationService } from './application.ts';
 import { ContextMigrationService } from './context-migration.ts';
 import { blockBeforeLaunch } from './precheck-blocked.ts';
+import { assertNativeContextReceipt } from './native-context-receipt.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 /** 单一应用协调层；进程 I/O 由后端负责。Fixture 与 Native 共用调度/收尾；生产必须通过可信运行器安全授权。 */
 // provenance 的 model 字段只取受信绑定内的模型描述,损坏数据不阻断溯源。
@@ -348,6 +349,15 @@ export class ExecutionCoordinator {
         )
           return;
         if (contextPlan && event.kind === 'context_confirmed') {
+          if (!a.fixtureMode) {
+            const ws = a.one('select native_session_ref from role_sessions where id=?', roleSessionId);
+            const ref = ws?.native_session_ref ? JSON.parse(ws.native_session_ref) : null;
+            assertNativeContextReceipt(event.nativeReceipt, {
+              runId: dispatch.id, workSessionId: String(roleSessionId),
+              activationId: String(runRow?.activation_id), activationEpoch: Number(activation?.activation_epoch),
+              nativeSessionId: ref?.id ?? '', envelope: contextPlan.envelope,
+            });
+          }
           if (event.stableMarker !== contextPlan.envelope.stable_marker)
             throw Error('CONTEXT_SYNC_MARKER_MISMATCH');
           this.contextMigration.confirm(

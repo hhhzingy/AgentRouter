@@ -1,4 +1,5 @@
 import { it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
 import { CodexLifecycle } from '../../packages/adapters/codex/lifecycle.ts';
 function fixture(onApproval?: (method: string, params: unknown) => Promise<unknown>) {
   const sent: any[] = [],
@@ -38,6 +39,7 @@ it('真实协议命令与原生完成分离；终态不授予资源停止证明�
   f.reply('turn/start', { turn: { id: 'turn-1' } });
   await p;
   expect(f.events.map((e) => e.type)).toEqual(['RunAccepted']);
+  expect(f.events[0]).toMatchObject({ runId: 'run-1', threadId: 'thread-1', turnId: 'turn-1', acceptedPromptHash: createHash('sha256').update('任务').digest('hex') });
   f.event('turn/completed', { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } });
   f.event('turn/completed', { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } });
   expect(f.events.filter((e) => e.type === 'RunSettled')).toHaveLength(1);

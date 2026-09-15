@@ -1,4 +1,5 @@
 import { builtInDrivers, HarnessDriverRegistry } from './harness-drivers.ts';
+import { createHash } from 'node:crypto';
 import type { ExecutionBackend, StopEvidence } from './execution-backend.ts';
 import type { NativeBindingConfig } from './native-registry.ts';
 
@@ -99,6 +100,8 @@ export class NativeProcessBackend implements ExecutionBackend {
     let bootstrapText = '';
     const bootstrapAck = 'AGENTROUTER_CHARTER_ACK:' + packet.charterHash;
     let contextConfirmed = false;
+    let nativeSessionId: string | undefined;
+    let promptHash: string | undefined;
     let seq = 0,
       accepted = false,
       started = false;
@@ -116,15 +119,22 @@ export class NativeProcessBackend implements ExecutionBackend {
       if (!r.finished && !r.finishing)
         onFrame({ ...event, epoch: packet.epoch, key: key + ':' + ++seq });
     };
-    const confirmContext = () => {
+    const confirmContext = (e: any) => {
       const marker = contextMarker(packet);
-      if (!started || !marker || contextConfirmed) return;
+      if (!started || !marker || contextConfirmed || e.type !== 'RunAccepted'
+        || e.runId !== key || !nativeSessionId || e.threadId !== nativeSessionId
+        || typeof e.turnId !== 'string' || !e.turnId || !promptHash
+        || e.acceptedPromptHash !== promptHash || !packet.activationId || !packet.roleSessionId) return;
       contextConfirmed = true;
       // This receipt is a transport/native event, never parsed from model text.
       frame({
         kind: 'context_confirmed',
         stableMarker: marker,
-        nativeReceipt: { marker, accepted: true, source: 'native-driver' },
+        nativeReceipt: { marker, accepted: true, source: 'native-turn-response',
+          nativeSessionId, nativeTurnId: e.turnId, runId: key,
+          activationId: packet.activationId, activationEpoch: packet.activationEpoch,
+          workSessionId: packet.roleSessionId, promptHash,
+          envelopeHash: createHash('sha256').update(JSON.stringify(packet.contextSync)).digest('hex') },
       });
     };
     r.finish = (broken, code = 0) => {
@@ -185,7 +195,7 @@ export class NativeProcessBackend implements ExecutionBackend {
         accepted = true;
         frame({ kind: 'accepted' });
       }
-      if (started && accepted) confirmContext();
+      confirmContext(e);
       if (e.type === 'TextDelta') {
         if (packet.mode === 'bootstrap') bootstrapText = (bootstrapText + e.text).slice(-16384);
         else frame({ kind: 'text', text: e.text });
@@ -241,7 +251,6 @@ export class NativeProcessBackend implements ExecutionBackend {
             accepted = true;
             frame({ kind: 'accepted' });
           }
-          confirmContext();
           return packet.handleTool(tool, op, input);
         },
       });
@@ -322,6 +331,7 @@ export class NativeProcessBackend implements ExecutionBackend {
       phase = 'OPEN';
       const opened = await lifecycle.open({ config, process: r.process, instructions });
       await saveSession(opened);
+      nativeSessionId = opened.id;
       if (r.finishing || r.finished) return;
       if (r.cancelled || this.stopping) {
         await r.finish(true);
@@ -343,6 +353,7 @@ export class NativeProcessBackend implements ExecutionBackend {
           '\n'
         : '';
       const text = packet.mode === 'bootstrap' ? instructions : contextText + runText;
+      promptHash = createHash('sha256').update(text, 'utf8').digest('hex');
       // ACP has no prompt acceptance event; conservatively remain DISPATCHED until native terminal.
       started = true;
       phase = 'START_PROMPT';

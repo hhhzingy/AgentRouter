@@ -7,6 +7,7 @@ export interface CodexLifecycleOptions {
     runId?: string;
     threadId?: string;
     turnId?: string;
+    acceptedPromptHash?: string;
     text?: string;
     outcome?: string;
   }) => void;
@@ -148,6 +149,7 @@ export class CodexLifecycle {
       this.bindTurn(result?.turn?.id);
       this.options.onEvent({
         type: 'RunAccepted',
+        acceptedPromptHash: createHash('sha256').update(input.text, 'utf8').digest('hex'),
         runId: input.runId,
         threadId: this.threadId,
         turnId: this.active.turnId,
@@ -246,3 +248,4 @@ export class CodexLifecycle {
     }
   }
 }
+import { createHash } from 'node:crypto';

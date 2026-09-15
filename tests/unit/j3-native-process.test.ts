@@ -4,6 +4,17 @@ import {
   type SecureProcessHost,
 } from '../../packages/core-service/native-process-backend.ts';
 const tick = () => new Promise((r) => setImmediate(r));
+it('普通文本与终态不能生成 context receipt', async () => {
+  const f = fixture();
+  f.launch({ roleSessionId: 'ws', activationId: 'activation', activationEpoch: 1,
+    contextSync: { stable_marker: 'marker', payload_hash: 'a'.repeat(64) } });
+  await tick(); await tick();
+  f.emit({ type: 'message_update', assistantMessageEvent: { type: 'text_delta', delta: 'ordinary text' } });
+  f.emit({ type: 'agent_end' });
+  await tick();
+  expect(f.frames.filter(e => e.kind === 'context_confirmed')).toEqual([]);
+  await f.backend.stop();
+});
 function fixture(
   stop: any = { kind: 'supervisor-tree-empty', epoch: 1, containmentId: 'owned-job' },
   session: any = { id: 'native-session', path: 'E:/isolated/s' },
