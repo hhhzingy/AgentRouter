@@ -23,7 +23,7 @@ it(
     mkdirSync(resolve(dir, 'workspace'), { recursive: true });
     cpSync('packages/storage/migrations', resolve(dir, 'migrations'), { recursive: true });
     await build({ entryPoints: ['apps/core-daemon/w11-main.ts'], outfile: resolve(dir, 'core.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external' });
-    const core = spawn(process.execPath, [resolve(dir, 'core.mjs')], {
+    const startCore = () => spawn(process.execPath, [resolve(dir, 'core.mjs')], {
       windowsHide: true,
       stdio: ['ignore', 'ignore', 'ignore'],
       env: {
@@ -36,6 +36,7 @@ it(
         AGENTROUTER_PROJECT_ROOTS: JSON.stringify([resolve(dir, 'workspace')]),
       },
     });
+    let core = startCore();
     for (let i = 0; i < 60 && !existsSync(resolve(dir, 'core/endpoint.json')); i++)
       await new Promise((r) => setTimeout(r, 100));
     await build({
@@ -88,6 +89,19 @@ it(
       const unavailable = await httpGet(address + '/api/snapshot');
       expect(unavailable.status).toBe(503);
       expect(JSON.parse(unavailable.body)).toEqual({ error: 'CORE_UNAVAILABLE' });
+      // 同一测试数据集的新 Core 实例会发布新 endpoint/credential；Web 必须重新握手。
+      core = startCore();
+      let restored: any;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const next = await httpGet(address + '/api/snapshot');
+        if (next.status === 200) { restored = JSON.parse(next.body); break; }
+        expect(next.status).toBe(503);
+        await new Promise(r => setTimeout(r, 100));
+      }
+      expect(restored?.connected).toBe(true);
+      expect(restored.dataId).toBe(snap.dataId);
+      expect(restored.serverInstanceId).not.toBe(snap.serverInstanceId);
+      expect(restored.updatedAt).toBeGreaterThan(snap.updatedAt);
     } finally {
       server.kill();
       core.kill();

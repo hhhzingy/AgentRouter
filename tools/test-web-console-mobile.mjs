@@ -1,9 +1,8 @@
 // P4 手机仿真:Playwright 设备视口(iPhone/Pixel)打开只读控制台,验证响应式与可读性并截图。
-// 真机验证留给用户;本脚本证明响应式布局在小屏视口下成立。
-import { _electron as electron } from '@playwright/test';
+// 仅验证 Chromium 视口布局；不是 iOS/WebKit、Android 系统或真机验收。
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, existsSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, existsSync, writeFileSync, cpSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
 const devices = [
@@ -13,7 +12,9 @@ const devices = [
 mkdirSync('.local/w11-tests', { recursive: true });
 const dir = mkdtempSync(resolve('.local/w11-tests/mob-'));
 mkdirSync(resolve(dir, 'workspace'), { recursive: true });
-const core = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
+cpSync('packages/storage/migrations', resolve(dir, 'migrations'), { recursive: true });
+await build({ entryPoints: ['apps/core-daemon/w11-main.ts'], outfile: resolve(dir, 'core.mjs'), bundle: true, platform: 'node', format: 'esm', packages: 'external' });
+const core = spawn(process.execPath, [resolve(dir, 'core.mjs')], {
   windowsHide: true, stdio: ['ignore', 'ignore', 'ignore'],
   env: { SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: '', TEMP: dir, TMP: dir,
     AGENTROUTER_DATA: resolve(dir, 'core'), AGENTROUTER_PROJECT_ROOTS: JSON.stringify([resolve(dir, 'workspace')]) },
@@ -33,11 +34,14 @@ try {
     const page = await ctx.newPage();
     await page.goto(address, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1800);
+    await page.getByText('Core 已连接', { exact: true }).waitFor({ timeout: 15000 });
     const metrics = await page.evaluate(() => ({
       horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       sections: document.querySelectorAll('main section').length,
       headerVisible: !!document.querySelector('header'),
       title: document.title,
+      connected: document.getElementById('health').textContent === 'Core 已连接',
+      identityVisible: document.getElementById('host').textContent.includes('数据集 '),
     }));
     const shot = resolve(dir, d.name + '.png');
     await page.screenshot({ path: shot, fullPage: true });
@@ -45,7 +49,7 @@ try {
     await ctx.close();
   }
   await browser.close();
-  report.status = report.devices.every((x) => !x.horizontalOverflow && x.sections >= 4 && x.headerVisible) ? 'PASS' : 'FAIL';
+  report.status = report.devices.every((x) => !x.horizontalOverflow && x.sections >= 4 && x.headerVisible && x.connected && x.identityVisible) ? 'PASS' : 'FAIL';
 } catch (e) {
   report.error = String(e).slice(0, 300);
 } finally {
