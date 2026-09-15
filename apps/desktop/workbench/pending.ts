@@ -1,14 +1,17 @@
 import type {Method,Scope} from '../../../packages/client-contract/c1r1p1/generated.ts';
 import type {CoreIdentity} from './identity.ts';
-export type PendingRecord={recordId:string;identity:CoreIdentity;method:Method;params:unknown;operationId:string;expectedRevision:number;scope:Scope;createdAt:number;state:'submitting'|'uncertain'};
+export type PendingMethod = Method | 'roleSession.create' | 'roleSession.switch';
+export type PendingRecord={recordId:string;identity:CoreIdentity;method:PendingMethod;params:unknown;operationId:string;expectedRevision:number;scope:Scope;createdAt:number;state:'submitting'|'uncertain';requestKey?:string;preflightHash?:string};
 export class PendingStore {
  readonly key:string;
  constructor(readonly storage:Storage,readonly identity:CoreIdentity){this.key='agentrouter.pending.v2:'+JSON.stringify(identity);}
  list():PendingRecord[]{const rows=JSON.parse(this.storage.getItem(this.key)??'[]') as PendingRecord[];if(!Array.isArray(rows))throw Error('PENDING_STORAGE_INVALID');return rows.filter(r=>JSON.stringify(r.identity)===JSON.stringify(this.identity));}
  private write(rows:PendingRecord[]){const data=JSON.stringify(rows);if(data.length>1048576||rows.length>1000)throw Error('PENDING_STORAGE_FULL');this.storage.setItem(this.key,data);}
- prepare(method:Method,params:unknown,revision:number,scope:Scope){
+ prepare(method:PendingMethod,params:unknown,revision:number,scope:Scope,preflightHash?:string){
   const rows=this.list(), old=rows.find(r=>r.method===method&&JSON.stringify(r.params)===JSON.stringify(params)&&JSON.stringify(r.scope)===JSON.stringify(scope));if(old)return old;
+  if(method.startsWith('roleSession.') && (!preflightHash || !/^[a-f0-9]{64}$/.test(preflightHash)))throw Error('PREFLIGHT_REQUIRED');
   const record:PendingRecord={recordId:crypto.randomUUID(),identity:this.identity,method,params,operationId:'op_'+crypto.randomUUID(),expectedRevision:revision,scope,createdAt:Date.now(),state:'submitting'};
+  if(method.startsWith('roleSession.')){record.requestKey=record.operationId;record.preflightHash=preflightHash;}
   this.write([...rows,record]);return record;
  }
  markUncertain(id:string){this.write(this.list().map(r=>r.recordId===id?{...r,state:'uncertain'}:r));}

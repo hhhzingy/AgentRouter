@@ -224,6 +224,10 @@ export function StoreProvider({
         },
       ) => Promise<any>;
       if (!mutation) return request(method, params);
+      const records = await getPending();
+      let command = records.list().find(r => r.method === method && JSON.stringify(r.params) === JSON.stringify(params));
+      const retrying = Boolean(command);
+      if (!command) {
       const snapshot = (await request('system.snapshot', {})) as { revision: number };
       const preflightParams = {
         role_id: params.role_id,
@@ -237,16 +241,27 @@ export function StoreProvider({
         preflight_hash?: unknown;
       };
       if (typeof preflight.preflight_hash !== 'string') throw Error('PREFLIGHT_REQUIRED');
-      const requestKey = 'ui_rs_' + crypto.randomUUID();
-      const result = await request(method, params, {
-        leaseId: lease.current?.leaseId,
-        requestKey,
-        operationId: requestKey,
-        expectedRevision: Number(snapshot.revision),
-        preflightHash: preflight.preflight_hash,
-      });
-      await refresh();
-      return result;
+      command = records.prepare(method as 'roleSession.create' | 'roleSession.switch', params, Number(snapshot.revision), {}, preflight.preflight_hash);
+      }
+      if (!command.requestKey || !command.preflightHash) throw Error('PENDING_STORAGE_INVALID');
+      setPendingOperations(records.list());
+      try {
+        const result = await request(method, command.params, {
+          leaseId: lease.current?.leaseId,
+          requestKey: command.requestKey,
+          operationId: command.operationId,
+          expectedRevision: command.expectedRevision,
+          preflightHash: command.preflightHash,
+        });
+        records.remove(command.recordId);setPendingOperations(records.list());
+        await refresh();
+        return result;
+      } catch (e) {
+        if (retrying || failureState(e) === 'uncertain') records.markUncertain(command.recordId);
+        else records.remove(command.recordId);
+        setPendingOperations(records.list());setProblem(errorMessage(e));
+        throw e;
+      }
     },
     [session, refresh],
   );
@@ -255,7 +270,7 @@ export function StoreProvider({
     const state = hello.connectionState;
     return {
       pendingOperations,pendingIdentity,
-      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
+      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='roleSession.create'||record.method==='roleSession.switch')await callExtension(record.method,record.params as Record<string,unknown>);else await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
       removePending:async(id)=>{const records=await getPending();records.remove(id);setPendingOperations(records.list());},
       hello,
       snapshot,
@@ -288,6 +303,9 @@ export function StoreProvider({
     quotas,
     frozenAtMs,
     call,
+    callExtension,
+    pendingOperations,
+    pendingIdentity,
     refresh,
     session,
     clock,
