@@ -20,6 +20,9 @@ import type { Method, MethodMap } from '../../packages/client-contract/c1r1p1/ge
 const dir = dirname(fileURLToPath(import.meta.url));
 const mode = process.env.AGENTROUTER_MODE;
 if (mode !== 'PREVIEW_MOCK' && mode !== 'LOCAL_CORE' && mode !== 'REMOTE_CORE') throw Error('EXPLICIT_BACKEND_MODE_REQUIRED');
+// K09:必须在任何依赖 userData 的对象构造之前确定数据根,否则 DUT/生产账本落错目录。
+app.disableHardwareAcceleration();
+if (process.env.AGENTROUTER_DATA) app.setPath('userData', process.env.AGENTROUTER_DATA);
 const nodeLedger = new RemoteNodeLedger(resolve(app.getPath('userData'), 'remote-nodes'), safeStorage);
 let win: BrowserWindow,
   transport: ClientTransport | undefined,

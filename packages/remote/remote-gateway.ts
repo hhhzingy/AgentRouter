@@ -102,9 +102,12 @@ export class RemoteGateway {
       if (typeof challenge !== 'string') return send(400, { error: 'PAIR_CHALLENGE_REQUIRED' });
       try {
         const result = this.devices.consumePairing(challenge, this.clock());
-        // HttpOnly Secure SameSite=Strict:浏览器 JS 拿不到 token,后续 WSS 由 cookie 自动携带。
+        // K02:HttpOnly Secure cookie 对手机与桌面都写;但 token 明文只回给 DESKTOP(Electron Main 用 safeStorage 保管)。
+        // kind 由本机 GUI 生成配对挑战时决定(受信),不采信客户端自报,手机页面 JS 永远拿不到长期 token。
         res.setHeader('set-cookie', `ar_device=${result.token}; Path=/; HttpOnly; Secure; SameSite=Strict`);
-        return send(200, { deviceId: result.deviceId, token: result.token, kind: result.kind, displayName: result.displayName, scope: result.scope, canRequestController: result.canRequestController });
+        const publicMeta = { deviceId: result.deviceId, kind: result.kind, displayName: result.displayName, scope: result.scope, canRequestController: result.canRequestController };
+        if (result.kind === 'DESKTOP') return send(200, { ...publicMeta, token: result.token });
+        return send(200, { ...publicMeta, paired: true });
       } catch (error) {
         const code = error instanceof Error && /^REMOTE_/.test(error.message) ? error.message : 'REMOTE_PAIR_INVALID';
         return send(400, { error: code });

@@ -33,15 +33,17 @@ function frame(m,p,o){const id='m'+(++seq);const f={v:1,id,method:m,params:p||{}
 }
 function send(m,p,o){const {id,f}=frame(m,p,o||{});return new Promise((res,rej)=>{pending[id]={res,rej,t:setTimeout(()=>{rej(new Error('TIMEOUT'))},20000)};try{ws.send(JSON.stringify(f)+'\n')}catch(e){rej(e)}})}
 function snap(){return send('system.snapshot',{})}
-function connect(){ws&&ws.close();const proto=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(proto+'//'+location.host+'/ws');
- ws.onopen=()=>{$('#dot').className='dot on'};
- ws.onclose=()=>{$('#dot').className='dot';stale=true;S.lease=null;$('#mode').textContent='已断开';renderFrozen();if(S.snap)render()};
+function connect(reason){ws&&ws.close();const proto=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(proto+'//'+location.host+'/ws');
+ ws.onopen=()=>{$('#dot').className='dot on';reconnectAttempts=0};
+ ws.onclose=(ev)=>{$('#dot').className='dot';stale=true;S.lease=null;$('#mode').textContent='已断开';renderFrozen();if(ev.code===4003||ev.code===4004){renderPair();return}scheduleReconnect()};
  ws.onerror=()=>{$('#dot').className='dot'};
  ws.onmessage=e=>{for(const line of e.data.split('\n')){if(!line.trim())continue;let x;try{x=JSON.parse(line)}catch{continue}
-  if(x.attached){boot();continue}
+  if(x.attached){S.deviceKind=x.kind;S.canController=!!x.canRequestController;boot();continue}
+  if((x.event||x.eventCursor!==undefined)&&S.snap){if(x.cursor!==undefined)S.cursor=x.cursor;scheduleRefresh()}
   if(x.id&&pending[x.id]){const p=pending[x.id];clearTimeout(p.t);delete pending[x.id];x.error?p.rej(Object.assign(new Error(x.error.code),x.error)):p.res(x.result);continue}
-  if(x.eventCursor!==undefined&&S.snap){S.cursor=x.eventCursor;scheduleRefresh()}
  }}}
+let reconnectAttempts=0,reconnectTimer=null;
+function scheduleReconnect(){clearTimeout(reconnectTimer);const delay=Math.min(30000,1000*Math.pow(2,reconnectAttempts++));reconnectTimer=setTimeout(()=>{if(navigator.onLine!==false)connect()},delay)}
 async function boot(){try{const h=await send('system.initialize',{client_protocol:'agentrouter-client/1',client_version:'1.0.0',client_id:S.clientId,requested_mode:localStorage.getItem('ar_mode')||'observer',contract_revision:'C1R1P1'});S.rev=h.revision??null;$('#mode').textContent=h.connectionState==='CONNECTED_CONTROLLER'?'控制器':'观察者';await refresh()}catch(e){$('#mode').textContent='初始化失败';err(e)}}
 let refreshing=false;function scheduleRefresh(){if(refreshing)return;refreshing=true;setTimeout(async()=>{try{await refresh()}finally{refreshing=false}},300)}
 async function refresh(){try{const s=await snap();S.snap=s;S.rev=s.revision;S.cursor=s.cursor;stale=false;renderFrozen();render()}catch(e){err(e)}}
@@ -68,8 +70,10 @@ window.openTask=id=>{const t=S.snap.tasks.find(x=>x.id===id);if(!t)return;const 
 window.openRole=async id=>{try{const ls=await send('roleSession.list',{role_id:id});const act=ls.active_session_id;const pick=prompt('会话(输入序号切换):\n'+ls.sessions.map((x,i)=>i+':'+x.name+(x.id===act?'(当前)':'')).join('\n'));if(pick!=null&&ls.sessions[+pick]&&ls.sessions[+pick].id!==act)await send('roleSession.switch',{role_id:id,session_id:ls.sessions[+pick].id},leaseArgs({operationId:rid(),scope:{}}));alert('会话:'+ls.sessions.map(x=>x.name+(x.id===act?'*':'')).join(', '))}catch(e){err(e)}};
 function err(e){const c=document.createElement('div');c.className='card err';c.textContent='操作失败：'+(e&&e.message||e);$('#app').prepend(c);setTimeout(()=>c.remove(),4000)}
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;view=b.dataset.v;[...$('#nav').children].forEach(x=>x.classList.toggle('on',x===b));render()});
-(function gate(){if(document.cookie.includes('ar_device=')){connect()}else{
- document.body.innerHTML=`<main><section class="card"><h2>配对</h2><div class="hint">在主机 GUI「添加远程设备」生成 5 分钟配对码，输入下方。</div><input id="code" placeholder="配对码" style="margin:8px 0"><button id="go">配对并连接</button><div id="pe" class="err" style="margin-top:8px"></div></section></main>`;
- $('#go').onclick=async()=>{try{const r=await fetch('/pair',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({challenge:$('#code').value.trim()})});if(!r.ok)throw new Error((await r.json()).error||('HTTP'+r.status));document.body.innerHTML='';location.reload()}catch(e){$('#pe').textContent='配对失败：'+e.message}};
-}})();
+function renderPair(){reconnectAttempts=99;clearTimeout(reconnectTimer);document.body.innerHTML=`<main><section class="card"><h2>配对</h2><div class="hint">在主机 GUI「添加远程设备」生成 5 分钟配对码,输入下方。</div><input id="code" placeholder="配对码" style="margin:8px 0"><button id="go">配对并连接</button><div id="pe" class="err" style="margin-top:8px"></div></section></main>`;
+ const go=()=>{const el=document.getElementById('go');el.disabled=true;fetch('/pair',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({challenge:document.getElementById('code').value.trim()})}).then(async r=>{const b=await r.json().catch(()=>null);if(!r.ok||!b||b.error)throw new Error((b&&b.error)||('HTTP'+r.status));document.body.innerHTML='';reconnectAttempts=0;connect();}).catch(e=>{document.getElementById('pe').textContent='配对失败:'+e.message;el.disabled=false})};
+ document.getElementById('go').onclick=go;}
+// K01:不读 HttpOnly cookie;先尝试带 cookie 的已认证 WSS,未认证(onclose 4003/4004)再显示配对。
+connect();
+
 </script></body></html>

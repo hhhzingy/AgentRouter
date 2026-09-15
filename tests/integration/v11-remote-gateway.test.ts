@@ -62,12 +62,21 @@ it('REMOTE-01/03/05/06 + PAIR-01: 配对→连接→initialize→snapshot→cont
   } finally { await g.stop(); }
 });
 
-it('PAIR-01 single-use + PAIR-02 expired + PAIR-09 observer write rejected', async () => {
+it('PAIR-01 single-use + PAIR-09 observer write rejected + K02 桌面/手机 token 分离', async () => {
   const g = await boot();
   try {
-    const p = g.devices.createPairing({ displayName: 'phone', kind: 'MOBILE', ttlMs: 30000 });
+    // K02:手机配对响应只给 cookie,不给长期 token;桌面配对才在 body 回 token。
+    const mp = g.devices.createPairing({ displayName: 'phone', kind: 'MOBILE', ttlMs: 30000 });
+    const mres = await fetch(g.base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: mp.challenge }), headers: { host: '127.0.0.1' } });
+    const mbody = await mres.json();
+    expect(mbody.token).toBeUndefined();
+    expect(mbody.paired).toBe(true);
+    expect((mres.headers.get('set-cookie') ?? '').toLowerCase()).toContain('httponly');
+    // 桌面配对走 token 连接路径
+    const p = g.devices.createPairing({ displayName: 'PC-A', kind: 'DESKTOP', canRequestController: true, ttlMs: 30000 });
     const first = await pair(g.base, p.challenge);
     expect(first.status).toBe(200);
+    expect(typeof first.body.token).toBe('string');
     const replay = await pair(g.base, p.challenge);
     expect(replay.status).toBe(400); // 单次使用:重放拒绝
     const { transport, session } = await connect(g.url, first.body.token, 'observer');
