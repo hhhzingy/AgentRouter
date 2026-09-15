@@ -48,12 +48,14 @@ it('uses native compaction first, rechecks the budget, and waits for a native re
       atMs: 1,
     });
     const service = new ContextMigrationService(f.db, f.store, () => 100);
+    // Z1 语义:target usage 必须来自驱动实测;缺失=UNKNOWN=preflight BLOCK,不得当 0。
+    // 本用例模拟全新目标 WS,驱动上报实际 usage=0(EXACT)。
     const initial = service.preflight({
       roleId: f.role,
       targetWorkSessionId: f.sessionB,
       operationId: 'native-first',
       mode: 'FULL',
-      budget: { maxContextTokens: 100_000, source: 'EXACT' },
+      budget: { maxContextTokens: 100_000, currentUsageTokens: 0, source: 'EXACT' },
     });
     const input = {
       roleId: f.role,
@@ -62,6 +64,7 @@ it('uses native compaction first, rechecks the budget, and waits for a native re
       mode: 'FULL' as const,
       budget: {
         maxContextTokens: initial.budget.authoritativeTokens + initial.budget.reservedTokens + 160,
+        currentUsageTokens: 0,
         source: 'EXACT' as const,
       },
     };
