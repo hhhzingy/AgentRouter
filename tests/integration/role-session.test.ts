@@ -207,3 +207,26 @@ it('W02: legacy Context 表物理改名后,产品路径(新建/历史/快照)不
     expect(Array.isArray((snap as { roles: unknown[] }).roles)).toBe(true);
   } finally { await f.close(); }
 });
+
+it('W03: context_mode=inherit 在 Driver 无导出能力时显式拒绝,且旧 WS 保持 ACTIVE 不受影响', async () => {
+  const f = await fixture();
+  try {
+    const before = (await f.rs('roleSession.list', { role_id: f.roleId })) as { active_session_id: string; sessions: { id: string; state: string }[] };
+    // 无 capabilityLookup 注入 → UNKNOWN → 显式拒绝(不静默空白、不伪造迁移)
+    let err: string | undefined;
+    try {
+      await f.rs('roleSession.create', { role_id: f.roleId, name: '继承会话', context_mode: 'inherit' });
+    } catch (e) { err = (e as Error).message; }
+    expect(err).toBe('CONTEXT_EXPORT_UNSUPPORTED');
+    // 旧 WS 从未归档:失败前路径零副作用
+    const after = (await f.rs('roleSession.list', { role_id: f.roleId })) as { active_session_id: string; sessions: { id: string; state: string }[] };
+    expect(after.active_session_id).toBe(before.active_session_id);
+    expect(after.sessions.find(x => x.id === before.active_session_id)?.state).toBe('ACTIVE');
+    expect(after.sessions).toHaveLength(before.sessions.length);
+    // 空白创建仍可用(显式选择不迁移)
+    const blank = (await f.rs('roleSession.create', { role_id: f.roleId, name: '空白新会话', context_mode: 'blank' })) as { session?: { id: string; state: string } };
+    expect(blank.session?.state).toBe('ACTIVE');
+    const final = (await f.rs('roleSession.list', { role_id: f.roleId })) as { active_session_id: string };
+    expect(final.active_session_id).toBe(blank.session!.id);
+  } finally { await f.close(); }
+});

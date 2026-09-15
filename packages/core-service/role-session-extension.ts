@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { inheritSupported } from './context-transfer.ts';
 import {
   validateExternalApiFrame,
   extensionReply,
@@ -52,6 +53,7 @@ const createParams = compile({
     role_id: IdString,
     name: { type: 'string', minLength: 1, maxLength: 80 },
     target_harness: IdString,
+    context_mode: { enum: ['blank', 'inherit'] },
   },
 });
 const switchParams = compile({
@@ -75,6 +77,8 @@ export class RoleSessionExtension {
   constructor(
     private readonly db: import('better-sqlite3').Database,
     private readonly clock = () => Date.now(),
+    /** Harness Context 能力(诚实标注):用于 inherit 模式门控;未注入=UNKNOWN→拒绝继承。 */
+    private readonly capabilityLookup?: (harness: string) => { historyExport: string },
   ) {}
 
   handle(raw: unknown, context: RoleSessionDispatchContext): unknown {
@@ -149,6 +153,7 @@ export class RoleSessionExtension {
               p.target_harness as string | undefined,
               operationId,
               context.transitionBinding,
+              p.context_mode === 'inherit' ? 'inherit' : 'blank',
             ),
           };
         } else if (method === 'roleSession.switch') {
@@ -439,9 +444,17 @@ export class RoleSessionExtension {
     targetHarness: string | undefined,
     operationId: string,
     transition?: RoleSessionDispatchContext['transitionBinding'],
+    contextMode: 'blank' | 'inherit' = 'blank',
   ) {
     this.assertRole(roleId);
     this.safeToSwitch(roleId);
+    // W03 inherit 门控:Driver 未声明 FULL_VISIBLE 导出且无受信通道 → 显式拒绝,旧 WS 不受影响。
+    const inheritHarness = targetHarness ?? this.binding(roleId).harness;
+    if (contextMode === 'inherit') {
+      const cap = this.capabilityLookup?.(inheritHarness) ?? { historyExport: 'UNKNOWN' };
+      if (!inheritSupported(cap.historyExport, false))
+        throw Error('CONTEXT_EXPORT_UNSUPPORTED');
+    }
     let binding = this.binding(roleId);
     if (targetHarness && targetHarness !== binding.harness) {
       if (!transition) throw Error('ROLE_SESSION_TARGET_HARNESS_UNAVAILABLE');

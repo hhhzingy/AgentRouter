@@ -34,7 +34,7 @@ export function openApplicationStore(
     const rows = db
       .prepare('select version,checksum from schema_migrations order by version')
       .all() as { version: number; checksum: string }[];
-    const sources = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql', '012-role-context-index.sql', '013-remote-devices.sql', '014-context-convergence.sql'].map((name) =>
+    const sources = ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql', '012-role-context-index.sql', '013-remote-devices.sql', '014-context-convergence.sql', '015-context-transfer.sql'].map((name) =>
       readFileSync(new URL(name, migrations), 'utf8'),
     );
     const hashes = sources.map((sql) => createHash('sha256').update(sql).digest('hex'));
@@ -190,6 +190,14 @@ export function openApplicationStore(
         if ((db.pragma('foreign_key_check') as unknown[]).length)
           throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
         db.prepare('insert into schema_migrations values(14,?,?)').run(Date.now(), hashes[13]);
+      }).immediate();
+    }
+    if (rows.length < 15) {
+      db.transaction(() => {
+        db.exec(sources[14]);
+        if ((db.pragma('foreign_key_check') as unknown[]).length)
+          throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
+        db.prepare('insert into schema_migrations values(15,?,?)').run(Date.now(), hashes[14]);
       }).immediate();
     }
     db.pragma('journal_mode=WAL');
