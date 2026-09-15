@@ -1,5 +1,4 @@
 import { createServer, type Server, type IncomingMessage } from 'node:http';
-import { randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RemoteDeviceStore } from './device-store.ts';
@@ -130,7 +129,10 @@ export class RemoteGateway {
     };
     const startSession = (authed: NonNullable<typeof device>) => {
       device = authed;
-      connection = app.open('remote_' + randomUUID(), true);
+      // K07:把设备授权能力(是否可申请 controller)作为权威 authorized 传入 Core 连接,
+      // 非 UI 标签;不可申请的设备的 control.acquire/写路径在 Core 端被拒(见 application:641/766)。
+      // K08:principal 用设备稳定身份(跨重连保留命令账本幂等身份);连接 id 仍唯一区分活动连接。
+      connection = app.open('remote_device_' + authed.deviceId, authed.canRequestController);
       unsubscribe = app.subscribe(connection, event => sendFrame(event));
       sendFrame({ attached: true, deviceId: device.deviceId, kind: device.kind, scope: device.scope, canRequestController: device.canRequestController });
       const set = this.liveSockets.get(device.deviceId) ?? new Set<WebSocket>();
