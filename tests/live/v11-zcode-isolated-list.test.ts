@@ -4,8 +4,9 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { prepareManagedZcodeProfile } from '../../packages/platform/zcode-managed-profile.ts';
+import { ZcodeLifecycle } from '../../packages/adapters/zcode/lifecycle.ts';
 
-it.skipIf(process.env.AGENTROUTER_V11_ZCODE_ISOLATED_PROBE !== '1')('官方 ZCode 独立 HOME app-server 仅列举新目录会话', { timeout: 30000 }, async () => {
+it.skipIf(process.env.AGENTROUTER_V11_ZCODE_ISOLATED_PROBE !== '1').each(['session/list', 'session/create'])('官方 ZCode 独立 HOME 无模型请求：%s', { timeout: 30000 }, async method => {
   const runtime = 'E:/software/ZCode/resources/glm/zcode.cjs';
   expect(createHash('sha256').update(readFileSync(runtime)).digest('hex'))
     .toBe('e9f1868c0fdb863537ed910ee3828b9be96b8c2fd805473f63b439e1113266b8');
@@ -25,6 +26,7 @@ it.skipIf(process.env.AGENTROUTER_V11_ZCODE_ISOLATED_PROBE !== '1')('官方 ZCod
   child.stdin.on('error', () => {});
   // 消费日志但不打印，避免发行物日志意外包含机密。
   child.stderr.on('data', () => {});
+  const lifecycle = new ZcodeLifecycle({ write: async bytes => { child.stdin.write(bytes); }, onEvent: () => {}, onDisconnect: () => {} });
   let timer: ReturnType<typeof setTimeout>;
   try {
     const reply = await new Promise<any>((resolveReply, reject) => {
@@ -37,19 +39,29 @@ it.skipIf(process.env.AGENTROUTER_V11_ZCODE_ISOLATED_PROBE !== '1')('官方 ZCod
         if (buffer.length > 1048576) { reject(Error('ISOLATED_ZCODE_OUTPUT_LIMIT')); return; }
         const lines = buffer.split('\n'); buffer = lines.pop()!;
         for (const line of lines) {
-          try { const frame = JSON.parse(line); if (frame.id === 'isolated-list') resolveReply(frame); } catch { /* 非协议日志不输出 */ }
+          try { const frame = JSON.parse(line); if (frame.id === 'isolated-list') resolveReply(frame);
+            else if (frame.id !== undefined && typeof frame.method === 'string') lifecycle.accept(Buffer.from(line + '\n'));
+          } catch { /* 非协议日志不输出 */ }
         }
       });
-      child.stdin.write(JSON.stringify({ id: 'isolated-list', method: 'session/list', params: {} }) + '\n');
+      child.stdin.write(JSON.stringify({ id: 'isolated-list', method, params: method === 'session/list' ? {} : {
+        workspace: { workspacePath: workspace, workspaceKey: workspace }, titleGenerationEnabled: false,
+        mcpServers: [], toolAllowlist: [],
+      } }) + '\n');
     });
-    expect(Boolean(reply.error), '协议不得拒绝 session/list').toBe(false);
+    if (reply.error) writeFileSync(join(root, 'probe-error.json'), JSON.stringify({ method, code: reply.error.code, pid: child.pid }));
+    expect(Boolean(reply.error), '协议不得拒绝隔离请求').toBe(false);
     expect(reply.result && typeof reply.result === 'object').toBeTruthy();
-    writeFileSync(join(root, 'probe-evidence.json'), JSON.stringify({ scope: 'OFFICIAL_RUNTIME_ISOLATED_LIST_ONLY',
+    if (method === 'session/list') expect(reply.result.sessions).toEqual([]);
+    else expect(typeof reply.result.session?.sessionId).toBe('string');
+    writeFileSync(join(root, 'probe-evidence.json'), JSON.stringify({ scope: 'OFFICIAL_RUNTIME_ISOLATED_NO_PROMPT', method,
+      nativeSessionId: reply.result.session?.sessionId,
       resultKeys: Object.keys(reply.result), arrays: Object.fromEntries(Object.entries(reply.result).filter(([,v]) => Array.isArray(v)).map(([k,v]) => [k, (v as unknown[]).length])),
       pid: child.pid, runtimeSha256: 'e9f1868c0fdb863537ed910ee3828b9be96b8c2fd805473f63b439e1113266b8' }, null, 2));
     console.log(JSON.stringify({ scope: 'OFFICIAL_RUNTIME_ISOLATED_LIST_ONLY', resultKeys: Object.keys(reply.result), root, pid: child.pid }));
   } finally {
     clearTimeout(timer!);
+    lifecycle.disconnect();
     child.kill(); await closed;
   }
 });

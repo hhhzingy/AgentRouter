@@ -125,7 +125,13 @@ export class ZcodeLifecycle {
           if (m.error) entry.reject(new NativeRpcError('ZCODE_REQUEST_REJECTED', 'possible'));
           else entry.resolve(m.result);
         } else if (typeof m.method === 'string') {
-          this.notifications.get(m.method)?.(m.params);
+          if (m.id !== undefined) {
+            const reply = m.method === 'session/requestRuntimePreferences'
+              ? { id: m.id, result: { nativeSearchEnhancementsEnabled: false, memoryEnabled: false, askUserQuestionAutoResolutionEnabled: false } }
+              : { id: m.id, error: { code: -32601, message: 'Unsupported managed client request' } };
+            void Promise.resolve().then(() => this.options.write(Buffer.from(JSON.stringify(reply) + '\n')))
+              .catch(() => this.disconnect('ZCODE_TRANSPORT_FAILED'));
+          } else this.notifications.get(m.method)?.(m.params);
         }
       }
     } catch {
