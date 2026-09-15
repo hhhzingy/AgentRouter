@@ -14,6 +14,7 @@ export interface RoleSessionDispatchContext {
   principal: string;
   clientId?: string;
   mode?: string;
+  assertRoleAccess?: (roleId: string, clientId?: string) => void;
   assertControllerLease: (leaseId: string) => void;
   assertRevision?: (expectedRevision: number) => void;
   commitRevision?: () => void;
@@ -75,8 +76,6 @@ export class RoleSessionExtension {
     private readonly clock = () => Date.now(),
   ) {}
 
-  private operations = new Map<string, { hash: string; result: unknown }>();
-
   handle(raw: unknown, context: RoleSessionDispatchContext): unknown {
     try {
       const frame = validateExternalApiFrame(raw);
@@ -84,63 +83,117 @@ export class RoleSessionExtension {
       if (!method.startsWith('roleSession.')) throw Error('INVALID_FRAME');
       const p = (frame.params ?? {}) as Record<string, unknown>;
       const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
+      context.assertRoleAccess?.(String(p.role_id ?? ''), frame.client_id);
+      if (mutation) {
+        if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
+        context.assertControllerLease(frame.lease_id!);
+        if (context.clientId && context.clientId !== frame.client_id)
+          throw Error('CONTROL_LEASE_REQUIRED');
+      }
       const metadata = mutation ? this.mutationMetadata(frame, p) : null;
-      if (metadata) {
-        const previous = this.operations.get(metadata.operationId);
-        if (previous) {
-          if (previous.hash !== metadata.hash) throw Error('OPERATION_CONFLICT');
-          return extensionReply(frame.id, previous.result);
+      const execute = () => {
+        const role = mutation
+          ? this.one(
+              'select r.id,s.project_id from roles r join spaces s on s.id=r.space_id where r.id=?',
+              String(p.role_id ?? ''),
+            )
+          : undefined;
+        if (mutation && !role) throw Error('ROLE_NOT_FOUND');
+        const clientId = context.clientId ?? frame.client_id;
+        if (mutation && !clientId) throw Error('CONTROL_LEASE_REQUIRED');
+        const ledgerKey = metadata
+          ? 'roleSession:' +
+            createHash('sha256')
+              .update(JSON.stringify([role!.project_id, role!.id, metadata.requestKey]))
+              .digest('hex')
+          : '';
+        if (metadata) {
+          const previous = this.one(
+            'select request_hash,response_json from command_ledger where principal=? and client_id=? and operation_id=?',
+            context.principal,
+            clientId,
+            ledgerKey,
+          );
+          if (previous) {
+            if (previous.request_hash !== metadata.hash) throw Error('OPERATION_CONFLICT');
+            return extensionReply(frame.id, JSON.parse(previous.response_json));
+          }
+          context.assertRevision?.(metadata.expectedRevision);
         }
-        context.assertRevision?.(metadata.expectedRevision);
-      }
-      const operationId = metadata?.operationId ?? String(frame.id);
-      let result: unknown;
-      if (method === 'roleSession.list') {
-        if (!listParams(p)) throw Error('INVALID_PARAMS');
-        result = this.list(String(p.role_id));
-      } else if (method === 'roleSession.preflight') {
-        if (!preflightParams(p)) throw Error('INVALID_PARAMS');
-        result = this.preflight(
-          String(p.role_id),
-          p.target_harness as string | undefined,
-          p.session_id as string | undefined,
-        );
-      } else if (method === 'roleSession.create') {
-        if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
-        context.assertControllerLease(frame.lease_id!);
-        if (!createParams(p)) throw Error('INVALID_PARAMS');
-        if (metadata)
-          this.assertPreflightHash(
-            metadata,
-            this.preflight(String(p.role_id), p.target_harness as string | undefined),
-          );
-        result = {
-          session: this.create(
+        const operationId = metadata?.operationId ?? String(frame.id);
+        let result: unknown;
+        if (method === 'roleSession.list') {
+          if (!listParams(p)) throw Error('INVALID_PARAMS');
+          result = this.list(String(p.role_id));
+        } else if (method === 'roleSession.preflight') {
+          if (!preflightParams(p)) throw Error('INVALID_PARAMS');
+          result = this.preflight(
             String(p.role_id),
-            String(p.name),
             p.target_harness as string | undefined,
-            operationId,
-          ),
-        };
-      } else if (method === 'roleSession.switch') {
-        if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
-        context.assertControllerLease(frame.lease_id!);
-        if (!switchParams(p)) throw Error('INVALID_PARAMS');
-        if (metadata)
-          this.assertPreflightHash(
-            metadata,
-            this.preflight(String(p.role_id), undefined, String(p.session_id)),
+            p.session_id as string | undefined,
           );
-        result = this.switch(String(p.role_id), String(p.session_id), operationId);
-      } else if (method === 'roleSession.history') {
-        if (!historyParams(p)) throw Error('INVALID_PARAMS');
-        result = this.history(String(p.role_id), String(p.session_id), Number(p.limit ?? 200));
-      } else throw Error('UNSUPPORTED_METHOD');
-      if (metadata) {
-        context.commitRevision?.();
-        this.operations.set(metadata.operationId, { hash: metadata.hash, result });
-      }
-      return extensionReply(frame.id, result);
+        } else if (method === 'roleSession.create') {
+          if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
+          context.assertControllerLease(frame.lease_id!);
+          if (!createParams(p)) throw Error('INVALID_PARAMS');
+          if (metadata)
+            this.assertPreflightHash(
+              metadata,
+              this.preflight(String(p.role_id), p.target_harness as string | undefined),
+            );
+          result = {
+            session: this.create(
+              String(p.role_id),
+              String(p.name),
+              p.target_harness as string | undefined,
+              operationId,
+            ),
+          };
+        } else if (method === 'roleSession.switch') {
+          if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
+          context.assertControllerLease(frame.lease_id!);
+          if (!switchParams(p)) throw Error('INVALID_PARAMS');
+          if (metadata)
+            this.assertPreflightHash(
+              metadata,
+              this.preflight(String(p.role_id), undefined, String(p.session_id)),
+            );
+          result = this.switch(String(p.role_id), String(p.session_id), operationId);
+        } else if (method === 'roleSession.history') {
+          if (!historyParams(p)) throw Error('INVALID_PARAMS');
+          result = this.history(String(p.role_id), String(p.session_id), Number(p.limit ?? 200));
+        } else throw Error('UNSUPPORTED_METHOD');
+        if (metadata) {
+          context.commitRevision?.();
+          this.db
+            .prepare('insert into command_ledger values(?,?,?,?,?,?)')
+            .run(
+              context.principal,
+              clientId,
+              ledgerKey,
+              metadata.hash,
+              JSON.stringify(result),
+              this.clock(),
+            );
+          this.db
+            .prepare(
+              'insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(?,?,?,?,?)',
+            )
+            .run(
+              role!.project_id,
+              context.principal,
+              method,
+              JSON.stringify({
+                client_id: clientId,
+                role_id: role!.id,
+                operation_id: metadata.operationId,
+              }),
+              this.clock(),
+            );
+        }
+        return extensionReply(frame.id, result);
+      };
+      return mutation ? this.db.transaction(execute).immediate() : execute();
     } catch (error) {
       const rawId = (raw as { id?: unknown })?.id;
       return extensionErrorReply(typeof rawId === 'string' ? rawId : 'unknown', error);
@@ -151,12 +204,6 @@ export class RoleSessionExtension {
     frame: ReturnType<typeof validateExternalApiFrame>,
     params: Record<string, unknown>,
   ): MutationMetadata | null {
-    const supplied =
-      frame.request_key !== undefined ||
-      frame.operation_id !== undefined ||
-      frame.expected_revision !== undefined ||
-      frame.preflight_hash !== undefined;
-    if (!supplied) return null;
     if (
       !frame.request_key ||
       !frame.operation_id ||
@@ -171,6 +218,8 @@ export class RoleSessionExtension {
           method: frame.method,
           params,
           request_key: frame.request_key,
+          operation_id: frame.operation_id,
+          expected_revision: frame.expected_revision,
           preflight_hash: frame.preflight_hash,
         }),
       )
@@ -203,7 +252,7 @@ export class RoleSessionExtension {
   }
 
   private binding(roleId: string): Row {
-    const row = this.one("select * from bindings where role_id=? and is_current=1", roleId);
+    const row = this.one('select * from bindings where role_id=? and is_current=1', roleId);
     if (!row) throw Error('ROLE_BINDING_NOT_FOUND');
     return row;
   }
@@ -242,12 +291,15 @@ export class RoleSessionExtension {
       "select id from initialization_attempts where role_id=? and state in ('STARTING','RUNNING','UNKNOWN') limit 1",
       roleId,
     );
-    if (slot?.active_run_id || liveRun || liveInitialization) throw Error('ROLE_SESSION_SWITCH_BLOCKED');
+    if (slot?.active_run_id || liveRun || liveInitialization)
+      throw Error('ROLE_SESSION_SWITCH_BLOCKED');
   }
 
   private ensureContextRows(roleId: string, sessionId: string, now: number) {
     this.db
-      .prepare('insert or ignore into role_context_heads(role_id,head_seq,updated_at_ms) values(?,0,?)')
+      .prepare(
+        'insert or ignore into role_context_heads(role_id,head_seq,updated_at_ms) values(?,0,?)',
+      )
       .run(roleId, now);
     this.db
       .prepare(
@@ -276,12 +328,16 @@ export class RoleSessionExtension {
       return prior;
     if (prior)
       this.db
-        .prepare("update role_session_activations set state='ENDED',ended_at_ms=? where id=? and state='ACTIVE'")
+        .prepare(
+          "update role_session_activations set state='ENDED',ended_at_ms=? where id=? and state='ACTIVE'",
+        )
         .run(now, prior.id);
     const nextEpoch =
       Number(
-        this.one('select coalesce(max(activation_epoch),0) as n from role_session_activations where role_id=?', roleId)
-          ?.n ?? 0,
+        this.one(
+          'select coalesce(max(activation_epoch),0) as n from role_session_activations where role_id=?',
+          roleId,
+        )?.n ?? 0,
       ) + 1;
     const id = 'rsa_' + globalThis.crypto.randomUUID();
     this.db
@@ -297,7 +353,10 @@ export class RoleSessionExtension {
 
   private vm(row: Row) {
     const fallbackBinding = row.harness ? undefined : this.binding(String(row.role_id));
-    const state = this.one('select fidelity from role_session_context_state where role_session_id=?', row.id);
+    const state = this.one(
+      'select fidelity from role_session_context_state where role_session_id=?',
+      row.id,
+    );
     return {
       id: row.id,
       role_id: row.role_id,
@@ -337,15 +396,18 @@ export class RoleSessionExtension {
     const sameBinding = harness === binding.harness && candidateHarness === binding.harness;
     const canResume = Boolean(
       candidate?.native_session_ref &&
-        sameBinding &&
-        (!this.workspaceId(candidate) || this.workspaceId(candidate) === binding.workspace_id),
+      sameBinding &&
+      (!this.workspaceId(candidate) || this.workspaceId(candidate) === binding.workspace_id),
     );
     let reason = sessionId && !candidate ? 'ROLE_SESSION_NOT_FOUND' : 'NO_WORK_SESSION_FOR_HARNESS';
     if (candidate && !sameBinding) reason = 'TARGET_HARNESS_REQUIRES_BINDING';
     else if (candidate && !candidate.native_session_ref) reason = 'NATIVE_SESSION_NOT_AVAILABLE';
     else if (candidate && !canResume) reason = 'WORKSPACE_AFFINITY_MISMATCH';
     const state = candidate
-      ? this.one('select fidelity from role_session_context_state where role_session_id=?', candidate.id)
+      ? this.one(
+          'select fidelity from role_session_context_state where role_session_id=?',
+          candidate.id,
+        )
       : undefined;
     const result = {
       role_id: roleId,
@@ -383,7 +445,12 @@ export class RoleSessionExtension {
     };
   }
 
-  private create(roleId: string, name: string, targetHarness: string | undefined, operationId: string) {
+  private create(
+    roleId: string,
+    name: string,
+    targetHarness: string | undefined,
+    operationId: string,
+  ) {
     this.assertRole(roleId);
     this.safeToSwitch(roleId);
     const binding = this.binding(roleId);
@@ -394,9 +461,18 @@ export class RoleSessionExtension {
     const id = 'rsess_' + globalThis.crypto.randomUUID();
     return this.db
       .transaction(() => {
-        const seq = Number(this.one('select coalesce(max(seq),0) as n from role_sessions where role_id=?', roleId)?.n ?? 0) + 1;
+        const seq =
+          Number(
+            this.one('select coalesce(max(seq),0) as n from role_sessions where role_id=?', roleId)
+              ?.n ?? 0,
+          ) + 1;
         const generation =
-          Number(this.one('select coalesce(max(generation),0) as n from role_sessions where role_id=?', roleId)?.n ?? 0) + 1;
+          Number(
+            this.one(
+              'select coalesce(max(generation),0) as n from role_sessions where role_id=?',
+              roleId,
+            )?.n ?? 0,
+          ) + 1;
         this.db
           .prepare("update role_sessions set state='ARCHIVED' where id=? and state='ACTIVE'")
           .run(current.id);
@@ -430,7 +506,11 @@ export class RoleSessionExtension {
   private switch(roleId: string, sessionId: string, operationId: string) {
     this.assertRole(roleId);
     this.safeToSwitch(roleId);
-    const target = this.one('select * from role_sessions where id=? and role_id=?', sessionId, roleId);
+    const target = this.one(
+      'select * from role_sessions where id=? and role_id=?',
+      sessionId,
+      roleId,
+    );
     if (!target) throw Error('ROLE_SESSION_NOT_FOUND');
     const binding = this.binding(roleId);
     this.assertCompatible(target, binding);
@@ -449,12 +529,19 @@ export class RoleSessionExtension {
     return this.db
       .transaction(() => {
         const generation =
-          Number(this.one('select coalesce(max(generation),0) as n from role_sessions where role_id=?', roleId)?.n ?? 0) + 1;
+          Number(
+            this.one(
+              'select coalesce(max(generation),0) as n from role_sessions where role_id=?',
+              roleId,
+            )?.n ?? 0,
+          ) + 1;
         this.db
           .prepare("update role_sessions set state='ARCHIVED' where id=? and state='ACTIVE'")
           .run(current.id);
         this.db
-          .prepare("update role_sessions set state='ACTIVE',generation=?,activated_at_ms=? where id=?")
+          .prepare(
+            "update role_sessions set state='ACTIVE',generation=?,activated_at_ms=? where id=?",
+          )
           .run(generation, now, target.id);
         this.ensureContextRows(roleId, sessionId, now);
         this.activateWithinTransaction(roleId, sessionId, binding, operationId, now);
@@ -465,10 +552,16 @@ export class RoleSessionExtension {
 
   private history(roleId: string, sessionId: string, limit: number) {
     this.assertRole(roleId);
-    const session = this.one('select id from role_sessions where id=? and role_id=?', sessionId, roleId);
+    const session = this.one(
+      'select id from role_sessions where id=? and role_id=?',
+      sessionId,
+      roleId,
+    );
     if (!session) throw Error('ROLE_SESSION_NOT_FOUND');
     const items = this.db
-      .prepare('select seq,kind,title,body,state,at_ms,task_id from conversation_items where role_session_id=? order by seq limit ?')
+      .prepare(
+        'select seq,kind,title,body,state,at_ms,task_id from conversation_items where role_session_id=? order by seq limit ?',
+      )
       .all(sessionId, limit);
     return { items };
   }

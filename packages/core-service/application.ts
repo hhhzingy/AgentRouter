@@ -438,8 +438,19 @@ export class ApplicationService extends Plans {
     ) {
       const method = String((raw as { method?: unknown }).method);
       const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
+      if (!c.initialized || !c.authorized) return {
+        v: 1, id: (raw as { id?: unknown }).id,
+        error: { code: !c.initialized ? 'NOT_INITIALIZED' : 'SCOPE_DENIED' },
+      };
+      let committed = false;
       const reply = this.roleSession.handle(raw, {
         principal: c.principal,
+        assertRoleAccess: (roleId, clientId) => {
+          if (mutation && clientId !== c.clientId) throw Error('CONTROL_LEASE_REQUIRED');
+          const role = this.one('select r.id,r.space_id,s.project_id from roles r join spaces s on s.id=r.space_id where r.id=?', roleId);
+          if (!role) throw Error('ROLE_NOT_FOUND');
+          this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+        },
         ...(c.clientId ? { clientId: c.clientId } : {}),
         ...(c.mode ? { mode: c.mode } : {}),
         assertControllerLease: (leaseId: string) => this.checkLease(id, leaseId),
@@ -448,9 +459,14 @@ export class ApplicationService extends Plans {
         },
         commitRevision: () => {
           this.next();
+          if (this.failNextCommit) {
+            this.failNextCommit = false;
+            throw Error('INTERNAL_ERROR');
+          }
+          committed = true;
         },
       });
-      if (mutation) this.onChanged?.();
+      if (committed && !('error' in (reply as object))) this.onChanged?.();
       return reply;
     }
     if (
