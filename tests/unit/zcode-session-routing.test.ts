@@ -31,3 +31,14 @@ it('恢复响应身份错配时拒绝，禁止 fallback create', async () => {
   expect(f.sent.map(r => r.method)).toEqual(['session/resume']);
   f.lifecycle.disconnect();
 });
+
+it.each([false, true])('ZCode create/resume 传入受信宿主提供的 Role MCP，resume=%s', async resume => {
+  const f = fixture();
+  const mcpServers = [{ name: 'agentrouter-role', command: 'test-node', args: ['test-bridge'], env: [] }];
+  await f.lifecycle.open({ config: { workspace: 'test-workspace' } as any,
+    process: { ...(resume ? { session: { id: 'bound-native' } } : {}), mcpServers } as any, instructions: '' });
+  expect(f.sent[0].method).toBe(resume ? 'session/resume' : 'session/create');
+  expect(f.sent[0].params.mcpServers).toEqual(mcpServers);
+  expect(f.sent.map(r => r.method)).toEqual([resume ? 'session/resume' : 'session/create', 'session/subscribe']);
+  f.lifecycle.disconnect();
+});

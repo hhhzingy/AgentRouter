@@ -153,6 +153,8 @@ export async function installLocalNativeRuntime(
       if (input.config.harness === 'zcode') {
         if (input.config.version !== '0.16.5') throw Error('ZCODE_VERSION_UNVERIFIED');
         if (!c.zcodeCli || !isAbsolute(c.zcodeCli)) throw Error('ZCODE_RUNTIME_CONFIG_INVALID');
+        if (!c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256)
+          throw Error('ZCODE_ROLE_BRIDGE_INVALID');
         // 受管隔离:沙箱HOME+受管env;真实会话创建需已配置凭据的实例(实验级,不宣称执行闭环)。
         const zhome = join(home, 'zcode-home');
         mkdirSync(zhome, { recursive: true });
@@ -160,7 +162,9 @@ export async function installLocalNativeRuntime(
         return {
           env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1'},
           revoke:()=>bridge.revoke(token),
-          saveSession:async()=>{throw Error('ZCODE_SESSION_SAVE_UNSUPPORTED');},
+          mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
+          session,
+          saveSession:async(ref,guard)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
         };
       }
       if (input.config.harness === 'deepseek_harness') {

@@ -24,19 +24,20 @@ export class ZcodeLifecycle {
     this.phase = 'INITIALIZE';
     this.notifications.set('session/event', (params) => this.sessionEvent(params));
   }
-  async open(input: { workspacePath: string; workspaceKey: string }): Promise<{ id: string }> {
+  async open(input: { workspacePath: string; workspaceKey: string; mcpServers?: unknown[] }): Promise<{ id: string }> {
     if (this.closed) throw new NativeRpcError('RPC_CLOSED', 'none-proven');
     this.phase = 'OPEN';
     const reply = (await this.request('session/create', {
       workspace: { workspacePath: input.workspacePath, workspaceKey: input.workspaceKey },
+      ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
     }));
     const id = this.snapshotSessionId(reply);
     this.sessionId = id;
     return { id };
   }
-  async resume(sessionId: string): Promise<void> {
+  async resume(sessionId: string, mcpServers?: unknown[]): Promise<void> {
     this.phase = 'RESUME';
-    const reply = await this.request('session/resume', { sessionId });
+    const reply = await this.request('session/resume', { sessionId, ...(mcpServers ? { mcpServers } : {}) });
     if (this.snapshotSessionId(reply) !== sessionId)
       throw new NativeRpcError('ZCODE_SESSION_MISMATCH', 'possible');
     this.sessionId = sessionId;
