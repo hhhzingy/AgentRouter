@@ -89,7 +89,9 @@ export class ZcodeLifecycle {
     return new Promise((resolvePromise, rejectPromise) => {
       const timer = setTimeout(() => this.disconnect('RPC_TIMEOUT'), this.options.timeoutMs ?? 30000);
       this.pending.set(id, { resolve: resolvePromise, reject: rejectPromise, timer });
-      void this.options.write(Buffer.from(text + '\n'));
+      void Promise.resolve()
+        .then(() => this.options.write(Buffer.from(text + '\n')))
+        .catch(() => this.disconnect('ZCODE_TRANSPORT_FAILED'));
     });
   }
 }
