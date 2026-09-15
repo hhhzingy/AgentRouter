@@ -1,0 +1,75 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' ws: wss:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; form-action 'none'"><title>AgentRouter 远程控制台</title><style>
+:root{--bg:#0f1216;--fg:#e7ecf3;--card:#171b21;--line:#262c36;--mut:#8b98a9;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--acc:#4c8dff}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;gap:10px;z-index:5}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad);flex:none}.dot.on{background:var(--ok)}.dot.warn{background:var(--warn)}
+h1{font-size:16px;margin:0;flex:1;font-weight:600}.badge{font-size:11px;padding:2px 7px;border-radius:999px;background:#22293a;color:var(--mut)}
+main{padding:12px;display:grid;gap:12px;max-width:560px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.card h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line)}.row:first-of-type{border-top:0}
+.k{color:var(--mut)}.v{text-align:right}
+button{font:inherit;background:var(--acc);color:#05101f;border:0;border-radius:9px;padding:9px 12px;font-weight:600}button.g{background:#22293a;color:var(--fg)}button:disabled{opacity:.45}
+input,select{font:inherit;background:#0b0e12;color:var(--fg);border:1px solid var(--line);border-radius:9px;padding:9px;width:100%}
+.st{font-size:11px;padding:2px 7px;border-radius:6px;background:#22293a}.SUCCEEDED{color:var(--ok)}.WAITING_INPUT,.PENDING,.NEEDS_ATTENTION,.UNKNOWN{color:var(--warn)}
+nav{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex}nav button{flex:1;background:none;color:var(--mut);border-radius:0;padding:12px 4px;font-weight:500}nav button.on{color:var(--acc)}
+.err{color:var(--bad);font-size:13px}.hint{color:var(--mut);font-size:12px}.frozen{background:#3a2230;color:#ffb4c0;padding:6px 10px;border-radius:8px;font-size:12px;text-align:center}
+</style></head><body>
+<header><span class="dot" id="dot"></span><h1>AgentRouter</h1><span class="badge" id="mode">未连接</span><span class="badge" id="lease"></span></header>
+<div id="frozen" style="display:none" class="frozen"></div>
+<main id="app"></main>
+<nav id="nav" style="display:none">
+<button data-v="home" class="on">概览</button><button data-v="attention">需处理</button><button data-v="tasks">任务</button><button data-v="roles">角色</button><button data-v="me">控制</button>
+</nav>
+<script>
+const $=s=>document.querySelector(s),S={rev:null,cursor:0,lease:null,clientId:'mobile_'+Math.random().toString(36).slice(2),snap:null};
+let ws=null,seq=0,pending={},view='home',stale=false;
+const MM={system:{},role:{},task:{},run:{}};
+function meta(){return MM}
+function frame(m,p,o){const id='m'+(++seq);const f={v:1,id,method:m,params:p||{}};const md=(meta()[m]||{});
+ if(md.mutation){f.client_id=S.clientId;f.operation_id=o.operationId;f.expected_revision=o.expectedRevision;f.scope=o.scope||{};}
+ if(o&&o.leaseId)f.lease_id=o.leaseId;
+ if(md.mutation||m.startsWith('control.')){}
+ return {id,f};
+}
+function send(m,p,o){const {id,f}=frame(m,p,o||{});return new Promise((res,rej)=>{pending[id]={res,rej,t:setTimeout(()=>{rej(new Error('TIMEOUT'))},20000)};try{ws.send(JSON.stringify(f)+'\n')}catch(e){rej(e)}})}
+function snap(){return send('system.snapshot',{})}
+function connect(){ws&&ws.close();const proto=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(proto+'//'+location.host+'/ws');
+ ws.onopen=()=>{$('#dot').className='dot on'};
+ ws.onclose=()=>{$('#dot').className='dot';stale=true;S.lease=null;$('#mode').textContent='已断开';renderFrozen();if(S.snap)render()};
+ ws.onerror=()=>{$('#dot').className='dot'};
+ ws.onmessage=e=>{for(const line of e.data.split('\n')){if(!line.trim())continue;let x;try{x=JSON.parse(line)}catch{continue}
+  if(x.attached){boot();continue}
+  if(x.id&&pending[x.id]){const p=pending[x.id];clearTimeout(p.t);delete pending[x.id];x.error?p.rej(Object.assign(new Error(x.error.code),x.error)):p.res(x.result);continue}
+  if(x.eventCursor!==undefined&&S.snap){S.cursor=x.eventCursor;scheduleRefresh()}
+ }}}
+async function boot(){try{const h=await send('system.initialize',{client_protocol:'agentrouter-client/1',client_version:'1.0.0',client_id:S.clientId,requested_mode:localStorage.getItem('ar_mode')||'observer',contract_revision:'C1R1P1'});S.rev=h.revision??null;$('#mode').textContent=h.connectionState==='CONNECTED_CONTROLLER'?'控制器':'观察者';await refresh()}catch(e){$('#mode').textContent='初始化失败';err(e)}}
+let refreshing=false;function scheduleRefresh(){if(refreshing)return;refreshing=true;setTimeout(async()=>{try{await refresh()}finally{refreshing=false}},300)}
+async function refresh(){try{const s=await snap();S.snap=s;S.rev=s.revision;S.cursor=s.cursor;stale=false;renderFrozen();render()}catch(e){err(e)}}
+function renderFrozen(){$('#frozen').style.display=stale?'block':'none';if(stale)$('#frozen').textContent='连接中断 · 数据截至上次快照 · 正在自动重连'}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function render(){$('#nav').style.display='flex';const s=S.snap;const app=$('#app');
+ if(view==='home')app.innerHTML=card('概览',row('项目',s.projects.length)+row('角色',s.roles.length)+row('运行中',s.runs.filter(r=>['CREATED','STARTING','RUNNING','WAITING_APPROVAL','SETTLING'].includes(r.state)).length)+row('需处理',s.roles.filter(r=>r.interventionState&&r.interventionState!=='NONE').length)+row('快照修订',s.revision))+(s.roles.length?card('活跃角色',s.roles.slice(0,6).map(r=>row(esc(r.name),'<span class="st">'+esc(r.status)+'</span>')).join('')):'');
+ else if(view==='attention'){const need=[];for(const r of s.roles)if(r.interventionState&&r.interventionState!=='NONE')need.push(row(esc(r.name),'需 '+esc(r.interventionState)));for(const t of s.tasks)if(t.state==='WAITING_INPUT')need.push(row('任务 '+esc(t.summary),'<button class="g" onclick="openTask(\''+t.id+'\')">回复</button>'));for(const a of s.approvals||[])if(a.state==='PENDING')need.push(row('审批 '+esc(a.kind||a.id),approve(a)));app.innerHTML=card('需处理',need.length?need.join(''):'<div class="hint">当前没有需要你介入的事项</div>')}
+ else if(view==='tasks')app.innerHTML=card('任务',s.tasks.slice(0,40).map(t=>row(esc(t.summary),'<span class="st '+t.state+'">'+esc(t.state)+'</span>')).join(''))+card('新任务',`<select id="nr">${s.roles.map(r=>`<option value="${r.id}:${r.spaceId}">${esc(r.name)}</option>`).join('')}</select><input id="nb" placeholder="任务描述"><button ${S.lease?'':'disabled'} onclick="newTask()">派发</button><div class="hint">${S.lease?'':'需先在“控制”获取租约'}</div>`);
+ else if(view==='roles')app.innerHTML=card('角色与会话',s.roles.map(r=>row(esc(r.name),'<button class="g" onclick="openRole(\''+r.id+'\')">会话</button>')).join(''));
+ else if(view==='me')app.innerHTML=card('控制权',`<div class="hint">观察者只读；控制器需获取租约（同一时刻仅一名）。</div><div style="display:flex;gap:8px;margin-top:8px"><button ${S.lease?'disabled':''} onclick="acq()">获取控制器</button><button ${S.lease?'':'disabled'} onclick="rel()">释放</button></div><div class="hint">当前:${S.lease?'控制器':'观察者'}</div>`);
+}
+function card(h,b){return`<section class="card"><h2>${h}</h2>${b}</section>`}
+function row(k,v){return`<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`}
+function approve(a){return`<button class="g" onclick="appr('${a.id}',true)">批准</button> <button class="g" onclick="appr('${a.id}',false)">拒绝</button>`}
+async function op(fn){try{await fn();await refresh()}catch(e){err(e)}}
+function leaseArgs(o){if(!S.lease)throw Object.assign(new Error('CONTROL_LEASE_REQUIRED'));return Object.assign({leaseId:S.lease},o)}
+function rid(){return'mcp'+Math.random().toString(36).slice(2,10)}
+window.acq=()=>op(async()=>{const r=await send('control.acquire',{},{operationId:rid(),expectedRevision:S.rev,scope:{}});S.lease=r.leaseId;$('#lease').textContent='控制器';$('#mode').textContent='控制器'});
+window.rel=()=>op(async()=>{if(S.lease)await send('control.release',{lease_id:S.lease},{operationId:rid(),expectedRevision:S.rev,scope:{},leaseId:S.lease});S.lease=null;$('#lease').textContent='';$('#mode').textContent='观察者'});
+window.newTask=()=>{const v=$('#nr').value.split(':');const summary=$('#nb').value.trim();if(!summary)return;op(async()=>{await send('task.submitFromUser',{request:{kind:'task.request',to:{type:'role',id:v[0]},summary,body:summary,inputs:[],expected:['用户验收'],completion:{mode:'result',to:{type:'user'}}}},{operationId:rid(),expectedRevision:S.rev,scope:{project_id:S.snap.projects[0]?.id,space_id:v[1]}});$('#nb').value=''})};
+window.appr=(id,ok)=>op(()=>send('approval.decide',{id,decision:ok?'approve':'reject',reason:''},leaseArgs({operationId:rid(),expectedRevision:S.rev,scope:{}})));
+window.openTask=id=>{const t=S.snap.tasks.find(x=>x.id===id);if(!t)return;const body=prompt('回复该任务(输入文本):');if(body!=null)op(()=>send('conversation.sendUserInput',{task_id:id,role_id:t.assigneeRoleId,body},leaseArgs({operationId:rid(),expectedRevision:S.rev,scope:{project_id:S.snap.projects[0]?.id,space_id:t.spaceId}})))};
+window.openRole=async id=>{try{const ls=await send('roleSession.list',{role_id:id});const act=ls.active_session_id;const pick=prompt('会话(输入序号切换):\n'+ls.sessions.map((x,i)=>i+':'+x.name+(x.id===act?'(当前)':'')).join('\n'));if(pick!=null&&ls.sessions[+pick]&&ls.sessions[+pick].id!==act)await send('roleSession.switch',{role_id:id,session_id:ls.sessions[+pick].id},leaseArgs({operationId:rid(),scope:{}}));alert('会话:'+ls.sessions.map(x=>x.name+(x.id===act?'*':'')).join(', '))}catch(e){err(e)}};
+function err(e){const c=document.createElement('div');c.className='card err';c.textContent='操作失败：'+(e&&e.message||e);$('#app').prepend(c);setTimeout(()=>c.remove(),4000)}
+$('#nav').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;view=b.dataset.v;[...$('#nav').children].forEach(x=>x.classList.toggle('on',x===b));render()});
+(function gate(){if(document.cookie.includes('ar_device=')){connect()}else{
+ document.body.innerHTML=`<main><section class="card"><h2>配对</h2><div class="hint">在主机 GUI「添加远程设备」生成 5 分钟配对码，输入下方。</div><input id="code" placeholder="配对码" style="margin:8px 0"><button id="go">配对并连接</button><div id="pe" class="err" style="margin-top:8px"></div></section></main>`;
+ $('#go').onclick=async()=>{try{const r=await fetch('/pair',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({challenge:$('#code').value.trim()})});if(!r.ok)throw new Error((await r.json()).error||('HTTP'+r.status));document.body.innerHTML='';location.reload()}catch(e){$('#pe').textContent='配对失败：'+e.message}};
+}})();
+</script></body></html>

@@ -1,5 +1,6 @@
 import { createServer, type Server, type IncomingMessage } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { readFileSync, existsSync } from 'node:fs';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RemoteDeviceStore } from './device-store.ts';
 
@@ -13,6 +14,8 @@ export interface RemoteCoreServer {
 export interface RemoteGatewayOptions {
   app: RemoteCoreServer;
   devices: RemoteDeviceStore;
+  /** 手机远程控制台静态首页(单文件 HTML);GET / 返回。 */
+  consoleHtml?: string;
   /** 仅接受这些 Host(:port 可含)与 Origin(tailnet 主机名)。默认仅 loopback。 */
   allowedHosts?: string[];
   allowedOrigins?: string[];
@@ -80,6 +83,10 @@ export class RemoteGateway {
     if (!this.requestAuthorized(req)) return send(403, { error: 'SCOPE_DENIED' });
     const url = (req.url ?? '').split('?')[0];
     if (req.method === 'GET' && url === '/health') return send(200, { status: 'ok', kind: 'agentrouter-remote-gateway' });
+    if (req.method === 'GET' && (url === '/' || url === '/index.html') && this.options.consoleHtml) {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'self'; connect-src 'self' ws: wss:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'", 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
+      return res.end(this.options.consoleHtml);
+    }
     if (req.method === 'POST' && url === '/pair') {
       const key = pairKey(req);
       const now = this.clock();

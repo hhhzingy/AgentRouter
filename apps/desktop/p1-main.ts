@@ -1,5 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, safeStorage } from 'electron';
 import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts';
+import { RemoteWebSocketTransport } from '../../packages/client-transport/remote/websocket.ts';
+import { RemoteNodeLedger } from '../../packages/remote/node-ledger.ts';
 import { connectLocalCore } from './local-core-launcher.ts';
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -17,7 +19,8 @@ import type {
 import type { Method, MethodMap } from '../../packages/client-contract/c1r1p1/generated.ts';
 const dir = dirname(fileURLToPath(import.meta.url));
 const mode = process.env.AGENTROUTER_MODE;
-if (mode !== 'PREVIEW_MOCK' && mode !== 'LOCAL_CORE') throw Error('EXPLICIT_BACKEND_MODE_REQUIRED');
+if (mode !== 'PREVIEW_MOCK' && mode !== 'LOCAL_CORE' && mode !== 'REMOTE_CORE') throw Error('EXPLICIT_BACKEND_MODE_REQUIRED');
+const nodeLedger = new RemoteNodeLedger(resolve(app.getPath('userData'), 'remote-nodes'), safeStorage);
 let win: BrowserWindow,
   transport: ClientTransport | undefined,
   session: ClientSession | undefined,
@@ -101,7 +104,7 @@ app.whenReady().then(async () => {
     writeFileSync(selected.filePath, bytes);
     return { saved: true, artifactId: id, byteSize: bytes.length };
   });
-  ipcMain.handle('p1:connect', async (e, options: ConnectOptions, g: number) => {
+  ipcMain.handle('p1:connect', async (e, options: ConnectOptions, g: number, nodeId?: string) => {
     guard(e.sender);
     await close();
     if (options.mode && options.mode !== mode) throw Error('BACKEND_MODE_MISMATCH');
@@ -109,6 +112,16 @@ app.whenReady().then(async () => {
     if (mock) {
       transport = new P1MemoryTransport(mock);
       session = await transport.connect(options);
+    } else if (mode === 'REMOTE_CORE') {
+      // Renderer 只交 nodeId;设备 token 仅 Main 经 safeStorage 解密,绝不回传 renderer。
+      if (!nodeId) throw Error('REMOTE_NODE_REQUIRED');
+      const token = nodeLedger.credentialFor(nodeId);
+      const node = nodeLedger.list().find(n => n.id === nodeId);
+      if (!token || !node) throw Error('REMOTE_NODE_UNPAIRED');
+      const wsUrl = node.url.replace(/^http/, 'ws') + '/ws';
+      transport = new RemoteWebSocketTransport({ url: wsUrl, token, requestTimeoutMs: 15000 });
+      session = await transport.connect(options);
+      nodeLedger.markSeen(nodeId);
     } else {
       const connected = await connectLocalCore(
         resolve(app.getPath('userData'), 'core'),
@@ -156,6 +169,15 @@ app.whenReady().then(async () => {
     ++generation;
     await close();
   });
+  ipcMain.handle('remote:listNodes', (e) => { guard(e.sender); return nodeLedger.list(); });
+  ipcMain.handle('remote:pair', async (e, input: { name: string; url: string; challenge: string }) => {
+    guard(e.sender);
+    const res = await fetch(input.url.replace(/\/$/, '') + '/pair', { method: 'POST', body: JSON.stringify({ challenge: input.challenge }) });
+    const body = await res.json().catch(() => null) as { deviceId?: string; token?: string; kind?: string; displayName?: string; scope?: string[]; canRequestController?: boolean; error?: string } | null;
+    if (!res.ok || !body?.token || !body.deviceId) throw Error(body?.error ?? 'REMOTE_PAIR_FAILED');
+    return nodeLedger.add({ name: input.name, url: input.url, deviceId: body.deviceId, token: body.token });
+  });
+  ipcMain.handle('remote:removeNode', (e, nodeId: string) => { guard(e.sender); nodeLedger.remove(nodeId); return {}; });
   win = new BrowserWindow({
     width: 1440,
     height: 900,
