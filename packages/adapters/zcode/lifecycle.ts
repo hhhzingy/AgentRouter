@@ -36,13 +36,15 @@ export class ZcodeLifecycle {
   }
   async resume(sessionId: string): Promise<void> {
     this.phase = 'RESUME';
-    await this.request('session/resume', { sessionId });
+    const reply = await this.request('session/resume', { sessionId }) as { sessionId?: string };
+    if (reply?.sessionId !== sessionId)
+      throw new NativeRpcError('ZCODE_SESSION_MISMATCH', 'possible');
     this.sessionId = sessionId;
   }
   async start(input: { runId: string; text: string }): Promise<void> {
     if (!this.sessionId) throw new NativeRpcError('ZCODE_SESSION_REQUIRED', 'none-proven');
     this.phase = 'START_PROMPT';
-    await this.request('session/send', { sessionId: this.sessionId, message: input.text });
+    await this.request('session/send', { sessionId: this.sessionId, content: input.text, inputId: input.runId });
   }
   async cancel(): Promise<void> {
     if (!this.sessionId) return;

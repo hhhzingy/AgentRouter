@@ -25,7 +25,7 @@ it('ZcodeLifecycle:session/create往返+事件分发+响应按id关联+断连拒
   const ps = driver.start({ runId: 'r1', text: 'hello' });
   await tick();
   const sendFrame = sent.find((x) => x.method === 'session/send');
-  expect(sendFrame.params).toEqual({ sessionId: 'sess_1', message: 'hello' });
+  expect(sendFrame.params).toEqual({ sessionId: 'sess_1', content: 'hello', inputId: 'r1' });
   driver.accept(Buffer.from(JSON.stringify({ id: sendFrame.id, result: {} }) + '\n'));
   await ps;
   expect(disconnected).toBe('');
