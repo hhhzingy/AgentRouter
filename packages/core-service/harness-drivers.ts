@@ -243,10 +243,12 @@ export const zcodeDriver: HarnessDriver = {
       async open({ config: cfg, process }) {
         if (process.session?.id) {
           await lifecycle.resume(process.session.id);
+          await lifecycle.subscribe();
           return { id: process.session.id };
         }
         // workspaceKey 语义未与官方桌面实例核验;实验级以 workspace 路径为键。
         const opened = await lifecycle.open({ workspacePath: cfg.workspace, workspaceKey: cfg.workspace });
+        await lifecycle.subscribe();
         return { id: opened.id };
       },
       async start(input) {

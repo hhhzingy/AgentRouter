@@ -15,6 +15,7 @@ export class ZcodeLifecycle {
   private pending = new Map<string, { resolve: (v: any) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   private notifications = new Map<string, (params: unknown) => void>();
   private sessionId?: string;
+  private eventFloor = 0;
   private active?: { runId: string; turnId?: string; seq: number };
   phase = 'CREATED';
   constructor(private readonly options: ZcodeLifecycleOptions) {}
@@ -28,24 +29,44 @@ export class ZcodeLifecycle {
     this.phase = 'OPEN';
     const reply = (await this.request('session/create', {
       workspace: { workspacePath: input.workspacePath, workspaceKey: input.workspaceKey },
-    })) as { sessionId?: string; session?: { id?: string }; id?: string };
-    const id = reply?.sessionId ?? reply?.session?.id ?? reply?.id;
-    if (typeof id !== 'string' || !id) throw new NativeRpcError('ZCODE_SESSION_REJECTED', 'possible');
+    }));
+    const id = this.snapshotSessionId(reply);
     this.sessionId = id;
     return { id };
   }
   async resume(sessionId: string): Promise<void> {
     this.phase = 'RESUME';
-    const reply = await this.request('session/resume', { sessionId }) as { sessionId?: string };
-    if (reply?.sessionId !== sessionId)
+    const reply = await this.request('session/resume', { sessionId });
+    if (this.snapshotSessionId(reply) !== sessionId)
       throw new NativeRpcError('ZCODE_SESSION_MISMATCH', 'possible');
     this.sessionId = sessionId;
+  }
+  private snapshotSessionId(value: unknown): string {
+    const reply = value as { sessionId?: unknown; id?: unknown;
+      session?: { sessionId?: unknown; id?: unknown }; projection?: { sessionId?: unknown } } | null;
+    // 当前官方 Wbt/fse 形状为 session.sessionId；保留既有实验版响应兼容。
+    const ids = [reply?.session?.sessionId, reply?.sessionId, reply?.session?.id,
+      reply?.id, reply?.projection?.sessionId].filter(id => id !== undefined);
+    if (!ids.length || ids.some(id => typeof id !== 'string' || !id))
+      throw new NativeRpcError('ZCODE_SESSION_REJECTED', 'possible');
+    if (new Set(ids).size !== 1) throw new NativeRpcError('ZCODE_SESSION_MISMATCH', 'possible');
+    return ids[0] as string;
+  }
+  async subscribe(): Promise<void> {
+    if (!this.sessionId || this.active) throw new NativeRpcError('ZCODE_SUBSCRIBE_STATE_INVALID', 'none-proven');
+    const reply = await this.request('session/subscribe', {
+      sessionId: this.sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false,
+    }) as { sessionId?: string; eventSeq?: number; events?: unknown[] };
+    if (reply?.sessionId !== this.sessionId || !Number.isSafeInteger(reply.eventSeq)
+      || reply.eventSeq! < 0 || !Array.isArray(reply.events) || reply.events.length !== 0)
+      throw new NativeRpcError('ZCODE_SUBSCRIBE_REJECTED', 'possible');
+    this.eventFloor = reply.eventSeq!;
   }
   async start(input: { runId: string; text: string }): Promise<void> {
     if (!this.sessionId) throw new NativeRpcError('ZCODE_SESSION_REQUIRED', 'none-proven');
     if (this.active) throw new NativeRpcError('ZCODE_RUN_ACTIVE', 'none-proven');
     this.phase = 'START_PROMPT';
-    this.active = { runId: input.runId, seq: 0 };
+    this.active = { runId: input.runId, seq: this.eventFloor };
     await this.request('session/send', { sessionId: this.sessionId, content: input.text, inputId: input.runId });
   }
   private sessionEvent(value: unknown): void {
