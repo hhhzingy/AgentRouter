@@ -56,7 +56,7 @@ writeFileSync(
     piExtension: extension,
     piExtensionSha256: sha(extension),
     credentialFile: bailian?'E:/AgentRouter/账号信息/通用API/百炼.txt':'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
-    ...(bailian?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
+    ...(bailian?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt',dshCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
     kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json',
     codexApprovedIdentityFile:resolve('.local/j3-codex/dut-fj/approved-identity.json'),
     roleBridge:resolve('.local/w11-core/role-bridge.mjs'),roleBridgeSha256:sha(resolve('.local/w11-core/role-bridge.mjs')),

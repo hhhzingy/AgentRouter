@@ -45,6 +45,8 @@ interface Config {
   /** pi→百炼绑定(owner 配置):指定凭据文件(标签格式)与 provider 身份;缺省保持 agentrouter-deepseek。 */
   piProvider?: { providerId: string; modelId: string; contextWindowTokens: number; maxOutputTokens: number };
   piCredentialFile?: string;
+  /** dsh→百炼:标注凭据文件(dsh settings 官方 balian provider,BALIAN_API_KEY)。 */
+  dshCredentialFile?: string;
   codexApprovedIdentityFile?: string;
   roleBridge?: string;
   roleBridgeSha256?: string;
@@ -90,8 +92,13 @@ export async function installLocalNativeRuntime(
         p.providerId === (c.piProvider?.providerId ?? 'agentrouter-deepseek') &&
         p.modelId === (c.piProvider ? c.piProvider.modelId : 'deepseek-v4-flash') &&
         p.effort === 'off');
+    const dshOk =
+      p.harness === 'deepseek_harness' &&
+      p.effort === 'off' &&
+      ((p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash') ||
+        (c.piProvider !== undefined && c.dshCredentialFile !== undefined && p.providerId === 'agentrouter-dashscope' && p.modelId === 'qwen3.8-flash'));
     if (
-      !((piOk) || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (p.harness==='deepseek_harness' && p.providerId==='agentrouter-deepseek' && p.modelId==='deepseek-v4-flash' && p.effort==='off')) ||
+      !((piOk) || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (dshOk)) ||
       !isAbsolute(p.sessionHome) ||
       !isAbsolute(p.executable) ||
       sha(p.executable) !== p.executableSha256
@@ -196,12 +203,21 @@ export async function installLocalNativeRuntime(
         if (!c.dshBin || !isAbsolute(c.dshBin)) throw Error('DSH_RUNTIME_CONFIG_INVALID');
         const dshHome = c.dshHome ?? join(home, '.dsh');
         if (!existsSync(join(dshHome, 'profiles'))) throw Error('NATIVE_CREDENTIALS_REQUIRED');
-        const keyText = existsSync(c.credentialFile) ? readFileSync(c.credentialFile, 'utf8') : '';
-        const dshKey = keyText.match(/sk-[A-Za-z0-9_-]{16,}/)?.[0];
-        if (!dshKey) throw Error('NATIVE_CREDENTIALS_REQUIRED');
+        // 百炼官方路径:dsh settings.yaml 内置 balian provider(apiKeyEnv=BALIAN_API_KEY);注入标注密钥即可。
+        let dshEnv: Record<string, string | undefined> = { SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: join(home, 'bin'), DSH_HOME: dshHome };
+        if (c.dshCredentialFile && c.piProvider) {
+          if (!isAbsolute(c.dshCredentialFile)) throw Error('DSH_CREDENTIAL_PATH_INVALID');
+          const cred = parseLabeledCredential(readFileSync(c.dshCredentialFile, 'utf8'));
+          dshEnv = { ...dshEnv, BALIAN_API_KEY: cred.apiKey };
+        } else {
+          const keyText = existsSync(c.credentialFile) ? readFileSync(c.credentialFile, 'utf8') : '';
+          const dshKey = keyText.match(/sk-[A-Za-z0-9_-]{16,}/)?.[0];
+          if (!dshKey) throw Error('NATIVE_CREDENTIALS_REQUIRED');
+          dshEnv = { ...dshEnv, DEEPSEEK_API_KEY: dshKey };
+        }
         const token = bridge.issue(input.handleTool);
         return {
-          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),DSH_HOME:dshHome,DEEPSEEK_API_KEY:dshKey},
+          env: dshEnv,
           mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
           approveKimi:approveManagedKimiRoute,
           session,
