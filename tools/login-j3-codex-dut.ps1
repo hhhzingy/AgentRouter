@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$dutRoot = Join-Path $repoRoot '.local/j3-codex/dut-fj'
+# WC00 X-04: DUT 登录态迁出可清理的 .local,存受保护目录;清理计划不得覆盖 .local-protected。
+$dutRoot = Join-Path $repoRoot '.local-protected/codex-dut'
 $dutHome = Join-Path $dutRoot 'home'
 $dutCodex = Join-Path $dutHome '.codex'
 New-Item -ItemType Directory -Force -Path $dutCodex | Out-Null

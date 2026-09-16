@@ -1,0 +1,93 @@
+{
+  "schema": "agentrouter-shared-checkpoint/2",
+  "status": "SC0_FACTS_ONLY",
+  "checkpoint": "SC0",
+  "source_sha": "62988170ac0265444142ba988ace2577b949ccbc",
+  "source_sha_note": "6298817 = 复核基线 b2c1d5c 的父提交;其本身两门 CI success。b2c1d5c 仅新增 docs/reports/V1.1-W00-W14-review-report.md(1 file, 87+),其 CI 双门 4 秒即失败,注解为账号计费/消费上限(GitHub Actions Billing),与代码无关,记 BLOCKED_CI_INFRA。",
+  "evidence_commit_sha": null,
+  "base_sha": "b2c1d5cd743af76548e5aef010096e0f87b0465b",
+  "windows_head": "b2c1d5cd743af76548e5aef010096e0f87b0465b",
+  "linux_head_declared": "2362e1fa3db6273b66e828046231c99469128b84",
+  "common_ancestor": "e160ef4ded2cfbd867fcb95500083b2945cf589a",
+  "product_spec": "Context收敛：历史WS只读，一次性新WS迁移；同ACTIVE续轮保留",
+  "migrations": {
+    "max_number": 15,
+    "sha256_by_path": {
+      "packages/storage/migrations/014-context-convergence.sql": "96c142acbc52b46d7bb5930034e124a595416a414e8969b84e606a246832e04f",
+      "packages/storage/migrations/015-context-transfer.sql": "2943063cb49e73833f2df519d2a0bd67186948a56dad753ec80db173f0f6ed97"
+    },
+    "frozen_range": "001-013 不可改;014/015 为 Windows 已发布语义,Linux 不得从 014 另造冲突序列"
+  },
+  "capabilities": {
+    "new_ws_direct_transfer": "NOT_VERIFIED",
+    "source_compression": "NOT_VERIFIED",
+    "single_external_compression": "NOT_VERIFIED",
+    "historical_ws_read_only": "TESTED_LOCAL_430",
+    "zcode_active_continuity": "NOT_VERIFIED",
+    "mobile_https_write": "NOT_VERIFIED",
+    "dut_bailian_qwen38flash": {
+      "pi": "PASS_TASK_AND_BOOTSTRAP",
+      "deepseek_harness": "PASS_TASK_AND_BOOTSTRAP",
+      "kimi_code": "PASS_TASK_AND_BOOTSTRAP",
+      "zcode": "PASS_TASK_AND_BOOTSTRAP",
+      "codex": "BLOCKED_USER_DEVICE_LOGIN",
+      "note": "均为各自报告批次记录,非本轮重跑;第二轮/产物/交接覆盖在 WC05"
+    }
+  },
+  "provider_templates": [
+    {
+      "harness": "pi",
+      "version": "0.85.1",
+      "shape": "piProvider{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096} + labeled credential file(base_url (OpenAI)/https://<tenant>.cn-<region>.maas.aliyuncs.com/compatible-mode/v1, api_key/<key>, model/qwen3.8-flash)",
+      "secrets": "credential file only; no env",
+      "entry": "packages/platform/pi-provider-broker.ts createPiProviderBroker(provider, model, maxTokensCap)"
+    },
+    {
+      "harness": "deepseek_harness",
+      "version": "0.1.5-rc.1",
+      "shape": "dsh settings.yaml 内置 balian provider(apiKeyEnv=BALIAN_API_KEY);runtime 注入 env BALIAN_API_KEY=<key>,DSH_HOME=受管home",
+      "secrets": "env BALIAN_API_KEY (进程内注入,不落盘)",
+      "entry": "packages/platform/local-native-runtime.ts deepseek_harness 分支"
+    },
+    {
+      "harness": "kimi_code",
+      "version": "0.42.0",
+      "shape": "受管 config.toml: [providers.\"bailian\"] type=\"openai\" base_url=<compatible-mode v1> api_key=<key>; [models.\"bailian/qwen3.8-flash\"] + [thinking] enabled=true + tools/permission 段;ACP 启动,无 env key",
+      "secrets": "config.toml 内 api_key(kimi 官方存储位置,受管 HOME 0600)",
+      "entry": "packages/platform/kimi-managed-profile.ts prepareManagedKimiProfile({bailian})"
+    },
+    {
+      "harness": "zcode",
+      "version": "0.16.5 (sha e9f1868c...)",
+      "shape": "受管 config.json: model.main=\"bailian/qwen3.8-flash\"; provider.bailian={kind:'openai-compatible',options:{baseURL:<compatible-mode v1>}}; env ZCODE_API_KEY=<key>",
+      "secrets": "env ZCODE_API_KEY",
+      "entry": "packages/platform/zcode-managed-profile.ts prepareManagedZcodeProfile(home, model)"
+    }
+  ],
+  "shared_commits_for_linux": [],
+  "linux_must_retest": [],
+  "ci": [
+    {
+      "run": 35071788455,
+      "sha": "b2c1d5cd743af76548e5aef010096e0f87b0465b",
+      "gate": "c1",
+      "conclusion": "failure",
+      "cause": "ANNOTATION: 'The job was not started because recent account payments have failed or your spending limit needs to be increased.' — 未启动,非测试失败;分类 BLOCKED_CI_INFRA",
+      "local_regression": "430/430 at b2c1d5c tree"
+    },
+    {
+      "run": 35071788416,
+      "sha": "b2c1d5cd743af76548e5aef010096e0f87b0465b",
+      "gate": "w11",
+      "conclusion": "failure",
+      "cause": "同上计费注解",
+      "local_regression": "同上"
+    }
+  ],
+  "known_blockers": [
+    "BLOCKED_CI_INFRA: GitHub Actions 计费/消费上限,需要账号侧处理;远端认证阻塞,不阻塞本地实现",
+    "codex DUT 凭据缺失(W-04): 需用户 device-login(卡4重制版);原 .local/j3-codex/dut-fj/home/.codex 已随 .local 清理丢失",
+    "WC06/WC07 等待 Linux 车道固定输入(linux-platform-checkpoint 更新后)"
+  ],
+  "replacement_of": null
+}

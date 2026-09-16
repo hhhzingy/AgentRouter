@@ -1,5 +1,15 @@
 # USER_ACTION_CARD — V1.1 W12 物理/人工门禁（2026-09-16，逐步可复制执行）
 
+> **⚠️ 复核撤回（2026-09-17，WC00）**：本卡以下内容已作废，不要执行——
+> ① 所有 `taskkill /IM electron.exe|core-node.exe` 通杀命令（会误伤原应用；替代见
+> `docs/parallel/wc00-protection-ledger.md` §3，只允许按 PID/路径/数据根核验后停止）；
+> ② 裸 HTTP `http://100.74.12.59:3780` 手机配对步骤（Cookie 为 Secure，真实手机不认 HTTP 安全上下文；
+> 替代方案 WC03：loopback 网关 + Serve HTTPS/WSS）；③ 手机"仅观察者"演示（MOBILE 可被授权申请控制器）。
+> 新操作卡将在 WC03 完成并经真实 HTTPS 自测后重新发布。卡 4（Codex DUT 登录）思路保留，
+> 但登录目录将迁往受保护的 `.local-protected/`（原因与规则见保护账本 §1）。
+
+（以下为已撤回的原始卡内容，仅存档）
+
 主机 = 本机 young-lab，Tailscale IP `100.74.12.59`（已确认在线，账号 hap_py_@）。
 候选包（含全部 W12 接线修复，manifest sourceSHA=c36b9cc）：
 `E:\AgentRouter\.worktrees\v1.1-final-zcode\release\AgentRouter-j3-c36b9cc43a30-85510cfc-29fc-402c-967e-f34695a410e8`

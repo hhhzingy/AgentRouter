@@ -51,7 +51,7 @@ writeFileSync(
   path('runtime.json'),
   JSON.stringify({
     isolation: 'LIMITED_ISOLATION',
-    managedRoot: codex?resolve('.local/j3-codex'):kimi?resolve('.local/j3-kimi'):zcode?resolve('.local/j3-zcode'):path('managed'),
+    managedRoot: codex?resolve('.local-protected/codex-dut'):kimi?resolve('.local/j3-kimi'):zcode?resolve('.local/j3-zcode'):path('managed'),
     // 端点从受控凭据文件运行时解析,绝不写进 Git 可见的常量。
     ...(zcode?{zcodeCli,zcodeCredentialFile:credFile,zcodeProvider:{main:'bailian/qwen3.8-flash',provider:{id:'bailian',kind:'openai-compatible',baseURL:maasBase,name:'Bailian MaaS'}}}:{}),
     dshBin: dshBin,
@@ -66,7 +66,7 @@ writeFileSync(
     credentialFile: bailian?'E:/AgentRouter/账号信息/通用API/百炼.txt':'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
     ...(bailian?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt',dshCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
     ...(kimiBailian?{kimiBailianCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json'}),
-    codexApprovedIdentityFile:resolve('.local/j3-codex/dut-fj/approved-identity.json'),
+    codexApprovedIdentityFile:resolve('.local-protected/codex-dut/dut-fj/approved-identity.json'),
     roleBridge:resolve('.local/w11-core/role-bridge.mjs'),roleBridgeSha256:sha(resolve('.local/w11-core/role-bridge.mjs')),
     profiles: [
       {
@@ -74,7 +74,7 @@ writeFileSync(
         harness, executable, executableSha256:sha(executable),
         version: codex?'0.154.0-alpha.6.2':kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.5':'0.85.1',
         providerId, modelId, effort,
-        sessionHome: codex?resolve('.local/j3-codex/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcode?resolve('.local/j3-zcode/dut/home'):path('managed/pi'),
+        sessionHome: codex?resolve('.local-protected/codex-dut/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcode?resolve('.local/j3-zcode/dut/home'):path('managed/pi'),
       },
     ],
   }),
