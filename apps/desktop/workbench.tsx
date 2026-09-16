@@ -17,6 +17,7 @@ import { RolePlanPage } from './workbench/pages-roleplan.tsx';
 import { ReconfigurePage } from './workbench/pages-reconfigure.tsx';
 import { RemoteDevicesPage } from './workbench/pages-remote.tsx';
 
+type RemoteNodeRecord = { id: string; name: string; url: string; deviceId: string; lastSeenMs?: number };
 declare global {
   interface Window {
     agentrouterDesktop?: {
@@ -28,6 +29,11 @@ declare global {
         pathHandle: string;
       } | null>;
       hostInfo(): Promise<{ enabled: boolean; host?: string; port?: number }>;
+      // W12 卡2:REMOTE_CORE 客户端节点管理(token 只在 Main;renderer 只见脱敏记录)。
+      listNodes?(): Promise<RemoteNodeRecord[]>;
+      pairNode?(input: { name: string; url: string; challenge: string }): Promise<RemoteNodeRecord>;
+      removeNode?(nodeId: string): Promise<unknown>;
+      selectNode?(nodeId: string | undefined): boolean;
     };
     agentrouterClient?: {
       connect(options: {
@@ -86,12 +92,54 @@ async function connect(): Promise<ClientSession> {
   return connectPreview(scenario);
 }
 
+/** REMOTE_CORE 启动但尚未选定节点:先配对/选择节点,再重连。 */
+function RemoteBootPanel({ retry }: { retry: () => void }) {
+  const [nodes, setNodes] = React.useState<RemoteNodeRecord[]>([]);
+  const [picked, setPicked] = useState<string | undefined>();
+  const [form, setForm] = useState({ name: '', url: '', challenge: '' });
+  const [msg, setMsg] = useState<string | null>(null);
+  const refresh = () => void window.agentrouterDesktop?.listNodes?.().then(setNodes, (e: Error) => setMsg(e.message));
+  useEffect(refresh, []);
+  const pair = async () => {
+    setMsg(null);
+    try {
+      const rec = await window.agentrouterDesktop?.pairNode?.({ name: form.name || '远程主机', url: form.url.trim(), challenge: form.challenge.trim() });
+      if (rec) { setPicked(rec.id); window.agentrouterDesktop?.selectNode?.(rec.id); setForm({ name: '', url: '', challenge: '' }); refresh(); }
+    } catch (e) { setMsg('配对失败：' + (e as Error).message); }
+  };
+  const go = () => { if (picked) { window.agentrouterDesktop?.selectNode?.(picked); retry(); } };
+  return (
+    <div className="boot" style={{ maxWidth: 520, margin: '8vh auto', padding: 16 }}>
+      <h2>连接远程主机</h2>
+      <p>本机以 REMOTE_CORE 模式启动。可先用主机「远程设备」页生成的配对码添加节点；或直接选择已配对节点。</p>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <input placeholder="名称（如 家里主机）" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input placeholder="主机地址 http://100.x.x.x:3780" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
+        <input placeholder="配对码（5 分钟有效，仅一次）" value={form.challenge} onChange={(e) => setForm({ ...form, challenge: e.target.value })} />
+        <button onClick={() => void pair()}>配对并保存节点</button>
+      </div>
+      <h3>已配对节点</h3>
+      {nodes.length === 0 && <p style={{ opacity: 0.7 }}>暂无。先在主机生成配对码。</p>}
+      {nodes.map((n) => (
+        <label key={n.id} style={{ display: 'block', padding: '6px 0' }}>
+          <input type="radio" name="node" checked={picked === n.id} onChange={() => setPicked(n.id)} /> {n.name} · {n.url}
+        </label>
+      ))}
+      {msg && <p style={{ color: '#f85149' }}>{msg}</p>}
+      <button disabled={!picked} onClick={go}>连接所选节点</button>
+    </div>
+  );
+}
+
 function App() {
   const [session, setSession] = useState<ClientSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [bootNonce, setBootNonce] = useState(0);
   useEffect(() => {
     connect().then(setSession, (e) => setError(String(e)));
-  }, []);
+  }, [bootNonce]);
+  if (error && /REMOTE_NODE_REQUIRED|REMOTE_NODE_UNPAIRED/.test(error))
+    return <RemoteBootPanel retry={() => { setError(null); setSession(null); setBootNonce((n) => n + 1); }} />;
   if (error)
     return (
       <div className="boot" role="alert">

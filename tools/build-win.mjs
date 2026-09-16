@@ -62,6 +62,8 @@ const define = {
   'process.env.AGENTROUTER_MODE': '"LOCAL_CORE"',
   'process.env.AGENTROUTER_FIXTURE': '"0"',
 };
+// W12:Main 进程的 AGENTROUTER_MODE 不固化进 bundle——打包默认 LOCAL_CORE,
+// 第二机以 env AGENTROUTER_MODE=REMOTE_CORE 启动同一包即可作远程客户端。
 await build({
   entryPoints: ['apps/desktop/p1-main.ts'],
   outfile: resolve(app, 'p1-main.mjs'),
@@ -69,7 +71,7 @@ await build({
   platform: 'node',
   format: 'esm',
   external: ['electron'],
-  define,
+  define: { 'process.env.AGENTROUTER_FIXTURE': '"0"' },
 });
 await build({
   entryPoints: ['apps/desktop/p1-preload.ts'],

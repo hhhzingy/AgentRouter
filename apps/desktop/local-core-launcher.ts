@@ -51,6 +51,16 @@ export async function connectLocalCore(data: string, buildDir: string, options: 
         TMP: data,
         AGENTROUTER_DATA: data,
         AGENTROUTER_PROJECT_ROOTS: JSON.stringify([data]),
+        // W12 卡1:REMOTE_CORE opt-in 由 Main 进程环境透传(仅这五个键;其余仍白名单)。
+        ...(process.env.AGENTROUTER_REMOTE_ENABLED
+          ? {
+              AGENTROUTER_REMOTE_ENABLED: process.env.AGENTROUTER_REMOTE_ENABLED,
+              ...(process.env.AGENTROUTER_REMOTE_HOST ? { AGENTROUTER_REMOTE_HOST: process.env.AGENTROUTER_REMOTE_HOST } : {}),
+              ...(process.env.AGENTROUTER_REMOTE_PORT ? { AGENTROUTER_REMOTE_PORT: process.env.AGENTROUTER_REMOTE_PORT } : {}),
+              ...(process.env.AGENTROUTER_REMOTE_ALLOWED_HOSTS ? { AGENTROUTER_REMOTE_ALLOWED_HOSTS: process.env.AGENTROUTER_REMOTE_ALLOWED_HOSTS } : {}),
+              ...(process.env.AGENTROUTER_REMOTE_CONSOLE ? { AGENTROUTER_REMOTE_CONSOLE: process.env.AGENTROUTER_REMOTE_CONSOLE } : {}),
+            }
+          : {}),
       },
     },
   );

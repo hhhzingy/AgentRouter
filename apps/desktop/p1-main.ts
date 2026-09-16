@@ -18,7 +18,8 @@ import type {
 } from '../../packages/client-transport/p1/types.ts';
 import type { Method, MethodMap } from '../../packages/client-contract/c1r1p1/generated.ts';
 const dir = dirname(fileURLToPath(import.meta.url));
-const mode = process.env.AGENTROUTER_MODE;
+// 运行时可切 REMOTE_CORE(打包默认 LOCAL_CORE;第二机设 AGENTROUTER_MODE=REMOTE_CORE 启动即切)。
+const mode = process.env.AGENTROUTER_MODE ?? 'LOCAL_CORE';
 if (mode !== 'PREVIEW_MOCK' && mode !== 'LOCAL_CORE' && mode !== 'REMOTE_CORE') throw Error('EXPLICIT_BACKEND_MODE_REQUIRED');
 // K09:必须在任何依赖 userData 的对象构造之前确定数据根,否则 DUT/生产账本落错目录。
 app.disableHardwareAcceleration();
