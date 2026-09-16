@@ -45,6 +45,8 @@ interface Config {
   piCredentialFile?: string;
   /** dsh→百炼:标注凭据文件(dsh settings 官方 balian provider,BALIAN_API_KEY)。 */
   dshCredentialFile?: string;
+  /** kimi→百炼:标注凭据文件(kimi-code 官方 openai-wire provider 形状;model 固定 qwen3.8-flash)。 */
+  kimiBailianCredentialFile?: string;
   codexApprovedIdentityFile?: string;
   roleBridge?: string;
   roleBridgeSha256?: string;
@@ -95,8 +97,18 @@ export async function installLocalNativeRuntime(
       p.effort === 'off' &&
       ((p.providerId === 'agentrouter-deepseek' && p.modelId === 'deepseek-v4-flash') ||
         (c.piProvider !== undefined && c.dshCredentialFile !== undefined && p.providerId === 'agentrouter-dashscope' && p.modelId === 'qwen3.8-flash'));
+    // W05 kimi→百炼:官方 openai-wire provider(catalog add alibaba-cn 形状),模型固定 qwen3.8-flash。
+    const kimiOk =
+      p.harness === 'kimi_code' &&
+      ((p.providerId === 'agentrouter-kimi' &&
+        p.modelId === 'kimi-code/kimi-for-coding' &&
+        p.effort === 'on') ||
+        (!!c.kimiBailianCredentialFile &&
+          p.providerId === 'agentrouter-bailian' &&
+          p.modelId === 'bailian/qwen3.8-flash' &&
+          p.effort === 'on'));
     if (
-      !((piOk) || (p.harness === 'kimi_code' && p.providerId === 'agentrouter-kimi' && p.modelId === 'kimi-code/kimi-for-coding' && p.effort === 'on') || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (dshOk)) ||
+      !((piOk) || (kimiOk) || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (dshOk)) ||
       !isAbsolute(p.sessionHome) ||
       !isAbsolute(p.executable) ||
       sha(p.executable) !== p.executableSha256
@@ -174,9 +186,18 @@ export async function installLocalNativeRuntime(
         if (c.zcodeCredentialFile) {
           if (!isAbsolute(c.zcodeCredentialFile)) throw Error('ZCODE_CREDENTIAL_PATH_INVALID');
           const text = existsSync(c.zcodeCredentialFile) ? readFileSync(c.zcodeCredentialFile, 'utf8') : '';
-          const candidate = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? '';
-          if (candidate && !zcodeApiKeyPattern.test(candidate)) throw Error('ZCODE_CREDENTIAL_FORMAT_UNRECOGNIZED');
-          zcodeKey = candidate || undefined;
+          const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+          const candidate = lines[0] ?? '';
+          if (lines.some((l) => /^api_key$/i.test(l)) && lines.some((l) => /^https?:\/\//.test(l))) {
+            // W05 百炼绑定:标签格式凭据(base_url/api_key/model);模型须与 owner 配置的 qwen3.8-flash 一致。
+            const cred = parseLabeledCredential(text);
+            if (cred.model && cred.model !== 'qwen3.8-flash') throw Error('ZCODE_BAILIAN_MODEL_MISMATCH');
+            if (!zcodeApiKeyPattern.test(cred.apiKey)) throw Error('ZCODE_CREDENTIAL_FORMAT_UNRECOGNIZED');
+            zcodeKey = cred.apiKey;
+          } else {
+            if (candidate && !zcodeApiKeyPattern.test(candidate)) throw Error('ZCODE_CREDENTIAL_FORMAT_UNRECOGNIZED');
+            zcodeKey = candidate || undefined;
+          }
         }
         const token = bridge.issue(input.handleTool);
         return {
@@ -216,8 +237,18 @@ export async function installLocalNativeRuntime(
       }
       if (input.config.harness === 'kimi_code') {
         if(input.config.version!=='0.42.0') throw Error('KIMI_PERMISSION_VERSION_UNVERIFIED');
-        if (!c.kimiCredentialSource || !isAbsolute(c.kimiCredentialSource) || !c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256) throw Error('KIMI_RUNTIME_CONFIG_INVALID');
-        const kimiProfile=await prepareManagedKimiProfile({sessionHome:home,credentialSource:c.kimiCredentialSource});
+        if (!c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256) throw Error('KIMI_RUNTIME_CONFIG_INVALID');
+        let kimiProfile;
+        if (c.kimiBailianCredentialFile) {
+          // W05 百炼绑定:标签凭据 → 官方 openai-wire provider;不触碰桌面 oauth 凭据。
+          if (!isAbsolute(c.kimiBailianCredentialFile)) throw Error('KIMI_BAILIAN_CREDENTIAL_PATH_INVALID');
+          const cred = parseLabeledCredential(readFileSync(c.kimiBailianCredentialFile, 'utf8'));
+          if (cred.model !== 'qwen3.8-flash') throw Error('KIMI_BAILIAN_MODEL_MISMATCH');
+          kimiProfile = prepareManagedKimiProfile({ sessionHome: home, bailian: { baseURL: cred.baseUrl, apiKey: cred.apiKey, model: 'qwen3.8-flash' } });
+        } else {
+          if (!c.kimiCredentialSource || !isAbsolute(c.kimiCredentialSource)) throw Error('KIMI_RUNTIME_CONFIG_INVALID');
+          kimiProfile = await prepareManagedKimiProfile({ sessionHome: home, credentialSource: c.kimiCredentialSource });
+        }
         const token = bridge.issue(input.handleTool);
         return {
           env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),KIMI_CODE_NO_AUTO_UPDATE:'1',KIMI_DISABLE_TELEMETRY:'1',KIMI_DISABLE_CRON:'1'},

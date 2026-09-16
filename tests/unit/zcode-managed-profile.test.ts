@@ -74,3 +74,20 @@ it('非秘密受管键被篡改则冲突;model/provider 形状非法直接拒绝
     }),
   ).toThrow('ZCODE_MODEL_CONFIG_INVALID');
 });
+
+it('W05 百炼配置形状:openai-compatible + MaaS compatible-mode/v1 + bailian/qwen3.8-flash 被接受', () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentrouter-zcode-bailian-'));
+  const r = prepareManagedZcodeProfile(home, {
+    main: 'bailian/qwen3.8-flash',
+    provider: {
+      id: 'bailian',
+      kind: 'openai-compatible',
+      baseURL: 'https://ws-example00000.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+      name: 'Bailian MaaS',
+    },
+  });
+  const cfg = JSON.parse(readFileSync(r.configPath, 'utf8'));
+  expect(cfg.model.main).toBe('bailian/qwen3.8-flash');
+  expect(cfg.provider.bailian.kind).toBe('openai-compatible');
+  expect(cfg.provider.bailian.options.baseURL).toBe('https://ws-example00000.cn-beijing.maas.aliyuncs.com/compatible-mode/v1');
+});

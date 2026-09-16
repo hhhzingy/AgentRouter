@@ -45,6 +45,51 @@ pattern = "mcp__agentrouter-role__route_artifact_register"
 decision = "allow"
 pattern = "mcp__agentrouter-role__route_artifact_read"
 `;
+// W05 百炼绑定:kimi-code 官方 openai-wire provider 形状(catalog add alibaba-cn 产出)。
+// base_url 为 MaaS compatible-mode;api_key 是 kimi 官方存储位置(config.toml),写前严格校验防 TOML 注入。
+const BAILIAN_BASE_RE = /^https:\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.cn-[a-z]+\.maas\.aliyuncs\.com\/compatible-mode\/v1$/;
+const BAILIAN_KEY_RE = /^[A-Za-z0-9._-]{8,512}$/;
+function bailianConfig(baseURL: string, apiKey: string, model: string) {
+  if (!BAILIAN_BASE_RE.test(baseURL) || !BAILIAN_KEY_RE.test(apiKey) || model !== 'qwen3.8-flash')
+    throw Error('KIMI_BAILIAN_BINDING_INVALID');
+  const ref = 'bailian/' + model;
+  return `default_model = "${ref}"
+[thinking]
+enabled = true
+[providers."bailian"]
+type = "openai"
+base_url = "${baseURL}"
+api_key = "${apiKey}"
+[models."${ref}"]
+provider = "bailian"
+model = "${model}"
+max_context_size = 1000000
+max_output_size = 65536
+capabilities = [ "thinking", "tool_use", "image_in" ]
+display_name = "Qwen3.8 Flash (Bailian)"
+`;
+}
+const toolsTail = `[tools]
+enabled = ["mcp__agentrouter-role__route_context", "mcp__agentrouter-role__route_send", "mcp__agentrouter-role__route_finish", "mcp__agentrouter-role__route_wait", "mcp__agentrouter-role__route_artifact_register", "mcp__agentrouter-role__route_artifact_read"]
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_context"
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_send"
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_finish"
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_wait"
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_artifact_register"
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_artifact_read"
+`;
 const canonical = (path: string) => {
   const actual = existsSync(path) ? realpathSync(path) : resolve(path);
   return process.platform === 'win32' ? actual.toLowerCase() : actual;
@@ -53,10 +98,14 @@ const canonical = (path: string) => {
 /** Trusted startup only. Preserve independently refreshed credentials; never inspect their contents. */
 export function prepareManagedKimiProfile(input: {
   sessionHome: string;
-  credentialSource: string;
+  /** kimi 官方 oauth 凭据(kimi-code.json);与 bailian 二选一。 */
+  credentialSource?: string;
+  /** W05 百炼绑定(官方 openai-wire provider 形状);给出则不写 oauth 凭据。 */
+  bailian?: { baseURL: string; apiKey: string; model: string };
 }) {
-  if (!isAbsolute(input.sessionHome) || !isAbsolute(input.credentialSource))
+  if (!isAbsolute(input.sessionHome) || (!input.bailian && !input.credentialSource))
     throw Error('KIMI_PROFILE_PATH_NOT_ABSOLUTE');
+  if (input.bailian && input.credentialSource) throw Error('KIMI_PROFILE_SOURCE_CONFLICT');
   const home = join(input.sessionHome, '.kimi-code');
   const credentials = join(home, 'credentials');
   const credentialTarget = join(credentials, 'kimi-code.json');
@@ -72,7 +121,7 @@ export function prepareManagedKimiProfile(input: {
     join(home, 'agents', 'agent.md'),
   ])
     assertSingleLink(target);
-  if (canonical(input.credentialSource) === canonical(credentialTarget))
+  if (input.credentialSource && canonical(input.credentialSource) === canonical(credentialTarget))
     throw Error('KIMI_PROFILE_SOURCE_IS_TARGET');
   // Reject pre-existing linked directories that escape the explicitly selected independent home.
   if (
@@ -84,7 +133,7 @@ export function prepareManagedKimiProfile(input: {
     throw Error('KIMI_PROFILE_LINKED_DIRECTORY');
   mkdirSync(credentials, { recursive: true });
   let credentialCopied = false;
-  if (!existsSync(credentialTarget)) {
+  if (input.credentialSource && !existsSync(credentialTarget)) {
     try {
       copyFileSync(input.credentialSource, credentialTarget, constants.COPYFILE_EXCL);
       credentialCopied = true;
@@ -111,7 +160,13 @@ export function prepareManagedKimiProfile(input: {
       (process.platform === 'win32' ? resolve(agentPath).toLowerCase() : resolve(agentPath))
   )
     throw Error('KIMI_PROFILE_LINKED_TARGET');
-  writeFileSync(join(home, 'config.toml'), config, 'utf8');
+  writeFileSync(
+    join(home, 'config.toml'),
+    input.bailian
+      ? bailianConfig(input.bailian.baseURL, input.bailian.apiKey, input.bailian.model) + toolsTail
+      : config,
+    'utf8',
+  );
   writeFileSync(
     agentPath,
     '---\nname: agent\ndescription: AgentRouter managed role\noverride: true\ntools: [mcp__agentrouter-role__route_context, mcp__agentrouter-role__route_send, mcp__agentrouter-role__route_finish, mcp__agentrouter-role__route_wait, mcp__agentrouter-role__route_artifact_register, mcp__agentrouter-role__route_artifact_read]\nsubagents: []\n---\nUse only the Route tools supplied for this managed role.\n',

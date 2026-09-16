@@ -107,7 +107,6 @@ export class P1MemoryTransport implements ClientTransport {
           clearTimeout(extensionTimer);
         }
       }
-      console.log('P2TRACE method:', method, 'revision:', revision);
       if ((revision as string) === 'C1R1P2' && String(method).startsWith('rolePlan.')) {
         // C1R1P2:rolePlan 帧含动态 HarnessId,冻结枚举不适用;服务端注册表为权威。
         const isMutation = methodMetadata[method].mutation;

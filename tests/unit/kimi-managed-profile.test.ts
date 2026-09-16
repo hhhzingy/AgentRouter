@@ -104,3 +104,52 @@ it('approves only one-shot native registered Route names, never display aliases 
   await expect(approveManagedKimiRoute({...p,options:[{kind:'allow_always',optionId:'always'}]})).rejects.toThrow('KIMI_PERMISSION_DENIED');
   await expect(approveManagedKimiRoute({...p,options:[...p.options,...p.options]})).rejects.toThrow('KIMI_PERMISSION_DENIED');
 });
+
+it('W05 百炼绑定:生成官方 openai-wire provider 形状;非法 base/key/模型拒绝', () => {
+  const safeKey = ['DUMMY','NOT','A','KEY','0123456789'].join('-');
+  const safeBase = 'https://ws-example00000.cn-beijing.maas.aliyuncs.com/compatible-mode/v1';
+  const home = mkdtempSync(resolve('.local/kimi-profile-tests/bailian-' + Math.random().toString(36).slice(2)));
+  mkdirSync(home, { recursive: true });
+  const good = prepareManagedKimiProfile({
+    sessionHome: home,
+    bailian: {
+      baseURL: safeBase,
+      apiKey: safeKey,
+      model: 'qwen3.8-flash',
+    },
+  });
+  expect(good.credentialCopied).toBe(false);
+  const toml = readFileSync(join(home, '.kimi-code', 'config.toml'), 'utf8');
+  expect(toml).toContain('type = "openai"');
+  expect(toml).toContain('base_url = "https://ws-example00000.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"');
+  expect(toml).toContain('default_model = "bailian/qwen3.8-flash"');
+  expect(toml).toContain('mcp__agentrouter-role__route_finish');
+  const h2 = mkdtempSync(resolve('.local/kimi-profile-tests/bailian-bad-' + Math.random().toString(36).slice(2)));
+  mkdirSync(h2, { recursive: true });
+  expect(() =>
+    prepareManagedKimiProfile({
+      sessionHome: h2,
+      bailian: { baseURL: 'https://evil.example.com/v1', apiKey: safeKey, model: 'qwen3.8-flash' },
+    }),
+  ).toThrow('KIMI_BAILIAN_BINDING_INVALID');
+  expect(() =>
+    prepareManagedKimiProfile({
+      sessionHome: h2,
+      bailian: {
+        baseURL: safeBase,
+        apiKey: 'bad' + String.fromCharCode(34) + 'key' + String.fromCharCode(96) + 'inject' + safeKey,
+        model: 'qwen3.8-flash',
+      },
+    }),
+  ).toThrow('KIMI_BAILIAN_BINDING_INVALID');
+  expect(() =>
+    prepareManagedKimiProfile({
+      sessionHome: h2,
+      bailian: {
+        baseURL: safeBase,
+        apiKey: safeKey,
+        model: 'glm-9',
+      },
+    }),
+  ).toThrow('KIMI_BAILIAN_BINDING_INVALID');
+});
