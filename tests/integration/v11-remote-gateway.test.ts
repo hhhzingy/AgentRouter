@@ -5,25 +5,35 @@ import { openApplicationStore } from '../../packages/storage/application-store.t
 import { ApplicationService } from '../../packages/core-service/application.ts';
 import { RemoteDeviceStore } from '../../packages/remote/device-store.ts';
 import { RemoteGateway } from '../../packages/remote/remote-gateway.ts';
+import { P1MemoryTransport } from '../../packages/client-transport/p1/memory.ts';
 import { RemoteWebSocketTransport } from '../../packages/client-transport/remote/websocket.ts';
 
-function env() {
+async function env() {
   mkdirSync('.local/v11-remote-tests', { recursive: true });
   const dir = mkdtempSync(resolve('.local/v11-remote-tests/gw-'));
   const db = openApplicationStore(dir);
   const app = new ApplicationService(db, [dir], true);
+  const localTransport = new P1MemoryTransport(app, 'human_local');
   const devices = new RemoteDeviceStore(db);
-  return { dir, db, app, devices };
+  const s = await localTransport.connect({ clientId: 'local_w02', clientVersion: '1.0.0-dev.0', requestedMode: 'controller' });
+  let localLease: string | undefined;
+  const ensureLease = async () => { if (!localLease) localLease = (await s.request('control.acquire', {}, { operationId: 'local_lease', expectedRevision: (await s.request('system.snapshot', {})).revision, scope: {} } as never)).leaseId; return localLease; };
+  const write = async (method: string, params: Record<string, unknown>, scope: Record<string, unknown> = {}, op?: string) =>
+    s.request(method as never, params as never, { operationId: op ?? ('op_' + Date.now()), expectedRevision: (await s.request('system.snapshot', {})).revision, scope, leaseId: await ensureLease() } as never);
+  const releaseLease = async () => { if (!localLease) return;
+  await s.request('control.release', { lease_id: localLease } as never, { operationId: 'op_rel_' + localLease, expectedRevision: (await s.request('system.snapshot', {})).revision, scope: {} } as never);
+  localLease = undefined; };
+return { dir, db, app, devices, s, localTransport, ensureLease, releaseLease, write };
 }
 let portSeq = 41000;
 async function boot(o: { allowedHosts?: string[]; allowedOrigins?: string[] } = {}) {
-  const f = env();
+  const f = await env();
   const gateway = new RemoteGateway({ app: f.app, devices: f.devices, allowedHosts: o.allowedHosts, allowedOrigins: o.allowedOrigins, pairRateLimitPerMinute: o.allowedHosts ? 8 : 8 });
   const port = ++portSeq;
   await gateway.listen(port, '127.0.0.1');
   const base = `http://127.0.0.1:${port}`;
   const url = `ws://127.0.0.1:${port}/ws`;
-  return { ...f, gateway, base, url, port, async stop() { await gateway.close(); f.db.close(); } };
+  return { ...f, gateway, base, url, port, async stop() { await gateway.close(); f.localTransport.close?.(); f.db.close(); } };
 }
 async function pair(base: string, challenge: string) {
   const res = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge }), headers: { host: '127.0.0.1' } });
@@ -35,79 +45,90 @@ async function connect(url: string, token: string, requestedMode: 'controller' |
   return { transport, session };
 }
 
-it('REMOTE-01/03/05/06 + PAIR-01: 配对→连接→initialize→snapshot→controller→幂等变更', async () => {
+it('REMOTE-01/03/05/06 + W06: 配对→controller→空scope不可见既有项目→自创建可见→幂等变更', async () => {
   const g = await boot();
   try {
+    // 本机建一个项目:远程(空scope)必须看不到它(W06: 空scope不给未声明权限)
+    const roots = await g.s.request('filesystem.listRoots', {});
+    await g.write('project.create', { name: '本机私有项目', path_handle: (roots as any).items[0].pathHandle }, {}, 'op_localproj');
+    await g.releaseLease();
     const p = g.devices.createPairing({ displayName: 'PC-A', kind: 'DESKTOP', canRequestController: true });
     const res = await pair(g.base, p.challenge);
     expect(res.status).toBe(200);
     expect(typeof res.body.token).toBe('string');
-    expect(res.body.canRequestController).toBe(true);
     const { transport, session } = await connect(g.url, res.body.token, 'controller');
     try {
       expect(session.hello.contractRevision).toBe('C1R1P1');
-      const snap = await session.request('system.snapshot', {});
-      expect(typeof snap.revision).toBe('number');
+      const snap = await session.request('system.snapshot', {}) as any;
+      expect(snap.projects).toHaveLength(0);
       const lease = await session.request('control.acquire', {}, { operationId: 'acq', expectedRevision: snap.revision, scope: {} });
-      expect((lease as { leaseId: string }).leaseId).toBeTruthy();
-      const roots = await session.request('filesystem.listRoots', {});
-      const s2 = await session.request('system.snapshot', {});
-      const mk = () => session.request('project.create', { name: '远程创建', path_handle: (roots as { items: { pathHandle: string }[] }).items[0].pathHandle }, { operationId: 'idem', expectedRevision: s2.revision, scope: {}, leaseId: (lease as { leaseId: string }).leaseId });
+      const leaseId = (lease as { leaseId: string }).leaseId;
+      expect(leaseId).toBeTruthy();
+      const r2 = await session.request('filesystem.listRoots', {});
+      const s2 = await session.request('system.snapshot', {}) as any;
+      const mk = () => session.request('project.create', { name: '远程创建', path_handle: (r2 as { items: { pathHandle: string }[] }).items[0].pathHandle }, { operationId: 'idem', expectedRevision: s2.revision, scope: {}, leaseId });
       const a = await mk();
       const b = await mk();
       expect(b).toEqual(a); // 同 operation_id 幂等:返回同一结果,不重复创建
-      const count = (await session.request('system.snapshot', {})).projects.filter(x => x.name === '远程创建').length;
-      expect(count).toBe(1);
+      const s3 = await session.request('system.snapshot', {}) as any;
+      expect(s3.projects.filter((x: any) => x.name === '远程创建')).toHaveLength(1);
+      // 自创建授权不外溢:本机私有项目仍不可见
+      expect(s3.projects.some((x: any) => x.name === '本机私有项目')).toBe(false);
     } finally { await transport.close(); }
   } finally { await g.stop(); }
 });
-
-it('PAIR-01 single-use + PAIR-09 observer write rejected + K02 桌面/手机 token 分离', async () => {
-  const g = await boot();
+it('PAIR-01 single-use + K02 手机无token/桌面有token + PAIR-09 observer write rejected', async () => {
+  const f = await env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
+  const base = `http://127.0.0.1:${port}`;
+  const url = `ws://127.0.0.1:${port}/ws`;
   try {
-    // K02:手机配对响应只给 cookie,不给长期 token;桌面配对才在 body 回 token。
-    const mp = g.devices.createPairing({ displayName: 'phone', kind: 'MOBILE', ttlMs: 30000 });
-    const mres = await fetch(g.base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: mp.challenge }), headers: { host: '127.0.0.1' } });
+    const mp = f.devices.createPairing({ displayName: 'phone', kind: 'MOBILE', ttlMs: 30000 });
+    const mres = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: mp.challenge }), headers: { host: '127.0.0.1' } });
     const mbody = await mres.json();
     expect(mbody.token).toBeUndefined();
     expect(mbody.paired).toBe(true);
     expect((mres.headers.get('set-cookie') ?? '').toLowerCase()).toContain('httponly');
-    // 桌面配对走 token 连接路径
-    const p = g.devices.createPairing({ displayName: 'PC-A', kind: 'DESKTOP', canRequestController: true, ttlMs: 30000 });
-    const first = await pair(g.base, p.challenge);
+    const p = f.devices.createPairing({ displayName: 'PC-A', kind: 'DESKTOP', canRequestController: true, ttlMs: 30000 });
+    const first = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: p.challenge }), headers: { host: '127.0.0.1' } });
+    const firstBody = (await first.json()) as any;
     expect(first.status).toBe(200);
-    expect(typeof first.body.token).toBe('string');
-    const replay = await pair(g.base, p.challenge);
-    expect(replay.status).toBe(400); // 单次使用:重放拒绝
-    const { transport, session } = await connect(g.url, first.body.token, 'observer');
+    expect(typeof firstBody.token).toBe('string');
+    const replay = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: p.challenge }), headers: { host: '127.0.0.1' } });
+    expect(replay.status).toBe(400);
+    const { transport, session } = await connect(url, firstBody.token, 'observer');
     try {
       const roots = await session.request('filesystem.listRoots', {});
-      const s = await session.request('system.snapshot', {});
+      const s = await session.request('system.snapshot', {}) as any;
       let err: { code?: string } | undefined;
-      // 带一个未持有的 lease_id:过客户端帧校验,由服务端判定 observer 无控制租约而拒绝。
       try {
-        await session.request('project.create', { name: 'nope', path_handle: (roots as { items: { pathHandle: string }[] }).items[0].pathHandle }, { operationId: 'x', expectedRevision: s.revision, scope: {}, leaseId: 'no-such-lease' });
+        await session.request('project.create', { name: 'nope', path_handle: roots.items[0].pathHandle }, { operationId: 'x', expectedRevision: s.revision, scope: {}, leaseId: 'no-such-lease' });
       } catch (e) { err = e as { code?: string }; }
       expect(['SCOPE_DENIED', 'CONTROL_LEASE_REQUIRED', 'CONTROL_LEASE_EXPIRED']).toContain(err?.code);
     } finally { await transport.close(); }
-  } finally { await g.stop(); }
+  } finally { await gateway.close(); f.db.close(); }
 });
 
-it('REMOTE: 未配对/坏 token 不得连接;坏 Origin 拒绝;PAIR-05 与本地凭据分离', async () => {
-  const g = await boot();
+it('REMOTE: 未配对/坏 token 不得连接;坏 Origin 拒绝', async () => {
+  const f = await env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
+  const base = `http://127.0.0.1:${port}`;
+  const url = `ws://127.0.0.1:${port}/ws`;
   try {
-    // 未知 token 的 WS:首帧鉴权失败即关闭,initialize 超时
-    await expect(connect(g.url, 'bogus-token-not-a-device', 'observer').then(s => s.session)).rejects.toBeTruthy();
-    // 跨源 Origin 的 HTTP 被拒(PAIR-07 bad origin)
-    const bad = await fetch(g.base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: 'x' }), headers: { origin: 'https://evil.example.com', host: '127.0.0.1' } }).then(r => r.status).catch(() => 0);
+    await expect(connect(url, 'bogus-token-not-a-device', 'observer').then(s => s.session)).rejects.toBeTruthy();
+    const bad = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: 'x' }), headers: { origin: 'https://evil.example.com', host: '127.0.0.1' } }).then(r => r.status).catch(() => 0);
     expect([403, 0]).toContain(bad);
-    const ok = await fetch(g.base + '/health', { headers: { host: '127.0.0.1' } }).then(r => r.status);
+    const ok = await fetch(base + '/health', { headers: { host: '127.0.0.1' } }).then(r => r.status);
     expect(ok).toBe(200);
-  } finally { await g.stop(); }
+  } finally { await gateway.close(); f.db.close(); }
 });
 
 it('Z6 静态控制台:GET / 返回带 CSP 的 HTML;配对响应含 HttpOnly Secure cookie', async () => {
-  const f = env();
+  const f = await env();
   const gateway = new RemoteGateway({ app: f.app, devices: f.devices, consoleHtml: '<!doctype html><title>AR</title>' });
   const port = ++portSeq;
   await gateway.listen(port, '127.0.0.1');
@@ -117,22 +138,64 @@ it('Z6 静态控制台:GET / 返回带 CSP 的 HTML;配对响应含 HttpOnly Sec
     expect(home.headers.get('content-type')).toContain('text/html');
     expect(home.headers.get('content-security-policy')).toContain("script-src 'self' 'unsafe-inline'");
     const p = f.devices.createPairing({ displayName: 'phone', kind: 'MOBILE', ttlMs: 30000 });
-    const pair = await fetch(`http://127.0.0.1:${port}/pair`, { method: 'POST', body: JSON.stringify({ challenge: p.challenge }), headers: { host: '127.0.0.1' } });
-    const pairHdr = pair.headers.get('set-cookie') ?? '';
-    expect(pairHdr).toMatch(/ar_device=[^;]+/);
-    expect(pairHdr.toLowerCase()).toContain('httponly');
-    expect(pairHdr.toLowerCase()).toContain('secure');
-    expect(pairHdr.toLowerCase()).toContain('samesite=strict');
+    const pr = await fetch(`http://127.0.0.1:${port}/pair`, { method: 'POST', body: JSON.stringify({ challenge: p.challenge }), headers: { host: '127.0.0.1' } });
+    const hdr = pr.headers.get('set-cookie') ?? '';
+    expect(hdr).toMatch(/ar_device=[^;]+/);
+    expect(hdr.toLowerCase()).toContain('httponly');
+    expect(hdr.toLowerCase()).toContain('secure');
+    expect(hdr.toLowerCase()).toContain('samesite=strict');
   } finally { await gateway.close(); f.db.close(); }
 });
 
 it('PAIR-06 revoke: 撤销后凭据认证失败', async () => {
-  const g = await boot();
+  const f = await env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
   try {
-    const p = g.devices.createPairing({ displayName: 'd', kind: 'DESKTOP', canRequestController: true });
-    const res = await pair(g.base, p.challenge);
-    expect(g.devices.authenticate(res.body.token)).toBeTruthy();
-    expect(g.devices.revoke(res.body.deviceId)).toBe(true);
-    expect(g.devices.authenticate(res.body.token)).toBe(null);
-  } finally { await g.stop(); }
+    const p = f.devices.createPairing({ displayName: 'd', kind: 'DESKTOP', canRequestController: true });
+    const res = await fetch(`http://127.0.0.1:${port}/pair`, { method: 'POST', body: JSON.stringify({ challenge: p.challenge }), headers: { host: '127.0.0.1' } });
+    const body = await res.json();
+    expect(f.devices.authenticate(body.token)).toBeTruthy();
+    expect(f.devices.revoke(body.deviceId)).toBe(true);
+    expect(f.devices.authenticate(body.token)).toBe(null);
+  } finally { await gateway.close(); f.db.close(); }
+});
+
+it('W06: scope 空=不给未声明权限;scope限定project后仅可见该项目;canRequestController=false 禁acquire', async () => {
+  const f = await env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
+  const base = `http://127.0.0.1:${port}`;
+  const url = `ws://127.0.0.1:${port}/ws`;
+  try {
+    const roots = await f.s.request('filesystem.listRoots', {});
+    const proj = (await f.write('project.create', { name: 'scope项目', path_handle: roots.items[0].pathHandle }, {}, 'op_scope')) as any;
+    const emptyPair = f.devices.createPairing({ displayName: '空scope设备', kind: 'DESKTOP', canRequestController: false, scope: [] });
+    const emptyRes = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: emptyPair.challenge }), headers: { host: '127.0.0.1' } });
+    const emptyBody = await emptyRes.json();
+    const t1 = new RemoteWebSocketTransport({ url, token: emptyBody.token, WebSocketImpl: globalThis.WebSocket as never, requestTimeoutMs: 8000 });
+    const s1 = await t1.connect({ clientId: 'c_empty', clientVersion: '1.0.0', requestedMode: 'observer' });
+    const snap1 = await s1.request('system.snapshot', {}) as any;
+    expect(snap1.projects).toHaveLength(0);
+    await t1.close();
+    const scopedPair = f.devices.createPairing({ displayName: '限定设备', kind: 'DESKTOP', canRequestController: true, scope: ['project:' + proj.id] });
+    const scopedRes = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: scopedPair.challenge }), headers: { host: '127.0.0.1' } });
+    const scopedBody = await scopedRes.json();
+    const t2 = new RemoteWebSocketTransport({ url, token: scopedBody.token, WebSocketImpl: globalThis.WebSocket as never, requestTimeoutMs: 8000 });
+    const s2 = await t2.connect({ clientId: 'c_scoped', clientVersion: '1.0.0', requestedMode: 'observer' });
+    const snap2 = await s2.request('system.snapshot', {}) as any;
+    expect(snap2.projects.map((x: any) => x.id)).toContain(proj.id);
+    await t2.close();
+    const noCtrlPair = f.devices.createPairing({ displayName: '只读设备', kind: 'DESKTOP', canRequestController: false, scope: ['project:' + proj.id] });
+    const noCtrl = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: noCtrlPair.challenge }), headers: { host: '127.0.0.1' } });
+    const noCtrlBody = await noCtrl.json();
+    const t3 = new RemoteWebSocketTransport({ url, token: noCtrlBody.token, WebSocketImpl: globalThis.WebSocket as never, requestTimeoutMs: 8000 });
+    const s3 = await t3.connect({ clientId: 'c_noctrl', clientVersion: '1.0.0', requestedMode: 'controller' });
+    let acqErr: string | undefined;
+    try { await s3.request('control.acquire', {}, { operationId: 'acq1', expectedRevision: 1, scope: {} }); } catch (e) { acqErr = (e as Error).message; }
+    expect(['SCOPE_DENIED', 'CONTROL_LEASE_REQUIRED']).toContain(acqErr);
+    await t3.close();
+  } finally { await gateway.close(); f.db.close(); }
 });

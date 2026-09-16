@@ -734,6 +734,8 @@ export class ApplicationService extends Plans {
           )
           .run(entity, this.revision, this.clock());
         const project = r.scope.project_id ?? (r.method === 'project.create' ? entity : undefined);
+        // W06: 受限连接(远程)创建的自有项目自动纳入其可见集合——仅本连接可见自己创建的项目,不构成越权。
+        if (r.method === 'project.create' && c.allowedProjects) c.allowedProjects.add(entity);
         this.db
           .prepare(
             'insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(?,?,?,?,?)',

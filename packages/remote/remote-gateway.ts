@@ -4,7 +4,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { RemoteDeviceStore } from './device-store.ts';
 
 export interface RemoteCoreServer {
-  open(principal?: string, authorized?: boolean): string;
+  open(principal?: string, authorized?: boolean, allowedProjects?: Set<string>): string;
   handle(connection: string, request: unknown): Promise<unknown>;
   subscribe(connection: string, handler: (event: unknown) => void): () => void;
   disconnect(connection: string): void;
@@ -23,6 +23,10 @@ export interface RemoteGatewayOptions {
   clock?: () => number;
 }
 const MAX_FRAME_DEFAULT = 262144;
+const AUTH_DEADLINE_MS = 10000;
+const MAX_PENDING_PER_SOCKET = 64;
+const MAX_TOTAL_CONNECTIONS = 32;
+const MAX_SEND_BUFFERED_BYTES = 1048576;
 const pairKey = (req: IncomingMessage) => (req.socket.remoteAddress ?? 'unknown');
 function hostAllowed(header: string | undefined, allow: Set<string>) {
   if (!header) return false;
@@ -39,6 +43,7 @@ export class RemoteGateway {
   private readonly clock: () => number;
   private readonly pairWindow = new Map<string, { count: number; windowStart: number }>();
   private readonly liveSockets = new Map<string, Set<WebSocket>>();
+  private liveTotal = 0;
   constructor(private readonly options: RemoteGatewayOptions) {
     this.devices = options.devices;
     this.allowHost = new Set((options.allowedHosts ?? ['127.0.0.1', 'localhost', '[::1]']).map(h => h.toLowerCase()));
@@ -115,6 +120,10 @@ export class RemoteGateway {
     return send(404, { error: 'NOT_FOUND' });
   }
   private onSocket(req: IncomingMessage, ws: WebSocket) {
+    if (this.liveTotal >= MAX_TOTAL_CONNECTIONS) { ws.close(4010, 'connection_limit'); return; }
+    this.liveTotal++;
+    const authTimer = setTimeout(() => { if (!device) ws.close(4004, 'auth_required'); }, AUTH_DEADLINE_MS);
+    ws.once('close', () => { this.liveTotal--; clearTimeout(authTimer); });
     let device: import('./device-store.ts').RemoteDevice | null = null;
     let connection: string | undefined;
     let unsubscribe: (() => void) | undefined;
@@ -125,14 +134,25 @@ export class RemoteGateway {
       if (ws.readyState !== ws.OPEN) return;
       const text = JSON.stringify(value);
       if (Buffer.byteLength(text) > this.maxFrame) { ws.close(4002, 'frame_too_large'); return; }
+      if (ws.bufferedAmount > MAX_SEND_BUFFERED_BYTES) { ws.close(4009, 'backpressure'); return; }
       ws.send(text);
     };
+    const stillActive = (d0: { deviceId: string }) => {
+      const cur = this.devices.listDevices().find(x => x.deviceId === d0.deviceId);
+      return !!cur && cur.state === 'ACTIVE';
+    };
+    const projectIdsOf = (d0: { scope: string[] }) => new Set(d0.scope.filter(x => x.startsWith('project:')).map(x => x.slice('project:'.length)));
     const startSession = (authed: NonNullable<typeof device>) => {
       device = authed;
       // K07:把设备授权能力(是否可申请 controller)作为权威 authorized 传入 Core 连接,
       // 非 UI 标签;不可申请的设备的 control.acquire/写路径在 Core 端被拒(见 application:641/766)。
       // K08:principal 用设备稳定身份(跨重连保留命令账本幂等身份);连接 id 仍唯一区分活动连接。
-      connection = app.open('remote_device_' + authed.deviceId, authed.canRequestController);
+      // K07: 授权三态进权威连接——authorized=canRequestController;project scope → allowedProjects(空scope=不给未声明权限)。
+      connection = app.open(
+        'remote_device_' + authed.deviceId,
+        authed.canRequestController,
+        projectIdsOf(authed).size ? projectIdsOf(authed) : new Set<string>(),
+      );
       unsubscribe = app.subscribe(connection, event => sendFrame(event));
       sendFrame({ attached: true, deviceId: device.deviceId, kind: device.kind, scope: device.scope, canRequestController: device.canRequestController });
       const set = this.liveSockets.get(device.deviceId) ?? new Set<WebSocket>();
@@ -169,9 +189,14 @@ export class RemoteGateway {
       if (buffer.length > this.maxFrame * 2) { ws.close(4002, 'frame_too_large'); return; }
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
+      let queued = 0;
       for (const line of lines) {
         if (!line.trim()) continue;
+        if (++queued > MAX_PENDING_PER_SOCKET) { ws.close(4008, 'pending_overflow'); return; }
         chain = chain.then(async () => {
+          queued--;
+          // W06:撤销后已排队未执行的帧在执行前复验设备状态(不只关socket)。
+          if (device && !stillActive(device)) { try { ws.close(4001, 'device_revoked'); } catch {} return; }
           let frame: Record<string, unknown>;
           try { frame = JSON.parse(line); } catch { return; }
           if (frame.desktop_directory !== undefined || frame.desktop_context !== undefined) {
