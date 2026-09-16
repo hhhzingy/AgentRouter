@@ -86,6 +86,8 @@ contextBridge.exposeInMainWorld('agentrouterDesktop', {
   saveArtifact: (id: string) => ipcRenderer.invoke('desktop:save-artifact', id),
   // K10:远程节点登记/选择/token 只在 Main(safeStorage),renderer 仅拿脱敏节点元数据与选择权。
   listNodes: () => ipcRenderer.invoke('remote:listNodes'),
+  // W09:本机远程网关信息(启用时供"添加远程设备/手机配对"面板展示)。
+  hostInfo: () => ipcRenderer.invoke('remote:hostInfo'),
   pairNode: (input: { name: string; url: string; challenge: string }) => ipcRenderer.invoke('remote:pair', input),
   removeNode: (nodeId: string) => ipcRenderer.invoke('remote:removeNode', nodeId),
   selectNode: (nodeId: string | undefined) => {

@@ -14,6 +14,7 @@ export function HomePage() {
           <h1>项目</h1>
           <p>每个项目对应一个 Core 上的工作区。角色与协作组都在项目内。</p>
         </div>
+        <a href="#/remote">远程设备</a>
       </header>
       {projects.length === 0 ? (
         <div className="home-empty">

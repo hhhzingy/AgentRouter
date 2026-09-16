@@ -4,7 +4,7 @@ import { RemoteWebSocketTransport } from '../../packages/client-transport/remote
 import { RemoteNodeLedger } from '../../packages/remote/node-ledger.ts';
 import { connectLocalCore } from './local-core-launcher.ts';
 import { createHash } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadP1Scenario } from '../../packages/core-api/mock-p1-scenario.ts';
@@ -173,6 +173,21 @@ app.whenReady().then(async () => {
     await close();
   });
   ipcMain.handle('remote:listNodes', (e) => { guard(e.sender); return nodeLedger.list(); });
+  // W09:本机若以 REMOTE_CORE opt-in 启动了网关,GUI 读取其信息以展示控制台地址。
+  ipcMain.handle('remote:hostInfo', (e) => {
+    guard(e.sender);
+    try {
+      return JSON.parse(
+        readFileSync(resolve(app.getPath('userData'), 'core', 'remote-gateway.json'), 'utf8'),
+      ) as {
+        enabled: boolean;
+        host: string;
+        port: number;
+      };
+    } catch {
+      return { enabled: false };
+    }
+  });
   ipcMain.handle('remote:pair', async (e, input: { name: string; url: string; challenge: string }) => {
     guard(e.sender);
     const res = await fetch(input.url.replace(/\/$/, '') + '/pair', { method: 'POST', body: JSON.stringify({ challenge: input.challenge }) });

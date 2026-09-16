@@ -7,6 +7,7 @@ import { RemoteDeviceStore } from '../../packages/remote/device-store.ts';
 import { RemoteGateway } from '../../packages/remote/remote-gateway.ts';
 import { P1MemoryTransport } from '../../packages/client-transport/p1/memory.ts';
 import { RemoteWebSocketTransport } from '../../packages/client-transport/remote/websocket.ts';
+import { RemoteDeviceExtension } from '../../packages/remote/device-extension.ts';
 
 async function env() {
   mkdirSync('.local/v11-remote-tests', { recursive: true });
@@ -198,4 +199,41 @@ it('W06: scope 空=不给未声明权限;scope限定project后仅可见该项目
     expect(['SCOPE_DENIED', 'CONTROL_LEASE_REQUIRED']).toContain(acqErr);
     await t3.close();
   } finally { await gateway.close(); f.db.close(); }
+});
+
+it('W09: remoteDevice 扩展——本机可生成配对码且网关可消费;远程设备连接被拒', async () => {
+  const f = await env();
+  f.app.remoteDevices = new RemoteDeviceExtension(f.devices);
+  const port = ++portSeq;
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  await gateway.listen(port, '127.0.0.1');
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    const p = (await f.s.request('remoteDevice.createPairing' as never, { displayName: '手机配对码走Core', kind: 'MOBILE', ttlMs: 300000 } as never)) as {
+      challenge: string;
+      expiresAtMs: number;
+    };
+    expect(typeof p.challenge).toBe('string');
+    expect(p.expiresAtMs).toBeGreaterThan(Date.now());
+    const res = await pair(base, p.challenge);
+    expect(res.status).toBe(200);
+    expect(res.body.paired).toBe(true);
+    const list = (await f.s.request('remoteDevice.listDevices' as never, {} as never)) as { devices: { displayName: string; state: string }[] };
+    expect(list.devices.some((d) => d.displayName === '手机配对码走Core' && d.state === 'ACTIVE')).toBe(true);
+    // 远程设备连接绝不许自我配对(防权限升级)
+    const evil = new P1MemoryTransport(f.app, 'remote_device_evil');
+    const es = await evil.connect({ clientId: 'evil', clientVersion: '1.0.0', requestedMode: 'controller' });
+    await expect(
+      es.request('remoteDevice.createPairing' as never, { displayName: 'x', kind: 'DESKTOP' } as never),
+    ).rejects.toThrow('SCOPE_DENIED');
+    evil.close?.();
+    // 参数拒绝:未知 kind / 无名称
+    await expect(
+      f.s.request('remoteDevice.createPairing' as never, { displayName: 'x', kind: 'TABLET' } as never),
+    ).rejects.toThrow('INVALID_PARAMS');
+  } finally {
+    await gateway.close();
+    f.localTransport.close?.();
+    f.db.close();
+  }
 });

@@ -1,0 +1,101 @@
+/** W09:远程 Windows GUI——本机远程网关状态、手机/二机配对码生成与设备撤销。 */
+import React, { useCallback, useEffect, useState } from 'react';
+import { useStore } from './store.tsx';
+
+type Device = {
+  deviceId: string;
+  kind: string;
+  displayName: string;
+  state: string;
+  canRequestController: boolean;
+  scope: string[];
+  lastSeenMs: number | null;
+};
+type HostInfo = { enabled: boolean; host?: string; port?: number };
+
+export function RemoteDevicesPage() {
+  const s = useStore();
+  const [info, setInfo] = useState<HostInfo>({ enabled: false });
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [pair, setPair] = useState<{ challenge: string; expiresAtMs: number; name: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void (window.agentrouterDesktop as { hostInfo?: () => Promise<HostInfo> })?.hostInfo?.().then(
+      setInfo,
+      () => setInfo({ enabled: false }),
+    );
+  }, []);
+  const refresh = useCallback(async () => {
+    try {
+      const r = (await s.callExtension('remoteDevice.listDevices', {})) as {
+        devices: Device[];
+      };
+      setDevices(r.devices);
+      setError(null);
+    } catch (e) {
+      setError(String((e as Error).message));
+    }
+  }, [s]);
+  useEffect(() => void refresh(), [refresh]);
+  const create = async (kind: 'MOBILE' | 'DESKTOP', name: string, controller: boolean) => {
+    setError(null);
+    try {
+      const r = (await s.callExtension('remoteDevice.createPairing', {
+        displayName: name || (kind === 'MOBILE' ? '手机' : '二机'),
+        kind,
+        canRequestController: controller,
+        ttlMs: 300000,
+      })) as { challenge: string; expiresAtMs: number };
+      setPair({ ...r, name: name || (kind === 'MOBILE' ? '手机' : '二机') });
+      void refresh();
+    } catch (e) {
+      setError(String((e as Error).message));
+    }
+  };
+  const revoke = async (id: string) => {
+    await s.callExtension('remoteDevice.revoke', { deviceId: id }).catch((e: Error) => setError(e.message));
+    void refresh();
+  };
+  return (
+    <div className="page" data-page="remote">
+      <header className="page-head">
+        <div>
+          <h1>远程设备</h1>
+          <p>
+            {info.enabled && info.port
+              ? `本机远程控制台已启用:手机浏览器访问 http://${info.host}:${info.port}/ 并输入下方配对码(5 分钟有效)。生产环境经 Tailscale 地址访问。`
+              : '本机远程网关未启用(启动 core 时设 AGENTROUTER_REMOTE_ENABLED=1)。'}
+          </p>
+        </div>
+      </header>
+      {error && <p role="alert">操作失败:{error}</p>}
+      <div style={{ display: 'flex', gap: 8, margin: '8px 0' }}>
+        <button onClick={() => void create('MOBILE', '', false)}>生成手机配对码</button>
+        <button onClick={() => void create('DESKTOP', '', true)}>生成第二台设备配对码(可控制)</button>
+      </div>
+      {pair && (
+        <section className="card" aria-label="配对码">
+          <h2>{pair.name} 配对码(仅显示一次)</h2>
+          <p style={{ fontSize: 22, wordBreak: 'break-all', fontFamily: 'monospace' }}>{pair.challenge}</p>
+          <p>有效期至 {new Date(pair.expiresAtMs).toLocaleTimeString()}</p>
+        </section>
+      )}
+      <section className="card">
+        <h2>已登记设备</h2>
+        {devices.length === 0 && <p>尚无设备。生成配对码后,对方完成配对即出现在此。</p>}
+        <ul>
+          {devices.map((d) => (
+            <li key={d.deviceId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+              <span>
+                {d.displayName} · {d.kind} · {d.state}
+                {d.canRequestController ? ' · 可控制' : ''}
+                {d.lastSeenMs ? ` · 最近在线 ${new Date(d.lastSeenMs).toLocaleString()}` : ''}
+              </span>
+              {d.state === 'ACTIVE' && <button onClick={() => void revoke(d.deviceId)}>撤销</button>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}

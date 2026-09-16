@@ -69,6 +69,11 @@ export class RemoteGateway {
   listen(port: number, host = '127.0.0.1') {
     return new Promise<void>(resolve => this.server.listen(port, host, () => resolve()));
   }
+  /** 实际绑定端口(port=0 时由系统分配)。 */
+  boundPort(): number | undefined {
+    const a = this.server.address();
+    return a && typeof a === 'object' ? a.port : undefined;
+  }
   close() {
     for (const set of this.liveSockets.values()) for (const ws of set) { try { ws.close(4000, 'gateway_shutdown'); } catch {} }
     return new Promise<void>(resolve => this.wss.close(() => this.server.close(() => resolve())));

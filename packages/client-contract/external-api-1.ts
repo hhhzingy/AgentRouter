@@ -14,7 +14,8 @@ export function isExtensionMethod(method: unknown): boolean {
     (typeof method === 'string' &&
       (method.startsWith('roleSession.') ||
         method.startsWith('participant.') ||
-        method.startsWith('contract.')))
+        method.startsWith('contract.') ||
+        method.startsWith('remoteDevice.')))
   );
 }
 export function isExternalApiMethod(method: unknown): method is ExternalApiMethod {

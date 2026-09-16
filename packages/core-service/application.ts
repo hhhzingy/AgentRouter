@@ -119,6 +119,8 @@ export class ApplicationService extends Plans {
   roleSessionTransition?: import('./role-session-extension.ts').RoleSessionDispatchContext['transitionBinding'];
   readonly contextStore: RoleContextStore;
   participant?: import('./participant-extension.ts').ParticipantExtension;
+  /** W09:本机 GUI 经扩展方法管理远程设备配对(仅非远程连接可调)。 */
+  remoteDevices?: import('../remote/device-extension.ts').RemoteDeviceExtension;
   /** C1R1P2:已注册 Harness 列表(由宿主注入 DriverRegistry 视图)。 */
   registeredHarnesses?: () => string[];
   nativeAuthorization?: (bindingId: string) => boolean;
@@ -470,6 +472,23 @@ export class ApplicationService extends Plans {
       });
       if (committed && !('error' in (reply as object))) this.onChanged?.();
       return reply;
+    }
+    // W09:远程设备配对管理扩展(仅本机连接;扩展内部再拒 remote_device_ principal,错误转 wire 帧)。
+    if (
+      this.remoteDevices &&
+      typeof (raw as { method?: unknown })?.method === 'string' &&
+      String((raw as { method?: unknown }).method).startsWith('remoteDevice.')
+    ) {
+      if (!c.initialized)
+        return {
+          v: 1,
+          id: String((raw as { id?: unknown }).id ?? ''),
+          error: { code: 'NOT_INITIALIZED' },
+        };
+      return this.remoteDevices.handle(raw, {
+        principal: c.principal,
+        ...(c.mode ? { mode: c.mode } : {}),
+      });
     }
     if (
       this.participant &&

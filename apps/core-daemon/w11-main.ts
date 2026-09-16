@@ -16,6 +16,9 @@ import { ExecutionCoordinator } from '../../packages/core-service/execution-coor
 import { NativeBackend, NativeExecutionRegistry } from '../../packages/core-service/native-registry.ts';
 import { JsonLfDecoder } from '../../packages/platform/framing.ts';
 import { installLocalNativeRuntime } from '../../packages/platform/local-native-runtime.ts';
+import { RemoteDeviceStore } from '../../packages/remote/device-store.ts';
+import { RemoteGateway } from '../../packages/remote/remote-gateway.ts';
+import { RemoteDeviceExtension } from '../../packages/remote/device-extension.ts';
 const input = process.env.AGENTROUTER_DATA;
 if (!input) throw Error('AGENTROUTER_DATA_REQUIRED');
 mkdirSync(input, { recursive: true });
@@ -36,6 +39,8 @@ let application: ApplicationService,
   dropNext = false;
 const sockets = new Set<import('node:net').Socket>();
 let nativeRuntime: Awaited<ReturnType<typeof installLocalNativeRuntime>> | undefined;
+// W09 REMOTE_CORE:opt-in 远程网关(手机 Web 控制台/二机)。
+let remoteGateway: RemoteGateway | undefined;
 function send(socket: import('node:net').Socket, value: unknown) {
   const encoded = JSON.stringify(value);
   if (Buffer.byteLength(encoded) > 262144) {
@@ -135,6 +140,7 @@ async function shutdown() {
   closing = true;
   await driver?.stop();
   await nativeRuntime?.close();
+  await remoteGateway?.close();
   for (const socket of sockets) socket.destroy();
   server.close(() => {
     application?.db.close();
@@ -162,6 +168,8 @@ server.listen(address, async () => {
     );
     application.roleSession = new RoleSessionExtension(db);
     application.participant = new ParticipantExtension(db);
+    // W09:GUI 经 remoteDevice.* 生成手机配对码;远程网关(若启用)与它共用同一 remote_devices 表。
+    application.remoteDevices = new RemoteDeviceExtension(new RemoteDeviceStore(db));
     if (fixture) {
       driver = new FixtureDriver(application,fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)));
     } else {
@@ -194,6 +202,28 @@ server.listen(address, async () => {
     // Publish a complete instance/credential snapshot, never truncate the live endpoint.
     renameSync(endpointTemp, resolve(data, 'endpoint.json'));
     } finally { rmSync(endpointTemp, {force:true}); }
+    if (process.env.AGENTROUTER_REMOTE_ENABLED === '1') {
+      const host = process.env.AGENTROUTER_REMOTE_HOST ?? '127.0.0.1';
+      const port = Number(process.env.AGENTROUTER_REMOTE_PORT ?? '0');
+      if (!Number.isInteger(port) || port < 0 || port > 65535) throw Error('REMOTE_PORT_INVALID');
+      const allowedHosts = (process.env.AGENTROUTER_REMOTE_ALLOWED_HOSTS ?? host)
+        .split(',').map(x => x.trim()).filter(Boolean);
+      const consoleAsset = process.env.AGENTROUTER_REMOTE_CONSOLE ??
+        fileURLToPath(new URL('./console.html', import.meta.url));
+      if (!existsSync(consoleAsset)) throw Error('REMOTE_CONSOLE_ASSET_MISSING');
+      remoteGateway = new RemoteGateway({
+        app: application,
+        devices: new RemoteDeviceStore(db),
+        allowedHosts,
+        consoleHtml: readFileSync(consoleAsset, 'utf8'),
+      });
+      await remoteGateway.listen(port, host);
+      writeFileSync(
+        resolve(data, 'remote-gateway.json'),
+        JSON.stringify({ enabled: true, host, port: remoteGateway.boundPort(), pid: process.pid, instance: application.instanceId }, null, 2) + '\n',
+        { mode: 0o600 },
+      );
+    }
     process.send?.({ ready: true, pid: process.pid, instance: application.instanceId });
     driver.kick();
   } catch (error) {

@@ -15,6 +15,7 @@ import { ProjectPage } from './workbench/pages-project.tsx';
 import { RolePage } from './workbench/pages-role.tsx';
 import { RolePlanPage } from './workbench/pages-roleplan.tsx';
 import { ReconfigurePage } from './workbench/pages-reconfigure.tsx';
+import { RemoteDevicesPage } from './workbench/pages-remote.tsx';
 
 declare global {
   interface Window {
@@ -26,6 +27,7 @@ declare global {
         displayPath: string;
         pathHandle: string;
       } | null>;
+      hostInfo(): Promise<{ enabled: boolean; host?: string; port?: number }>;
     };
     agentrouterClient?: {
       connect(options: {
@@ -58,6 +60,7 @@ function Routes() {
   if (parts[0] === 'role' && parts[1]) return <RolePage key={parts[1]} roleId={parts[1]} />;
   if (parts[0] === 'roleplan' && parts[1]) return <RolePlanPage key={parts[1]} projectId={parts[1]} />;
   if (parts[0] === 'reconfigure' && parts[1]) return <ReconfigurePage projectId={parts[1]} />;
+  if (parts[0] === 'remote') return <RemoteDevicesPage />;
   return <HomePage />;
 }
 
