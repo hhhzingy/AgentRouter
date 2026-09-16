@@ -85,3 +85,17 @@
 ## J1 / UI Baseline V1 接管
 
 已接管固定 UI 提交，完成本地 Core 与新桌面联合验收；已实现、已测试、被阻断、风险及精确提交见 [J1 报告](integration/J1-report.md)。真实 Harness 支持仍为 0。J1 后停止等待复核，不推进 W11B。
+
+## V1.1 W00—W11（2026-09-16，feat/v1.1-final-windows-mobile）
+
+- 已完成并全量回归 430/430：W02 Context 收敛（删历史 WS 复活、DELTA/Cursor/Receipt、migration 014）、
+  W03 一次性 Context Transfer（决定表+journal 015）、W04 stderr ring 诊断、
+  W05 pi/dsh/kimi/zcode 全部经百炼 qwen3.8-flash Chat Completions DUT PASS、
+  W06 Remote scope/撤销/资源硬上限、W07 真 Chromium 手机控制台验收、
+  W09 REMOTE_CORE 打包 opt-in（remoteDevice Core 扩展 + 工作台远程页 + manifest 双模式）、
+  W10 三轮固定负载（fixture，3/3 PASS，RSS 平稳）+ 测试映射报告（见 reports/W10-regression-and-load.md）。
+- Harness 矩阵与 ZCode 0.16.5 协议真相修复见 reports/W11-harness-dut-matrix.md。
+- 被阻断（人工/物理，见 reports/W12-user-action-card.md）：双机、真手机、Tailscale 私网、
+  Codex 隔离 DUT 重登录（卡4）。
+- 已知限制追加：ZCode 0.16.5 冷进程 resume 会话模型客户端不可恢复（native_resume=UNSUPPORTED，
+  新会话+章程重申路径）；其权限流按 Route 白名单 allow_once、其余 deny。
