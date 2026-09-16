@@ -224,15 +224,33 @@ export const piDriver: HarnessDriver = {
 };
 export const zcodeDriver: HarnessDriver = {
   harness: 'zcode',
-  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  // 0.16.5 实测:冷进程 session/resume 可绑定但后续 send 报 ZCODE_RUNTIME_MODEL_UNAVAILABLE
+  // (setModel 亦不能恢复),即原生续轮跨进程不可用;任务轮一律新会话+runPrompt 重申章程。
+  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'UNSUPPORTED' },
   requiresSessionPath: false,
+  supportsFreshSession: true,
   processArgs: () => {
     if (!zcodeCliRef.path) throw Error('ZCODE_CLI_UNCONFIGURED');
     return [zcodeCliRef.path, 'app-server'];
   },
+  /** 同 dsh:冷进程 resume 不可用时新会话须重申章程并作废 bootstrap ACK;zcode MCP 工具为 mcp__ 全限定名。 */
+  runPrompt({ request, charter, charterHash }) {
+    return (
+      'Bootstrap 阶段已结束:此前"回复 ' + `AGENTROUTER_CHARTER_ACK:${charterHash}` + ' 一次"的指令已作废,本轮回复中不得再出现该确认,也不再禁止工具。\n' +
+      '生效中的角色章程(须继续遵守):' + JSON.stringify(charter) + '\n' +
+      '本轮任务请求:' + JSON.stringify(request) + '\n' +
+      '直接执行该任务:先调用工具 mcp__agentrouter-role__route_context 获取上下文(任务文本中的 route_context 即指该工具),业务结果用 mcp__agentrouter-role__route_finish 提交(route_finish 同理)。除这两个工具外不要使用其他工具。'
+    );
+  },
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
     const lifecycle = new ZcodeLifecycle({ write, onEvent,
-      onDisconnect: reason => onEvent({ type: 'Disconnected', reason }), timeoutMs: promptTimeoutMs });
+      onDisconnect: reason => onEvent({ type: 'Disconnected', reason }), timeoutMs: promptTimeoutMs,
+      // 托管角色权限白名单:仅 Route 工具(route_*)可 allow_once;其余走 deny option。
+      onApproval: (params) => {
+        const name = String((params as { toolName?: unknown })?.toolName ?? '');
+        if (/route_(context|send|finish|wait|artifact_register|artifact_read)$/i.test(name)) return { decision: 'allow' };
+        return { decision: 'deny' };
+      } });
     return {
       get phase() {
         return lifecycle.phase;
@@ -241,12 +259,7 @@ export const zcodeDriver: HarnessDriver = {
         await lifecycle.initialize();
       },
       async open({ config: cfg, process }) {
-        if (process.session?.id) {
-          await lifecycle.resume(process.session.id, process.mcpServers);
-          await lifecycle.subscribe();
-          return { id: process.session.id };
-        }
-        // workspaceKey 语义未与官方桌面实例核验;实验级以 workspace 路径为键。
+        // 冷 resume 会话的模型客户端在 0.16.5 不可恢复(见 contextCapabilities 注释):忽略旧引用,始终新会话。
         const opened = await lifecycle.open({ workspacePath: cfg.workspace, workspaceKey: cfg.workspace, mcpServers: process.mcpServers });
         await lifecycle.subscribe();
         return { id: opened.id };

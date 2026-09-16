@@ -41,8 +41,9 @@ it('订阅 eventSeq 之前的事件不能绑定新 run', async () => {
   await d.open({ workspacePath: 'test', workspaceKey: 'test' });
   await d.subscribe();
   await d.start({ runId: 'run', text: 'synthetic' });
-  for (const seq of [8, 9, 10]) d.accept(Buffer.from(JSON.stringify({ method: 'session/event', params: {
-    sessionId: 'native', turnId: 'turn-' + seq, seq, type: 'turn.started', payload: { inputId: 'run' },
+  // 0.16.5 官方词汇:v4/telemetry/event 以 eventSeq 计;早于订阅 floors 的不得绑定。
+  for (const seq of [8, 9, 10]) d.accept(Buffer.from(JSON.stringify({ method: 'v4/telemetry/event', params: {
+    sessionId: 'native', turnId: 'turn-' + seq, eventSeq: seq, kind: 'turn.started', sourceCommandId: 'run',
   } }) + '\n'));
   expect(events).toEqual([{ type: 'RunAccepted', runId: 'run', threadId: 'native', turnId: 'turn-10' }]);
   d.disconnect();

@@ -14,15 +14,20 @@ const kimi = process.argv.includes('--kimi') || kimiBailian;
 const codex = process.argv.includes('--codex');
 if(kimi&&codex)throw Error('ONE_HARNESS_PER_TEST');
 const dsh = process.argv.includes('--dsh');
+const zcode = process.argv.includes('--zcode'); // W11 ZCode→百炼(官方 openai-compatible provider)
 const bailian = process.argv.includes('--bailian'); // pi→百炼(DashScope MaaS)绑定
-const harnessLabel=codex?'Codex':kimi?(kimiBailian?'Kimi(百炼)':'Kimi'):dsh?'DeepSeek Harness':'pi';
-const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':'pi';
-const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):bailian?'agentrouter-dashscope':'agentrouter-deepseek';
-const modelId=codex?'gpt-5.6-luna':kimi?(kimiBailian?'bailian/qwen3.8-flash':'kimi-code/kimi-for-coding'):bailian?'qwen3.8-flash':'deepseek-v4-flash';
+const harnessLabel=codex?'Codex':kimi?(kimiBailian?'Kimi(百炼)':'Kimi'):dsh?'DeepSeek Harness':zcode?'ZCode(百炼)':'pi';
+const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':zcode?'zcode':'pi';
+const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):zcode?'agentrouter-zcode':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
+const modelId=codex?'gpt-5.6-luna':kimi?(kimiBailian?'bailian/qwen3.8-flash':'kimi-code/kimi-for-coding'):zcode?'zcode-managed':bailian?'qwen3.8-flash':'deepseek-v4-flash';
 const effort=codex?'low':kimi?'on':'off';
-const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/7ac07f4ce733f89a/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
+const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/12219cbfbcbddde7/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
 const dshBin='C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js';
-if(kimi&&codex||kimi&&dsh||codex&&dsh)throw Error('ONE_HARNESS_PER_TEST');
+const zcodeCli='E:/software/ZCode/resources/glm/zcode.cjs';
+const credFile='E:/AgentRouter/账号信息/通用API/百炼.txt';
+const maasBase=(zcode?readFileSync(credFile,'utf8').split(/\r?\n/).map(l=>l.trim()).find(l=>/^https:\/\//.test(l)):undefined);
+if(zcode&&!maasBase)throw Error('BAILIAN_BASE_MISSING');
+if([kimi,codex,dsh,zcode,bailian].filter(Boolean).length>1)throw Error('ONE_HARNESS_PER_TEST');
 mkdirSync('.local/j3-production-pi', { recursive: true });
 const root = mkdtempSync(resolve('.local/j3-production-pi/run-'));
 const path = (n) => resolve(root, n),
@@ -46,7 +51,9 @@ writeFileSync(
   path('runtime.json'),
   JSON.stringify({
     isolation: 'LIMITED_ISOLATION',
-    managedRoot: codex?resolve('.local/j3-codex'):kimi?resolve('.local/j3-kimi'):path('managed'),
+    managedRoot: codex?resolve('.local/j3-codex'):kimi?resolve('.local/j3-kimi'):zcode?resolve('.local/j3-zcode'):path('managed'),
+    // 端点从受控凭据文件运行时解析,绝不写进 Git 可见的常量。
+    ...(zcode?{zcodeCli,zcodeCredentialFile:credFile,zcodeProvider:{main:'bailian/qwen3.8-flash',provider:{id:'bailian',kind:'openai-compatible',baseURL:maasBase,name:'Bailian MaaS'}}}:{}),
     dshBin: dshBin,
     dshHome: dsh?'C:/Users/hap_p/.dsh':undefined,
     workspaceRoot: path('workspace'),
@@ -65,9 +72,9 @@ writeFileSync(
       {
         id: 'production_'+harness,
         harness, executable, executableSha256:sha(executable),
-        version: codex?'0.153.4':kimi?'0.42.0':dsh?'0.1.5-rc.1':'0.85.1',
+        version: codex?'0.154.0-alpha.6.2':kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.5':'0.85.1',
         providerId, modelId, effort,
-        sessionHome: codex?resolve('.local/j3-codex/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):path('managed/pi'),
+        sessionHome: codex?resolve('.local/j3-codex/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcode?resolve('.local/j3-zcode/dut/home'):path('managed/pi'),
       },
     ],
   }),
@@ -93,6 +100,7 @@ const core = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
     AGENTROUTER_DATA: path('core'),
     AGENTROUTER_PROJECT_ROOTS: JSON.stringify([path('workspace')]),
     AGENTROUTER_NATIVE_CONFIG: path('runtime.json'),
+    ...(process.env.AR_ZCODE_DEBUG ? { AR_ZCODE_DEBUG: process.env.AR_ZCODE_DEBUG } : {}),
   },
 });
 // Do not persist raw stderr or any credential-bearing transport body.
@@ -106,7 +114,7 @@ const closed = new Promise((r) =>
   }),
 );
 const report = {
-  scope: codex?'PRODUCTION_CORE_REAL_CODEX':kimi?'PRODUCTION_CORE_REAL_KIMI':dsh?'PRODUCTION_CORE_REAL_DEEPSEEK_HARNESS':'PRODUCTION_CORE_REAL_PI',
+  scope: codex?'PRODUCTION_CORE_REAL_CODEX':kimi?'PRODUCTION_CORE_REAL_KIMI':dsh?'PRODUCTION_CORE_REAL_DEEPSEEK_HARNESS':zcode?'PRODUCTION_CORE_REAL_ZCODE':'PRODUCTION_CORE_REAL_PI',
   status: 'FAIL',
   code_sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   dirty_source: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(),
@@ -144,7 +152,7 @@ try {
       leaseId: lease.leaseId,
     });
   shutdown = () => mutate('runtime.shutdownCore', {}, {}, 'shutdown');
-  if (dsh) {
+  if (dsh || zcode) {
     // C1R1P2:动态 HarnessId 计划需先升级连接协议
     const up = await s.request('contract.upgrade', { revision: 'C1R1P2' });
     report.p2upgrade = up && up.revision === 'C1R1P2';
