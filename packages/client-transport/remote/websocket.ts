@@ -86,6 +86,7 @@ class RemoteSession implements ClientSession {
           let frame: Record<string, unknown>;
           try { frame = JSON.parse(line); } catch { continue; }
           if (frame.attached === true) { attached = true; resolve(); continue; }
+          if (frame.auth_required === true) continue; // 未认证提示:桌面端继续发首帧 token,不作为事件分发
           if (frame.eventCursor !== undefined && frame.id === undefined) { this.observedCursor = Math.max(this.observedCursor, Number(frame.eventCursor)); this.dispatch(frame as unknown as Event); continue; }
           if (typeof frame.id === 'string') {
             const p = this.pending.get(frame.id);

@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' ws: wss:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; form-action 'none'"><title>AgentRouter 远程控制台</title><style>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' ws: wss:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'none'"><title>AgentRouter 远程控制台</title><style>
 :root{--bg:#0f1216;--fg:#e7ecf3;--card:#171b21;--line:#262c36;--mut:#8b98a9;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--acc:#4c8dff}
 *{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);padding-bottom:env(safe-area-inset-bottom)}
 header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;gap:10px;z-index:5}
@@ -20,37 +20,41 @@ nav{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--l
 <nav id="nav" style="display:none">
 <button data-v="home" class="on">概览</button><button data-v="attention">需处理</button><button data-v="tasks">任务</button><button data-v="roles">角色</button><button data-v="me">控制</button>
 </nav>
+<script src="/meta.js"></script>
 <script>
 const $=s=>document.querySelector(s),S={rev:null,cursor:0,lease:null,clientId:'mobile_'+Math.random().toString(36).slice(2),snap:null};
+// 配对成功恢复完整页面骨架(renderPair 会整体替换 body)。
+const CHROME=document.body.innerHTML;
 let ws=null,seq=0,pending={},view='home',stale=false;
-const MM={system:{},role:{},task:{},run:{}};
-function meta(){return MM}
-function frame(m,p,o){const id='m'+(++seq);const f={v:1,id,method:m,params:p||{}};const md=(meta()[m]||{});
- if(md.mutation){f.client_id=S.clientId;f.operation_id=o.operationId;f.expected_revision=o.expectedRevision;f.scope=o.scope||{};}
+// W07 共享元数据:mutation 标志表来自网关 /meta.js(与 Node 传输同一份 client-contract 生成物)。
+function meta(){return window.METHOD_METADATA||{}}
+function frame(m,p,o){const id='m'+(++seq);const f={v:1,id,method:m,params:p||{}};const md=(meta()[m]===true);
+ if(md){f.client_id=S.clientId;f.operation_id=o.operationId;f.expected_revision=o.expectedRevision;f.scope=o.scope||{};}
  if(o&&o.leaseId)f.lease_id=o.leaseId;
- if(md.mutation||m.startsWith('control.')){}
  return {id,f};
 }
 function send(m,p,o){const {id,f}=frame(m,p,o||{});return new Promise((res,rej)=>{pending[id]={res,rej,t:setTimeout(()=>{rej(new Error('TIMEOUT'))},20000)};try{ws.send(JSON.stringify(f)+'\n')}catch(e){rej(e)}})}
 function snap(){return send('system.snapshot',{})}
 function connect(reason){ws&&ws.close();const proto=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(proto+'//'+location.host+'/ws');
- ws.onopen=()=>{$('#dot').className='dot on';reconnectAttempts=0};
- ws.onclose=(ev)=>{$('#dot').className='dot';stale=true;S.lease=null;$('#mode').textContent='已断开';renderFrozen();if(ev.code===4003||ev.code===4004){renderPair();return}scheduleReconnect()};
- ws.onerror=()=>{$('#dot').className='dot'};
+ ws.onopen=()=>{const d=$('#dot');if(d)d.className='dot on';reconnectAttempts=0};
+ ws.onclose=(ev)=>{const d=$('#dot');if(d)d.className='dot';stale=true;S.lease=null;const m=$('#mode');if(m)m.textContent='已断开';renderFrozen();if(ev.code===4003||ev.code===4004){renderPair();return}if(document.getElementById('code'))return;scheduleReconnect()};
+ ws.onerror=()=>{const d=$('#dot');if(d)d.className='dot'};
  ws.onmessage=e=>{for(const line of e.data.split('\n')){if(!line.trim())continue;let x;try{x=JSON.parse(line)}catch{continue}
   if(x.attached){S.deviceKind=x.kind;S.canController=!!x.canRequestController;boot();continue}
+  // K01:网关提示未认证→立即进配对界面(不读 HttpOnly cookie);close 阻止 K04 重连风暴(退避上限 30s 亦可)。
+  if(x.auth_required){try{ws.close()}catch{};renderPair();return}
   if((x.event||x.eventCursor!==undefined)&&S.snap){if(x.cursor!==undefined)S.cursor=x.cursor;scheduleRefresh()}
   if(x.id&&pending[x.id]){const p=pending[x.id];clearTimeout(p.t);delete pending[x.id];x.error?p.rej(Object.assign(new Error(x.error.code),x.error)):p.res(x.result);continue}
  }}}
 let reconnectAttempts=0,reconnectTimer=null;
 function scheduleReconnect(){clearTimeout(reconnectTimer);const delay=Math.min(30000,1000*Math.pow(2,reconnectAttempts++));reconnectTimer=setTimeout(()=>{if(navigator.onLine!==false)connect()},delay)}
-async function boot(){try{const h=await send('system.initialize',{client_protocol:'agentrouter-client/1',client_version:'1.0.0',client_id:S.clientId,requested_mode:localStorage.getItem('ar_mode')||'observer',contract_revision:'C1R1P1'});S.rev=h.revision??null;
+async function boot(){try{const wantMode=S.canController?(localStorage.getItem('ar_mode')||'controller'):(localStorage.getItem('ar_mode')||'observer');const h=await send('system.initialize',{client_protocol:'agentrouter-client/1',client_version:'1.0.0',client_id:S.clientId,requested_mode:wantMode,contract_revision:'C1R1P1'});S.rev=h.revision??null;
  try{const up=await send('contract.upgrade',{revision:'C1R1P2'});if(up&&up.revision)S.revision2=true}catch{}
  $('#mode').textContent=h.connectionState==='CONNECTED_CONTROLLER'?'控制器':'观察者';await refresh()}catch(e){$('#mode').textContent='初始化失败';err(e)}}
 function scopeForSpace(sid){const sp=(S.snap.spaces||[]).find(x=>x.id===sid);return {project_id:sp?sp.project_id:undefined,space_id:sid}}
 let refreshing=false;function scheduleRefresh(){if(refreshing)return;refreshing=true;setTimeout(async()=>{try{await refresh()}finally{refreshing=false}},300)}
 async function refresh(){try{const s=await snap();S.snap=s;S.rev=s.revision;S.cursor=s.cursor;stale=false;renderFrozen();render()}catch(e){err(e)}}
-function renderFrozen(){$('#frozen').style.display=stale?'block':'none';if(stale)$('#frozen').textContent='连接中断 · 数据截至上次快照 · 正在自动重连'}
+function renderFrozen(){const f=$('#frozen');if(!f)return;f.style.display=stale?'block':'none';if(stale)f.textContent='连接中断 · 数据截至上次快照 · 正在自动重连'}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function render(){$('#nav').style.display='flex';const s=S.snap;const app=$('#app');
  if(view==='home')app.innerHTML=card('概览',row('项目',s.projects.length)+row('角色',s.roles.length)+row('运行中',s.runs.filter(r=>['CREATED','STARTING','RUNNING','WAITING_APPROVAL','SETTLING'].includes(r.state)).length)+row('需处理',s.roles.filter(r=>r.interventionState&&r.interventionState!=='NONE').length)+row('快照修订',s.revision))+(s.roles.length?card('活跃角色',s.roles.slice(0,6).map(r=>row(esc(r.name),'<span class="st">'+esc(r.status)+'</span>')).join('')):'');
@@ -76,9 +80,10 @@ window.openRole=async id=>{try{const ls=await send('roleSession.list',{role_id:i
  if(doNew){const name=prompt('新会话名称:');if(name&&name.trim()){await send('roleSession.create',{role_id:id,name:name.trim().slice(0,80)},leaseArgs({operationId:rid(),scope:{}}));alert('已新建;旧会话转为永久只读')}}
 }catch(e){err(e)}};
 function err(e){const c=document.createElement('div');c.className='card err';c.textContent='操作失败：'+(e&&e.message||e);$('#app').prepend(c);setTimeout(()=>c.remove(),4000)}
-$('#nav').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;view=b.dataset.v;[...$('#nav').children].forEach(x=>x.classList.toggle('on',x===b));render()});
+function bindChrome(){$('#nav').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;view=b.dataset.v;[...$('#nav').children].forEach(x=>x.classList.toggle('on',x===b));render()})}
+bindChrome();
 function renderPair(){reconnectAttempts=99;clearTimeout(reconnectTimer);document.body.innerHTML=`<main><section class="card"><h2>配对</h2><div class="hint">在主机 GUI「添加远程设备」生成 5 分钟配对码,输入下方。</div><input id="code" placeholder="配对码" style="margin:8px 0"><button id="go">配对并连接</button><div id="pe" class="err" style="margin-top:8px"></div></section></main>`;
- const go=()=>{const el=document.getElementById('go');el.disabled=true;fetch('/pair',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({challenge:document.getElementById('code').value.trim()})}).then(async r=>{const b=await r.json().catch(()=>null);if(!r.ok||!b||b.error)throw new Error((b&&b.error)||('HTTP'+r.status));document.body.innerHTML='';reconnectAttempts=0;connect();}).catch(e=>{document.getElementById('pe').textContent='配对失败:'+e.message;el.disabled=false})};
+ const go=()=>{const el=document.getElementById('go');el.disabled=true;fetch('/pair',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({challenge:document.getElementById('code').value.trim()})}).then(async r=>{const b=await r.json().catch(()=>null);if(!r.ok||!b||b.error)throw new Error((b&&b.error)||('HTTP'+r.status));document.body.innerHTML=CHROME;bindChrome();reconnectAttempts=0;connect();}).catch(e=>{document.getElementById('pe').textContent='配对失败:'+e.message;el.disabled=false})};
  document.getElementById('go').onclick=go;}
 // K01:不读 HttpOnly cookie;先尝试带 cookie 的已认证 WSS,未认证(onclose 4003/4004)再显示配对。
 connect();

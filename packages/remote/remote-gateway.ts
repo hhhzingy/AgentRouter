@@ -2,6 +2,7 @@ import { createServer, type Server, type IncomingMessage } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RemoteDeviceStore } from './device-store.ts';
+import { methodMetadata } from '../client-contract/c1r1p1/generated.ts';
 
 export interface RemoteCoreServer {
   open(principal?: string, authorized?: boolean, allowedProjects?: Set<string>): string;
@@ -22,6 +23,12 @@ export interface RemoteGatewayOptions {
   pairRateLimitPerMinute?: number;
   clock?: () => number;
 }
+// W07 共享元数据:浏览器控制台与 Node 传输使用同一份 client-contract 方法元数据,
+// 经 GET /meta.js 暴露 window.METHOD_METADATA(仅 mutation 布尔表,非秘密)。
+const METHOD_MUTATION: Record<string, boolean> = {};
+for (const m of Object.keys(methodMetadata))
+  METHOD_MUTATION[m] = !!(methodMetadata as Record<string, { mutation?: boolean }>)[m].mutation;
+const META_JS = 'window.METHOD_METADATA=' + JSON.stringify(METHOD_MUTATION) + ';\n';
 const MAX_FRAME_DEFAULT = 262144;
 const AUTH_DEADLINE_MS = 10000;
 const MAX_PENDING_PER_SOCKET = 64;
@@ -75,7 +82,15 @@ export class RemoteGateway {
     const host = req.headers.host;
     if (!hostAllowed(host, this.allowHost)) return false;
     const origin = req.headers.origin;
-    if (origin !== undefined && !this.allowOrigin.has(String(origin).toLowerCase())) return false;
+    if (origin !== undefined) {
+      const o = String(origin).toLowerCase();
+      if (!this.allowOrigin.has(o)) {
+        // 浏览器控制台默认允许 loopback Origin(主机名命中 allowedHosts,端口任意);跨网访问仍须显式 allowedOrigins。
+        let host: string | undefined;
+        try { host = new URL(o).hostname.toLowerCase(); } catch { host = undefined; }
+        if (!host || !this.allowHost.has(host)) return false;
+      }
+    }
     return true;
   }
   private async http(req: IncomingMessage, res: import('node:http').ServerResponse) {
@@ -87,9 +102,14 @@ export class RemoteGateway {
     if (!this.requestAuthorized(req)) return send(403, { error: 'SCOPE_DENIED' });
     const url = (req.url ?? '').split('?')[0];
     if (req.method === 'GET' && url === '/health') return send(200, { status: 'ok', kind: 'agentrouter-remote-gateway' });
+    if (req.method === 'GET' && url === '/favicon.ico') { res.writeHead(204); return res.end(); }
     if (req.method === 'GET' && (url === '/' || url === '/index.html') && this.options.consoleHtml) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'self'; connect-src 'self' ws: wss:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'", 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
       return res.end(this.options.consoleHtml);
+    }
+    if (req.method === 'GET' && url === '/meta.js' && this.options.consoleHtml) {
+      res.writeHead(200, { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
+      return res.end(META_JS);
     }
     if (req.method === 'POST' && url === '/pair') {
       const key = pairKey(req);
@@ -171,6 +191,8 @@ export class RemoteGateway {
       if (!authed) { ws.close(4003, 'auth_failed'); return; }
       startSession(authed);
     }
+    // 无 cookie:提示未认证(手机控制台立即进配对界面);桌面端仍可继续走首帧 token,10s 截止仍在。
+    if (!device) sendFrame({ auth_required: true });
     ws.on('message', data => {
       const text = String(data);
       if (!device) {
@@ -207,7 +229,7 @@ export class RemoteGateway {
           if (!connection) return;
           const response = await app.handle(connection, frame);
           sendFrame(response);
-        }).catch(() => { try { ws.close(4005, 'internal'); } catch {} });
+        }).catch((err) => { if (process.env.AR_GW_DEBUG) console.error('GWCHAIN', line.slice(0, 200), String((err as Error).stack ?? err).slice(0, 400)); try { ws.close(4005, 'internal'); } catch {} });
       }
     });
   }
