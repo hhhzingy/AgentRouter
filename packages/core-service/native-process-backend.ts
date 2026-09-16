@@ -9,6 +9,8 @@ export interface SecureNativeProcess {
   onClose(listener: () => void): () => void;
   /** OS host must revoke bridge authority and prove the entire run containment empty. */
   stop(): Promise<StopEvidence>;
+  /** W04 受控诊断:子进程 stderr 的脱敏有界尾(仅异常路径由后端取出)。 */
+  stderrTail?: () => string;
   session?: { id?: string; path?: string };
   mcpServers?: unknown[];
   kimiConfiguration?: { modelConfigId: string; effortConfigId: string };
@@ -145,7 +147,7 @@ export class NativeProcessBackend implements ExecutionBackend {
           this.quarantined.set(key, { process: r.process, epoch: packet.epoch });
         // 启动尚未返回时保留占用墓碑，避免同 key 重入与晚到进程重叠。
         if (r.process) this.active.delete(key);
-        onExit({ code: broken ? null : code, stop });
+        onExit({ code: broken ? null : code, stop, stderrTail: r.process?.stderrTail?.() });
       })();
       return r.complete;
     };

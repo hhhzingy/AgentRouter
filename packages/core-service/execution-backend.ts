@@ -6,6 +6,8 @@ export type StopEvidence =
 export interface ExecutionExit {
   code: number | null;
   stop: StopEvidence;
+  /** W04 受控诊断:子进程 stderr 的脱敏有界尾;仅异常路径携带。 */
+  stderrTail?: string;
 }
 export interface ExecutionBackend {
   launch(

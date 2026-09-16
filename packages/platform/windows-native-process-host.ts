@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { StderrRing } from './stderr-ring.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile, realpath, mkdir, writeFile, rm } from 'node:fs/promises';
 import { isAbsolute, join, relative } from 'node:path';
@@ -170,8 +171,14 @@ export class WindowsNativeProcessHost implements SecureProcessHost {
           await rm(stopFile, { force: true });
         })
         .catch(() => {});
-      // F-11 诊断:bootstrap 失败时暂存 stderr 尾部供宿主报告;正常运行时不记录。
-      child.stderr.on('data', (d: Buffer) => process.stderr.write('[NATIVE_STDERR] ' + d.toString())); // 不记录未经脱敏的原生 stderr;R3 需增加受控诊断透传。
+      // W04 受控诊断:line-buffer 环 + 冲刷脱敏;不再原样转发到 core stderr。
+      const stderrRing = new StderrRing(
+        Object.entries(env)
+          .filter(([k, v]) => /API_KEY|_KEY$|TOKEN|SECRET/i.test(k) && typeof v === 'string' && v.length >= 8)
+          .map(([, v]) => String(v)),
+      );
+      child.stderr.on('data', (d: Buffer) => stderrRing.push(d));
+      const stderrTail = () => stderrRing.tail();
       await new Promise<void>((resolve, reject) => {
         child.once('spawn', resolve);
         child.once('error', () => reject(Error('WINDOWS_NATIVE_START_FAILED')));
@@ -185,6 +192,7 @@ export class WindowsNativeProcessHost implements SecureProcessHost {
           kimiConfiguration: prepared.kimiConfiguration,
           verifyCodex: prepared.verifyCodex,
         saveSession: prepared.saveSession,
+        stderrTail,
         write: (bytes) =>
           new Promise((resolve, reject) =>
             child.stdin.write(bytes, (error) =>
