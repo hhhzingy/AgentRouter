@@ -1,0 +1,57 @@
+{
+  "schema": "agentrouter-shared-mcp-checkpoint/1",
+  "state": "SC2_CANDIDATE_LOCAL_VERIFIED",
+  "source_sha": "dc64b8d00b316272df615bd4fa5129dbe77abc21",
+  "source_sha_note": "以 origin/feat/v1.1-final-windows-mobile 上 该 source_sha 即本 SC2 所在提交的父提交 为准;bundle 哈希在其后无源码变更时有效",
+  "evidence_commit_sha": null,
+  "adopts_SC1_source_sha": "108b70a834145971094de7ac747a30926ead62fe",
+  "tool_catalog_hashes": {
+    "control": "d93cdeba9d343fcaf00804e25178a9da94f817b667071cbf92ca094865bbf3e2",
+    "participant": "41e5815b33e85efc764736229b3f613f9fafb969c836f33d246ee9b77702d2af"
+  },
+  "contract_and_migration_hashes": {
+    "contracts/client-api.c1.schema.json": "fa92882485dc5f82edef387a90f48dc9208f6b67f46ac776497e7d759306e05c",
+    "packages/client-contract/c1r1p1/generated.ts": "20ce8c6b4346a6734ec6b9f3786cc7c6481f8631fc55c1126eae7ec86b55620a",
+    "packages/client-contract/external-api-1.ts": "ef2583daefd4e03df87abfbbae0e9a834bfde7f05211f4319abf67ca900413c1",
+    "packages/storage/migrations/014-context-convergence.sql": "96c142acbc52b46d7bb5930034e124a595416a414e8969b84e606a246832e04f",
+    "packages/storage/migrations/015-context-transfer.sql": "2943063cb49e73833f2df519d2a0bd67186948a56dad753ec80db173f0f6ed97"
+  },
+  "real_driver_context_ports": [
+    "zcode: implemented (cold export via session/resume messages; init via fresh session+seed; idempotent by operationId; confirm=resume probe); registered in w11-main when native config carries zcodeCli — LIVE transfer run still pending",
+    "others: unregistered → inherit explicitly CONTEXT_EXPORT_UNSUPPORTED (no silent blank)"
+  ],
+  "mcp_semantics_for_linux": {
+    "management": "stdio retained; P2 negotiated when capability exposes contract.upgrade; create forwards context_mode blank|inherit; router_role_session_transfer_status added; switch description states permanent read-only of archived WS; router_status strips hostLabel/displayRoot→root_alias; lease renewal capped ~5min then dropped",
+    "participant": "shared bridge (participant-common.mjs); no direct DB reads, no runtime self-issue; grant-validated reads (inbox/read_artifact); stable request_key with ledger receipts (replay=original receipt; conflict on diff content); http lifecycle fixed (port parse incl 0, Buffer body+cap, health vs MCP, per-request transport close)",
+    "scoping": "tunnel/受限实例范围由专用 core 进程 AGENTROUTER_MCP_PROJECT_SCOPE 启动时固定(未知 id 拒绝启动);协议面不新增字段(冻结 schema 未动)"
+  },
+  "tests": {
+    "management_local": "PASS (role-session-gateway-retry 5/5 incl P2/passthrough/minimization at dc64b8d)",
+    "participant_local_workflow": "PASS (participant-mcp + participant-http integration incl replay/conflict/revocation)",
+    "full_suite_local": "462/462 (unit+integration+contract+chaos)",
+    "chatgpt_read": "PENDING_USER (operator card docs/cloud-kit/USER_ACTION_CARD-web-mcp.md)",
+    "chatgpt_management": "PENDING_USER",
+    "chatgpt_participant": "PENDING_USER"
+  },
+  "linux_required_retests": [
+    "adopt SC2 tool bundles: management-mcp/participant-stdio/participant-http startup guards on Linux",
+    "participant request_key ledger + revocation reads via real core",
+    "mcp scope dedicated-instance behavior (boot-refuse unknown ids)",
+    "context transfer engine state machine (CT-02/03/04 tests)",
+    "zcode port lifecycle if Linux runs zcode harness (currently official-executor-blocked)",
+    "HTTP entry: health vs MCP split + body limits under Linux"
+  ],
+  "remaining_code": [
+    "external participant claim/result_submit shared contract (migration slot reserved from 016; no fabricated runs/jobs)",
+    "zcode warm session host in audited backend (session≠run lifecycle) — protocol proven feasible, backend residency unimplemented",
+    "live verification pass of zcode context port through real transfer run",
+    "cross-harness inherit end-to-end (binding transition path coded; needs live test)"
+  ],
+  "host_blockers": [
+    "BLOCKED_CI_INFRA: account billing (both lanes' jobs not started; raw failure preserved)",
+    "PENDING_USER: OpenAI account linking + one web call for each drill",
+    "PENDING_HUMAN_DEVICE: phone/second-machine HTTPS WSS (explicitly deferred by user this round)"
+  ],
+  "main_merge_authorized": false,
+  "release_authorized": false
+}
