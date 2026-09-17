@@ -32,6 +32,7 @@ const META_JS = 'window.METHOD_METADATA=' + JSON.stringify(METHOD_MUTATION) + ';
 const MAX_FRAME_DEFAULT = 262144;
 const AUTH_DEADLINE_MS = 10000;
 const MAX_PENDING_PER_SOCKET = 64;
+const MAX_SOCKET_INFLIGHT_BYTES = 2 * 1024 * 1024;
 const MAX_TOTAL_CONNECTIONS = 32;
 const MAX_SEND_BUFFERED_BYTES = 1048576;
 const pairKey = (req: IncomingMessage) => (req.socket.remoteAddress ?? 'unknown');
@@ -67,6 +68,13 @@ export class RemoteGateway {
     });
   }
   listen(port: number, host = '127.0.0.1') {
+    // WC03:默认 Origin 仅 loopback+本端口(scheme+host+port 全匹配);显式 allowedOrigins 叠加。
+    for (const h of ['127.0.0.1', 'localhost', '[::1]']) {
+      this.allowOrigin.add('http://' + h + ':' + port);
+      this.allowOrigin.add('https://' + h + ':' + port);
+      this.allowOrigin.add('http://' + h); // 无端口默认(80)
+      this.allowOrigin.add('https://' + h); // 无端口默认(443)
+    }
     return new Promise<void>(resolve => this.server.listen(port, host, () => resolve()));
   }
   /** 实际绑定端口(port=0 时由系统分配)。 */
@@ -88,13 +96,9 @@ export class RemoteGateway {
     if (!hostAllowed(host, this.allowHost)) return false;
     const origin = req.headers.origin;
     if (origin !== undefined) {
-      const o = String(origin).toLowerCase();
-      if (!this.allowOrigin.has(o)) {
-        // 浏览器控制台默认允许 loopback Origin(主机名命中 allowedHosts,端口任意);跨网访问仍须显式 allowedOrigins。
-        let host: string | undefined;
-        try { host = new URL(o).hostname.toLowerCase(); } catch { host = undefined; }
-        if (!host || !this.allowHost.has(host)) return false;
-      }
+      // WC03/W-02:精确 Origin(scheme+host+port)。默认仅 loopback+本端口;
+      // 跨网(如 tailscale serve 的 https://host.ts.net)必须经 allowedOrigins 显式声明。
+      if (!this.allowOrigin.has(String(origin).toLowerCase())) return false;
     }
     return true;
   }
@@ -154,6 +158,8 @@ export class RemoteGateway {
     let unsubscribe: (() => void) | undefined;
     let chain: Promise<void> = Promise.resolve();
     let buffer = '';
+    let inFlightFrames = 0;
+    let inFlightBytes = 0;
     const app = this.options.app;
     const sendFrame = (value: unknown) => {
       if (ws.readyState !== ws.OPEN) return;
@@ -216,12 +222,19 @@ export class RemoteGateway {
       if (buffer.length > this.maxFrame * 2) { ws.close(4002, 'frame_too_large'); return; }
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
-      let queued = 0;
+      // WC03/W-04:socket 全生命周期在途计数(不随单条 message 归零);
+      // 在途帧或累计字节超限 → 4008/4002,防多帧突发绕过单帧上限。
       for (const line of lines) {
         if (!line.trim()) continue;
-        if (++queued > MAX_PENDING_PER_SOCKET) { ws.close(4008, 'pending_overflow'); return; }
+        if (inFlightFrames >= MAX_PENDING_PER_SOCKET || inFlightBytes + line.length > MAX_SOCKET_INFLIGHT_BYTES) {
+          ws.close(4008, 'pending_overflow');
+          return;
+        }
+        inFlightFrames++;
+        inFlightBytes += line.length;
         chain = chain.then(async () => {
-          queued--;
+          inFlightFrames--;
+          inFlightBytes -= line.length;
           // W06:撤销后已排队未执行的帧在执行前复验设备状态(不只关socket)。
           if (device && !stillActive(device)) { try { ws.close(4001, 'device_revoked'); } catch {} return; }
           let frame: Record<string, unknown>;

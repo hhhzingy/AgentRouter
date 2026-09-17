@@ -201,6 +201,49 @@ it('W06: scope 空=不给未声明权限;scope限定project后仅可见该项目
   } finally { await gateway.close(); f.db.close(); }
 });
 
+
+it('WC03: Origin 精确匹配(跨网主机不再被 hostname 自动放行);loopback+端口默认放行', async () => {
+  const f = await env();
+  const port = ++portSeq;
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices, allowedOrigins: ['https://tailnet.example.ts.net'] });
+  await gateway.listen(port, '127.0.0.1');
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    // 同端口不同主机名的 Origin:拒绝(精确匹配,不再按 hostname 放行)
+    const evil = await fetch(base + '/pair', { method: 'POST', body: JSON.stringify({ challenge: 'x' }), headers: { origin: 'http://127.0.0.1.evil.com', host: '127.0.0.1' } }).then(r => r.status).catch(() => 0);
+    expect([403, 0]).toContain(evil);
+    // 显式声明的跨网 Origin:接受
+    const good = await fetch(base + '/health', { headers: { origin: 'https://tailnet.example.ts.net', host: '127.0.0.1' } }).then(r => r.status);
+    expect(good).toBe(200);
+    // 同 loopback+端口(默认精确匹配):接受
+    const local = await fetch(base + '/health', { headers: { origin: base, host: '127.0.0.1' } }).then(r => r.status);
+    expect(local).toBe(200);
+  } finally { await gateway.close(); f.db.close(); }
+});
+
+it('WC03/W-05: 远程设备自创建项目跨重连持久可见(按 principal 审计恢复,不外溢)', async () => {
+  const f = await env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
+  const base = `http://127.0.0.1:${port}`;
+  const url = `ws://127.0.0.1:${port}/ws`;
+  try {
+    const p = f.devices.createPairing({ displayName: '持久设备', kind: 'DESKTOP', canRequestController: true, ttlMs: 60000 });
+    const res = await pair(base, p.challenge);
+    const token = (res.body as { token: string }).token;
+    const c1 = await connect(url, token, 'controller');
+    const lease = await c1.session.request('control.acquire', {}, { operationId: 'a1', expectedRevision: ((await c1.session.request('system.snapshot', {})) as any).revision, scope: {} });
+    const roots = (await c1.session.request('filesystem.listRoots', {})) as { items: { pathHandle: string }[] };
+    await c1.session.request('project.create', { name: '自创建持久项目', path_handle: roots.items[0].pathHandle }, { operationId: 'pc1', expectedRevision: ((await c1.session.request('system.snapshot', {})) as any).revision, scope: {}, leaseId: (lease as { leaseId: string }).leaseId });
+    await c1.transport.close();
+    // 重连(同设备 token):自创建项目按 principal 审计恢复可见
+    const c2 = await connect(url, token, 'controller');
+    const snap = (await c2.session.request('system.snapshot', {})) as { projects: { name: string }[] };
+    expect(snap.projects.some((x) => x.name === '自创建持久项目')).toBe(true);
+    await c2.transport.close();
+  } finally { await gateway.close(); f.db.close(); }
+});
 it('W09: remoteDevice 扩展——本机可生成配对码且网关可消费;远程设备连接被拒', async () => {
   const f = await env();
   f.app.remoteDevices = new RemoteDeviceExtension(f.devices);

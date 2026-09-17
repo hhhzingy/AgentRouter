@@ -58,6 +58,7 @@ export async function connectLocalCore(data: string, buildDir: string, options: 
               ...(process.env.AGENTROUTER_REMOTE_HOST ? { AGENTROUTER_REMOTE_HOST: process.env.AGENTROUTER_REMOTE_HOST } : {}),
               ...(process.env.AGENTROUTER_REMOTE_PORT ? { AGENTROUTER_REMOTE_PORT: process.env.AGENTROUTER_REMOTE_PORT } : {}),
               ...(process.env.AGENTROUTER_REMOTE_ALLOWED_HOSTS ? { AGENTROUTER_REMOTE_ALLOWED_HOSTS: process.env.AGENTROUTER_REMOTE_ALLOWED_HOSTS } : {}),
+              ...(process.env.AGENTROUTER_REMOTE_ALLOWED_ORIGINS ? { AGENTROUTER_REMOTE_ALLOWED_ORIGINS: process.env.AGENTROUTER_REMOTE_ALLOWED_ORIGINS } : {}),
               ...(process.env.AGENTROUTER_REMOTE_CONSOLE ? { AGENTROUTER_REMOTE_CONSOLE: process.env.AGENTROUTER_REMOTE_CONSOLE } : {}),
             }
           : {}),

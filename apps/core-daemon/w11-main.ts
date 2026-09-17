@@ -231,6 +231,8 @@ server.listen(address, async () => {
       if (!Number.isInteger(port) || port < 0 || port > 65535) throw Error('REMOTE_PORT_INVALID');
       const allowedHosts = (process.env.AGENTROUTER_REMOTE_ALLOWED_HOSTS ?? host)
         .split(',').map(x => x.trim()).filter(Boolean);
+      const allowedOrigins = (process.env.AGENTROUTER_REMOTE_ALLOWED_ORIGINS ?? '')
+        .split(',').map(x => x.trim()).filter(Boolean);
       const consoleAsset = process.env.AGENTROUTER_REMOTE_CONSOLE ??
         fileURLToPath(new URL('./console.html', import.meta.url));
       if (!existsSync(consoleAsset)) throw Error('REMOTE_CONSOLE_ASSET_MISSING');
@@ -238,6 +240,7 @@ server.listen(address, async () => {
         app: application,
         devices: new RemoteDeviceStore(db),
         allowedHosts,
+        ...(allowedOrigins.length ? { allowedOrigins } : {}),
         consoleHtml: readFileSync(consoleAsset, 'utf8'),
       });
       await remoteGateway.listen(port, host);

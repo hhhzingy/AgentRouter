@@ -162,7 +162,7 @@ const manifest = {
     console: 'resources/w11-core/console.html',
     consoleSha256: sha256(resolve(core, 'console.html')),
     enable: 'AGENTROUTER_REMOTE_ENABLED=1',
-    config: ['AGENTROUTER_REMOTE_HOST', 'AGENTROUTER_REMOTE_PORT', 'AGENTROUTER_REMOTE_ALLOWED_HOSTS'],
+    config: ['AGENTROUTER_REMOTE_HOST', 'AGENTROUTER_REMOTE_PORT', 'AGENTROUTER_REMOTE_ALLOWED_HOSTS', 'AGENTROUTER_REMOTE_ALLOWED_ORIGINS'],
     info: '<data>/remote-gateway.json',
   },
   fixtureEnabled: false,

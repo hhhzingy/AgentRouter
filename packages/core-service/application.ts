@@ -198,6 +198,15 @@ export class ApplicationService extends Plans {
   }
   open(principal = 'human_local', authorized = true, allowedProjects?: Set<string>) {
     const id = uid('connection');
+    // WC03/W-05:远程设备自创建项目的持久可见策略——按 principal 的 project.create 审计恢复授权,
+    // 重连/重启不丢失,也不外溢为全局可见(仍只对创建者设备)。
+    if (allowedProjects && principal.startsWith('remote_device_')) {
+      for (const row of this.all(
+        "select distinct project_id from application_audit where actor=? and kind='project.create' and project_id is not null",
+        principal,
+      ))
+        if (row.project_id) allowedProjects.add(String(row.project_id));
+    }
     this.connections.set(id, {
       principal,
       authorized,

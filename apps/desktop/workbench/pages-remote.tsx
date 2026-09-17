@@ -37,16 +37,25 @@ export function RemoteDevicesPage() {
     }
   }, [s]);
   useEffect(() => void refresh(), [refresh]);
-  const create = async (kind: 'MOBILE' | 'DESKTOP', name: string, controller: boolean) => {
+  const activeProjects = s.snapshot.projects.filter((p) => p.status === 'ACTIVE');
+  const [pairKind, setPairKind] = useState<'MOBILE' | 'DESKTOP'>('MOBILE');
+  const [pairController, setPairController] = useState(false);
+  const [pairScope, setPairScope] = useState<string[]>([]);
+  const create = async () => {
     setError(null);
+    const kind = pairKind;
+    const name = kind === 'MOBILE' ? '手机' : '二机';
     try {
+      // WC03/W-03:MOBILE/DESKTOP 均可被授予 controller 申请资格与显式项目 scope;
+      // 空 scope 保持最小权限(仅自创建项目可见),不放宽为 ALL。
       const r = (await s.callExtension('remoteDevice.createPairing', {
-        displayName: name || (kind === 'MOBILE' ? '手机' : '二机'),
+        displayName: name,
         kind,
-        canRequestController: controller,
+        canRequestController: pairController,
+        ...(pairScope.length ? { scope: pairScope.map((id) => 'project:' + id) } : {}),
         ttlMs: 300000,
       })) as { challenge: string; expiresAtMs: number };
-      setPair({ ...r, name: name || (kind === 'MOBILE' ? '手机' : '二机') });
+      setPair({ ...r, name });
       void refresh();
     } catch (e) {
       setError(String((e as Error).message));
@@ -69,10 +78,38 @@ export function RemoteDevicesPage() {
         </div>
       </header>
       {error && <p role="alert">操作失败:{error}</p>}
-      <div style={{ display: 'flex', gap: 8, margin: '8px 0' }}>
-        <button onClick={() => void create('MOBILE', '', false)}>生成手机配对码</button>
-        <button onClick={() => void create('DESKTOP', '', true)}>生成第二台设备配对码(可控制)</button>
-      </div>
+      <section className="card">
+        <h2>生成配对</h2>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            设备类型
+            <select value={pairKind} onChange={(e) => setPairKind(e.target.value as 'MOBILE' | 'DESKTOP')}>
+              <option value="MOBILE">手机</option>
+              <option value="DESKTOP">第二台电脑</option>
+            </select>
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={pairController} onChange={(e) => setPairController(e.target.checked)} />
+            允许申请控制器(资格;仍需获取租约,观察者默认只读)
+          </label>
+          <fieldset style={{ border: '1px solid #262c36', borderRadius: 8 }}>
+            <legend>可见项目 scope(不选=仅自创建项目)</legend>
+            {activeProjects.map((p) => (
+              <label key={p.id} style={{ display: 'block' }}>
+                <input
+                  type="checkbox"
+                  checked={pairScope.includes(p.id)}
+                  onChange={(e) =>
+                    setPairScope(e.target.checked ? [...pairScope, p.id] : pairScope.filter((x) => x !== p.id))
+                  }
+                />{' '}
+                {p.name}
+              </label>
+            ))}
+          </fieldset>
+          <button onClick={() => void create()}>生成配对码(5 分钟有效)</button>
+        </div>
+      </section>
       {pair && (
         <section className="card" aria-label="配对码">
           <h2>{pair.name} 配对码(仅显示一次)</h2>
