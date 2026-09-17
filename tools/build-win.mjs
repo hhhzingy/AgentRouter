@@ -110,6 +110,13 @@ await build({
 });
 for (const name of readdirSync('packages/storage/migrations').filter((f) => f.endsWith('.sql')).sort())
   copyFileSync(resolve('packages/storage/migrations', name), resolve(core, 'migrations', name));
+// WN04b:把两个 MCP 入口打进候选包(操作员不再依赖开发树/绝对路径)。
+await build({ entryPoints: ['apps/management-mcp/main.ts'], outfile: resolve(core, 'management-mcp.mjs'), bundle: true, platform: 'node', format: 'esm', external: ['@modelcontextprotocol/sdk/*', 'better-sqlite3'] });
+await build({ entryPoints: ['apps/participant-mcp/main.mjs'], outfile: resolve(core, 'participant-stdio.mjs'), bundle: true, platform: 'node', format: 'esm', external: ['@modelcontextprotocol/sdk/*', 'better-sqlite3'] });
+await build({ entryPoints: ['apps/participant-mcp/http.mjs'], outfile: resolve(core, 'participant-http.mjs'), bundle: true, platform: 'node', format: 'esm', external: ['@modelcontextprotocol/sdk/*', 'better-sqlite3'] });
+mkdirSync(resolve(core, 'cloud-kit'), { recursive: true });
+for (const doc of ['README.md', 'web-ready.template.json', 'USER_ACTION_CARD-web-mcp.md'])
+  copyFileSync(resolve('docs/cloud-kit', doc), resolve(core, 'cloud-kit', doc));
 // W09:REMOTE_CORE 手机 Web 控制台资产(core 以 AGENTROUTER_REMOTE_ENABLED=1 opt-in 启动网关)。
 copyFileSync('packages/remote/console.html', resolve(core, 'console.html'));
 // Ship the same production RoleBridge/extension and Job supervisor used by LOCAL_CORE.
