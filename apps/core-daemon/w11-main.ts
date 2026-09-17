@@ -9,6 +9,7 @@ import { ApplicationService } from '../../packages/core-service/application.ts';
 import { ExternalApiExtension } from '../../packages/core-service/external-api-extension.ts';
 import { ExternalApiRegistry } from '../../packages/management-gateway/external-api-registry.ts';
 import { RoleSessionExtension } from '../../packages/core-service/role-session-extension.ts';
+import { ContextTransferEngine } from '../../packages/core-service/context-transfer-engine.ts';
 import { ParticipantExtension } from '../../packages/core-service/participant-extension.ts';
 import { createCoreDatasetProfile } from '../../packages/core-service/external-api-provider.ts';
 import { FixtureDriver } from '../../packages/core-service/fixture-driver.ts';
@@ -166,7 +167,28 @@ server.listen(address, async () => {
       new ExternalApiRegistry([createCoreDatasetProfile(db)]),
       db,
     );
-    application.roleSession = new RoleSessionExtension(db);
+    // WC01:Context Transfer 引擎——通道按 harness 注册;真实通道(如 zcode warm)由 WC02 接入,
+    // 未注册 harness 的 inherit 请求得到显式 CONTEXT_EXPORT_UNSUPPORTED,不静默空白。
+    {
+      const { builtInDrivers } = await import('../../packages/core-service/harness-drivers.ts');
+      const registry = builtInDrivers();
+      const transferPorts = new Map<string, import('../../packages/core-service/context-transfer-engine.ts').TransferDriverPort>();
+      const extension = new RoleSessionExtension(
+        db,
+        undefined,
+        (harness: string) => ({ historyExport: registry.capabilities(harness).capabilities.history_export }),
+        transferPorts,
+      );
+      application.roleSession = extension;
+      const engine = new ContextTransferEngine({
+        db,
+        ports: transferPorts,
+        commit: (input) => extension.commitTransfer(input),
+        onSettled: () => driver?.kick(),
+      });
+      extension.attachTransferEngine(engine);
+      engine.resumeInterrupted();
+    }
     application.participant = new ParticipantExtension(db);
     // W09:GUI 经 remoteDevice.* 生成手机配对码;远程网关(若启用)与它共用同一 remote_devices 表。
     application.remoteDevices = new RemoteDeviceExtension(new RemoteDeviceStore(db));

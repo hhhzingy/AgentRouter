@@ -1,6 +1,6 @@
-/** W03 一次性 Context Transfer:容量决策纯函数 + 语义常量。
- * 规则(用户附件 §6):T>=S 直接;T<S 且 A 已知且 A<=T 直接;A>T 压缩;
- * 未知容量/usage 不当 0、不跨单位比较 → conservative:'UNKNOWN' 由用户显式选择。 */
+/** WC01 一次性 Context Transfer:容量决策纯函数 + 能力门控 + 语义常量。
+ * 决策顺序(产品规则):先验 T/S;T>=S 直接(无须 A);T<S 才需要 A;
+ * A 未知不当 0 → ASK_USER;压缩只在 A>T 且有受控压缩通道时进行。 */
 
 export interface TransferCapacityInput {
   /** 目标窗口 tokens(T);null=未知 */
@@ -17,22 +17,40 @@ export type TransferDecision =
   | { action: 'ASK_USER'; reason: 'CAPACITY_UNKNOWN' };
 export function decideTransfer(input: TransferCapacityInput): TransferDecision {
   const { targetWindowTokens: T, sourceWindowTokens: S, sourceUsageTokens: A } = input;
-  if (T === null || S === null || A === null)
-    return { action: 'ASK_USER', reason: 'CAPACITY_UNKNOWN' };
+  // SH-02 修复:先验窗口(T,S);T>=S 无须 A。A 只在 T<S 分支参与。
+  if (T === null || S === null) return { action: 'ASK_USER', reason: 'CAPACITY_UNKNOWN' };
   if (T >= S) return { action: 'DIRECT', reason: 'TARGET_AT_LEAST_SOURCE' };
+  if (A === null) return { action: 'ASK_USER', reason: 'CAPACITY_UNKNOWN' };
   if (A <= T) return { action: 'DIRECT', reason: 'USAGE_FITS_TARGET' };
   return { action: 'COMPRESS', reason: 'USAGE_OVER_TARGET' };
 }
 
-/** Driver 能力 → 是否支持继承式迁移。只有 driver 显式声明 FULL_VISIBLE 导出
- * 且存在受信 export 通道时才允许;UNKNOWN/UNSUPPORTED 一律显式拒绝(不静默空白)。 */
-export function inheritSupported(historyExport: string, hasExportChannel: boolean): boolean {
-  return historyExport === 'FULL_VISIBLE' && hasExportChannel;
+/** WC01/SH-01:继承门控按"来源导出能力 + 双端真实通道"判断——
+ * 来源 Driver 须声明 FULL_VISIBLE 导出,且来源/目标都存在已接线的受信通道;
+ * 硬编码 false 或只查目标 Harness 都不再出现。UNKNOWN/UNSUPPORTED 显式拒绝。 */
+export interface InheritGateInput {
+  /** 来源(ACTIVE WS)Harness 的 history_export 能力值 */
+  sourceHistoryExport: string;
+  /** 来源导出通道是否真实接线(存在已注册的 TransferDriverPort) */
+  sourceExportChannel: boolean;
+  /** 目标初始化通道是否真实接线 */
+  targetInitChannel: boolean;
+}
+export function inheritSupported(input: InheritGateInput): boolean {
+  return (
+    input.sourceHistoryExport === 'FULL_VISIBLE' &&
+    input.sourceExportChannel &&
+    input.targetInitChannel
+  );
 }
 
 export const CONTEXT_TRANSFER_ERROR_CODES = [
   'CONTEXT_EXPORT_UNSUPPORTED',
   'CONTEXT_EXPORT_FAILED',
+  'CONTEXT_SOURCE_COMPRESSION_UNAVAILABLE',
+  'CONTEXT_CAPACITY_ASK_USER',
   'CONTEXT_TARGET_INIT_FAILED',
   'CONTEXT_TRANSFER_AMBIGUOUS',
+  'CONTEXT_TRANSFER_INTERRUPTED',
+  'CONTEXT_TRANSFER_RACE',
 ] as const;

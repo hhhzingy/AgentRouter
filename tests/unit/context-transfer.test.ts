@@ -2,8 +2,8 @@ import { it, expect, describe } from 'vitest';
 import { decideTransfer, inheritSupported } from '../../packages/core-service/context-transfer.ts';
 
 describe('W03 容量决策纯函数(附件§6 规则)', () => {
-  it('T>=S 直接迁移,不查 A', () => {
-    expect(decideTransfer({ targetWindowTokens: 200000, sourceWindowTokens: 128000, sourceUsageTokens: 127000 }))
+  it('WC01/SH-02: T>=S 且 A=null 直接迁移(无须查 A)', () => {
+    expect(decideTransfer({ targetWindowTokens: 200000, sourceWindowTokens: 128000, sourceUsageTokens: null }))
       .toEqual({ action: 'DIRECT', reason: 'TARGET_AT_LEAST_SOURCE' });
   });
   it('T<S 且 A<=T 直接', () => {
@@ -20,10 +20,10 @@ describe('W03 容量决策纯函数(附件§6 规则)', () => {
     expect(decideTransfer({ targetWindowTokens: 128000, sourceWindowTokens: null, sourceUsageTokens: null }))
       .toEqual({ action: 'ASK_USER', reason: 'CAPACITY_UNKNOWN' });
   });
-  it('inherit 仅在 FULL_VISIBLE + 有受信通道时支持', () => {
-    expect(inheritSupported('FULL_VISIBLE', true)).toBe(true);
-    expect(inheritSupported('FULL_VISIBLE', false)).toBe(false);
-    expect(inheritSupported('UNKNOWN', true)).toBe(false);
-    expect(inheritSupported('UNSUPPORTED', true)).toBe(false);
+  it('WC01/SH-01: inherit 按来源能力+双端真实通道门控(旧双参硬编码签名已废除)', () => {
+    expect(inheritSupported({ sourceHistoryExport: 'FULL_VISIBLE', sourceExportChannel: true, targetInitChannel: true })).toBe(true);
+    expect(inheritSupported({ sourceHistoryExport: 'FULL_VISIBLE', sourceExportChannel: false, targetInitChannel: true })).toBe(false);
+    expect(inheritSupported({ sourceHistoryExport: 'UNKNOWN', sourceExportChannel: true, targetInitChannel: true })).toBe(false);
+    expect(inheritSupported({ sourceHistoryExport: 'UNSUPPORTED', sourceExportChannel: true, targetInitChannel: true })).toBe(false);
   });
 });

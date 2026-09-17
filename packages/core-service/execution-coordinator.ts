@@ -85,6 +85,14 @@ export class ExecutionCoordinator {
           if (JSON.parse(profile.fallback_json).triggered) continue;
         } catch {}
       }
+      // WC01:该 Role 存在进行中的 Context Transfer 时暂停新业务派发(导出/初始化期间防竞态)。
+      if (
+        a.one(
+          "select id from context_transfer_ops where role_id=? and state in ('PREPARING','EXPORTED','SEEDED') limit 1",
+          profile.role_id,
+        )
+      )
+        continue;
       const dispatch = a.db
         .transaction(() => {
           const dispatch = a.core.dispatch(profile.role_id);

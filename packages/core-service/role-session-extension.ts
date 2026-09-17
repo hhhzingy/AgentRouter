@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { inheritSupported } from './context-transfer.ts';
+import type { ContextTransferEngine, TransferDriverPort } from './context-transfer-engine.ts';
 import {
   validateExternalApiFrame,
   extensionReply,
@@ -72,14 +73,27 @@ const historyParams = compile({
     limit: { type: 'integer', minimum: 1, maximum: 500 },
   },
 });
+const transferStatusParams = compile({
+  type: 'object',
+  additionalProperties: false,
+  required: ['role_id', 'op_id'],
+  properties: { role_id: IdString, op_id: IdString },
+});
 
 export class RoleSessionExtension {
+  private transferEngine?: ContextTransferEngine;
   constructor(
     private readonly db: import('better-sqlite3').Database,
     private readonly clock = () => Date.now(),
-    /** Harness Context 能力(诚实标注):用于 inherit 模式门控;未注入=UNKNOWN→拒绝继承。 */
+    /** Harness Context 能力(诚实标注):inherit 门控同时查来源导出与双端通道,不再硬编码拒绝。 */
     private readonly capabilityLookup?: (harness: string) => { historyExport: string },
+    /** WC01:已接线的受信传输通道(按 harness);存在=该端 export/init 真实可用。 */
+    private readonly transferPorts?: ReadonlyMap<string, TransferDriverPort>,
   ) {}
+  /** w11-main 装配:引擎持有本扩展的短事务提交。 */
+  attachTransferEngine(engine: ContextTransferEngine): void {
+    this.transferEngine = engine;
+  }
 
   handle(raw: unknown, context: RoleSessionDispatchContext): unknown {
     try {
@@ -146,16 +160,21 @@ export class RoleSessionExtension {
               metadata,
               this.preflight(String(p.role_id), p.target_harness as string | undefined),
             );
-          result = {
-            session: this.create(
-              String(p.role_id),
-              String(p.name),
-              p.target_harness as string | undefined,
-              operationId,
-              context.transitionBinding,
-              p.context_mode === 'inherit' ? 'inherit' : 'blank',
-            ),
-          };
+          const outcome = this.create(
+            String(p.role_id),
+            String(p.name),
+            p.target_harness as string | undefined,
+            operationId,
+            context.transitionBinding,
+            p.context_mode === 'inherit' ? 'inherit' : 'blank',
+          );
+          result = 'transfer' in outcome ? { transfer: outcome.transfer } : { session: outcome.session };
+          // 引擎在请求事务提交后运行(网络调用不进 DB 长事务)。
+          if ('transfer' in outcome && outcome.transfer && this.transferEngine)
+            this.transferEngine.enqueue(outcome.transfer.op_id);
+        } else if (method === 'roleSession.transferStatus') {
+          if (!transferStatusParams(p)) throw Error('INVALID_PARAMS');
+          result = this.transferStatus(String(p.op_id));
         } else if (method === 'roleSession.switch') {
           if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
           context.assertControllerLease(frame.lease_id!);
@@ -445,26 +464,61 @@ export class RoleSessionExtension {
     operationId: string,
     transition?: RoleSessionDispatchContext['transitionBinding'],
     contextMode: 'blank' | 'inherit' = 'blank',
-  ) {
+  ): { session: Row } | { transfer: { op_id: string; state: string } } {
     this.assertRole(roleId);
     this.safeToSwitch(roleId);
-    // W03 inherit 门控:Driver 未声明 FULL_VISIBLE 导出且无受信通道 → 显式拒绝,旧 WS 不受影响。
-    const inheritHarness = targetHarness ?? this.binding(roleId).harness;
-    if (contextMode === 'inherit') {
-      const cap = this.capabilityLookup?.(inheritHarness) ?? { historyExport: 'UNKNOWN' };
-      if (!inheritSupported(cap.historyExport, false))
-        throw Error('CONTEXT_EXPORT_UNSUPPORTED');
-    }
     let binding = this.binding(roleId);
+    const requestedHarness = targetHarness ?? String(binding.harness);
+    // WC01:inherit 的目标必须与当前 binding 同 Harness(跨 Harness 新建走 blank+全新任务);
+    // 来源永远是当前 ACTIVE WS,不从 legacy 重建长期记忆。
+    if (contextMode === 'inherit' && requestedHarness !== String(binding.harness))
+      throw Error('CONTEXT_EXPORT_UNSUPPORTED');
     if (targetHarness && targetHarness !== binding.harness) {
       if (!transition) throw Error('ROLE_SESSION_TARGET_HARNESS_UNAVAILABLE');
       binding = transition(roleId, targetHarness);
       if (binding.harness !== targetHarness || binding.role_id !== roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
     }
     const current = this.active(roleId);
+    if (contextMode === 'inherit') {
+      // SH-01:门控=来源 history_export 能力 + 来源/目标双端真实接线通道;不再硬编码 false。
+      const sourceHarness = String(current.harness ?? binding.harness);
+      const sourceCap = this.capabilityLookup?.(sourceHarness) ?? { historyExport: 'UNKNOWN' };
+      const ports = this.transferPorts;
+      if (
+        !inheritSupported({
+          sourceHistoryExport: sourceCap.historyExport,
+          sourceExportChannel: Boolean(ports?.has(sourceHarness)),
+          targetInitChannel: Boolean(ports?.has(requestedHarness)),
+        })
+      )
+        throw Error('CONTEXT_EXPORT_UNSUPPORTED');
+      if (!this.transferEngine) throw Error('CONTEXT_EXPORT_UNSUPPORTED');
+      // 持久 intent(短事务);引擎在事务外异步执行导出→判定→初始化→提交。
+      const now = this.clock();
+      const opId = 'ctop_' + globalThis.crypto.randomUUID();
+      this.db
+        .prepare(
+          "insert into context_transfer_ops(id,role_id,from_session_id,to_session_id,mode,capacity_json,state,created_at_ms,updated_at_ms) values(?,?,?,NULL,'inherit',?,'PREPARING',?,?)",
+        )
+        .run(
+          opId,
+          roleId,
+          current.id,
+          JSON.stringify({
+            target_harness: requestedHarness,
+            source_harness: sourceHarness,
+            workspace_id: binding.workspace_id ?? null,
+            name,
+          }),
+          now,
+          now,
+        );
+      return { transfer: { op_id: opId, state: 'PREPARING' } };
+    }
     const now = this.clock();
     const id = 'rsess_' + globalThis.crypto.randomUUID();
-    return this.db
+    return {
+      session: this.db
       .transaction(() => {
         const seq =
           Number(
@@ -504,7 +558,72 @@ export class RoleSessionExtension {
         this.activateWithinTransaction(roleId, id, binding, operationId, now);
         return this.vm(this.one('select * from role_sessions where id=?', id)!);
       })
+      .immediate(),
+    };
+  }
+
+  /** WC01/SH-03:引擎专用短事务提交——归档源、插入目标(带 native ref)、激活、更新授权。 */
+  commitTransfer(input: {
+    roleId: string;
+    fromSessionId: string;
+    name: string;
+    targetHarness: string;
+    nativeSessionRef: string;
+  }): { session_id: string } {
+    return this.db
+      .transaction(() => {
+        const binding = this.binding(input.roleId);
+        if (binding.harness !== input.targetHarness) throw Error('CONTEXT_TRANSFER_RACE');
+        const current = this.active(input.roleId);
+        if (current.id !== input.fromSessionId) throw Error('CONTEXT_TRANSFER_RACE');
+        const now = this.clock();
+        const id = 'rsess_' + globalThis.crypto.randomUUID();
+        const seq =
+          Number(this.one('select coalesce(max(seq),0) as n from role_sessions where role_id=?', input.roleId)?.n ?? 0) + 1;
+        const generation =
+          Number(this.one('select coalesce(max(generation),0) as n from role_sessions where role_id=?', input.roleId)?.n ?? 0) + 1;
+        this.db
+          .prepare("update role_sessions set state='ARCHIVED' where id=? and state='ACTIVE'")
+          .run(current.id);
+        this.db
+          .prepare(
+            'insert into role_sessions(id,role_id,seq,name,state,binding_id,binding_epoch,harness,driver_id,workspace_affinity_json,native_session_ref,generation,created_at_ms,activated_at_ms) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+          )
+          .run(
+            id,
+            input.roleId,
+            seq,
+            input.name,
+            'ACTIVE',
+            binding.id,
+            binding.epoch,
+            binding.harness,
+            binding.harness,
+            JSON.stringify({ workspace_id: binding.workspace_id }),
+            input.nativeSessionRef,
+            generation,
+            now,
+            now,
+          );
+        this.activateWithinTransaction(input.roleId, id, binding, 'ctx_transfer_commit_' + now, now);
+        return { session_id: id };
+      })
       .immediate();
+  }
+
+  private transferStatus(opId: string) {
+    const op = this.one('select * from context_transfer_ops where id=?', opId);
+    if (!op) throw Error('ROLE_SESSION_NOT_FOUND');
+    const toSession = op.to_session_id
+      ? this.one('select * from role_sessions where id=?', String(op.to_session_id))
+      : undefined;
+    return {
+      op_id: op.id,
+      role_id: op.role_id,
+      state: op.state,
+      error_code: op.error_code ?? null,
+      ...(toSession ? { session: this.vm(toSession) } : {}),
+    };
   }
 
   private switch(roleId: string, sessionId: string, operationId: string, transition?: RoleSessionDispatchContext['transitionBinding']) {
