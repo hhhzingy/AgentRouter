@@ -46,6 +46,12 @@ scope 快照/跨项目写拒绝/同 scope 可达、grant 撤销后读失效、re
 `tests/integration/mcp-scope.test.ts`、`participant-mcp.test.ts`、`participant-http.test.ts`、
 `role-session-gateway-retry.test.ts`)。
 
+## tunnel-client 实测记录(2026-09-17)
+
+- 官方发布物:openai/tunnel-client v0.0.14 windows-amd64;下载包 SHA256 与 release SHA256SUMS.txt 一致(784ab8da…67430f…尾段见本地核验输出)。
+- 安装位(可回退):E:AgentRouter.local-protected	unnel-client-v0.0.14;profile 名 agentrouter-review,secrets 全部 file: 引用,Authorization 头由 daemon 注入(ChatGPT 插件 No Auth)。
+- doctor:结构项 PASS,唯 tunnel_id 待操作员提供真实值(格式 tunnel_<32hex>)后重跑。
+
 ## web-ready
 
 按 `web-ready.template.json` 抄写填写(不含任何秘密值),交回后进入 WN05 演练。
