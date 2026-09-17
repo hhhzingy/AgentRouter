@@ -89,6 +89,8 @@ export class RoleSessionExtension {
     private readonly capabilityLookup?: (harness: string) => { historyExport: string },
     /** WC01:已接线的受信传输通道(按 harness);存在=该端 export/init 真实可用。 */
     private readonly transferPorts?: ReadonlyMap<string, TransferDriverPort>,
+    /** WC02:同 ACTIVE WS 原生连续性事实(由 Driver 能力投影)。 */
+    private readonly continuityOf?: (harness: string) => string,
   ) {}
   /** w11-main 装配:引擎持有本扩展的短事务提交。 */
   attachTransferEngine(engine: ContextTransferEngine): void {
@@ -379,6 +381,7 @@ export class RoleSessionExtension {
       activated_at_ms: row.activated_at_ms,
       harness: row.harness ?? fallbackBinding?.harness ?? 'unknown',
       driver_id: row.driver_id ?? fallbackBinding?.harness ?? 'unknown',
+      native_continuity: this.continuityOf ? this.continuityOf(String(row.harness ?? fallbackBinding?.harness ?? 'unknown')) : 'UNKNOWN',
       migration_fidelity: 'UNKNOWN' as const,
       hasNativeSession: row.native_session_ref !== null && row.native_session_ref !== undefined,
     };
@@ -415,21 +418,23 @@ export class RoleSessionExtension {
       (!this.workspaceId(candidate) || this.workspaceId(candidate) === binding.workspace_id),
     );
     let reason = sessionId && !candidate ? 'ROLE_SESSION_NOT_FOUND' : 'NO_WORK_SESSION_FOR_HARNESS';
+    const continuityUnsupported = Boolean(canResume && candidate && this.continuityOf?.(String(candidate.harness ?? binding.harness)) === 'SESSION_CONTINUATION_UNSUPPORTED');
     if (candidate && archived) reason = 'SESSION_ARCHIVED_READ_ONLY';
     else if (candidate && !sameBinding) reason = 'TARGET_HARNESS_REQUIRES_BINDING';
     else if (candidate && !candidate.native_session_ref) reason = 'NATIVE_SESSION_NOT_AVAILABLE';
     else if (candidate && !canResume) reason = 'WORKSPACE_AFFINITY_MISMATCH';
+    else if (continuityUnsupported) reason = 'SESSION_CONTINUATION_UNSUPPORTED';
     // W02:legacy fidelity 镜像停止运行时读取;Router 不再宣称迁移保真度。
     const fidelity = 'UNKNOWN' as const;
     const result = {
       role_id: roleId,
       target_harness: harness,
       ...(sessionId ? { session_id: sessionId } : {}),
-      recommended_action: canResume ? 'CONTINUE_EXISTING' : 'CREATE_NEW_INHERIT',
+      recommended_action: canResume ? (continuityUnsupported ? 'NEEDS_NEW_WORKSESSION' : 'CONTINUE_EXISTING') : 'CREATE_NEW_INHERIT',
       resume_candidate: candidate ? this.vm(candidate) : null,
       new_session_available: true,
       migration_fidelity: fidelity,
-      reason_code: canResume ? 'NATIVE_SESSION_RESUMABLE' : reason,
+      reason_code: continuityUnsupported ? 'SESSION_CONTINUATION_UNSUPPORTED' : canResume ? 'NATIVE_SESSION_RESUMABLE' : reason,
     };
     const hashInput = {
       role_id: roleId,

@@ -181,3 +181,25 @@ it('重启后 SEEDED 恢复走 confirm 且只提交一次;相同 request_key 不
   const ops = f.db.prepare('select count(*) c from context_transfer_ops').get() as { c: number };
   expect(ops.c).toBe(2); // 手工 SEEDED 一条 + 正常迁移一条
 });
+
+it('WC02:preflight 对连续性不支持的候选给出 NEEDS_NEW_WORKSESSION;vm 暴露 native_continuity', async () => {
+  const f = await fixture();
+  const extension2 = new RoleSessionExtension(
+    f.db,
+    undefined,
+    () => ({ historyExport: 'FULL_VISIBLE' }),
+    undefined,
+    (harness: string) => (harness === 'pi' ? 'SESSION_CONTINUATION_UNSUPPORTED' : 'SAME_SESSION_CONTINUOUS'),
+  );
+  const reply = extension2.handle(
+    { v: 1, id: 'pf', method: 'roleSession.preflight', params: { role_id: f.roleId } },
+    { principal: 'human_test', assertControllerLease: () => {} },
+  ) as { result: { recommended_action: string; reason_code: string } };
+  expect(reply.result.recommended_action).toBe('NEEDS_NEW_WORKSESSION');
+  expect(reply.result.reason_code).toBe('SESSION_CONTINUATION_UNSUPPORTED');
+  const list = extension2.handle(
+    { v: 1, id: 'ls', method: 'roleSession.list', params: { role_id: f.roleId }, client_id: 'c' },
+    { principal: 'human_test', assertControllerLease: () => {} },
+  ) as { result: { sessions: { native_continuity: string }[] } };
+  expect(list.result.sessions[0].native_continuity).toBe('SESSION_CONTINUATION_UNSUPPORTED');
+});

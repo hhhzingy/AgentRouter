@@ -178,6 +178,7 @@ server.listen(address, async () => {
         undefined,
         (harness: string) => ({ historyExport: registry.capabilities(harness).capabilities.history_export }),
         transferPorts,
+        (harness: string) => (registry.capabilities(harness).capabilities.native_resume === 'UNSUPPORTED' ? 'SESSION_CONTINUATION_UNSUPPORTED' : 'SAME_SESSION_CONTINUOUS'),
       );
       application.roleSession = extension;
       const engine = new ContextTransferEngine({

@@ -47,6 +47,9 @@ export interface HarnessDriver {
   readonly requiresSessionPath: boolean;
   /** 无预载会话引用时允许全新会话(如 ACP session/new);缺省 run 必须携带可恢复引用。 */
   readonly supportsFreshSession?: boolean;
+  /** WC02:同 ACTIVE WS 的原生连续性事实。UNSUPPORTED 时 backend 不得在同一 WS 上暗换 native ref,
+   * preflight 必须引导用户新建 WorkSession(一次性迁移)。 */
+  readonly continuity?: 'SAME_SESSION_CONTINUOUS' | 'SESSION_CONTINUATION_UNSUPPORTED';
   createLifecycle(input: {
     config: Readonly<NativeBindingConfig>;
     epoch: string;
@@ -111,6 +114,7 @@ export class HarnessDriverRegistry {
 export const codexDriver: HarnessDriver = {
   harness: 'codex',
   contextCapabilities: { ...unknownDriverContextCapabilities('codex'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => ['app-server'],
@@ -148,6 +152,7 @@ export const codexDriver: HarnessDriver = {
 export const kimiDriver: HarnessDriver = {
   harness: 'kimi_code',
   contextCapabilities: { ...unknownDriverContextCapabilities('kimi_code'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => ['acp'],
@@ -192,6 +197,7 @@ export const kimiDriver: HarnessDriver = {
 export const piDriver: HarnessDriver = {
   harness: 'pi',
   contextCapabilities: { ...unknownDriverContextCapabilities('pi'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: true,
   supportsFreshSession: true,
   processArgs: () => ['--mode', 'rpc'],
@@ -227,19 +233,22 @@ export const zcodeDriver: HarnessDriver = {
   // 0.16.5 实测:冷进程 session/resume 可绑定但后续 send 报 ZCODE_RUNTIME_MODEL_UNAVAILABLE
   // (setModel 亦不能恢复),即原生续轮跨进程不可用;任务轮一律新会话+runPrompt 重申章程。
   contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'UNSUPPORTED' },
+  continuity: 'SESSION_CONTINUATION_UNSUPPORTED',
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => {
     if (!zcodeCliRef.path) throw Error('ZCODE_CLI_UNCONFIGURED');
     return [zcodeCliRef.path, 'app-server'];
   },
-  /** 同 dsh:冷进程 resume 不可用时新会话须重申章程并作废 bootstrap ACK;zcode MCP 工具为 mcp__ 全限定名。 */
+  /** 同 dsh:冷进程 resume 不可用时新会话须重申章程并作废 bootstrap ACK。
+   * WC02/SH-05:工具范围由角色有效权限决定,提示词不再硬编码只准 context/finish;
+   * 仅提示 zcode 的 mcp__ 全限定命名规则。 */
   runPrompt({ request, charter, charterHash }) {
     return (
-      'Bootstrap 阶段已结束:此前"回复 ' + `AGENTROUTER_CHARTER_ACK:${charterHash}` + ' 一次"的指令已作废,本轮回复中不得再出现该确认,也不再禁止工具。\n' +
+      'Bootstrap 阶段已结束:此前"回复 ' + `AGENTROUTER_CHARTER_ACK:${charterHash}` + ' 一次"的指令已作废,本轮回复中不得再出现该确认。\n' +
       '生效中的角色章程(须继续遵守):' + JSON.stringify(charter) + '\n' +
       '本轮任务请求:' + JSON.stringify(request) + '\n' +
-      '直接执行该任务:先调用工具 mcp__agentrouter-role__route_context 获取上下文(任务文本中的 route_context 即指该工具),业务结果用 mcp__agentrouter-role__route_finish 提交(route_finish 同理)。除这两个工具外不要使用其他工具。'
+      '可用工具以你的角色被授权的工具列表为准(Role MCP 工具带 mcp__agentrouter-role__ 前缀,任务文本提到的 route_context/route_finish 即指其中对应工具)。按任务需要使用获授权的工具完成并提交结果。'
     );
   },
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
@@ -279,6 +288,7 @@ export const zcodeDriver: HarnessDriver = {
 export const dshDriver: HarnessDriver = {
   harness: 'deepseek_harness',
   contextCapabilities: { ...unknownDriverContextCapabilities('deepseek_harness'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => {

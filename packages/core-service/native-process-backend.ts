@@ -76,6 +76,9 @@ export class NativeProcessBackend implements ExecutionBackend {
   private active = new Map<string, Running>();
   private stopping = false;
   private quarantined = new Map<string, { process: SecureNativeProcess; epoch: number }>();
+  /** WC02:连续性不支持的驱动(如 zcode 0.16.5 冷进程)只允许首个会话引用落库;
+   * 后续 run 的新鲜 native 会话不覆盖 WorkSession 引用(不暗换)。 */
+  private continuityRefSaved = new Set<string>();
   constructor(
     private host: SecureProcessHost,
     private wallClockMs = 120000,
@@ -282,6 +285,15 @@ export class NativeProcessBackend implements ExecutionBackend {
       const saveSession = async (session: { id: string; path?: string }) => {
         const isCurrent = () => !r.finishing && !r.finished && !r.cancelled && !this.stopping;
         if (!isCurrent()) throw Error('SESSION_SAVE_REVOKED');
+        // WC02:连续性不支持的驱动,同 WorkSession 只保存首个引用;后续新鲜会话仅存活于本次 run,
+        // 不覆盖 role_sessions.native_session_ref(暗换即伪装连续)。
+        if (
+          driver.continuity === 'SESSION_CONTINUATION_UNSUPPORTED' &&
+          packet.roleSessionId
+        ) {
+          if (this.continuityRefSaved.has(String(packet.roleSessionId))) return;
+          this.continuityRefSaved.add(String(packet.roleSessionId));
+        }
         await r.process!.saveSession(session, {
           bindingId: packet.bindingId as string,
           epoch: packet.epoch,
