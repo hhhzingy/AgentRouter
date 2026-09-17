@@ -309,24 +309,35 @@ try {
       if (!r || r.run !== 'SUCCEEDED' || !r.result || r.result.publication_state !== 'PUBLISHED' || r.result.summary !== want)
         throw Error('AB_RUN_NOT_VERIFIED');
     };
-    const createdB = await call('router_role_session_create', { params: { role_id: target.id, name: 'B方向' } });
+    const abSessionMeta = async (params) => {
+      const pre = await call('router_role_session_preflight', { params });
+      const status = await call('router_status');
+      return { request_key: 'ab-' + Math.random().toString(36).slice(2), expected_revision: status.snapshot.revision, preflight_hash: pre.preflight_hash };
+    };
+    const createdB = await call('router_role_session_create', { params: { role_id: target.id, name: 'B方向' }, ...(await abSessionMeta({ role_id: target.id })) });
     const sessionB = createdB.session.id;
-    abExpect(await abTask('AB任务一', 'Calculate 8+9. Call route_context then route_finish with outcome succeeded, summary 17, body 17, outputs []. The session handoff acknowledgment must be the first line of your reply. After tool success, stop.', '17', 'ab-task-b'), '17');
-    const backA = await call('router_role_session_switch', { params: { role_id: target.id, session_id: sessionA } });
-    if (backA.id !== sessionA) throw Error('AB_SWITCH_BACK_FAILED');
-    abExpect(await abTask('AB任务二', 'Calculate 5+6. Call route_context then route_finish with outcome succeeded, summary 11, body 11, outputs []. The session handoff acknowledgment must be the first line of your reply. After tool success, stop.', '11', 'ab-task-a2'), '11');
-    const createdC = await call('router_role_session_create', { params: { role_id: target.id, name: 'C方向' } });
+    abExpect(await abTask('AB任务一', 'Calculate 8+9. Call route_context then route_finish with outcome succeeded, summary 17, body 17, outputs []. After tool success, stop.', '17', 'ab-task-b'), '17');
+    // W02 新语义:历史 WS 永久只读——切回 A 必须被显式拒绝(负验证),继续走 C 方向新建。
+    let reactivationRejected = '';
+    try {
+      await call('router_role_session_switch', { params: { role_id: target.id, session_id: sessionA }, ...(await abSessionMeta({ role_id: target.id, session_id: sessionA })) });
+      reactivationRejected = 'NOT_REJECTED';
+    } catch (e) {
+      reactivationRejected = String(e.message ?? e);
+    }
+    if (!/REACTIVATION_REMOVED|ROLE_SESSION/.test(reactivationRejected)) throw Error('AB_REACTIVATION_NOT_BLOCKED:' + reactivationRejected);
+    const createdC = await call('router_role_session_create', { params: { role_id: target.id, name: 'C方向' }, ...(await abSessionMeta({ role_id: target.id })) });
     const sessionC = createdC.session.id;
-    abExpect(await abTask('AB任务三', 'Calculate 3+4. Call route_context then route_finish with outcome succeeded, summary 7, body 7, outputs []. The session handoff acknowledgment must be the first line of your reply. After tool success, stop.', '7', 'ab-task-c'), '7');
+    abExpect(await abTask('AB任务二', 'Calculate 5+6. Call route_context then route_finish with outcome succeeded, summary 11, body 11, outputs []. After tool success, stop.', '11', 'ab-task-c'), '11');
     const dbh = new Database(path('core/router.db'), { readonly: true });
-    const acked = dbh.prepare("select count(*) n from role_session_handoffs where state='ACKED'").get().n;
-    const refs = dbh.prepare('select id, native_session_ref from role_sessions where role_id=?').all(target.id);
+    const refs = dbh.prepare('select id, state, native_session_ref from role_sessions where role_id=?').all(target.id);
+    const archivedA = refs.find((r) => r.id === sessionA);
     dbh.close();
-    if (acked < 3) throw Error('AB_HANDOFF_ACK_NOT_VERIFIED');
+    if (archivedA?.state !== 'ARCHIVED') throw Error('AB_OLD_WS_NOT_ARCHIVED');
     const refIds = refs.filter((r) => r.native_session_ref).map((r) => JSON.parse(r.native_session_ref).id);
     if (refIds.length < 3 || new Set(refIds).size < 3) throw Error('AB_NATIVE_ISOLATION_BROKEN');
-    report.ab = { sessions: [sessionA, sessionB, sessionC], handoffsAcked: acked, nativeRefs: refIds.length };
-    report.checks.push('真实A→B→A→C原生会话隔离与交接包ACK');
+    report.ab = { sessions: [sessionA, sessionB, sessionC], reactivationRejected, nativeRefs: refIds.length };
+    report.checks.push('真实A→B→C新语义连续创建;切回旧WS被显式拒绝;原生会话隔离');
   }
   if (process.argv.includes('--cancel')) {
     const next = await call('router_status');
