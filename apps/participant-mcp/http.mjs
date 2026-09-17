@@ -1,189 +1,91 @@
-// Participant MCP 的 Streamable HTTP 入口。云端 ChatGPT 用官方 Secure MCP Tunnel 指向本端口;
-// 手机/tailnet 内查看才使用 Tailscale Serve。认证双层:外层 Bearer token(HTTP 访问控制),
-// 内层聊天级 grant(服务端 participant_grants 表验证,签发需管理面全局租约;同角色新签发撤销旧 grant)。
-// 受控单会话模式:一个入口进程绑定一个 grant/聊天;接管=管理面签发新 grant 并重启入口,旧聊天凭据即失效。
-// 权限:与 stdio 版一致,仅三个参与工具;AGENTROUTER_MANAGED_ROLE=1 不拦截本入口(它就是受管入口),
-//       但必须显式提供 --allow-remote 才绑定非回环地址(默认 127.0.0.1,交给 tailscale serve 暴露)。
+// Participant MCP 的 Streamable HTTP 入口(WN03 重写:业务在 participant-common 共享桥)。
+// 云端 ChatGPT 用官方 Secure MCP Tunnel 指向本端口;手机/tailnet 内查看才使用 Tailscale Serve。
+// 双层:外层 Bearer token(HTTP 访问控制);内层聊天级 grant(服务端 participant_grants 验证,
+// 管理面签发;同角色新签发撤销旧 grant)。grant 不可由本入口自签;外层 token 不可当 provider key。
+// 默认绑定 127.0.0.1;--allow-remote 才允许公网前接口(仍只建议经官方 Tunnel)。
 import { createServer } from 'node:http';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts';
+import { parsePort, resolveGrant, openParticipantBridge, buildParticipantServer } from './participant-common.mjs';
+
 const data = process.argv[2];
 const roleId = process.argv[3];
-const tokenArgIndex = process.argv.indexOf('--token');
-const genToken = process.argv.includes('--gen-token');
-const allowRemote = process.argv.includes('--allow-remote');
-const port = Number(process.argv[process.argv.indexOf('--port') + 1] ?? 8790);
 if (!data || !roleId) throw Error('PARTICIPANT_HTTP_ARGS_REQUIRED');
+let port;
+try {
+  port = parsePort(process.argv);
+} catch (e) {
+  console.error('PARTICIPANT_PORT_INVALID');
+  process.exit(1);
+}
+const allowRemote = process.argv.includes('--allow-remote');
+const tokenArgIndex = process.argv.indexOf('--token');
 let token;
-if (tokenArgIndex > 0) token = process.argv[tokenArgIndex + 1];
+if (tokenArgIndex > 0 && tokenArgIndex + 1 < process.argv.length) token = process.argv[tokenArgIndex + 1];
 const tokenFile = resolve(data, 'participant-token-' + roleId + '.txt');
-if (!token && genToken) {
+if (!token && existsSync(tokenFile)) token = readFileSync(tokenFile, 'utf8').trim();
+if (!token) {
   token = randomBytes(24).toString('hex');
   writeFileSync(tokenFile, token + '\n', { mode: 0o600 });
+  console.error('PARTICIPANT_HTTP_TOKEN_GENERATED(写入受保护文件,首次启动输出到 stderr 供操作员接入):', tokenFile);
 }
-if (!token && existsSync(tokenFile)) token = readFileSync(tokenFile, 'utf8').trim();
-if (!token) throw Error('PARTICIPANT_TOKEN_REQUIRED(--token 或 --gen-token)');
-import Database from 'better-sqlite3';
-{
-  const db = new Database(data + '/router.db', { readonly: true });
-  if (!db.prepare('select id from roles where id=?').get(roleId)) throw Error('PARTICIPANT_ROLE_NOT_FOUND');
-  db.close();
-}
-const transport = new LocalCoreTransport(data);
-const session = await transport.connect({
-  clientId: 'participant_http_' + roleId.slice(0, 14),
-  clientVersion: '1.0.0-dev.0',
-  requestedMode: 'controller',
-  contractRevision: 'C1R1P1',
-  mode: 'LOCAL_CORE',
-});
-// grant 引导:--grant/--grant-token 显式 > grant 文件 > --gen-token(经管理面全局租约签发,租约即放即用)
-const grantFile = resolve(data, 'participant-grant-' + roleId + '.json');
-const gi = process.argv.indexOf('--grant');
-const gt = process.argv.indexOf('--grant-token');
-let grantCred;
-if (gi > 0 && gt > 0) grantCred = { grant_id: process.argv[gi + 1], token: process.argv[gt + 1] };
-else if (existsSync(grantFile)) grantCred = JSON.parse(readFileSync(grantFile, 'utf8'));
-else if (genToken) {
-  const snap0 = await session.request('system.snapshot', {});
-  const lease = await session.request(
-    'control.acquire',
-    {},
-    { operationId: 'grant_bootstrap_' + randomUUID(), expectedRevision: snap0.revision, scope: {} },
-  );
-  try {
-    grantCred = await session.request('participant.grant.issue', {
-      role_id: roleId,
-      lease_id: lease.leaseId,
-    });
-  } finally {
-    const snap1 = await session.request('system.snapshot', {});
-    await session.request(
-      'control.release',
-      { lease_id: lease.leaseId },
-      { operationId: 'grant_release_' + randomUUID(), expectedRevision: snap1.revision, scope: {} },
-    );
-  }
-  writeFileSync(grantFile, JSON.stringify({ grant_id: grantCred.grant_id, token: grantCred.token }) + String.fromCharCode(10), { mode: 0o600 });
-} else throw Error('PARTICIPANT_GRANT_REQUIRED(--grant/--grant-token 或 --gen-token)');
-// attach 不占全局租约;服务端按 grant 凭据+generation 验证写权限
-const snap = () => session.request('system.snapshot', {});
-const attachInfo = await session.request('participant.attach', {
-  role_id: roleId,
-  grant_id: grantCred.grant_id,
-  grant_token: grantCred.token,
-});
-const generation = attachInfo.generation;
-const projectId = attachInfo.project_id;
-const spaceId = attachInfo.space_id;
-const call = async (name, args = {}) => {
-  if (name === 'participant_read_inbox') {
-    return session.request('conversation.read', { role_id: roleId, limit: 100 });
-  }
-  if (name === 'participant_send_user_input') {
-    const p = args.params ?? {};
-    return session.request(
-      'conversation.sendUserInput',
-      { role_id: roleId, task_id: p.task_id, body: p.body },
-      {
-        operationId: 'part_' + randomUUID(),
-        expectedRevision: (await snap()).revision,
-        scope: { project_id: projectId, space_id: spaceId },
-      },
-    );
-  }
-  if (name === 'participant_register_artifact') {
-    const p = args.params ?? {};
-    return session.request(
-      'participant.artifact',
-      { role_id: roleId, name: p.name, content: p.content, ...(p.task_id ? { task_id: p.task_id } : {}) },
-    );
-  }
-  throw Error('TOOL_UNAVAILABLE');
-};
-const buildServer = () => {
-  const server = new Server(
-    { name: 'agentrouter-participant', version: '1.0.0' },
-    { capabilities: { tools: {} } },
-  );
-  const callLogged = async (name, args = {}) => {
-    console.error('CALL_START:', name);
-    try {
-      const result = await call(name, args);
-      console.error('CALL_OK:', name);
-      return result;
-    } catch (e) {
-      console.error('CALL_ERROR:', name, String(e && (e.stack || e)).slice(0, 300));
-      throw e;
-    }
+const grant = resolveGrant(data, roleId, process.argv);
+const bridge = await openParticipantBridge({ data, roleId, grant });
+
+const MAX_BODY = 1048576;
+const httpServer = createServer((req, res) => {
+  const finish = (code, obj) => {
+    if (res.writableEnded) return;
+    res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    res.end(JSON.stringify(obj));
   };
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [
-      { name: 'participant_read_inbox', description: '读取本角色的收件箱与对话(只读,限本角色)。', inputSchema: { type: 'object', additionalProperties: false, properties: {} } },
-      { name: 'participant_send_user_input', description: '向本角色 WAITING_INPUT 任务发送用户输入。', inputSchema: { type: 'object', additionalProperties: false, required: ['params'], properties: { params: { type: 'object', additionalProperties: false, required: ['task_id', 'body'], properties: { task_id: { type: 'string' }, body: { type: 'string', maxLength: 4096 } } } } } },
-      { name: 'participant_register_artifact', description: '把小型 markdown/json/txt 产物原子落盘到角色工作区并登记(≤256KB)。', inputSchema: { type: 'object', additionalProperties: false, required: ['params'], properties: { params: { type: 'object', additionalProperties: false, required: ['name', 'content'], properties: { name: { type: 'string', maxLength: 96 }, content: { type: 'string', maxLength: 393216 }, task_id: { type: 'string' } } } } } },
-    ],
-  }));
-  server.setRequestHandler(CallToolRequestSchema, async (r) => {
-    try {
-      return { content: [{ type: 'text', text: JSON.stringify(await callLogged(r.params.name, r.params.arguments ?? {})) }] };
-    } catch (e) {
-      const code = e.code ?? e.message;
-      return {
-        isError: true,
-        content: [{ type: 'text', text: JSON.stringify({ error: /^[A-Z_]{1,80}$/.test(code ?? '') ? code : 'PARTICIPANT_REQUEST_FAILED' }) }],
-      };
-    }
-  });
-  return server;
-};
-const httpServer = createServer(async (req, res) => {
   const auth = req.headers.authorization ?? '';
-  if (auth !== 'Bearer ' + token) {
-    res.writeHead(401, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ error: 'UNAUTHORIZED' }));
-    return;
+  if (auth !== 'Bearer ' + token) return finish(401, { error: 'UNAUTHORIZED' });
+  const path = (req.url ?? '').split('?')[0];
+  if (req.method === 'GET' && (path === '/health' || path === '/')) {
+    return finish(200, { status: 'PARTICIPANT_HTTP_OK', role: roleId.slice(0, 14) + '…' });
   }
-  if (req.method === 'GET') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ status: 'PARTICIPANT_HTTP_OK', role: roleId.slice(0, 14) + '…' }));
-    return;
-  }
-  let body = '';
-  let tooLarge = false;
+  if (req.method !== 'POST') return finish(405, { error: 'METHOD_NOT_ALLOWED' });
+  // WN03/MCP-05:Buffer 累积(避免 chunk 边界 UTF-8 切断)、字节上限、end 竞态守卫。
+  const chunks = [];
+  let size = 0;
+  let aborted = false;
   req.on('data', (c) => {
-    body += c;
-    if (Buffer.byteLength(body) > 1048576) {
-      tooLarge = true;
-      res.writeHead(413, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ error: 'REQUEST_BODY_TOO_LARGE' }));
+    if (aborted) return;
+    size += c.length;
+    if (size > MAX_BODY) {
+      aborted = true;
+      finish(413, { error: 'REQUEST_BODY_TOO_LARGE' });
       req.destroy();
+      return;
     }
+    chunks.push(c);
   });
-  if (tooLarge) return;
   req.on('end', async () => {
-    // 无状态模式:每请求独立 Server+Transport(官方推荐);Core 会话与租约在闭包共享。
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-    const server = buildServer();
-    await server.connect(transport);
+    if (aborted) return;
+    let parsed;
     try {
-      await transport.handleRequest(req, res, JSON.parse(body || '{}'));
-    } catch (e) {
-      console.error('HTTP_HANDLER_ERROR:', String(e && (e.stack || e)).slice(0, 400));
-      if (!res.headersSent) {
-        res.writeHead(400, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: 'INVALID_REQUEST' }));
-      }
+      parsed = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+    } catch {
+      return finish(400, { error: 'INVALID_REQUEST' });
+    }
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    const server = buildParticipantServer(Server, ListToolsRequestSchema, CallToolRequestSchema, bridge.call);
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res, parsed);
+    } catch {
+      finish(400, { error: 'INVALID_REQUEST' });
+    } finally {
+      try { await transport.close(); } catch {}
+      try { await server.close(); } catch {}
     }
   });
+  req.on('error', () => { if (!aborted) finish(400, { error: 'INVALID_REQUEST' }); });
 });
 const host = allowRemote ? '0.0.0.0' : '127.0.0.1';
 httpServer.listen(port, host, () => {
@@ -193,8 +95,9 @@ httpServer.listen(port, host, () => {
     status: 'STARTED',
     bound: host + ':' + boundPort,
     scope: 'PARTICIPANT_ROLE_TOOLS_ONLY',
-    generation,
+    generation: bridge.info.generation,
     role: roleId.slice(0, 14) + '…',
-    nextStep: 'tailscale serve https 127.0.0.1:' + boundPort + ' 后在 ChatGPT 连接器填该 HTTPS URL 与 Bearer token',
+    next_step: '优先官方 Secure MCP Tunnel 指向本端口;仅内网查看时再 tailscale serve https 127.0.0.1:' + boundPort,
   }));
 });
+process.on('SIGTERM', () => { httpServer.close(() => void bridge.close()); });

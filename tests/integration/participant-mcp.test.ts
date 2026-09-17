@@ -69,12 +69,20 @@ it(
     });
     const client = new Client({ name: 'p3_participant', version: '1.0.0' });
     // stderr 由 transport 管道缓存;失败时用 client.close 后的 pErr 输出
-    await client.connect(new StdioClientTransport({
+    const entryErr: string[] = [];
+    try {
+    const stdioTransport = new StdioClientTransport({
       command: process.execPath,
       args: [resolve(dir, 'participant.mjs'), resolve(dir, 'core'), roleId as string, '--grant', grantA.grant_id as string, '--grant-token', grantToken],
       env: { SystemRoot: process.env.SystemRoot as string, WINDIR: process.env.WINDIR as string, PATH: '', TEMP: dir as string, TMP: dir as string, AGENTROUTER_MANAGED_ROLE: '1' },
       stderr: 'pipe',
-    }));
+    });
+    (stdioTransport as unknown as { onstderr?: (c: Buffer) => void }).onstderr = (d) => entryErr.push(d.toString());
+    await client.connect(stdioTransport);
+    } catch (e) {
+      console.log('ENTRY STDERR:', entryErr.join('').slice(0, 800));
+      throw e;
+    }
     let pErr = '';
     (client.transport as any)._stderr?.on?.('data', (d: any) => (pErr += d.toString()));
     const call = async (name: string, args: any = {}): Promise<any> => {
@@ -89,12 +97,13 @@ it(
       inbox = await call('participant_read_inbox');
     } catch (e) {
       console.log('CORE STDERR AT FAILURE:', JSON.stringify(coreErr.join('')));
+      console.log('ENTRY STDERR AT FAILURE:', entryErr.join('').slice(0, 600));
       throw e;
     }
-    expect(Array.isArray(inbox.items ?? inbox)).toBe(true);
+    expect(Array.isArray(inbox.tasks)).toBe(true);
     // 产物原子落盘
     const content = '# P3 产物\n\n由参与者经原子写入。';
-    const reg = await call('participant_register_artifact', { params: { role_id: roleId, name: 'review-notes.md', content } });
+    const reg = await call('participant_register_artifact', { params: { name: 'review-notes.md', content, request_key: 'rk-a' } });
     expect(reg.sha256).toBe(createHash('sha256').update(content, 'utf8').digest('hex'));
     const artifactDir = resolve(wsPath, 'agentrouter-artifacts');
     expect(existsSync(resolve(artifactDir, 'review-notes.md'))).toBe(true);
@@ -106,12 +115,31 @@ it(
     const row = db2.prepare('select sha256,byte_size,media_type,state from artifacts where id=?').get(reg.artifact_id) as any;
     db2.close();
     expect(row).toMatchObject({ sha256: reg.sha256, byte_size: Buffer.byteLength(content, 'utf8'), media_type: 'text/markdown', state: 'AVAILABLE' });
-    // 重名拒绝
-    await expect(call('participant_register_artifact', { params: { role_id: roleId, name: 'review-notes.md', content: 'x' } })).rejects.toThrow('PARTICIPANT_NAME_TAKEN');
+    // WN03:同键同意图幂等返回原回执(不重复落盘)
+    const replay = await call('participant_register_artifact', { params: { name: 'review-notes.md', content, request_key: 'rk-a' } });
+    expect(replay).toMatchObject({ artifact_id: reg.artifact_id, sha256: reg.sha256, replayed: true });
+    // 同键异内容 → 冲突
+    await expect(call('participant_register_artifact', { params: { name: 'review-notes.md', content: 'other', request_key: 'rk-a' } })).rejects.toThrow('PARTICIPANT_REQUEST_CONFLICT');
+    // 重名拒绝(不同键)
+    await expect(call('participant_register_artifact', { params: { name: 'review-notes.md', content: 'x', request_key: 'rk-b' } })).rejects.toThrow('PARTICIPANT_NAME_TAKEN');
+    // 缺 request_key 拒绝
+    await expect(call('participant_register_artifact', { params: { name: 'no-key.md', content: 'x' } })).rejects.toThrow('REQUEST_KEY_REQUIRED');
     // 路径穿越拒绝
-    await expect(call('participant_register_artifact', { params: { role_id: roleId, name: '../evil.md', content: 'x' } })).rejects.toThrow('PARTICIPANT_NAME_INVALID');
+    await expect(call('participant_register_artifact', { params: { name: '../evil.md', content: 'x', request_key: 'rk-c' } })).rejects.toThrow('PARTICIPANT_NAME_INVALID');
     // 类型拒绝
-    await expect(call('participant_register_artifact', { params: { role_id: roleId, name: 'evil.exe', content: 'x' } })).rejects.toThrow('PARTICIPANT_TYPE_REJECTED');
+    await expect(call('participant_register_artifact', { params: { name: 'evil.exe', content: 'x', request_key: 'rk-d' } })).rejects.toThrow('PARTICIPANT_TYPE_REJECTED');
+    // WN03:获准读取——任务无关时拒绝;grant 撤销后连读也失效(服务端复验代次/状态)
+    await expect(call('participant_read_artifact', { params: { task_id: 'task_bogus', artifact_id: reg.artifact_id } })).rejects.toThrow('TASK_SCOPE_DENIED');
+    {
+      const { LocalCoreTransport: T2 } = await import(pathToFileURL(resolve(dir, 'transport.mjs')).href);
+      const mgmt = new T2(resolve(dir, 'core'));
+      const ms = await mgmt.connect({ clientId: 'p3_mgmt', clientVersion: '1.0.0', requestedMode: 'controller', contractRevision: 'C1R1P1', mode: 'LOCAL_CORE' });
+      const msnap = await ms.request('system.snapshot', {});
+      const mlease = await ms.request('control.acquire', {}, { operationId: 'p3_mlease', expectedRevision: (msnap as any).revision, scope: {} });
+      await ms.request('participant.grant.revoke' as never, { grant_id: grantA.grant_id } as never, { leaseId: (mlease as any).leaseId });
+      await mgmt.close();
+    }
+    await expect(call('participant_read_inbox')).rejects.toThrow('PARTICIPANT_GENERATION_STALE');
     if (coreErr.length) console.log('CORE STDERR:', coreErr.join(''));
     await client.close();
     core.kill();

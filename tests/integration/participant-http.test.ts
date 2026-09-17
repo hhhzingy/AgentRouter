@@ -86,6 +86,8 @@ it(
     const v = await s.request('rolePlan.validate', { plan });
     await mutate('rolePlan.apply', { plan, plan_hash: v.planHash, confirmed: true, permission_grants: [{ role_key: plan.roles[0].role_key, permissions: plan.roles[0].requested_permissions }] }, 'apply', { project_id: project.id });
     const roleIdA = ((await s.request('role.list', { scope: { project_id: project.id } })).items[0] as any).id;
+    // WN03:grant 由管理面签发;入口不再自签。
+    const grantA = (await s.request('participant.grant.issue' as never, { role_id: roleIdA } as never, { leaseId: (lease as { leaseId: string }).leaseId })) as any;
     await setup.close();
 
     await build({
@@ -93,7 +95,7 @@ it(
       outfile: resolve(dir, 'participant-http.mjs'),
       bundle: true, platform: 'node', format: 'esm', packages: 'external',
     });
-    const entry = spawn(process.execPath, [resolve(dir, 'participant-http.mjs'), resolve(dir, 'core'), roleIdA, '--gen-token', '--port', '0'], {
+    const entry = spawn(process.execPath, [resolve(dir, 'participant-http.mjs'), resolve(dir, 'core'), roleIdA, '--grant', grantA.grant_id, '--grant-token', grantA.token, '--port', '0'], {
       windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
       env: { SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: '' },
     });
