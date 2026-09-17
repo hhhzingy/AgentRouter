@@ -34,10 +34,11 @@ interface Config {
   workspaceRoot: string;
   supervisorExecutable: string;
   supervisorSha256: string;
-  piEntry: string;
-  piEntrySha256: string;
-  piExtension: string;
-  piExtensionSha256: string;
+  /** WC04:仅当 profiles 含 pi 时必需;其他平台可不携带。 */
+  piEntry?: string;
+  piEntrySha256?: string;
+  piExtension?: string;
+  piExtensionSha256?: string;
   credentialFile: string;
   kimiCredentialSource?: string;
   /** pi→百炼绑定(owner 配置):指定凭据文件(标签格式)与 provider 身份;缺省保持 agentrouter-deepseek。 */
@@ -65,6 +66,8 @@ export async function installLocalNativeRuntime(
 ) {
   if (!isAbsolute(filename)) throw Error('NATIVE_CONFIG_PATH_INVALID');
   const c = JSON.parse(readFileSync(filename, 'utf8')) as Config;
+  // WC04:pi 资产仅在实际存在 pi profile 时要求/校验(Linux 等无 pi 平台不再被迫携带 piEntry)。
+  const hasPiProfile = c.profiles.some((p) => p.harness === 'pi');
   if (
     c.isolation !== 'LIMITED_ISOLATION' ||
     !Array.isArray(c.profiles) ||
@@ -73,17 +76,20 @@ export async function installLocalNativeRuntime(
       c.managedRoot,
       c.workspaceRoot,
       c.supervisorExecutable,
-      c.piEntry,
-      c.piExtension,
+      ...(hasPiProfile ? [c.piEntry, c.piExtension] : []),
       c.credentialFile,
-    ].every(isAbsolute)
+    ].every((p): p is string => Boolean(p) && isAbsolute(p as string))
   )
     throw Error('NATIVE_RUNTIME_CONFIG_INVALID');
   for (const [file, hash] of [
     [c.supervisorExecutable, c.supervisorSha256],
-    [c.piEntry, c.piEntrySha256],
-    [c.piExtension, c.piExtensionSha256],
-  ])
+    ...(hasPiProfile
+      ? [
+          [c.piEntry, c.piEntrySha256],
+          [c.piExtension, c.piExtensionSha256],
+        ]
+      : []),
+  ] as [string, string][])
     if (!/^[a-f0-9]{64}$/.test(hash) || sha(file) !== hash)
       throw Error('NATIVE_RUNTIME_HASH_MISMATCH');
   for (const p of c.profiles) {
@@ -131,7 +137,13 @@ export async function installLocalNativeRuntime(
     zcodeCli: c.zcodeCli,
     dshBin: c.dshBin,
     prepare: async (input) => {
-      if (sha(c.piExtension) !== c.piExtensionSha256) throw Error('NATIVE_EXTENSION_HASH_MISMATCH');
+      // WC04:pi 资产校验仅落在 pi 分支(其他 harness 平台无需携带 piEntry)。
+      if (input.config.harness === 'pi') {
+        if (!c.piEntry || !c.piExtension || !c.piEntrySha256 || !c.piExtensionSha256)
+          throw Error('NATIVE_RUNTIME_CONFIG_INVALID');
+        if (sha(c.piEntry) !== c.piEntrySha256 || sha(c.piExtension) !== c.piExtensionSha256)
+          throw Error('NATIVE_EXTENSION_HASH_MISMATCH');
+      }
       if (!inside(c.workspaceRoot, input.config.workspace)) throw Error('NATIVE_WORKSPACE_SCOPE');
       const home = input.config.sessionHome;
       for (const path of ['.pi', 'sessions', 'tmp', 'bin'])
@@ -324,7 +336,7 @@ export async function installLocalNativeRuntime(
             AGENTROUTER_BRIDGE_ENDPOINT: bridge.endpoint,
             AGENTROUTER_BRIDGE_TOKEN: token,
           },
-          nodeEntrypoint: { path: c.piEntry, sha256: c.piEntrySha256 },
+          nodeEntrypoint: { path: c.piEntry!, sha256: c.piEntrySha256! },
           extraArgs: [
             '--no-builtin-tools',
             '--no-extensions',
@@ -332,7 +344,7 @@ export async function installLocalNativeRuntime(
             '--no-prompt-templates',
             '--no-themes',
             '--extension',
-            c.piExtension,
+            c.piExtension!,
           ],
           session,
           revoke: () => {

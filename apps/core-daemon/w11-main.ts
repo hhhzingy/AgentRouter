@@ -139,13 +139,33 @@ server.on('error', (error) => {
 async function shutdown() {
   if (closing) return;
   closing = true;
-  await driver?.stop();
-  await nativeRuntime?.close();
-  await remoteGateway?.close();
+  // WC04/L-02 同源修复:各阶段独立容错,任何阶段异常不跳过余下清理;
+  // 未证实停止按 SHUTDOWN_PARTIAL 如实记录,不谎报已完成。
+  const phaseErrors: string[] = [];
+  try {
+    await driver?.stop();
+  } catch (error) {
+    phaseErrors.push('driver:' + String((error as Error).message ?? error).slice(0, 80));
+  }
+  try {
+    await nativeRuntime?.close();
+  } catch (error) {
+    phaseErrors.push('nativeRuntime:' + String((error as Error).message ?? error).slice(0, 80));
+  }
+  try {
+    await remoteGateway?.close();
+  } catch (error) {
+    phaseErrors.push('remoteGateway:' + String((error as Error).message ?? error).slice(0, 80));
+  }
+  if (phaseErrors.length) process.stderr.write('SHUTDOWN_PARTIAL ' + phaseErrors.join('|') + '\n');
   for (const socket of sockets) socket.destroy();
   server.close(() => {
-    application?.db.close();
-    process.exit(0);
+    try {
+      application?.db.close();
+    } catch (error) {
+      phaseErrors.push('db:' + String((error as Error).message ?? error).slice(0, 80));
+    }
+    process.exit(phaseErrors.length ? 3 : 0);
   });
 }
 server.listen(address, async () => {
