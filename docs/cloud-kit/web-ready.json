@@ -12,7 +12,19 @@
   "profile": "agentrouter-review",
   "profile_path": "C:/Users/hap_p/AppData/Roaming/SPB_Data/.config/tunnel-client/agentrouter-review.yaml",
   "health_addr": "127.0.0.1:8088",
-  "pending": "tunnel_id(操作员从 Platform Tunnels 页复制;非秘密)"
+  "pending": "ChatGPT 侧 Plugin= Tunnel+No Auth+Create(用户)",
+  "tunnel_id": "tunnel_6aaba2b3b97081919ef3c07789b256f6",
+  "doctor": "tunnel_id/api_key/mcp_target/mcp_reachable/oauth_metadata(404-not-advertised) 全 PASS;health_listener FAIL 仅因运行中 daemon 已占 8088(预期)",
+  "daemon": {
+   "ready": "ready",
+   "healthz": "live",
+   "pid_note": "以 powershell Get-Process tunnel-client 为准",
+   "started": "2026-09-17",
+   "log_events": [
+    "tunnel metadata fetched",
+    "mcp session initialized"
+   ]
+  }
  },
  "control_profile": {
   "core_instance_alias": "webdemo-dedicated-core",
