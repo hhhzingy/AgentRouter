@@ -1,0 +1,75 @@
+{
+  "package": "AgentRouter_V1.1_WC执行复核包",
+  "purpose": "WC00—WC08 执行结果交独立 AI 复核;非 release approval",
+  "reviewed_source_sha": "b2b478f0f120eafb2fad54de587ca422183433a4",
+  "reviewed_branch": "feat/v1.1-final-windows-mobile",
+  "fixed_by_review_package": "AgentRouter_V1.1_Windows_复核后执行包 (基线 b2c1d5cd…)",
+  "created_utc": "2026-09-17T02:38:42.557Z",
+  "local_gates_at_this_sha": {
+    "vitest_four_suites": "454/454 (记录于执行会话;复核者可用 scripts/review-checks.mjs 重验)",
+    "pre_commit": "C1/C1R1 代际+冻结源 PASS;敏感扫描 findings=0",
+    "github_actions": "BLOCKED_CI_INFRA(账号计费注解,作业未启动);6298817 及更早双门 success"
+  },
+  "human_gated_open": [
+    "W12 卡1-3(手机/双机/Tailscale HTTPS)",
+    "卡4 Codex DUT device-login",
+    "终审合 main"
+  ],
+  "files": [
+    {
+      "path": "00_复核结论与使用顺序.md",
+      "sha256": "28c91623c69fae9a47a4a8aa7e7b4016fac3b84d58d6b48e1df3facb50f33f68",
+      "bytes": 2235
+    },
+    {
+      "path": "common/01_固定基线与提交地图.md",
+      "sha256": "7250d1ae7a3b1dbd9fc7a4f75fbe87d2a858dcc4a1292fc95350a280cd1bcc3b",
+      "bytes": 2153
+    },
+    {
+      "path": "common/02_能力真值矩阵与已知缺口.md",
+      "sha256": "1a577ca27901028117021f0769f51523d56f3ad470f0f84e22a5ca72df59d155",
+      "bytes": 2759
+    },
+    {
+      "path": "common/03_复核裁决请求与裁决格式.md",
+      "sha256": "7a7a645940fc866e22fbfbef2db5b951b93c0f8c81b54bca3a0427a24af9c136",
+      "bytes": 1634
+    },
+    {
+      "path": "evidence/README.md",
+      "sha256": "8117e5988978cda49416223b600b9e732070e2b8b91e129e55f896883422b456",
+      "bytes": 1145
+    },
+    {
+      "path": "evidence/dut-kimi-bailian-pass-42.json",
+      "sha256": "46d7d373547a66df330f0a51583dc8d8b78a2e11e7ca7972049caf1a1ffdc332",
+      "bytes": 609
+    },
+    {
+      "path": "evidence/dut-kimi-flaky-fail-sample.json",
+      "sha256": "d6062f2f5913035172d215ff9d179ef884ddb966772f92b51fe0a5ae01898430",
+      "bytes": 633
+    },
+    {
+      "path": "evidence/dut-zcode-bailian-pass-42.json",
+      "sha256": "630511863c787bec595cac2eeae7c7d2fc185ebad1b3727f4da9a1e3e8ca9497",
+      "bytes": 630
+    },
+    {
+      "path": "evidence/manifest.json",
+      "sha256": "29faa4766f702952f00e3629993b1c4415950d006b780061808dcd3431771242",
+      "bytes": 713
+    },
+    {
+      "path": "scripts/review-checks.mjs",
+      "sha256": "6e2c9ef6d9bf906f49e6da3315f9c57673c089a90802d37c1486b79deebf94a4",
+      "bytes": 3661
+    },
+    {
+      "path": "windows/01_WC00-WC08执行明细.md",
+      "sha256": "7b32cbcc4f747d48e1f5b6c2b6d92ab8530b13dd4ac6a2c2d86ca4c15e8ea532",
+      "bytes": 2934
+    }
+  ]
+}
