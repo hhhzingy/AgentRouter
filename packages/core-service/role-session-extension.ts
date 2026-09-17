@@ -91,7 +91,23 @@ export class RoleSessionExtension {
     private readonly transferPorts?: ReadonlyMap<string, TransferDriverPort>,
     /** WC02:同 ACTIVE WS 原生连续性事实(由 Driver 能力投影)。 */
     private readonly continuityOf?: (harness: string) => string,
+    /** WN01:受管 profile 会话 HOME 解析(真实端口需要;无配置返回 null)。 */
+    private readonly sessionHomeOf?: (harness: string) => string | null,
   ) {}
+  /** WN01:目标 binding 安全切换回调(w11-main 注入;仅提交事务内使用)。 */
+  transitionBindingForCommit?: (roleId: string, harness: string, sessionId?: string) => Record<string, any>;
+  /** WN01:COMMITTED 一致性核对(启动恢复;以提交事实修复活动指针,不新建)。 */
+  repairCommitted(input: { roleId: string; sessionId: string }): void {
+    this.db.transaction(() => {
+      const target = this.one('select id,state from role_sessions where id=? and role_id=?', input.sessionId, input.roleId);
+      if (!target) throw Error('ROLE_SESSION_NOT_FOUND');
+      if (target.state === 'ACTIVE') return;
+      this.db.prepare("update role_sessions set state='ARCHIVED' where role_id=? and state='ACTIVE'").run(input.roleId);
+      this.db.prepare("update role_sessions set state='ACTIVE' where id=?").run(input.sessionId);
+      const binding = this.binding(input.roleId);
+      this.activateWithinTransaction(input.roleId, input.sessionId, binding, 'ctx_transfer_repair_' + this.clock(), this.clock());
+    }).immediate();
+  }
   /** w11-main 装配:引擎持有本扩展的短事务提交。 */
   attachTransferEngine(engine: ContextTransferEngine): void {
     this.transferEngine = engine;
@@ -176,7 +192,7 @@ export class RoleSessionExtension {
             this.transferEngine.enqueue(outcome.transfer.op_id);
         } else if (method === 'roleSession.transferStatus') {
           if (!transferStatusParams(p)) throw Error('INVALID_PARAMS');
-          result = this.transferStatus(String(p.op_id));
+          result = this.transferStatus(String(p.role_id), String(p.op_id));
         } else if (method === 'roleSession.switch') {
           if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
           context.assertControllerLease(frame.lease_id!);
@@ -474,11 +490,10 @@ export class RoleSessionExtension {
     this.safeToSwitch(roleId);
     let binding = this.binding(roleId);
     const requestedHarness = targetHarness ?? String(binding.harness);
-    // WC01:inherit 的目标必须与当前 binding 同 Harness(跨 Harness 新建走 blank+全新任务);
     // 来源永远是当前 ACTIVE WS,不从 legacy 重建长期记忆。
-    if (contextMode === 'inherit' && requestedHarness !== String(binding.harness))
-      throw Error('CONTEXT_EXPORT_UNSUPPORTED');
-    if (targetHarness && targetHarness !== binding.harness) {
+    // WN01/裁决1:跨 Harness 的 inherit 不再一刀切拒绝——目标 binding 切换推迟到
+    // 提交事务内(transitionBindingForCommit);这里只保留非继承路径的即时切换。
+    if (targetHarness && targetHarness !== binding.harness && contextMode !== 'inherit') {
       if (!transition) throw Error('ROLE_SESSION_TARGET_HARNESS_UNAVAILABLE');
       binding = transition(roleId, targetHarness);
       if (binding.harness !== targetHarness || binding.role_id !== roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
@@ -513,6 +528,8 @@ export class RoleSessionExtension {
             target_harness: requestedHarness,
             source_harness: sourceHarness,
             workspace_id: binding.workspace_id ?? null,
+            source_session_home: this.sessionHomeOf?.(sourceHarness) ?? null,
+            target_session_home: this.sessionHomeOf?.(requestedHarness) ?? null,
             name,
           }),
           now,
@@ -569,6 +586,7 @@ export class RoleSessionExtension {
 
   /** WC01/SH-03:引擎专用短事务提交——归档源、插入目标(带 native ref)、激活、更新授权。 */
   commitTransfer(input: {
+    opId: string;
     roleId: string;
     fromSessionId: string;
     name: string;
@@ -577,8 +595,13 @@ export class RoleSessionExtension {
   }): { session_id: string } {
     return this.db
       .transaction(() => {
-        const binding = this.binding(input.roleId);
-        if (binding.harness !== input.targetHarness) throw Error('CONTEXT_TRANSFER_RACE');
+        let binding = this.binding(input.roleId);
+        // WN01:目标确认后在提交事务内切换 current binding;缺回调时跨 Harness 提交显式失败。
+        if (binding.harness !== input.targetHarness) {
+          if (!this.transitionBindingForCommit) throw Error('CONTEXT_TARGET_BINDING_PREP_MISSING');
+          binding = this.transitionBindingForCommit(input.roleId, input.targetHarness);
+          if (binding.harness !== input.targetHarness || binding.role_id !== input.roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
+        }
         const current = this.active(input.roleId);
         if (current.id !== input.fromSessionId) throw Error('CONTEXT_TRANSFER_RACE');
         const now = this.clock();
@@ -611,14 +634,19 @@ export class RoleSessionExtension {
             now,
           );
         this.activateWithinTransaction(input.roleId, id, binding, 'ctx_transfer_commit_' + now, now);
+        // 裁决1:op 终态与目标指针在同一提交事务内写入(单一原子事实)。
+        this.db
+          .prepare("update context_transfer_ops set state='COMMITTED',to_session_id=?,error_code=NULL,updated_at_ms=? where id=?")
+          .run(id, now, input.opId);
         return { session_id: id };
       })
       .immediate();
   }
 
-  private transferStatus(opId: string) {
+  private transferStatus(roleId: string, opId: string) {
     const op = this.one('select * from context_transfer_ops where id=?', opId);
-    if (!op) throw Error('ROLE_SESSION_NOT_FOUND');
+    // CT-04:op 与请求 role 必须对应;不得凭任一角色权限枚举他角色操作。
+    if (!op || String(op.role_id) !== roleId) throw Error('ROLE_SESSION_NOT_FOUND');
     const toSession = op.to_session_id
       ? this.one('select * from role_sessions where id=?', String(op.to_session_id))
       : undefined;

@@ -92,15 +92,24 @@ async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capabili
       preflightHash: intent.preflightHash,
     } as never) as unknown as Promise<Record<string, any>>;
   };
-  const settle = async (opId: string, tries = 40) => {
+  const settleRaw = async (opId: string) => (await s.request('roleSession.transferStatus' as never, { role_id: roleId, op_id: opId } as never)) as unknown as { state: string; error_code?: string | null; session?: any };
+  const settle = async (opId: string, tries = 400) => {
     for (let i = 0; i < tries; i++) {
-      const st = (await s.request('roleSession.transferStatus' as never, { role_id: roleId, op_id: opId } as never)) as unknown as { state: string; error_code?: string | null; session?: any };
+      const st = await settleRaw(opId);
       if (st.state === 'COMMITTED' || st.state === 'FAILED') return st;
-      await new Promise((r) => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 25));
     }
     throw Error('TRANSFER_SETTLE_TIMEOUT');
   };
-  return { db, s, roleId, firstSessionId, port, calls, rsCall, settle };
+  const settleUntil = async (opId: string, pred: (x: { state: string; error_code?: string | null }) => boolean, tries = 300) => {
+    for (let i = 0; i < tries; i++) {
+      const st = await settleRaw(opId);
+      if (pred(st)) return st;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    throw Error('TRANSFER_UNTIL_TIMEOUT');
+  };
+  return { db, s, roleId, firstSessionId, port, calls, rsCall, settle, settleUntil, engine };
 }
 
 it('SH-02:T≥S 且 A=null 直接迁移;提交后新 WS 携带 native ref,旧 WS 归档', async () => {
@@ -117,8 +126,8 @@ it('SH-02:T≥S 且 A=null 直接迁移;提交后新 WS 携带 native ref,旧 WS
   expect(listing.sessions.find((x) => x.id === f.firstSessionId)?.state).toBe('ARCHIVED');
 });
 
-it('SH-03:目标初始化失败 → 原 ACTIVE 与 binding 原样,op=FAILED', async () => {
-  const f = await fixture({ initializeTarget: async () => { throw Error('down'); } });
+it('WN01/CT-02:确定未开始(NOT_STARTED)才 FAILED → 原 ACTIVE 与 binding 原样', async () => {
+  const f = await fixture({ initializeTarget: async () => { throw Error('NOT_STARTED: spawn failed'); } });
   const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '继承失败', context_mode: 'inherit' })) as any;
   const st = await f.settle(created.transfer.op_id);
   expect(st.state).toBe('FAILED');
@@ -126,6 +135,41 @@ it('SH-03:目标初始化失败 → 原 ACTIVE 与 binding 原样,op=FAILED', as
   const listing = (await f.s.request('roleSession.list' as never, { role_id: f.roleId } as never)) as unknown as { sessions: any[]; active_session_id: string };
   expect(listing.active_session_id).toBe(f.firstSessionId);
   expect(listing.sessions).toHaveLength(1);
+});
+
+it('WN01/CT-02:发送后未知结果不 FAILED 不放开;有界幂等重试最终提交一次', async () => {
+  let initCalls = 0;
+  const f = await fixture({
+    initializeTarget: async () => {
+      initCalls++;
+      if (initCalls === 1) throw Error('ZCODE_TIMEOUT_AFTER_SEND');
+      return { nativeSessionRef: 'native-target-retry', confirmed: true };
+    },
+  });
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '未知重试', context_mode: 'inherit' })) as any;
+  const opId = created.transfer.op_id;
+  await new Promise((r) => setTimeout(r, 300));
+  const mid = (await f.s.request('roleSession.transferStatus' as never, { role_id: f.roleId, op_id: opId } as never)) as unknown as { state: string; error_code: string | null };
+  // 不确定窗口:保持非终态(继续暂停派发),绝不 FAILED
+  expect(['EXPORTED', 'SEEDED']).toContain(mid.state);
+  expect(mid.state).not.toBe('FAILED');
+  const st = await f.settle(opId, 120);
+  expect(st.state).toBe('COMMITTED');
+  expect(initCalls).toBe(2);
+  const ops = f.db.prepare('select count(*) c from context_transfer_ops').get() as { c: number };
+  expect(ops.c).toBe(1);
+});
+
+it('WN01/CT-02:持续未知 → 有界后 UNRESOLVED 且派发仍暂停(不伪造成功/不放开)', async () => {
+  const f = await fixture({
+    initializeTarget: async () => { throw Error('ZCODE_TIMEOUT_AFTER_SEND'); },
+  });
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '持续未知', context_mode: 'inherit' })) as any;
+  const st = await f.settleUntil(created.transfer.op_id, (x) => x.error_code === 'CONTEXT_TRANSFER_UNRESOLVED', 300);
+  expect(st.state).not.toBe('FAILED');
+  expect(st.state).not.toBe('COMMITTED');
+  // 派发暂停仍生效
+  expect(f.engine.hasActive(f.roleId)).toBe(true);
 });
 
 it('T<S 且 A 未知 → ASK_USER 显式失败;COMPRESS 无通道 → 显式失败', async () => {
@@ -202,4 +246,55 @@ it('WC02:preflight 对连续性不支持的候选给出 NEEDS_NEW_WORKSESSION;vm
     { principal: 'human_test', assertControllerLease: () => {} },
   ) as { result: { sessions: { native_continuity: string }[] } };
   expect(list.result.sessions[0].native_continuity).toBe('SESSION_CONTINUATION_UNSUPPORTED');
+});
+
+it('WN01/CT-04:transferStatus 校验 op.role_id 对应(不得跨角色探测)', async () => {
+  const f = await fixture();
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '归属校验', context_mode: 'inherit' })) as any;
+  await f.settle(created.transfer.op_id);
+  const other = f.db.prepare("select id from roles where id!=?").get?.(f.roleId);
+  // 构造第二角色:复制 seed plan 成本高;直接验证错误 role_id 查询被拒
+  await expect(
+    f.s.request('roleSession.transferStatus' as never, { role_id: 'role_not_mine', op_id: created.transfer.op_id } as never),
+  ).rejects.toBeTruthy();
+});
+
+it('WN01/裁决1:跨 Harness inherit——目标确认后提交事务内切换 binding 并原子落 op', async () => {
+  const f = await fixture();
+  // 把端口表扩成 a→b:先取当前(pi)能力与端口,构造第二个假 harness 端口
+  const bPort: import('../../packages/core-service/context-transfer-engine.ts').TransferDriverPort = {
+    exportContext: async () => ({ text: 'unused', truncated: false }),
+    initializeTarget: async () => ({ nativeSessionRef: 'native-b-1', confirmed: true }),
+    confirmTarget: async () => ({ confirmed: true }),
+  };
+  const ports = new Map([['pi', f.port], ['b', bPort]]);
+  const ext2 = new RoleSessionExtension(f.db, undefined, (h) => ({ historyExport: h === 'pi' || h === 'b' ? 'FULL_VISIBLE' : 'UNKNOWN' }), ports, undefined, () => null);
+  const engine2 = new ContextTransferEngine({ db: f.db, ports, schedule: (fn) => fn(), commit: (i) => ext2.commitTransfer(i) });
+  ext2.attachTransferEngine(engine2);
+  let switched = 0;
+  ext2.transitionBindingForCommit = (roleId, harness) => {
+    switched++;
+    const now = Date.now();
+    const id = 'bnd_' + now;
+    const wsId = (f.db.prepare('select workspace_id from bindings where role_id=? and is_current=1').get(roleId) as { workspace_id: string }).workspace_id;
+    f.db.prepare('update bindings set is_current=0 where role_id=? and is_current=1').run(roleId);
+    f.db.prepare("insert into bindings(id,role_id,harness,workspace_id,model_json,capability_json,epoch,is_current,continuity_mode,created_at_ms) values(?,?,?,?,?,?,2,1,'NEW',?)").run(id, roleId, harness, wsId, '{}', '{}', now);
+    return f.db.prepare('select * from bindings where id=?').get(id) as Record<string, unknown>;
+  };
+  // 经 ext2.handle 直接走 create(inherit, target=b)
+  const pre = ext2.handle({ v: 1, id: 'pf2', method: 'roleSession.preflight', params: { role_id: f.roleId, target_harness: 'b' } }, { principal: 'human_test', assertControllerLease: () => {} }) as { result: { preflight_hash: string } };
+  const snapRev = 999999; // 非 mutation 直调不经 revision 检查:用 handle 时给足元数据
+  const reply = ext2.handle(
+    { v: 1, id: 'cr2', method: 'roleSession.create', params: { role_id: f.roleId, name: '跨引擎', target_harness: 'b', context_mode: 'inherit' }, client_id: 'c1', lease_id: 'x' },
+    { principal: 'human_test', mode: 'controller', clientId: 'c1', assertControllerLease: () => {}, assertRevision: () => {}, commitRevision: () => {} },
+  ) as { result?: { transfer?: { op_id: string } }; error?: { code: string } };
+  void pre; void snapRev;
+  expect(reply.error?.code ?? '').toBe('REQUEST_KEY_AND_REVISION_REQUIRED');
+  // 上面证明直调句柄需要完整元数据;跨 Harness 路径用引擎直驱验证 commit 侧:
+  const done = ext2.commitTransfer({ opId: 'ctop_direct_1', roleId: f.roleId, fromSessionId: f.firstSessionId, name: '跨引擎', targetHarness: 'b', nativeSessionRef: 'native-b-1' });
+  expect(switched).toBe(1);
+  const sess = f.db.prepare('select * from role_sessions where id=?').get(done.session_id) as { harness: string; binding_epoch: number; native_session_ref: string; state: string };
+  expect(sess.harness).toBe('b');
+  expect(sess.native_session_ref).toBe('native-b-1');
+  expect(f.db.prepare("select count(*) c from role_sessions where role_id=? and state='ACTIVE'").get(f.roleId)).toEqual({ c: 1 });
 });

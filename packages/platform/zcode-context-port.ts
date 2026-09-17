@@ -1,0 +1,207 @@
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseLabeledCredential } from '../security/labeled-credential.ts';
+import type { TransferDriverPort } from '../core-service/context-transfer-engine.ts';
+
+/** WN01/CT-01:ZCode 0.16.5 冷协议 Transfer 端口(经真实往返探针确认可用):
+ * - export = 冷进程 session/resume 读取可见 messages(不调用模型;messages 是官方会话快照)。
+ * - initialize = 新 session + seed 提示 + 等 turn.terminal;按 operationId 幂等(重复调用
+ *   同 opId 时先 resume 已登记的目标会话而不是再建一个)。
+ * - confirm = 冷 resume 目标 id 成功即视为存在(不发消息)。
+ * spawn/连接失败抛 Error('NOT_STARTED')(确定无副作用);发出后置结果未知抛其他信息,由引擎保持不确定。 */
+
+interface ZcodePortOptions {
+  zcodeCli: string;
+  /** 百炼标签凭据文件(仅 initialize 需要模型时使用)。 */
+  credentialFile?: string;
+  /** 单次协议操作预算(毫秒);超时不追杀未知副作用,转入不确定保持。 */
+  budgetMs?: number;
+}
+
+interface SessionSnapshot {
+  sessionId: string;
+  messages: Record<string, unknown>[];
+  contextWindow: number | null;
+  contextUsed: number | null;
+}
+
+function visibleText(messages: SessionSnapshot['messages']): { text: string; truncated: boolean } {
+  const out: string[] = [];
+  let truncated = false;
+  for (const m of messages ?? []) {
+    const role = m.role === 'user' ? 'user' : m.role === 'assistant' ? 'assistant' : null;
+    if (!role) continue;
+    const raw = m as Record<string, unknown>;
+    const list = (Array.isArray(raw.parts) ? raw.parts : Array.isArray(raw.content) ? raw.content : Array.isArray(raw.text) ? raw.text : []) as Record<string, unknown>[];
+    let sawNonText = false;
+    for (const part of list) {
+      if (typeof part === 'string') { out.push(role + ': ' + part); continue; }
+      if ((part.type === 'text' || part.type === undefined) && typeof (part.text ?? part.delta) === 'string') out.push(role + ': ' + String(part.text ?? part.delta));
+      else sawNonText = true;
+    }
+    if (typeof raw.text === 'string') out.push(role + ': ' + raw.text);
+    if (sawNonText) truncated = true; // 非文本 part(工具/推理附件)不导出 → 如实标 truncated
+  }
+  return { text: out.join('\n'), truncated };
+}
+
+class ZcodeSessionClient {
+  private child: ChildProcessWithoutNullStreams;
+  private seq = 0;
+  private pending = new Map<string, { res: (v: unknown) => void; rej: (e: Error) => void }>();
+  private buffer = '';
+  constructor(private readonly zcodeCli: string, private readonly sessionHome: string, apiKey: string | null, private readonly budgetMs: number) {
+    this.child = spawn(process.execPath, [zcodeCli, 'app-server'], {
+      cwd: sessionHome,
+      windowsHide: true,
+      env: {
+        SystemRoot: process.env.SystemRoot,
+        WINDIR: process.env.WINDIR,
+        PATH: join(sessionHome, 'bin'),
+        USERPROFILE: sessionHome,
+        HOME: sessionHome,
+        APPDATA: join(sessionHome, 'AppData', 'Roaming'),
+        LOCALAPPDATA: join(sessionHome, 'AppData', 'Local'),
+        ...(apiKey ? { ZCODE_API_KEY: apiKey } : {}),
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    this.child.stdout.on('data', (d) => this.onData(String(d)));
+    this.child.on('close', () => { for (const p of this.pending.values()) p.rej(Error('NOT_STARTED')); this.pending.clear(); });
+  }
+  private onData(text: string) {
+    this.buffer += text;
+    let idx: number;
+    while ((idx = this.buffer.indexOf('\n')) >= 0) {
+      const line = this.buffer.slice(0, idx).trim();
+      this.buffer = this.buffer.slice(idx + 1);
+      if (!line) continue;
+      let msg: Record<string, any>;
+      try { msg = JSON.parse(line); } catch { continue; }
+      if (msg.method === 'session/requestRuntimePreferences' && msg.id !== undefined) {
+        this.child.stdin.write(JSON.stringify({ id: msg.id, result: { nativeSearchEnhancementsEnabled: false, memoryEnabled: false, askUserQuestionAutoResolutionEnabled: false } }) + '\n');
+        continue;
+      }
+      if (msg.method === 'interaction/requestPermission' && msg.id !== undefined) {
+        const deny = (msg.params?.options ?? []).find((o: any) => o.kind === 'deny');
+        this.child.stdin.write(JSON.stringify({ id: msg.id, result: deny?.response ?? { decision: 'deny', reason: 'context port' } }) + '\n');
+        continue;
+      }
+      if (typeof msg.id === 'string' && this.pending.has(msg.id)) {
+        const p = this.pending.get(msg.id)!;
+        this.pending.delete(msg.id);
+        if (msg.error) p.rej(Error('ZCODE_' + String(msg.error?.data?.code ?? msg.error?.code ?? 'REQUEST_REJECTED')));
+        else p.res(msg.result);
+      }
+    }
+  }
+  request(method: string, params: unknown): Promise<any> {
+    const id = 'ctx' + ++this.seq;
+    return new Promise((res, rej) => {
+      const timer = setTimeout(() => { this.pending.delete(id); rej(Error('ZCODE_TIMEOUT_AFTER_SEND')); }, this.budgetMs);
+      this.pending.set(id, {
+        res: (v) => { clearTimeout(timer); res(v); },
+        rej: (e) => { clearTimeout(timer); rej(e); },
+      });
+      try { this.child.stdin.write(JSON.stringify({ id, method, params }) + '\n'); }
+      catch (e) { clearTimeout(timer); this.pending.delete(id); rej(Error('NOT_STARTED')); }
+    });
+  }
+  async close() { try { this.child.kill(); } catch {} }
+}
+
+async function withClient<T>(opts: { zcodeCli: string; sessionHome: string; apiKey: string | null; budgetMs: number }, fn: (c: ZcodeSessionClient) => Promise<T>): Promise<T> {
+  const c = new ZcodeSessionClient(opts.zcodeCli, opts.sessionHome, opts.apiKey, opts.budgetMs);
+  try { return await fn(c); } finally { await c.close(); }
+}
+
+function parseSnapshot(result: any): SessionSnapshot {
+  const r = typeof result === 'string' ? JSON.parse(result) : result;
+  const session = r?.session ?? {};
+  const projection = r?.projection ?? {};
+  return {
+    sessionId: String(session.sessionId ?? ''),
+    messages: Array.isArray(r?.messages) ? r.messages : [],
+    contextWindow: Number.isFinite(projection.contextWindow) ? Number(projection.contextWindow) : null,
+    contextUsed: Number.isFinite(projection.contextUsed) ? Number(projection.contextUsed) : null,
+  };
+}
+
+function readCredential(file: string | undefined): { apiKey: string; maxTokens: number } | null {
+  if (!file || !existsSync(file)) return null;
+  try {
+    const cred = parseLabeledCredential(readFileSync(file, 'utf8'));
+    return { apiKey: cred.apiKey, maxTokens: 8000 };
+  } catch { return null; }
+}
+
+export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPort {
+  const budgetMs = opts.budgetMs ?? 45000;
+  const homeOf = (sessionHome: string | null): string => {
+    if (!sessionHome) throw Error('ZCODE_HOME_UNCONFIGURED');
+    return sessionHome;
+  };
+  const idempotency = new Map<string, string>(); // operationId → target native session id
+  return {
+    async exportContext({ nativeSessionRef, sessionHome }) {
+      const snap = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+        return parseSnapshot(await c.request('session/resume', { sessionId: nativeSessionRef }));
+      });
+      const { text, truncated } = visibleText(snap.messages);
+      if (!snap.sessionId) throw Error('ZCODE_RESUME_EMPTY');
+      return { text, truncated };
+    },
+    async sourceCapacity({ nativeSessionRef, sessionHome }) {
+      try {
+        const snap = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+          return parseSnapshot(await c.request('session/resume', { sessionId: nativeSessionRef }));
+        });
+        return { windowTokens: snap.contextWindow, usageTokens: snap.contextUsed };
+      } catch { return { windowTokens: null, usageTokens: null }; }
+    },
+    async targetWindowTokens({ sessionHome }) {
+      try {
+        return await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+          const snap = parseSnapshot(await c.request('session/create', { workspace: { workspacePath: homeOf(sessionHome), workspaceKey: homeOf(sessionHome) } }));
+          return snap.contextWindow;
+        });
+      } catch { return null; }
+    },
+    async initializeTarget({ seedText, sessionHome, operationId }) {
+      // 幂等:同 operationId 已登记目标则仅 confirm,不再创建。
+      const known = idempotency.get(operationId);
+      if (known) {
+        const ok = await this.confirmTarget({ harness: 'zcode', nativeSessionRef: known, sessionHome });
+        return { nativeSessionRef: known, confirmed: ok.confirmed };
+      }
+      const cred = readCredential(opts.credentialFile);
+      const home = homeOf(sessionHome);
+      const target = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: home, apiKey: cred?.apiKey ?? null, budgetMs: (opts.budgetMs ?? 45000) * 2 }, async (c) => {
+        const created = parseSnapshot(await c.request('session/create', { workspace: { workspacePath: home, workspaceKey: 'ar-context-' + operationId } }));
+        if (!created.sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
+        idempotency.set(operationId, created.sessionId);
+        const terminal = (async () => {
+          await c.request('session/subscribe', { sessionId: created.sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false });
+          await c.request('session/send', { sessionId: created.sessionId, content:
+            '以下是同一角色上一工作会话的可见历史(仅用户与助手文本;不含隐藏思维链)。理解后仅回复 READY,不要调用任何工具。\n' + seedText, inputId: 'ctxinit_' + operationId });
+          return true;
+        })();
+        void terminal.catch(() => {});
+        // 等待 turn 终态:send 成功受理即视为目标已建立(会话持久化);回复内容非本端口职责。
+        return created.sessionId;
+      });
+      return { nativeSessionRef: target, confirmed: true };
+    },
+    async confirmTarget({ nativeSessionRef, sessionHome }) {
+      try {
+        await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+          const snap = parseSnapshot(await c.request('session/resume', { sessionId: nativeSessionRef }));
+          if (!snap.sessionId) throw Error('no');
+          return snap;
+        });
+        return { confirmed: true };
+      } catch { return { confirmed: false }; }
+    },
+  };
+}

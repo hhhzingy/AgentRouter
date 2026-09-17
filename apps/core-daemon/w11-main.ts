@@ -187,24 +187,49 @@ server.listen(address, async () => {
       new ExternalApiRegistry([createCoreDatasetProfile(db)]),
       db,
     );
-    // WC01:Context Transfer 引擎——通道按 harness 注册;真实通道(如 zcode warm)由 WC02 接入,
-    // 未注册 harness 的 inherit 请求得到显式 CONTEXT_EXPORT_UNSUPPORTED,不静默空白。
+    // WN01:Context Transfer 引擎——真实端口按 harness 登记(zcode 冷协议端口:导出=resume 读可见
+    // messages;init=新会话 seed+等待 terminal,按 opId 幂等)。未登记端口的 inherit 显式拒绝。
     {
       const { builtInDrivers } = await import('../../packages/core-service/harness-drivers.ts');
       const registry = builtInDrivers();
       const transferPorts = new Map<string, import('../../packages/core-service/context-transfer-engine.ts').TransferDriverPort>();
+      const nativeConfigPath = process.env.AGENTROUTER_NATIVE_CONFIG ??
+        (existsSync(resolve(data, 'native-runtime.json')) ? resolve(data, 'native-runtime.json') : undefined);
+      let nativeCfg: Record<string, any> | undefined;
+      if (nativeConfigPath && existsSync(nativeConfigPath)) {
+        try { nativeCfg = JSON.parse(readFileSync(nativeConfigPath, 'utf8')) as Record<string, any>; } catch { nativeCfg = undefined; }
+      }
+      const sessionHomeOf = (harness: string): string | null => {
+        const profiles = (nativeCfg?.profiles ?? []) as { harness?: string; sessionHome?: string }[];
+        return profiles.find((x) => x.harness === harness)?.sessionHome ?? null;
+      };
+      if (typeof nativeCfg?.zcodeCli === 'string' && nativeCfg.zcodeCli) {
+        const { createZcodeContextPort } = await import('../../packages/platform/zcode-context-port.ts');
+        transferPorts.set('zcode', createZcodeContextPort({
+          zcodeCli: String(nativeCfg.zcodeCli),
+          credentialFile: typeof nativeCfg.zcodeCredentialFile === 'string' ? nativeCfg.zcodeCredentialFile : undefined,
+        }));
+      }
       const extension = new RoleSessionExtension(
         db,
         undefined,
         (harness: string) => ({ historyExport: registry.capabilities(harness).capabilities.history_export }),
         transferPorts,
         (harness: string) => (registry.capabilities(harness).capabilities.native_resume === 'UNSUPPORTED' ? 'SESSION_CONTINUATION_UNSUPPORTED' : 'SAME_SESSION_CONTINUOUS'),
+        sessionHomeOf,
       );
       application.roleSession = extension;
+      // 跨 Harness 继承:目标 binding 切换仅在提交事务内经此回调发生。
+      extension.transitionBindingForCommit = (role, harness, sessionId) => {
+        const t = application.roleSessionTransition;
+        if (!t) throw Error('CONTEXT_TARGET_BINDING_PREP_MISSING');
+        return t(role, harness, sessionId);
+      };
       const engine = new ContextTransferEngine({
         db,
         ports: transferPorts,
         commit: (input) => extension.commitTransfer(input),
+        repairCommitted: (input) => extension.repairCommitted(input),
         onSettled: () => driver?.kick(),
       });
       extension.attachTransferEngine(engine);
