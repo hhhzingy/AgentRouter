@@ -183,6 +183,14 @@ server.listen(address, async () => {
     ) as string[];
     const db = openApplicationStore(data, new URL('./migrations/', import.meta.url));
     application = new ApplicationService(db, roots, fixture);
+    // WN04:tunnel/受限管理专用实例:项目白名单由操作员在进程环境固定(可信本地 provisioning;
+    // 客户端与冻结协议不可自行声明范围)。未知 id 直接拒绝启动,避免静默空权限。
+    const mcpScope = (process.env.AGENTROUTER_MCP_PROJECT_SCOPE ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (mcpScope.length) {
+      for (const id of mcpScope)
+        if (!db.prepare('select id from projects where id=?').get(id)) throw Error('MCP_PROJECT_SCOPE_UNKNOWN:' + id.slice(0, 40));
+      application.defaultConnectionScope = new Set(mcpScope);
+    }
     application.externalApi = new ExternalApiExtension(
       new ExternalApiRegistry([createCoreDatasetProfile(db)]),
       db,

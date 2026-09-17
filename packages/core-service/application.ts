@@ -196,8 +196,12 @@ export class ApplicationService extends Plans {
       return 'initialization_resource_locked';
     return null;
   }
+  /** WN04:受限专用 core 进程在启动时设定;之后所有全局 principal 连接继承(仅收紧)。 */
+  defaultConnectionScope?: Set<string>;
   open(principal = 'human_local', authorized = true, allowedProjects?: Set<string>) {
     const id = uid('connection');
+    if (!allowedProjects && this.defaultConnectionScope && (principal === 'human_local' || principal.startsWith('mcp_')))
+      allowedProjects = new Set(this.defaultConnectionScope);
     // WC03/W-05:远程设备自创建项目的持久可见策略——按 principal 的 project.create 审计恢复授权,
     // 重连/重启不丢失,也不外溢为全局可见(仍只对创建者设备)。
     if (allowedProjects && principal.startsWith('remote_device_')) {
@@ -598,6 +602,8 @@ export class ApplicationService extends Plans {
         c.clientId = r.params.client_id;
         c.mode = r.params.requested_mode;
         c.revision = r.params.contract_revision ?? 'C1';
+        // WN04 专用受限实例(如 tunnel 管理面)不扩权:范围由进程启动时 defaultConnectionScope 固定
+        // (可信本地 provisioning;initialize 冻结 schema 不容新字段,故不在协议面声明)。
         result = {
           serverInstanceId: this.instanceId,
           serverVersion: '1.0.0-dev.0',

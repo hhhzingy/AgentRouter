@@ -19,6 +19,7 @@ const gateway = new ManagementGateway(
   new LocalCoreTransport(data),
   mode as 'observer' | 'controller',
   clientId,
+  // WN04:管理面的项目范围由所连专用 core 进程的启动参数固定;启动时校验环境变量与端点一致性由操作员卡保证。
 );
 const server = new Server(
   { name: 'agentrouter-management', version: '1.0.0' },
