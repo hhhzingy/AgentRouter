@@ -84,7 +84,7 @@ export class Core {
       throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
     if (p.activationId !== undefined) {
       const activation = this.one(
-        "select id,role_id,binding_id,binding_epoch,activation_epoch,state from role_session_activations where id=?",
+        'select id,role_id,binding_id,binding_epoch,activation_epoch,state from role_session_activations where id=?',
         p.activationId,
       );
       if (
@@ -242,7 +242,11 @@ export class Core {
       this.clock(),
       this.clock(),
     );
-    this.exec('update tasks set role_session_id=? where id=? and role_session_id is null', this.activeSessionId(request.to.id), task);
+    this.exec(
+      'update tasks set role_session_id=? where id=? and role_session_id is null',
+      this.activeSessionId(request.to.id),
+      task,
+    );
     this.message(p, request, op, task, heldRun);
     return task;
   }
@@ -295,8 +299,10 @@ export class Core {
   }
   /** 角色当前活动会话；迁移005保证每个角色恰有一个。 */
   activeSessionId(roleId: string): string | undefined {
-    return (this.one("select id from role_sessions where role_id=? and state='ACTIVE'", roleId) as
-      { id: string } | undefined)?.id;
+    return (
+      this.one("select id from role_sessions where role_id=? and state='ACTIVE'", roleId) as
+        { id: string } | undefined
+    )?.id;
   }
   submitFromUser(
     scope: { projectId: string; spaceId: string },
@@ -316,16 +322,19 @@ export class Core {
     )
       throw new RouteError('SCOPE_DENIED', 'AUTHORIZATION');
     for (const ref of input.inputs) {
+      // 用户路由引用按 C1 合同以 kind/artifact_id 表达(与角色工具 refs() 一致);
+      // 容忍历史 type/id 形状,未知 kind 仍拒绝。
+      const kind = (ref.kind ?? ref.type) as string | undefined;
       if (
-        ref.type === 'artifact' &&
+        kind === 'artifact' &&
         !this.one(
           "select id from artifacts where id=? and project_id=? and state='AVAILABLE'",
-          ref.id,
+          ref.artifact_id ?? ref.id,
           scope.projectId,
         )
       )
         throw new RouteError('ARTIFACT_SCOPE', 'AUTHORIZATION');
-      if (!['artifact', 'external'].includes(ref.type))
+      if (!['artifact', 'external'].includes(String(kind)))
         throw new RouteError('REFERENCE_UNSUPPORTED');
     }
     const chain = id('chain'),
@@ -364,7 +373,11 @@ export class Core {
       now,
       now,
     );
-    this.exec('update tasks set role_session_id=? where id=? and role_session_id is null', this.activeSessionId(input.to.id), task);
+    this.exec(
+      'update tasks set role_session_id=? where id=? and role_session_id is null',
+      this.activeSessionId(input.to.id),
+      task,
+    );
     this.exec(
       'insert into messages(id,space_id,task_id,kind,from_kind,to_kind,to_role_id,payload_json,operation_row_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?)',
       message,
@@ -496,7 +509,7 @@ export class Core {
    */
   private ensureActiveActivation(roleId: string, binding: Data, roleSessionId: string) {
     const session = this.one(
-      'select id,role_id,harness,driver_id,workspace_affinity_json from role_sessions where id=? and role_id=? and state=\'ACTIVE\'',
+      "select id,role_id,harness,driver_id,workspace_affinity_json from role_sessions where id=? and role_id=? and state='ACTIVE'",
       roleSessionId,
       roleId,
     );
@@ -542,12 +555,16 @@ export class Core {
         now,
         active.id,
       );
-    const activationEpoch = Number(
-      this.one('select coalesce(max(activation_epoch),0) as n from role_session_activations where role_id=?', roleId)?.n ?? 0,
-    ) + 1;
+    const activationEpoch =
+      Number(
+        this.one(
+          'select coalesce(max(activation_epoch),0) as n from role_session_activations where role_id=?',
+          roleId,
+        )?.n ?? 0,
+      ) + 1;
     const id = 'rsa_' + globalThis.crypto.randomUUID();
     this.exec(
-      'insert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,operation_id,created_at_ms,activated_at_ms) values(?,?,?,?,?,?,\'ACTIVE\',?,?,?)',
+      "insert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,operation_id,created_at_ms,activated_at_ms) values(?,?,?,?,?,?,'ACTIVE',?,?,?)",
       id,
       roleId,
       roleSessionId,
@@ -571,7 +588,9 @@ export class Core {
       if (
         !(this.options.allowMock && caps.fixture === 'mock') &&
         !this.options.fixtureAuthorization?.(b.id) &&
-        !(this.options.nativeAuthorization ? this.options.nativeAuthorization(b.id) : caps.status === 'LIVE_TESTED')
+        !(this.options.nativeAuthorization
+          ? this.options.nativeAuthorization(b.id)
+          : caps.status === 'LIVE_TESTED')
       )
         return this.blocked(roleId, 'harness_unverified');
       const blocked = this.options.beforeDispatch?.(roleId);
@@ -644,7 +663,8 @@ export class Core {
       }
       if (resources.some((r) => this.one('select * from resource_leases where resource_key=?', r)))
         return this.blocked(roleId, 'resource_locked');
-      const roleSessionId = (this.one('select role_session_id from tasks where id=?', task.id)?.role_session_id ?? null) as string | null;
+      const roleSessionId = (this.one('select role_session_id from tasks where id=?', task.id)
+        ?.role_session_id ?? null) as string | null;
       if (!roleSessionId) return this.blocked(roleId, 'work_session_missing');
       const activation = this.ensureActiveActivation(roleId, b, roleSessionId);
       if (!activation) return this.blocked(roleId, 'work_session_binding_mismatch');
@@ -754,7 +774,11 @@ export class Core {
           run.activation_id,
           run.role_id,
         );
-        if (!activation || activation.binding_id !== run.binding_id || activation.binding_epoch !== run.binding_epoch)
+        if (
+          !activation ||
+          activation.binding_id !== run.binding_id ||
+          activation.binding_epoch !== run.binding_epoch
+        )
           throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
       }
       if (evidence.replay) return;

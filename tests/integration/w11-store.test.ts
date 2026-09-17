@@ -24,6 +24,7 @@ it('W11 增量迁移可重复打开，旧 baseline 不改，真实 SQLite 持久
     { version: 13 },
     { version: 14 },
     { version: 15 },
+    { version: 16 },
   ]);
   db.close();
   db = openApplicationStore(dir);
@@ -38,7 +39,7 @@ it('001 升级前备份，校验和损坏拒绝打开且不重建数据', () => 
   const old = openStore(resolve(dir, 'router.db'));
   old.close();
   const db = openApplicationStore(dir);
-  expect(readdirSync(resolve(dir, 'backups')).length).toBe(3);
+  expect(readdirSync(resolve(dir, 'backups')).length).toBe(4);
   const id = db.prepare("select value from app_meta where key='dataset_id'").get();
   db.prepare("update schema_migrations set checksum='invalid' where version=2").run();
   db.close();

@@ -104,19 +104,29 @@ it('migrates a v3 database with a recoverable backup and preserves durable claim
   mkdirSync('.local/api-journal-tests', { recursive: true });
   const root = mkdtempSync(resolve('.local/api-journal-tests/migration-'));
   let db = openApplicationStore(root);
-  cleanup.push(() => { if(db.open) db.close(); rmSync(root,{recursive:true}); });
+  cleanup.push(() => {
+    if (db.open) db.close();
+    rmSync(root, { recursive: true });
+  });
   db.exec(
-    "DROP TABLE context_transfer_ops; DROP TABLE remote_pairings; DROP TABLE remote_devices; DROP TABLE role_context_sync_receipts; DROP TABLE role_session_context_state; DROP TABLE role_context_entries; DROP TABLE role_context_heads; DROP TABLE role_session_activations; DROP INDEX IF EXISTS runs_activation; ALTER TABLE runs DROP COLUMN activation_id; DROP TABLE role_session_handoffs; DROP TABLE external_api_calls; DROP TABLE participant_grants; DROP TABLE role_sessions; ALTER TABLE tasks DROP COLUMN role_session_id; ALTER TABLE runs DROP COLUMN role_session_id; ALTER TABLE conversation_items DROP COLUMN role_session_id; ALTER TABLE runs DROP COLUMN execution_provenance; ALTER TABLE execution_profiles DROP COLUMN fallback_json; DELETE FROM schema_migrations WHERE version>=4;");
+    'DROP TABLE context_transfer_ops; DROP TABLE remote_pairings; DROP TABLE remote_devices; DROP TABLE role_context_sync_receipts; DROP TABLE role_session_context_state; DROP TABLE role_context_entries; DROP TABLE role_context_heads; DROP TABLE role_session_activations; DROP INDEX IF EXISTS runs_activation; ALTER TABLE runs DROP COLUMN activation_id; DROP TABLE role_session_handoffs; DROP TABLE external_api_calls; DROP TABLE participant_grants; DROP TABLE role_sessions; ALTER TABLE tasks DROP COLUMN role_session_id; ALTER TABLE runs DROP COLUMN role_session_id; ALTER TABLE conversation_items DROP COLUMN role_session_id; ALTER TABLE runs DROP COLUMN execution_provenance; ALTER TABLE execution_profiles DROP COLUMN fallback_json; DELETE FROM schema_migrations WHERE version>=4;',
+  );
   const dataset = db.prepare("select value from app_meta where key='dataset_id'").get();
   db.close();
   db = openApplicationStore(root);
-  expect(db.prepare('select max(version) v from schema_migrations').get()).toEqual({v:15});
+  expect(db.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 16 });
   expect(db.prepare("select value from app_meta where key='dataset_id'").get()).toEqual(dataset);
-  const backupFile = readdirSync(join(root,'backups')).find(n=>n.startsWith('before-v4-'))!;
-  const backup = new Database(join(root,'backups',backupFile),{readonly:true});
-  try { expect(backup.prepare('select max(version) v from schema_migrations').get()).toEqual({v:3}); }
-  finally { backup.close(); }
-  await createExternalApiJournal(db,'owner','client').claim('interrupted',hashes[0]);
-  db.close(); db=openApplicationStore(root);
-  expect(await createExternalApiJournal(db,'owner','client').claim('interrupted',hashes[0])).toEqual({acquired:false,fingerprint:hashes[0]});
+  const backupFile = readdirSync(join(root, 'backups')).find((n) => n.startsWith('before-v4-'))!;
+  const backup = new Database(join(root, 'backups', backupFile), { readonly: true });
+  try {
+    expect(backup.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 3 });
+  } finally {
+    backup.close();
+  }
+  await createExternalApiJournal(db, 'owner', 'client').claim('interrupted', hashes[0]);
+  db.close();
+  db = openApplicationStore(root);
+  expect(
+    await createExternalApiJournal(db, 'owner', 'client').claim('interrupted', hashes[0]),
+  ).toEqual({ acquired: false, fingerprint: hashes[0] });
 });

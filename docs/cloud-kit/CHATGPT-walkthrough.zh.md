@@ -1,71 +1,81 @@
-# ChatGPT 网页操作手册 — 复核角色(Review Profile)
+# ChatGPT 网页操作手册 — 复核角色(外接角色完整工作环版)
 
-版本:2026-09-17(已按 Secure MCP Tunnel 实际架构修订);对应本地:组合候选 `6e95922` 的
-Participant MCP + 官方 `tunnel-client v0.0.14`(windows-amd64,SHA256 已对官方 SHA256SUMS 核验,
-安装于 `E:\AgentRouter\.local-protected\tunnel-client-v0.0.14\`,profile 名 `agentrouter-review`)。
+版本:2026-09-17 第二轮(源码 v1.1-final @ 0d92196+本轮工作环提交;bundle 见 `docs/parallel/shared-mcp-checkpoint.json` 的 `workloop_bundle_hashes`)。
+接入方式不变:**ChatGPT Plugin = Secure MCP Tunnel(`AgentRouter Review`)+ Authentication = No Auth**;
+Participant Bearer 由本机 tunnel-client 注入,任何 token/key 不进聊天、截图或仓库。
 
-## 0. 接入架构(与旧版说明的差异,以此为准)
-**ChatGPT Plugin 不再需要任何 Bearer token。**正确分工:
-- ChatGPT 连接器:Connection = **Tunnel**,选择本组织的 `AgentRouter Review` tunnel,Authentication = **No Auth**;
-- Participant Bearer 由**本机** tunnel-client 以 `mcp.extra_headers` 从受保护文件注入
-  (`E:\AgentRouter\.local-protected\web-demo\core\participant-authorization-header.txt`);
-- Runtime API key 也仅存本机(`file:` 引用,非明文配置),权限只需 Tunnels Read + Use。
-**任何 token/key 都不进入聊天、截图或仓库。**
+本轮新增三个工具,共 7 个:`participant_read_inbox / claim_task / request_user_input / submit_result / read_artifact / send_user_input / register_artifact`。
 
-前置(本机,由助手/脚本维持):受限 Core + Participant 入口(8790)+
-`tunnel-client run --profile agentrouter-review` 常驻;健康面 `http://127.0.0.1:8088/healthz|/readyz|/ui`
-(仅 loopback,不开 Funnel)。
+## 0. 实栈预置(已由本机准备好,勿重复创建)
+
+| 任务 id                                   | 状态                                      | 用途                                                                                                    |
+| ----------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| task_d6ba0023…                            | QUEUED(遗留)                              | 正文含 WEBDEMO-7QX4,仅作收件箱读取证据;其正文写「不要使用其它工具」且 review.md 名已占用,**不要**认领它 |
+| task_dd5601c4…                            | DELIVERED+ACCEPTED                        | 本机全链预演已完成的结果(含 result_、产物 artifact_1698ea0b…)                                           |
+| task_989880f1-8b5e-4839-a95f-f28f890d4542 | **WAITING_INPUT**(user_input_ready:false) | 本轮 send_user_input 正向测试目标                                                                       |
+| task_1271f0f7-028e-4b7e-9e85-f3c11c1cbc44 | QUEUED                                    | 口令 WEBDEMO-7QX4 完整闭环(claim→产物→submit)                                                           |
+
+角色同一时刻只有一个进行中任务:`task_989880f1` 完成前,认领其它任务会得到 `ROLE_BUSY`——这是特性,按下面顺序走即可。
 
 ## 1. 演练脚本(逐条粘贴给 ChatGPT)
 
-**① 身份与收件箱**
-> 你现在是本机 AgentRouter 的复核角色。请调用 participant_read_inbox 工具,把返回的任务列表原样转述给我,
-> 不要编造任何未由工具返回的内容。
+**W1 结构化收件箱(缺口①证据)**
 
-预期:看到一个任务「复核口令nonce」(QUEUED),其中含 nonce WEBDEMO-7QX4。
+> 调用 participant_read_inbox,逐任务报告 id、state、waiting_for/user_input_ready、expected、completion,
+> 并原样引用两个任务正文中出现的口令。不要采信我口头转述的口令,只认工具返回的正文。
 
-**② 登记复核产物**
-> 请用 participant_register_artifact 登记一个产物:name 为 review-chatgpt.md,
-> task_id 用收件箱里那个任务的 id,request_key 固定用 chatgpt-rk-1,
-> 内容包含:本任务 nonce WEBDEMO-7QX4、你的复核意见两行、时间。登记后把工具返回的
-> artifact_id、sha256、byte_size 原样报给我。
+预期:`task_989880f1` 为 WAITING_INPUT 且 `user_input_ready:false`;`task_1271f0f7` 正文含 WEBDEMO-7QX4。
 
-**③ 幂等验证(关键)**
-> 完全重复刚才的 participant_register_artifact 调用:同样的 name、同样的内容、同样的
-> request_key chatgpt-rk-1,然后再报一次返回的三个字段。
+**W2 等待未就绪的拦截**
 
-预期:artifact_id/sha256 与第②步**完全一致**(服务端按 request_key 幂等返回原回执,不落第二份文件)。
+> 先对 task_989880f1 调 participant_claim_task(request_key 自定)。
 
-**④ 篡改防护**
-> 再用同样的 request_key chatgpt-rk-1 登记,但内容改成「different content」。
+预期:`PLAN_STATE_CONFLICT`(用户输入未就绪不能继续)。
 
-预期:返回错误码 PARTICIPANT_REQUEST_CONFLICT(同键异内容必须拒绝)。
+**W3 正向 send_user_input(缺口③核心)**
 
-**⑤ 读回核验**
-> 用 participant_read_artifact 读取第②步的 artifact(task_id+artifact_id),把返回的
-> content、sha256、byte_size 报给我。
+> 我现在以用户身份给你输入:口令 OPT-A-R3。用 participant_send_user_input 提交,
+> task_id=task_989880f1…,body=「确认选项A,口令 OPT-A-R3」,request_key 固定 R3SI1,报告返回。
 
-预期:content 含 WEBDEMO-7QX4;sha/size 与登记回执一致。
+**W4 幂等与异参冲突(缺口③)**
 
-**⑥(可选)WAITING_INPUT 补输入语义**:若将来有任务处于 WAITING_INPUT,可让网页用
-`participant_send_user_input`(带 request_key)补输入;当前演练任务不处于该态,跳过即正常。
+> ① 用完全相同的参数再调一次 participant_send_user_input;② 再用同 request_key R3SI1 但 body 改成「口令改成B」。
 
-## 2. 本机对账(你把网页报的字段发我,或自行核对)
-- `E:\AgentRouter\.local-protected\web-demo\workspace\agentrouter-artifacts\` 下应只有
-  `review.md`(我预登记的)与 `review-chatgpt.md`(演练新产物,**不多不少**)。
-- Core 事件/artifact 状态为 AVAILABLE;sha256 由服务端计算,与网页回执一致。
+预期:①返回与原回执一致(entityId 不变);②报 `OPERATION_CONFLICT`。
 
-## 3. 安全与边界(务必遵守)
-- 不向聊天粘贴 token/grant/key;不把隧道 URL 转发他人。
-- 网页角色只拿到这四个工具;管理面(Control)是另一条 stdio 通道,本手册不涉及——网页要改配置/派任务时停下告诉我。
-- 同一入口进程绑定单一角色+单一活动聊天约定:多开聊天不保证相互隔离(合同已声明)。
-- 演练结束撤销:管理面 revoke grant(或我执行)→ 网页工具调用应报 PARTICIPANT_GENERATION_STALE;
-  之后如需再来,重新签发 grant 并重启入口。
+**W5 继续推进→产物→提交结果(缺口②③)**
+
+> 1. participant_claim_task(R3 新 request_key)把 task_989880f1 恢复到 ACTIVE;
+> 2. participant_register_artifact 登记 answer-r3.md(task_id=989880f1,request_key 自定),内容逐字包含我给你的口令 OPT-A-R3;
+> 3. 再读一次收件箱,确认该任务仍是 ACTIVE 且没有 result(产物≠完成);
+> 4. participant_submit_result:outcome=succeeded,summary/body 概述按用户选项A完成,outputs 引用该产物,报告完整回执字段。
+
+预期:回执 `state:DELIVERED, publication_state:PUBLISHED, acceptance:PENDING, downstream:{type:user}` + result_id。
+acceptance 保持 PENDING —— 你的提交不代替用户验收。
+
+**W6 口令闭环(缺口②复用)**
+
+> 对 task_1271f0f7…:claim → 登记 review-final.md(内容逐字包含收件箱正文里的 WEBDEMO-7QX4)→ submit_result(outputs 引用它)。报回 artifact_id、sha256、result_id。
+
+**W7(可选)产物幂等三件套**:同键重放→同回执 `replayed:true`;同键改内容→`PARTICIPANT_REQUEST_CONFLICT`;再试认领 d6ba0023→`ROLE_BUSY` 或按其正文只做只读(随它,不算失败)。
+
+## 2. 本机对账(你报 W4/W5/W6 字段,我核验后回执)
+
+- DB 账目:两条 participant result 应 `run_id=NULL、publication_state=PUBLISHED`、task.result 消息 outbox=DELIVERED;
+- 用户验收门:我对 W5/W6 的 result 执行管理面 `result.accept`,验收位应从 PENDING→ACCEPTED(证明人类批准独立且有效);
+- 工作区只多出 `answer-r3.md`、`review-final.md`(与既有 review.md 等共存,不覆盖)。
+
+## 3. 撤销演示(演练完成后由本机执行)
+
+管理面 revoke grant → 网页任意 participant 工具应报 `PARTICIPANT_GENERATION_STALE`;需继续时重签发+重启入口。
 
 ## 4. 失败分诊
-| 现象 | 处理 |
-| --- | --- |
-| 连接器连不上 | 本机自查三件套:8790 `/health`(带 Bearer,仅本地诊断用)、tunnel-client `/healthz|/readyz`(127.0.0.1:8088)、profile doctor 全绿;ChatGPT 侧确认 daemon 正在运行期间才做连接器扫描 |
-| 工具列表为空 | ChatGPT 宿主未启用工具调用 → 记 BLOCKED_BY_HOST,不换通道硬凑 |
-| 401/UNAUTHORIZED | 本机 header 文件与入口 token 不一致(入口重启过)→ 重新生成 authorization-header 并 `tunnel-client run` 重启;与 ChatGPT 无关 |
-| PARTICIPANT_GENERATION_STALE | grant 已被撤销/重启再签发 → 正常拒绝,不是故障 |
+
+| 现象                         | 处理                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| ROLE_BUSY                    | 上一顺序正常:先完成 task_989880f1 再动其它任务                                |
+| PLAN_STATE_CONFLICT          | 状态机拦截(如未就绪就 claim),不是故障                                         |
+| OPERATION_CONFLICT           | 同 request_key 换了内容,正确防护;换新 key 重发                                |
+| PARTICIPANT_REQUEST_CONFLICT | 产物幂等账本拦截篡改,正确行为                                                 |
+| PARTICIPANT_GENERATION_STALE | grant 已撤销/重签发,正常拒绝                                                  |
+| 连接器连不上                 | 本机查 8790 /health(带 Bearer)、tunnel `/readyz`(127.0.0.1:8088)、daemon 存活 |

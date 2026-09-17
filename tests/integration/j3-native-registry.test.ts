@@ -31,7 +31,9 @@ function v2() {
   db.exec(sql);
   db.prepare('insert into schema_migrations values(2,?,?)').run(Date.now(), hash(sql));
   // 当前 management 代码假设 v5 schema；为旧库补 role_sessions 以便创建角色。
-  db.exec("create table if not exists role_sessions(id text primary key, role_id text not null references roles(id), seq integer not null, name text not null, state text not null default 'ACTIVE', binding_id text, binding_epoch integer, native_session_ref text, generation integer not null default 1, created_at_ms integer not null, activated_at_ms integer not null);");
+  db.exec(
+    "create table if not exists role_sessions(id text primary key, role_id text not null references roles(id), seq integer not null, name text not null, state text not null default 'ACTIVE', binding_id text, binding_epoch integer, native_session_ref text, generation integer not null default 1, created_at_ms integer not null, activated_at_ms integer not null);",
+  );
   const m = new Management(db),
     p = m.createProject('legacy', dir),
     r = m.createRole({
@@ -89,7 +91,10 @@ it('v2→v3 preserves bootstrap leases/config rows, backup and FK; reopen is ide
   db.close();
   const backups = readdirSync(resolve(f.dir, 'backups'));
   expect(backups.length).toBeGreaterThanOrEqual(1);
-  const old = new Database(resolve(f.dir, 'backups', backups.find((name) => name.startsWith('before-v3-')) ?? backups[0]), { readonly: true });
+  const old = new Database(
+    resolve(f.dir, 'backups', backups.find((name) => name.startsWith('before-v3-')) ?? backups[0]),
+    { readonly: true },
+  );
   expect(old.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 2 });
   old.close();
   db = openApplicationStore(f.dir);
@@ -100,7 +105,9 @@ it('v3 migration FK failure rolls back table replacement and version record', ()
   const f = v2(),
     migrations = resolve(f.dir, 'migrations');
   mkdirSync(migrations);
-  for (const n of ['001-baseline.sql', '002-w11-application.sql', '003-native-execution.sql', '004-external-api-journal.sql', '005-role-sessions.sql', '006-role-harness-dynamic.sql', '007-restore-current-binding-index.sql', '008-participant-grants.sql', '009-role-session-handoffs.sql', '010-run-provenance.sql', '011-work-session-continuity.sql', '012-role-context-index.sql', '013-remote-devices.sql', '014-context-convergence.sql', '015-context-transfer.sql'])
+  for (const n of readdirSync('packages/storage/migrations')
+    .filter((x) => x.endsWith('.sql'))
+    .sort())
     copyFileSync('packages/storage/migrations/' + n, resolve(migrations, n));
   const path = resolve(migrations, '003-native-execution.sql');
   writeFileSync(

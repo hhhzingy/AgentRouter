@@ -1,59 +1,72 @@
 {
- "schema": "agentrouter-web-ready/1",
- "filled_by": "助手本地侧预填 2026-09-17;tunnel/账号字段由操作员完成后交回",
- "candidate_source_sha": "6e95922e667583d981568573ef3df432ab6f6453",
- "app_tab_label": "",
- "tunnel": {
-  "client_source_verified": "github.com/openai/tunnel-client (官方 org 仓库)",
-  "version": "0.0.14+0f870e50a973fa820d4c409000059e181e8d242b",
-  "sha256_matches_official_SHA256SUMS": true,
-  "help_checked": true,
-  "install_dir": "E:/AgentRouter/.local-protected/tunnel-client-v0.0.14",
-  "profile": "agentrouter-review",
-  "profile_path": "C:/Users/hap_p/AppData/Roaming/SPB_Data/.config/tunnel-client/agentrouter-review.yaml",
-  "health_addr": "127.0.0.1:8088",
-  "pending": "ChatGPT 侧 Plugin= Tunnel+No Auth+Create(用户)",
-  "tunnel_id": "tunnel_6aaba2b3b97081919ef3c07789b256f6",
-  "doctor": "tunnel_id/api_key/mcp_target/mcp_reachable/oauth_metadata(404-not-advertised) 全 PASS;health_listener FAIL 仅因运行中 daemon 已占 8088(预期)",
-  "daemon": {
-   "ready": "ready",
-   "healthz": "live",
-   "pid_note": "以 powershell Get-Process tunnel-client 为准",
-   "started": "2026-09-17",
-   "log_events": [
-    "tunnel metadata fetched",
-    "mcp session initialized"
-   ]
+  "schema": "agentrouter-web-ready/1",
+  "filled_by": "助手本地侧预填 2026-09-17;tunnel/账号字段由操作员完成后交回",
+  "candidate_source_sha": "6e95922e667583d981568573ef3df432ab6f6453",
+  "app_tab_label": "",
+  "tunnel": {
+    "client_source_verified": "github.com/openai/tunnel-client (官方 org 仓库)",
+    "version": "0.0.14+0f870e50a973fa820d4c409000059e181e8d242b",
+    "sha256_matches_official_SHA256SUMS": true,
+    "help_checked": true,
+    "install_dir": "E:/AgentRouter/.local-protected/tunnel-client-v0.0.14",
+    "profile": "agentrouter-review",
+    "profile_path": "C:/Users/hap_p/AppData/Roaming/SPB_Data/.config/tunnel-client/agentrouter-review.yaml",
+    "health_addr": "127.0.0.1:8088",
+    "pending": "ChatGPT 侧 Plugin= Tunnel+No Auth+Create(用户)",
+    "tunnel_id": "tunnel_6aaba2b3b97081919ef3c07789b256f6",
+    "doctor": "tunnel_id/api_key/mcp_target/mcp_reachable/oauth_metadata(404-not-advertised) 全 PASS;health_listener FAIL 仅因运行中 daemon 已占 8088(预期)",
+    "daemon": {
+      "ready": "ready",
+      "healthz": "live",
+      "pid_note": "以 powershell Get-Process tunnel-client 为准",
+      "started": "2026-09-17",
+      "log_events": ["tunnel metadata fetched", "mcp session initialized"]
+    }
+  },
+  "control_profile": {
+    "core_instance_alias": "webdemo-dedicated-core",
+    "project_scope_ids": ["project_1f23f1dc-6627-43cc-8553-1350d24ebe9d"],
+    "mode": "未起(与 Review 共用 tunnel 架构时另建 profile)"
+  },
+  "review_profile": {
+    "role_alias": "role_027d5887",
+    "grant_file_present": true,
+    "grant_issued_by": "management-plane",
+    "endpoint": "http://127.0.0.1:8790/mcp",
+    "token_location": ".local-protected/web-demo/core/participant-token-role_027d5887-7355-4c0f-b923-8bd9aec7eda3.txt",
+    "output_root_alias": "web-demo/workspace/agentrouter-artifacts"
+  },
+  "test_project_alias": "网页演练项目",
+  "task_under_review": "task_d6ba0023-47ae-4587-bf71-2e07f944c51b",
+  "local_selftest": {
+    "health": "PARTICIPANT_HTTP_OK",
+    "tools_list": "7 工具可见(inbox/claim/request_user_input/submit_result/read_artifact/send_user_input/register_artifact)",
+    "read_inbox": "结构化字段 id,state,summary,body,inputs,expected,completion,problem_target,parent_task_id,acceptance,created_at_ms,updated_at_ms;nonce 经 body 真实可读",
+    "artifact_register_and_replay": "同 request_key 返回同一 artifact_id/sha(幂等成立)",
+    "read_back": "content/sha/size 一致,磁盘落盘 review.md 恰一份",
+    "executed_via": "本机 HTTP JSON-RPC(非 ChatGPT;网页侧=待操作员)"
+  },
+  "nonce_source": "任务正文内嵌 WEBDEMO-7QX4",
+  "revocation_steps_confirmed": true,
+  "known_limits_ack": "同一外层认证的多聊天共享同一入口;单活动聊天约定;不宣称逐聊天强隔离",
+  "chatgpt_plugin_connection": "Tunnel",
+  "chatgpt_plugin_auth": "No Auth(Participant Bearer 由本机 daemon 注入)",
+  "round1_chatgpt_acceptance": {
+    "executed": "2026-09-17 网页 ChatGPT 经 Secure MCP Tunnel",
+    "result": "PASS 6/6:inbox / register(508B) / 同键重放同 artifact_id+sha / 异内容 PARTICIPANT_REQUEST_CONFLICT / read_artifact 读回一致 / QUEUED 任务 send_user_input PLAN_STATE_CONFLICT",
+    "artifact": "artifact_17c091f9-e378-4778-9a4f-7f62a3534946",
+    "sha256": "dc16c810056572bf8b7aa602061e3f57d3f02c77f55b9f775cdc63b2b3daee46",
+    "bytes": 508
+  },
+  "workloop_round2": {
+    "bundle": "core.mjs sha256 4f7cb40e…;participant-http.mjs b97928b5…;migration 016 4989318c…",
+    "schema": "v16(live 数据根已迁移,before-v16 备份)",
+    "tools": 7,
+    "local_rehearsal": "task_dd5601c4… 全链彩排:send_user_input 幂等/异参 OPERATION_CONFLICT、resume claim、产物≠完成、submit→DELIVERED+PUBLISHED+acceptance PENDING、管理面 result.accept→ACCEPTED;results.run_id=NULL、outbox DELIVERED、wait ready 清零",
+    "handoff_tasks": {
+      "waiting_input_positive_target": "task_989880f1-8b5e-4839-a95f-f28f890d4542(WAITING_INPUT ready:false)",
+      "nonce_full_loop": "task_1271f0f7-028e-4b7e-9e85-f3c11c1cbc44(QUEUED,body 含 WEBDEMO-7QX4)"
+    },
+    "walkthrough": "docs/cloud-kit/CHATGPT-walkthrough.zh.md W1–W7"
   }
- },
- "control_profile": {
-  "core_instance_alias": "webdemo-dedicated-core",
-  "project_scope_ids": [
-   "project_1f23f1dc-6627-43cc-8553-1350d24ebe9d"
-  ],
-  "mode": "未起(与 Review 共用 tunnel 架构时另建 profile)"
- },
- "review_profile": {
-  "role_alias": "role_027d5887",
-  "grant_file_present": true,
-  "grant_issued_by": "management-plane",
-  "endpoint": "http://127.0.0.1:8790/mcp",
-  "token_location": ".local-protected/web-demo/core/participant-token-role_027d5887-7355-4c0f-b923-8bd9aec7eda3.txt",
-  "output_root_alias": "web-demo/workspace/agentrouter-artifacts"
- },
- "test_project_alias": "网页演练项目",
- "task_under_review": "task_d6ba0023-47ae-4587-bf71-2e07f944c51b",
- "local_selftest": {
-  "health": "PARTICIPANT_HTTP_OK",
-  "tools_list": "4 工具可见",
-  "read_inbox": "任务与 nonce 可见(QUEUED)",
-  "artifact_register_and_replay": "同 request_key 返回同一 artifact_id/sha(幂等成立)",
-  "read_back": "content/sha/size 一致,磁盘落盘 review.md 恰一份",
-  "executed_via": "本机 HTTP JSON-RPC(非 ChatGPT;网页侧=待操作员)"
- },
- "nonce_source": "任务正文内嵌 WEBDEMO-7QX4",
- "revocation_steps_confirmed": true,
- "known_limits_ack": "同一外层认证的多聊天共享同一入口;单活动聊天约定;不宣称逐聊天强隔离",
- "chatgpt_plugin_connection": "Tunnel",
- "chatgpt_plugin_auth": "No Auth(Participant Bearer 由本机 daemon 注入)"
 }
