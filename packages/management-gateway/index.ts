@@ -52,6 +52,9 @@ export class ManagementGateway {
   private lease?: string;
   private renewal?: ReturnType<typeof setInterval>;
   private renewalNumber = 0;
+  private renewals = 0;
+  /** P2 协商结果(动态 harness rolePlan 可见性);只读模式同样可协商,不增加写权。 */
+  p2 = false;
   private released = new Map<string, { hash: string; result: unknown }>();
   private releaseAttempts = new Map<string, { hash: string; lease: string }>();
   private serial: Promise<unknown> = Promise.resolve();
@@ -71,6 +74,15 @@ export class ManagementGateway {
     if (this.session.hello.capabilities.mock) {
       await this.close();
       throw Error('FIXTURE_CORE_FORBIDDEN');
+    }
+    // WN02/MCP-01:动态 Harness 计划需要 P2 投影;能力含 contract.upgrade 才协商,失败保持 P1。
+    if ((this.session.hello.capabilities.methods as readonly string[]).includes('contract.upgrade')) {
+      try {
+        const up = await (this.session.request as unknown as (method: string, params: unknown) => Promise<unknown>)('contract.upgrade', { revision: 'C1R1P2' });
+        this.p2 = Boolean(up && (up as { revision?: string }).revision === 'C1R1P2');
+      } catch {
+        this.p2 = false;
+      }
     }
   }
   tools() {
@@ -162,10 +174,17 @@ export class ManagementGateway {
     const result = await s.request(tool.method, params as never, options);
     if (name === 'router_control_acquire') {
       this.lease = (result as { leaseId: string }).leaseId;
+      this.renewals = 0;
       if (this.renewal) clearInterval(this.renewal);
       this.renewal = setInterval(() => {
         const renew = async () => {
           if (!this.lease || !this.session) return;
+          // WN02:续租有界(≤30 次≈5 分钟)。到期即弃,网页停聊不永久占控制器;再操作须显式重新 acquire。
+          if (++this.renewals > 30) {
+            if (this.renewal) clearInterval(this.renewal);
+            this.lease = undefined;
+            return;
+          }
           const snap = await s.request('system.snapshot', {});
           await s.request(
             'control.renew',
@@ -189,14 +208,24 @@ export class ManagementGateway {
       this.lease = undefined;
       if (this.renewal) clearInterval(this.renewal);
     }
-    if (name === 'router_status')
+    if (name === 'router_status') {
+      // WN02/数据最小化:模型视图剥离主机路径与登录元数据字段;别名仅含 id 尾段。
+      const snap = result as { projects?: Record<string, unknown>[] } | undefined;
+      if (snap && Array.isArray(snap.projects))
+        snap.projects = snap.projects.map((p) => {
+          const { hostLabel, displayRoot, ...rest } = p;
+          return { ...rest, root_alias: 'root#' + String(p.id ?? '').slice(-8) };
+        });
       return {
         origin: 'MCP',
         mode: 'LOCAL_CORE',
         isolation: 'LIMITED_ISOLATION',
+        protocol: s.hello.contractRevision,
+        dynamic_harness_visible: this.p2,
         hello: s.hello,
         snapshot: result,
       };
+    }
     if (name === 'router_task_dispatch') {
       const t = result as { id: string; state: string };
       return { id: t.id, state: t.state };
@@ -254,8 +283,12 @@ export class ManagementGateway {
   roleSessionHistory(roleId: string, sessionId: string, limit?: number) {
     return this.roleSessionCall('roleSession.history', { role_id: roleId, session_id: sessionId, ...(limit ? { limit } : {}) }, false);
   }
-  roleSessionCreate(roleId: string, name: string, targetHarness?: string, command?: RoleSessionCommand) {
-    return this.roleSessionCall('roleSession.create', { role_id: roleId, name, ...(targetHarness ? { target_harness: targetHarness } : {}) }, true, command);
+  roleSessionCreate(roleId: string, name: string, targetHarness?: string, command?: RoleSessionCommand, contextMode?: 'blank' | 'inherit') {
+    return this.roleSessionCall('roleSession.create', { role_id: roleId, name, ...(targetHarness ? { target_harness: targetHarness } : {}), ...(contextMode ? { context_mode: contextMode } : {}) }, true, command);
+  }
+  /** WN02:受控迁移状态查询(服务端校验 op 与 role 对应)。 */
+  roleSessionTransferStatus(roleId: string, opId: string) {
+    return this.roleSessionCall('roleSession.transferStatus', { role_id: roleId, op_id: opId }, false);
   }
   roleSessionSwitch(roleId: string, sessionId: string, command?: RoleSessionCommand) {
     return this.roleSessionCall('roleSession.switch', { role_id: roleId, session_id: sessionId }, true, command);

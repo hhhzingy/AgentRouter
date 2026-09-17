@@ -53,14 +53,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'router_role_session_create',
       description: 'AgentRouter RoleSession 连续性：新建并激活工作会话，继承最大可迁移上下文（需要控制租约）。',
-      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'name'], properties: { role_id: { type: 'string' }, name: { type: 'string', maxLength: 80 }, target_harness: { type: 'string' } } } } },
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'name'], properties: { role_id: { type: 'string' }, name: { type: 'string', maxLength: 80 }, target_harness: { type: 'string' }, context_mode: { enum: ['blank', 'inherit'] } } } } },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     {
       name: 'router_role_session_switch',
-      description: 'AgentRouter RoleSession 连续性：继续指定的已有会话（切换幂等；需要控制租约）。',
+      description: '兼容入口:历史/归档 WorkSession 永久只读,非当前 ACTIVE 的切换固定被服务端拒绝(ROLE_SESSION_REACTIVATION_REMOVED);仅指向当前 ACTIVE 的幂等重激活合法。续旧内容请改用 router_role_session_create(context_mode=inherit) 的一次性迁移。',
       inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'session_id'], properties: { role_id: { type: 'string' }, session_id: { type: 'string' } } } } },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    },
+    {
+      name: 'router_role_session_transfer_status',
+      description: '查询一次性 Context Transfer 操作状态(role 与 op 必须对应;inherit 创建返回的 transfer.op_id 在此核对;只读)。',
+      inputSchema: { type: 'object' as const, additionalProperties: false, required: ['params'], properties: { params: { type: 'object' as const, additionalProperties: false, required: ['role_id', 'op_id'], properties: { role_id: { type: 'string' }, op_id: { type: 'string' } } } } },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     {
       name: 'router_external_api_list',
@@ -155,9 +161,11 @@ server.setRequestHandler(CallToolRequestSchema, async (r) => {
       else if (r.params.name === 'router_role_session_history')
         result = await gateway.roleSessionHistory(String(q.role_id ?? ''), String(q.session_id ?? ''), q.limit ? Number(q.limit) : undefined);
       else if (r.params.name === 'router_role_session_create')
-        result = await gateway.roleSessionCreate(String(q.role_id ?? ''), String(q.name ?? ''), q.target_harness ? String(q.target_harness) : undefined, validateRoleSessionCommand(a));
+        result = await gateway.roleSessionCreate(String(q.role_id ?? ''), String(q.name ?? ''), q.target_harness ? String(q.target_harness) : undefined, validateRoleSessionCommand(a), q.context_mode === 'inherit' ? 'inherit' : 'blank');
       else if (r.params.name === 'router_role_session_switch')
         result = await gateway.roleSessionSwitch(String(q.role_id ?? ''), String(q.session_id ?? ''), validateRoleSessionCommand(a));
+      else if (r.params.name === 'router_role_session_transfer_status')
+        result = await gateway.roleSessionTransferStatus(String(q.role_id ?? ''), String(q.op_id ?? ''));
       else throw Error('TOOL_UNAVAILABLE');
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
     }
