@@ -43,9 +43,11 @@ const httpServer = createServer((req, res) => {
     res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     res.end(JSON.stringify(obj));
   };
+  const path = (req.url ?? '').split('?')[0];
+  // Plain MCP(No Auth)不宣告 OAuth/PRM 元数据:探测在任何鉴权前一律 404(常量应答,无信息泄露)。
+  if (req.method === 'GET' && path.startsWith('/.well-known/')) return finish(404, { error: 'NOT_FOUND' });
   const auth = req.headers.authorization ?? '';
   if (auth !== 'Bearer ' + token) return finish(401, { error: 'UNAUTHORIZED' });
-  const path = (req.url ?? '').split('?')[0];
   if (req.method === 'GET' && (path === '/health' || path === '/')) {
     return finish(200, { status: 'PARTICIPANT_HTTP_OK', role: roleId.slice(0, 14) + '…' });
   }
