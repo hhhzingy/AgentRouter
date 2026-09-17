@@ -49,6 +49,11 @@ const httpServer = createServer((req, res) => {
   if (req.method === 'GET' && (path === '/health' || path === '/')) {
     return finish(200, { status: 'PARTICIPANT_HTTP_OK', role: roleId.slice(0, 14) + '…' });
   }
+  // Plain MCP(No Auth)不宣告 OAuth/PRM 元数据:well-known 探测必须 404,
+  // 405 会被 tunnel-client 判为"存在但无效"的 metadata 而阻塞 ready。
+  if (req.method === 'GET' && path.startsWith('/.well-known/')) {
+    return finish(404, { error: 'NOT_FOUND' });
+  }
   if (req.method !== 'POST') return finish(405, { error: 'METHOD_NOT_ALLOWED' });
   // WN03/MCP-05:Buffer 累积(避免 chunk 边界 UTF-8 切断)、字节上限、end 竞态守卫。
   const chunks = [];
