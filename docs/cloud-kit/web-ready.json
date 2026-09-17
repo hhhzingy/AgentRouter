@@ -1,0 +1,39 @@
+{
+  "schema": "agentrouter-web-ready/1",
+  "filled_by": "助手本地侧预填 2026-09-17;tunnel/账号字段由操作员完成后交回",
+  "candidate_source_sha": "6e95922e667583d981568573ef3df432ab6f6453",
+  "app_tab_label": "",
+  "tunnel": {
+    "client_source_verified": "",
+    "version": "",
+    "help_checked": false,
+    "install_dir": "",
+    "profile": "http"
+  },
+  "control_profile": {
+    "core_instance_alias": "webdemo-dedicated-core",
+    "project_scope_ids": ["project_1f23f1dc-6627-43cc-8553-1350d24ebe9d"],
+    "mode": "未起(Control 演练可用第二窗口按需受限)"
+  },
+  "review_profile": {
+    "role_alias": "role_027d5887",
+    "grant_file_present": true,
+    "grant_issued_by": "management-plane",
+    "endpoint": "http://127.0.0.1:8790/mcp",
+    "token_location": ".local-protected/web-demo/core/participant-token-role_027d5887-7355-4c0f-b923-8bd9aec7eda3.txt",
+    "output_root_alias": "web-demo/workspace/agentrouter-artifacts"
+  },
+  "test_project_alias": "网页演练项目",
+  "task_under_review": "task_d6ba0023-47ae-4587-bf71-2e07f944c51b",
+  "local_selftest": {
+    "health": "PARTICIPANT_HTTP_OK",
+    "tools_list": "4 工具可见",
+    "read_inbox": "任务与 nonce 可见(QUEUED)",
+    "artifact_register_and_replay": "同 request_key 返回同一 artifact_id/sha(幂等成立)",
+    "read_back": "content/sha/size 一致,磁盘落盘 review.md 恰一份",
+    "executed_via": "本机 HTTP JSON-RPC(非 ChatGPT;网页侧=待操作员)"
+  },
+  "nonce_source": "任务正文内嵌 WEBDEMO-7QX4",
+  "revocation_steps_confirmed": true,
+  "known_limits_ack": "同一外层认证的多聊天共享同一入口;单活动聊天约定;不宣称逐聊天强隔离"
+}
