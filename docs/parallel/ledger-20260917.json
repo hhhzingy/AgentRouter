@@ -1,0 +1,39 @@
+{
+  "schema": "agentrouter-ledger/1",
+  "at": "2026-09-17",
+  "lane": "WINDOWS",
+  "review_package": "AgentRouter_V1.1_Windows_MCP与集成后续执行包_20260917",
+  "fixed_inputs": {
+    "windows_reviewed_head": "90668abe98f90ce167eabe9b92248ae06f4d3ca4",
+    "linux_head_at_start": "0645f20bc1c4116a3bd4bdac9e3e9f507e52a23a",
+    "published_sc1": "108b70a834145971094de7ac747a30926ead62fe",
+    "integration_worktree": "E:/AgentRouter/.worktrees/v1.1-integration (merge of 5f0689f-era inputs in progress, 2 conflicts preserved; must be re-attempted against 0645f20 new inputs per WN06)"
+  },
+  "verdicts_ingest": {
+    "1": "ACCEPT_WITH_CONDITIONS — 引擎方向接受;生产端口/同事务提交/未知态/跨Harness inherit/transferStatus 对应校验 = WN01 任务",
+    "2": "ACCEPT_WITH_CONDITIONS — 显式降级合规中间态;warm 生产续轮 = WN01 后半",
+    "3": "REJECT — 纯模型归因撤回;需同固定构建受限采样+事件关联记录;禁止无限重跑",
+    "4": "ACCEPT_WITH_CONDITIONS — 精确 Origin 接受;真实 HTTPS Serve 同源自测 = WN05 网页演练(手机跨设备项本轮按用户指示挂起)",
+    "5": "ACCEPT_WITH_CONDITIONS — 审计派生可见性小步接受;actor 不可伪造/scope 收缩优先/读事件结果一致 = WN01/WN03 附带",
+    "6": "ACCEPT — SC1 先行,组合分支独立;本轮立即通知 Linux 采纳"
+  },
+  "status_layering_correction": {
+    "WC01": "由'完成'更正为:fixture 引擎完成;生产端口/原子提交/未知态/transferStatus 校验未完成(CT-01..04)",
+    "WC02": "由'完成'更正为:显式降级已落地;warm 生产续轮未完成",
+    "WC05": "kimi AB/取消覆盖定性从'模型抖动'撤回,改为'未定性——需同构建采样与事件关联'(裁决3)",
+    "SC1_publish": "已完成(fa62a1b)"
+  },
+  "ci_separation": {
+    "raw_remote_state": "Windows C1 35175290183 / W11 35175290217 与 Linux 三门均为 failure(steps=[],runner 无);本地代表作业 105055550673 同样无步骤",
+    "reported_cause": "Windows 文档载计费注解(本包连接器未独立复读原文,不冒称独立证实)",
+    "classification": "BLOCKED_CI_INFRA(远端门);本地门照常:454/454、review-checks 10/10、pre-commit 三闸",
+    "policy": "付款修复不保证旧作业重跑;每个新候选 SHA 显式补跑一次并记录"
+  },
+  "sc1_adoption_notice_to_linux": {
+    "candidate_source_sha": "108b70a834145971094de7ac747a30926ead62fe",
+    "ready_to_adopt": ["profile 模板(四 harness 形状,shared-profile-factory)", "context 决定表与门控语义(注意:fixture-only,勿按生产完成采纳)", "remoteDevice 扩展与 Origin 精确匹配", "StderrRing 共享参考(替代 linux-native-process-host 内联实现)", "shutdown 分阶段容错模式"],
+    "must_not_claim_via_sc1": ["真实 harness transfer 端口(未接)", "zcode warm 驻留(未做)", "手机 HTTPS 实测(未做)"],
+    "linux_must_retest": "见 docs/parallel/shared-checkpoint.json SC1 列表(合并 0645f20 后按 SC2 更新)"
+  },
+  "no_cross_device_note": "用户 2026-09-17 指示:本轮恢复人工配合仅限网页端 role/MCP 参与与真实生产(同机)测试;Win↔手机跨设备远程(WSS/HTTPS 手机卡)不执行,相关验收保持 PENDING_HUMAN_DEVICE。"
+}
