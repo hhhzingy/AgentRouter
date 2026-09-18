@@ -47,7 +47,7 @@
     "executed_via": "本机 HTTP JSON-RPC(非 ChatGPT;网页侧=待操作员)"
   },
   "nonce_source": "任务正文内嵌 WEBDEMO-7QX4",
-  "revocation_steps_confirmed": true,
+  "revocation_steps_confirmed": "网页 read(inbox)+write(claim, rk=chatgpt-revoke-claim-1) 均 PARTICIPANT_GENERATION_STALE;register 负测被平台拦截记为非 Router 证据",
   "known_limits_ack": "同一外层认证的多聊天共享同一入口;单活动聊天约定;不宣称逐聊天强隔离",
   "chatgpt_plugin_connection": "Tunnel",
   "chatgpt_plugin_auth": "No Auth(Participant Bearer 由本机 daemon 注入)",
@@ -98,5 +98,7 @@
       "token_file": "保留未动",
       "tunnel": "未动"
     }
-  }
+  },
+  "chatgpt_participant_verdict": "PASS (CHATGPT_PARTICIPANT_VERIFIED;v1 6/6 + v2 全链 + revoke 网页双路径 STALE;证据链 docs/parallel/web-demo-participant-evidence-20260918.md)",
+  "evidence_retention": "web-demo DB/产物/日志保留于 .local-protected/web-demo(不删);Tunnel/runtime key/token 文件保留;未新增 result.accept"
 }

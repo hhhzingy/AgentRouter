@@ -1,11 +1,12 @@
 # ChatGPT 网页操作手册 — 复核角色(外接角色完整工作环版)
 
-> **状态 2026-09-18:v2 已完成并通过本地对账。** W1–W7 全链在网页真实执行:第三轮(989880f1)
-> send_user_input 口令逐字落产物 → claim 恢复 → submit_result DELIVERED/PUBLISHED;第四轮
-> (1271f0f7)WEBDEMO-7QX4 经 inbox 闭环。三轮 participant 结果 acceptance 均保持 PENDING
-> (AI 提交≠用户验收)。演练 grant 已撤销(网页再调用应得 `PARTICIPANT_GENERATION_STALE`);
-> Tunnel/runtime key/token 文件/演练数据全部保留。恢复演练:管理面重签 grant → 重启入口即可,
-> 步骤见 cloud-kit README。
+> **状态 2026-09-18:v2 已完成并通过本地对账;revoke 网页双路径(读 inbox + 写 claim)均已实测
+> `PARTICIPANT_GENERATION_STALE`,演练完结(CHATGPT_PARTICIPANT_VERIFIED=PASS)。** W1–W7 全链
+> 在网页真实执行:第三轮(989880f1)send_user_input 口令逐字落产物 → claim 恢复 →
+> submit_result DELIVERED/PUBLISHED;第四轮(1271f0f7)WEBDEMO-7QX4 经 inbox 闭环。三轮
+> participant 结果 acceptance 均保持 PENDING(AI 提交≠用户验收)。完整证据链见
+> `docs/parallel/web-demo-participant-evidence-20260918.md`。Tunnel/runtime key/token 文件/
+> 演练数据全部保留。恢复演练:管理面重签 grant → 重启入口即可,步骤见 cloud-kit README。
 
 版本:2026-09-17 第二轮(源码 v1.1-final @ 0d92196+本轮工作环提交;bundle 见 `docs/parallel/shared-mcp-checkpoint.json` 的 `workloop_bundle_hashes`)。
 接入方式不变:**ChatGPT Plugin = Secure MCP Tunnel(`AgentRouter Review`)+ Authentication = No Auth**;
