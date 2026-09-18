@@ -32,7 +32,7 @@
     "full_suite_local": "463/463 (91 files, serial;含 migration v16 断言升级)",
     "chatgpt_read": "PENDING_USER (operator card docs/cloud-kit/USER_ACTION_CARD-web-mcp.md)",
     "chatgpt_management": "PENDING_USER",
-    "chatgpt_participant": "PENDING_USER",
+    "chatgpt_participant": "PASS v2 (2026-09-18, 7 工具经重建连接器):round3 send_user_input 正向(口令逐字落产物)+claim resume+artifact+submit DELIVERED/PUBLISHED;round4 nonce 经 inbox 闭环;两轮 acceptance 保持 PENDING;revoke 后 GENERATION_STALE 实测",
     "participant_workloop": "PASS (P4 integration 全链 + live-stack rehearsal: preclaim/submit PLAN_STATE_CONFLICT, send_user_input 幂等+OPERATION_CONFLICT, resume claim, artifact≠completion, submit→DELIVERED/PUBLISHED/PENDING, result.accept 人类门, DB run_id NULL/outbox DELIVERED)"
   },
   "linux_required_retests": [
@@ -71,5 +71,10 @@
     },
     "tunnel": "profile agentrouter-review 不变;daemon readyz=ready;入口重启后 ChatGPT 重连即新 7 工具",
     "walkthrough": "docs/cloud-kit/CHATGPT-walkthrough.zh.md(本轮序 W1–W7)"
+  },
+  "live_drill_state_20260918": {
+    "tasks": "989880f1/1271f0f7 DELIVERED(PENDING);dd5601c4 DELIVERED(ACCEPTED);d6ba0023 遗留 QUEUED",
+    "grant": "REVOKED(token 文件保留;tunnel/runtime key 未动)",
+    "data_root": "未动(v16)"
   }
 }

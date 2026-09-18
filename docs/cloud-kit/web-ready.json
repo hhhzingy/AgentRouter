@@ -68,5 +68,35 @@
       "nonce_full_loop": "task_1271f0f7-028e-4b7e-9e85-f3c11c1cbc44(QUEUED,body 含 WEBDEMO-7QX4)"
     },
     "walkthrough": "docs/cloud-kit/CHATGPT-walkthrough.zh.md W1–W7"
+  },
+  "web_v2_acceptance": {
+    "executed": "2026-09-18 网页 ChatGPT v2(7 工具)",
+    "round3": {
+      "task": "task_989880f1-8b5e-4839-a95f-f28f890d4542",
+      "artifact": "artifact_d8e8e639-522d-4b30-85f6-040378b17136",
+      "sha256": "55e1d84dc10fedf70375200a109b0e207e094bfed2dd9f20b0c4e5eafa3e5b36",
+      "bytes": 260,
+      "result": "result_21e2c9ec-d50d-4f83-a12d-7a7c796ec7da",
+      "state": "DELIVERED/PUBLISHED/acceptance PENDING",
+      "positive_note": "send_user_input 口令 AR-WEB-R3-9K7M 逐字落入 answer-r3.md;wait ready 由继续认领清零"
+    },
+    "round4": {
+      "task": "task_1271f0f7-028e-4b7e-9e85-f3c11c1cbc44",
+      "artifact": "artifact_7f1d2677-5be5-4354-b195-0e0dfdfcdd59",
+      "sha256": "c8fcded9b32e71a80bac376ec0c7cf2f30c2da143b42d30f3abd36f82d1d14d1",
+      "bytes": 407,
+      "result": "result_2b1aaa14-c4f9-41d7-b7f8-6c2f395c67e3",
+      "state": "DELIVERED/PUBLISHED/acceptance PENDING",
+      "nonce": "WEBDEMO-7QX4 经 inbox body 读取"
+    },
+    "reconciled": "5 artifacts 每名恰一份、3 results 每任务恰一条(run_id NULL)、task.result outbox 全 DELIVERED;无重复",
+    "acceptance_policy": "三轮 participant 结果均保持 acceptance=PENDING(其中预演轮已由人类 result.accept);AI 提交≠用户验收 已成立",
+    "revocation": {
+      "grant": "pgrant_cf8fd821…",
+      "state": "REVOKED(2026-09-18)",
+      "local_probe": "PARTICIPANT_GENERATION_STALE",
+      "token_file": "保留未动",
+      "tunnel": "未动"
+    }
   }
 }
