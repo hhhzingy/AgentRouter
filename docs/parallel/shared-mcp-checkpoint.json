@@ -44,8 +44,8 @@
     "HTTP entry: health vs MCP split + body limits under Linux"
   ],
   "remaining_code": [
+    "P0 BLOCKER: Windows supervisor stdio 断裂(DuplicateHandle 副本丢 overlapped→libuv EOF)阻塞全部 native harness live 路径;修复=CreateNamedPipe(FILE_FLAG_OVERLAPPED)中转,执行卡 docs/执行包/AgentRouter_WC09_supervisor_stdio执行卡;WC01 zcode live run 装配全就位待重放(.local-protected/ztransfer-r1/run.mjs)",
     "zcode warm session host in audited backend (session≠run lifecycle) — protocol proven feasible, backend residency unimplemented",
-    "live verification pass of zcode context port through real transfer run",
     "cross-harness inherit end-to-end (binding transition path coded; needs live test)"
   ],
   "host_blockers": [
@@ -76,6 +76,7 @@
     "tasks": "989880f1/1271f0f7 DELIVERED(PENDING);dd5601c4 DELIVERED(ACCEPTED);d6ba0023 遗留 QUEUED",
     "grant": "REVOKED(token 文件保留;tunnel/runtime key 未动)",
     "data_root": "未动(v16)",
-    "web_revoke": "网页 read(inbox)+write(claim rk=chatgpt-revoke-claim-1)→PARTICIPANT_GENERATION_STALE(2026-09-18);grant REVOKED;token 文件/Tunnel/runtime key/数据保留"
+    "web_revoke": "网页 read(inbox)+write(claim rk=chatgpt-revoke-claim-1)→PARTICIPANT_GENERATION_STALE(2026-09-18);grant REVOKED;token 文件/Tunnel/runtime key/数据保留",
+    "zcode_live": "BLOCKED_BY_SUPERVISOR_STDIO(装配/凭据/P2/迁移接线全验证;模型链直 spawn 已通;执行卡+探针证据齐)"
   }
 }
