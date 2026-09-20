@@ -2,12 +2,14 @@
   "schema": "agentrouter-v1.1-final-win-checkpoint/1",
   "stage": "C11",
   "source_sha": "16598f621d7160627ce769ecafb8d14ab55399f4",
+  "evidence_commit_sha": "ed78235f6459594d139de98fa8f2978e2ccc55c8",
   "worktree": "E:/AgentRouter/.worktrees/v1.1-final-cursor-win",
   "branch": "feat/v1.1-final-cursor-win",
   "rc_status": "AUTO_SCOPE_DONE_WITH_BLOCKERS",
   "rc_phrase_emitted": false,
   "main_merge_authorized": false,
   "release_authorized": false,
+  "wrap_review": "docs/v1.1-final/V11-WRAP-REVIEW-20260920.md",
   "offline_gates": {
     "c0_c6": "PASS_PRIOR_COMMITS",
     "c7_dut": "PASS",
@@ -15,19 +17,36 @@
     "c9_static_ux": "PASS",
     "c10_scale_migration": "PASS"
   },
+  "cursor_management_mcp": {
+    "status": "CONNECTED_OBSERVER",
+    "client_id": "mcp_management_cursor",
+    "is_role": false,
+    "core_data": ".local/v11-cursor-mcp/core"
+  },
+  "followup_live": {
+    "mobile_remote_http_ws": "PAIRED_OBSERVER_ACTIVE",
+    "remote_https_wss": "NOT_RUN",
+    "pi_bailian_level_a": "PASS_TASK_AND_BOOTSTRAP",
+    "kimi_bailian_level_a": "PASS_TASK_AND_BOOTSTRAP",
+    "codex_dut_level_a": "PASS_TASK_AND_BOOTSTRAP",
+    "dsh_deepseek_flash_level_a": "PASS_TASK_AND_BOOTSTRAP",
+    "zcode_isolated_login": "PASS",
+    "zcode_level_a": "FAIL_BOOTSTRAP_MODEL_SELECTION_FORWARDING_FIXED_OFFLINE_NOT_LIVE_RETESTED",
+    "electron_unpacked_core_ui_smoke": "PASS_DIRTY_SOURCE_NOT_INSTALLER_ACCEPTANCE"
+  },
   "blockers": [
-    "Codex live DUT identity missing (BLOCKED_USER)",
-    "dsh/kimi/zcode live Level A not re-run this wrap",
-    "ChatGPT Web Participant live join/result NOT_RUN",
-    "Mobile pairing USER_ACTION_REQUIRED",
+    "Same-clean-source-SHA acceptance NOT_RUN; all four successful live reports are dirty, and Pi used bbed011 while Kimi/Codex/DSH used ed78235",
+    "ZCode live Level A not passed; isolated OAuth login succeeded, final live failed NATIVE_ZCODE_MODEL_SELECTION_REQUIRED, forwarding fix has only offline regression evidence",
+    "docs/07 artifact engineering chain and Level B not run on real harnesses",
+    "ChatGPT Web Participant live join/result NOT_RUN on this SHA",
     "Remote HTTPS/WSS live NOT_RUN",
-    "Electron packaged local/remote NOT_RUN",
-    "GitHub CI BLOCKED_CI_INFRA"
+    "Electron unpacked Core/UI smoke passed on dirty source; signed installer install/upgrade acceptance NOT_RUN",
+    "GitHub CI BLOCKED_CI_INFRA",
+    "Follow-up diff pending commit when this checkpoint was generated; .local-protected and .cursor/mcp.json excluded"
   ],
   "user_actions": [
-    "Enable Cursor IDE MCP from .cursor/mcp.example.json if desired",
-    "Pair a phone to Remote gateway when AGENTROUTER_REMOTE_ENABLED=1",
-    "Provide an isolated Codex DUT identity if Codex live is required",
-    "Approve merge/tag/release explicitly; this wrap does not"
+    "Do not merge/tag/release without explicit approval",
+    "Run one clean-source ZCode Level A after the forwarding fix if that gate is still required",
+    "Complete remaining Artifact, Level B, Web Participant, HTTPS, installer and CI gates before any RC claim"
   ]
 }

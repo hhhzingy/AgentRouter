@@ -83,6 +83,7 @@ const cfg = {
     main: 'bailian/qwen3.8-flash',
     provider: { id: 'bailian', kind: 'openai-compatible', baseURL, name: 'Bailian' },
   },
+  zcodeModelSelection: { providerId: 'zai', modelId: 'glm-4.6' },
   profiles: [
     {
       id: 'dut_pi',

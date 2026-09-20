@@ -208,8 +208,13 @@ export function StoreProvider({
   );
   const callExtension = useCallback(
     async (method: string, params: Record<string, unknown>): Promise<unknown> => {
-      if (!method.startsWith('roleSession.')) throw Error('UNSUPPORTED_METHOD');
-      const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
+      if (!method.startsWith('roleSession.') && !method.startsWith('remoteDevice.'))
+        throw Error('UNSUPPORTED_METHOD');
+      const mutation =
+        method === 'roleSession.create' ||
+        method === 'roleSession.switch' ||
+        method === 'remoteDevice.createPairing' ||
+        method === 'remoteDevice.revoke';
       if (mutation && !lease.current && session.connectionState() !== 'CONNECTED_CONTROLLER')
         throw Error('CONTROL_LEASE_REQUIRED');
       const request = session.request as (
@@ -224,6 +229,14 @@ export function StoreProvider({
         },
       ) => Promise<any>;
       if (!mutation) return request(method, params);
+      if (method.startsWith('remoteDevice.')) {
+        const snapshot = (await request('system.snapshot', {})) as { revision: number };
+        return request(method, params, {
+          leaseId: lease.current?.leaseId,
+          operationId: 'op_' + crypto.randomUUID(),
+          expectedRevision: snapshot.revision,
+        });
+      }
       const records = await getPending();
       let command = records.list().find(r => r.method === method && JSON.stringify(r.params) === JSON.stringify(params));
       const retrying = Boolean(command);

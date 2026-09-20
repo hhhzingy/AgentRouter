@@ -129,7 +129,7 @@ it('REMOTE: 未配对/坏 token 不得连接;坏 Origin 拒绝', async () => {
   } finally { await gateway.close(); f.db.close(); }
 });
 
-it('Z6 静态控制台:GET / 返回带 CSP 的 HTML;配对响应含 HttpOnly Secure cookie', async () => {
+it('Z6 静态控制台:GET / 返回带 CSP 的 HTML;HTTP 配对响应含 HttpOnly SameSite cookie', async () => {
   const f = await env();
   const gateway = new RemoteGateway({ app: f.app, devices: f.devices, consoleHtml: '<!doctype html><title>AR</title>' });
   const port = ++portSeq;
@@ -144,8 +144,15 @@ it('Z6 静态控制台:GET / 返回带 CSP 的 HTML;配对响应含 HttpOnly Sec
     const hdr = pr.headers.get('set-cookie') ?? '';
     expect(hdr).toMatch(/ar_device=[^;]+/);
     expect(hdr.toLowerCase()).toContain('httponly');
-    expect(hdr.toLowerCase()).toContain('secure');
     expect(hdr.toLowerCase()).toContain('samesite=strict');
+    expect(hdr.toLowerCase()).not.toContain('secure');
+    const p2 = f.devices.createPairing({ displayName: 'served-phone', kind: 'MOBILE', ttlMs: 30000 });
+    const served = await fetch(`http://127.0.0.1:${port}/pair`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge: p2.challenge }),
+      headers: { host: '127.0.0.1', 'x-forwarded-proto': 'https' },
+    });
+    expect((served.headers.get('set-cookie') ?? '').toLowerCase()).toContain('secure');
   } finally { await gateway.close(); f.db.close(); }
 });
 

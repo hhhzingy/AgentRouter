@@ -141,9 +141,18 @@ export class RemoteGateway {
       if (typeof challenge !== 'string') return send(400, { error: 'PAIR_CHALLENGE_REQUIRED' });
       try {
         const result = this.devices.consumePairing(challenge, this.clock());
-        // K02:HttpOnly Secure cookie 对手机与桌面都写;但 token 明文只回给 DESKTOP(Electron Main 用 safeStorage 保管)。
-        // kind 由本机 GUI 生成配对挑战时决定(受信),不采信客户端自报,手机页面 JS 永远拿不到长期 token。
-        res.setHeader('set-cookie', `ar_device=${result.token}; Path=/; HttpOnly; Secure; SameSite=Strict`);
+        // K02:HttpOnly cookie；仅 HTTPS（含 Tailscale Serve）加 Secure。明文 HTTP 若带 Secure，手机浏览器会丢弃 cookie，配对后无法连上 /ws。
+        // token 明文只回给 DESKTOP(Electron Main 用 safeStorage 保管)；kind 由本机 GUI 生成配对挑战时决定，手机页面 JS 永远拿不到长期 token。
+        const https =
+          Boolean((req.socket as { encrypted?: boolean }).encrypted) ||
+          String(req.headers['x-forwarded-proto'] ?? '')
+            .split(',')[0]
+            .trim()
+            .toLowerCase() === 'https';
+        res.setHeader(
+          'set-cookie',
+          `ar_device=${result.token}; Path=/; HttpOnly${https ? '; Secure' : ''}; SameSite=Strict`,
+        );
         const publicMeta = { deviceId: result.deviceId, kind: result.kind, displayName: result.displayName, scope: result.scope, canRequestController: result.canRequestController };
         if (result.kind === 'DESKTOP') return send(200, { ...publicMeta, token: result.token });
         return send(200, { ...publicMeta, paired: true });

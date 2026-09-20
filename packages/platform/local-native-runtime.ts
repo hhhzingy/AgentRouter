@@ -27,6 +27,8 @@ interface Config {
   zcodeCli?: string;
   /** 非秘密 ZCode model/provider allowlist 设置(owner 配置,绝不经 MCP/model/renderer 传入)。 */
   zcodeProvider?: ZcodeModelProviderConfig;
+  /** OAuth/API 配置解析后的非秘密默认模型；透传到 ZCode session/create。 */
+  zcodeModelSelection?: { providerId: string; modelId: string };
   /** owner 授权的 ZCode API key 文件;存在即注入 env 认证(apiKey 模式)。缺失时由官方 oauth DUT 登录。 */
   zcodeCredentialFile?: string;
   isolation: 'LIMITED_ISOLATION';
@@ -185,11 +187,17 @@ export async function installLocalNativeRuntime(
         } catch(error){bridge.revoke(token);throw error;}
       }
       if (input.config.harness === 'zcode') {
-        if (input.config.version !== '0.16.5') throw Error('ZCODE_VERSION_UNVERIFIED');
+        if (!['0.16.5', '0.16.9'].includes(input.config.version)) throw Error('ZCODE_VERSION_UNVERIFIED');
         if (!c.zcodeCli || !isAbsolute(c.zcodeCli)) throw Error('ZCODE_RUNTIME_CONFIG_INVALID');
         if (!c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256)
           throw Error('ZCODE_ROLE_BRIDGE_INVALID');
         if (!c.zcodeProvider) throw Error('ZCODE_MODEL_CONFIG_REQUIRED');
+        if (
+          !c.zcodeModelSelection ||
+          !/^[A-Za-z0-9:_-]{2,100}$/.test(c.zcodeModelSelection.providerId) ||
+          !/^[A-Za-z0-9._:-]{1,100}$/.test(c.zcodeModelSelection.modelId)
+        )
+          throw Error('ZCODE_MODEL_SELECTION_REQUIRED');
         // 受管隔离:沙箱HOME+受管env;非秘密 model/provider 由 owner 配置写入受管 config.json。
         // Windows 宿主强制 HOME/USERPROFILE=sessionHome;配置必须写到同一个根。
         const { home: zhome } = prepareManagedZcodeProfile(home, c.zcodeProvider);
@@ -216,6 +224,7 @@ export async function installLocalNativeRuntime(
           env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1',...(zcodeKey?{ZCODE_API_KEY:zcodeKey}:{})},
           revoke:()=>bridge.revoke(token),
           mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
+          zcodeModelSelection: c.zcodeModelSelection,
           session,
           saveSession:async(ref,guard)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
         };

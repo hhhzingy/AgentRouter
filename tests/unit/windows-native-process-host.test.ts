@@ -58,6 +58,7 @@ windows(
         dispose: async () => {
           disposed++;
         },
+        zcodeModelSelection: { providerId: 'account:test', modelId: 'GLM-5.3' },
         saveSession: async () => {
           saved = true;
         },
@@ -86,6 +87,7 @@ windows(
     };
     const p = await host.start(input);
     try {
+      expect(p.zcodeModelSelection).toEqual({ providerId: 'account:test', modelId: 'GLM-5.3' });
       const received = new Promise<any>((resolve) =>
         p.onData((b) => resolve(JSON.parse(b.toString()))),
       );

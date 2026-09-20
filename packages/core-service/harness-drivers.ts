@@ -269,7 +269,13 @@ export const zcodeDriver: HarnessDriver = {
       },
       async open({ config: cfg, process }) {
         // 冷 resume 会话的模型客户端在 0.16.5 不可恢复(见 contextCapabilities 注释):忽略旧引用,始终新会话。
-        const opened = await lifecycle.open({ workspacePath: cfg.workspace, workspaceKey: cfg.workspace, mcpServers: process.mcpServers });
+        if (!process.zcodeModelSelection) throw Error('ZCODE_MODEL_SELECTION_REQUIRED');
+        const opened = await lifecycle.open({
+          workspacePath: cfg.workspace,
+          workspaceKey: cfg.workspace,
+          mcpServers: process.mcpServers,
+          model: process.zcodeModelSelection,
+        });
         await lifecycle.subscribe();
         return { id: opened.id };
       },

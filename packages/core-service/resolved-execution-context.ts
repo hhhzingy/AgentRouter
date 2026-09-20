@@ -34,7 +34,7 @@ export interface ResolvedExecutionContext {
 }
 
 type Db = {
-  prepare: (sql: string) => { get: (...args: unknown[]) => any; all?: (...args: unknown[]) => any[] };
+  prepare: (sql: string) => { get: (...args: any[]) => any; all?: (...args: any[]) => any[] };
 };
 
 function parseConfig(json: string | null | undefined): {

@@ -28,12 +28,18 @@ export class ZcodeLifecycle {
     this.notifications.set('v4/telemetry/event', (params) => this.telemetryEvent(params));
     this.notifications.set('session/event', (params) => this.streamDelta(params));
   }
-  async open(input: { workspacePath: string; workspaceKey: string; mcpServers?: unknown[] }): Promise<{ id: string }> {
+  async open(input: {
+    workspacePath: string;
+    workspaceKey: string;
+    mcpServers?: unknown[];
+    model?: { providerId: string; modelId: string };
+  }): Promise<{ id: string }> {
     if (this.closed) throw new NativeRpcError('RPC_CLOSED', 'none-proven');
     this.phase = 'OPEN';
     const reply = (await this.request('session/create', {
       workspace: { workspacePath: input.workspacePath, workspaceKey: input.workspaceKey },
       ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
+      ...(input.model ? { model: input.model } : {}),
     }));
     const id = this.snapshotSessionId(reply);
     this.sessionId = id;

@@ -13,10 +13,17 @@ it('ZcodeLifecycle:session/create往返+事件分发+响应按id关联+断连拒
     onDisconnect: (r): void => { disconnected = r; },
   });
   await driver.initialize();
-  const p = driver.open({ workspacePath: 'E:/ws', workspaceKey: 'E:/ws' });
+  const p = driver.open({
+    workspacePath: 'E:/ws',
+    workspaceKey: 'E:/ws',
+    model: { providerId: 'account:zai-individual-coding-plan', modelId: 'GLM-5.3' },
+  });
   await tick();
   const createFrame = sent.find((x) => x.method === 'session/create');
-  expect(createFrame.params).toEqual({ workspace: { workspacePath: 'E:/ws', workspaceKey: 'E:/ws' } });
+  expect(createFrame.params).toEqual({
+    workspace: { workspacePath: 'E:/ws', workspaceKey: 'E:/ws' },
+    model: { providerId: 'account:zai-individual-coding-plan', modelId: 'GLM-5.3' },
+  });
   driver.accept(Buffer.from(JSON.stringify({ id: createFrame.id, result: { sessionId: 'sess_1' } }) + '\n'));
   const opened = await p;
   expect(opened.id).toBe('sess_1');

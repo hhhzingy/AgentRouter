@@ -1,5 +1,7 @@
 node_modules/
 .local/
+.local-protected/
+.cursor/mcp.json
 .worktrees/
 dist/
 release/

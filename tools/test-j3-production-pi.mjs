@@ -16,23 +16,27 @@ if(kimi&&codex)throw Error('ONE_HARNESS_PER_TEST');
 const dsh = process.argv.includes('--dsh');
 const zcode = process.argv.includes('--zcode'); // W11 ZCode→百炼(官方 openai-compatible provider)
 const bailian = process.argv.includes('--bailian'); // pi→百炼(DashScope MaaS)绑定
-const harnessLabel=codex?'Codex':kimi?(kimiBailian?'Kimi(百炼)':'Kimi'):dsh?'DeepSeek Harness':zcode?'ZCode(百炼)':'pi';
+const harnessLabel=codex?'Codex':kimi?(kimiBailian?'Kimi(百炼)':'Kimi'):dsh?'DeepSeek Harness':zcode?'ZCode':'pi';
 const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':zcode?'zcode':'pi';
 const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):zcode?'agentrouter-zcode':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
 const modelId=codex?'gpt-5.6-luna':kimi?(kimiBailian?'bailian/qwen3.8-flash':'kimi-code/kimi-for-coding'):zcode?'zcode-managed':bailian?'qwen3.8-flash':'deepseek-v4-flash';
 const effort=codex?'low':kimi?'on':'off';
-const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/12219cbfbcbddde7/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
+const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/247581e40ee272fb/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
 const dshBin='C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js';
 const zcodeCli='E:/software/ZCode/resources/glm/zcode.cjs';
+const zcodeSelection = zcode
+  ? JSON.parse(readFileSync(resolve('.local-protected/zcode-dut/home/.zcode/v2/provider_config.json'), 'utf8'))
+      ?.config?.defaultModelSelection
+  : undefined;
+if (zcode && (typeof zcodeSelection?.providerId !== 'string' || typeof zcodeSelection?.modelId !== 'string'))
+  throw Error('ZCODE_MODEL_SELECTION_MISSING');
 const credFile='E:/AgentRouter/账号信息/通用API/百炼.txt';
-const maasBase=(zcode?readFileSync(credFile,'utf8').split(/\r?\n/).map(l=>l.trim()).find(l=>/^https:\/\//.test(l)):undefined);
-if(zcode&&!maasBase)throw Error('BAILIAN_BASE_MISSING');
 if([kimi,codex,dsh,zcode,bailian].filter(Boolean).length>1)throw Error('ONE_HARNESS_PER_TEST');
 mkdirSync('.local/j3-production-pi', { recursive: true });
 const root = mkdtempSync(resolve('.local/j3-production-pi/run-'));
 const path = (n) => resolve(root, n),
   sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
-for (const dir of ['core', 'workspace', 'managed', 'managed/pi'])
+for (const dir of ['core', 'workspace', 'managed', 'managed/pi', 'managed/dsh', 'managed/dsh-home/profiles'])
   mkdirSync(path(dir), { recursive: true });
 const supervisor = path('supervisor.exe'),
   entry = piEntry();
@@ -51,11 +55,11 @@ writeFileSync(
   path('runtime.json'),
   JSON.stringify({
     isolation: 'LIMITED_ISOLATION',
-    managedRoot: codex?resolve('.local-protected/codex-dut'):kimi?resolve('.local/j3-kimi'):zcode?resolve('.local/j3-zcode'):path('managed'),
+    managedRoot: codex?resolve('.local-protected/codex-dut'):kimi?resolve('.local/j3-kimi'):zcode?resolve('.local-protected/zcode-dut'):path('managed'),
     // 端点从受控凭据文件运行时解析,绝不写进 Git 可见的常量。
-    ...(zcode?{zcodeCli,zcodeCredentialFile:credFile,zcodeProvider:{main:'bailian/qwen3.8-flash',provider:{id:'bailian',kind:'openai-compatible',baseURL:maasBase,name:'Bailian MaaS'}}}:{}),
+    ...(zcode?{zcodeCli:resolve('.local-protected/zcode-dut/cli/zcode.cjs'),zcodeProvider:{main:'zai/glm-4.6',provider:{id:'zai',kind:'openai-compatible',baseURL:'https://api.z.ai/api/paas/v4',name:'Z.AI'}},zcodeModelSelection:{providerId:zcodeSelection.providerId,modelId:zcodeSelection.modelId}}:{}),
     dshBin: dshBin,
-    dshHome: dsh?'C:/Users/hap_p/.dsh':undefined,
+    dshHome: dsh?path('managed/dsh-home'):undefined,
     workspaceRoot: path('workspace'),
     supervisorExecutable: supervisor,
     supervisorSha256: sha(supervisor),
@@ -72,9 +76,9 @@ writeFileSync(
       {
         id: 'production_'+harness,
         harness, executable, executableSha256:sha(executable),
-        version: codex?'0.154.0-alpha.6.2':kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.5':'0.85.1',
+        version: codex?'0.154.0-alpha.6.2':kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.9':'0.85.1',
         providerId, modelId, effort,
-        sessionHome: codex?resolve('.local-protected/codex-dut/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcode?resolve('.local/j3-zcode/dut/home'):path('managed/pi'),
+        sessionHome: codex?resolve('.local-protected/codex-dut/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcode?resolve('.local-protected/zcode-dut/home'):dsh?path('managed/dsh'):path('managed/pi'),
       },
     ],
   }),
