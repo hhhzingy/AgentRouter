@@ -1,4 +1,5 @@
 import { it, expect, afterEach } from 'vitest';
+import { createHash } from 'node:crypto';
 import { createFixture, request, finish } from '../support.ts';
 const active: ReturnType<typeof createFixture>[] = [];
 function fixture() {
@@ -68,20 +69,78 @@ it('F14: WAITING_INPUT 的用户输入进入下一轮 CONTINUATION 快照，不�
   f.core.settle(b.id, 1, 'succeeded', { native: true, resourcesStopped: true });
   const token = 'user-secret-' + Math.random().toString(36).slice(2);
   const sessionId = f.db.prepare("select id from role_sessions where role_id='role_b' and state='ACTIVE'").get() as { id: string };
+  const wait = f.db.prepare('select generation,updated_at_ms from wait_records where task_id=?').get(b.taskId) as { generation: number; updated_at_ms: number };
+  const inputId = 'task_input_f14';
   f.db
     .prepare(
       "insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,source_key,role_session_id) values('conversation_in','project_test','space_test','role_b',?,'USER_MESSAGE','用户续办输入',?,1,'conversation-input:f14',?)",
     )
     .run(b.taskId, token, sessionId.id);
+  f.db
+    .prepare(
+      'insert into task_inputs(id,task_id,role_id,role_session_id,wait_key,requested_by_run_id,actor,payload,payload_sha256,operation_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?,?)',
+    )
+    .run(
+      inputId,
+      b.taskId,
+      'role_b',
+      sessionId.id,
+      `${b.taskId}:${wait.generation}`,
+      b.id,
+      'human_test:client_test',
+      token,
+      createHash('sha256').update(Buffer.from(token, 'utf8')).digest('hex'),
+      'f14-input',
+      wait.updated_at_ms + 1,
+    );
   f.db.prepare('update wait_records set ready=1 where task_id=?').run(b.taskId);
   const cont = f.dispatch('role_b')!;
   expect(cont.kind).toBe('CONTINUATION');
   expect((cont.request as { task_input?: { body?: string } }).task_input?.body).toBe(token);
+  expect((cont.request as { task_input?: { input_id?: string } }).task_input?.input_id).toBe(inputId);
   expect(String((cont.request as { body?: string }).body)).toContain(token);
   const stored = f.db.prepare('select request_json from tasks where id=?').get(b.taskId) as { request_json: string };
   expect(stored.request_json).not.toContain(token);
   const snap = f.db.prepare('select request_snapshot_json from runs where id=?').get(cont.id) as { request_snapshot_json: string };
   expect(snap.request_snapshot_json).toContain(token);
+  expect(
+    f.db.prepare('select consumed_by_run_id from task_inputs where id=?').get(inputId),
+  ).toEqual({ consumed_by_run_id: cont.id });
+
+  // 同一 Task 再次等待输入时使用单调 wait generation，不依赖毫秒时钟且不冲突旧输入。
+  f.core.wait(cont.principal, 'wait-again', { waiting_for: 'user_input', reason: '需要第二个随机值' });
+  f.core.settle(cont.id, 1, 'succeeded', { native: true, resourcesStopped: true });
+  const wait2 = f.db.prepare('select generation,updated_at_ms from wait_records where task_id=?').get(b.taskId) as { generation: number; updated_at_ms: number };
+  expect(wait2.generation).toBe(wait.generation + 1);
+  const token2 = token + '-second';
+  f.db
+    .prepare(
+      "insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,source_key,role_session_id) values('conversation_in_2','project_test','space_test','role_b',?,'USER_MESSAGE','用户续办输入',?,2,'conversation-input:f14-2',?)",
+    )
+    .run(b.taskId, token2, sessionId.id);
+  f.db
+    .prepare(
+      'insert into task_inputs(id,task_id,role_id,role_session_id,wait_key,requested_by_run_id,actor,payload,payload_sha256,operation_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?,?)',
+    )
+    .run(
+      'task_input_f14_2',
+      b.taskId,
+      'role_b',
+      sessionId.id,
+      `${b.taskId}:${wait2.generation}`,
+      cont.id,
+      'human_test:client_test',
+      token2,
+      createHash('sha256').update(Buffer.from(token2, 'utf8')).digest('hex'),
+      'f14-input-2',
+      wait2.updated_at_ms + 1,
+    );
+  f.db.prepare('update wait_records set ready=1 where task_id=?').run(b.taskId);
+  const cont2 = f.dispatch('role_b')!;
+  expect((cont2.request as { task_input?: { body?: string } }).task_input?.body).toBe(token2);
+  expect(
+    f.db.prepare('select consumed_by_run_id from task_inputs where id=?').get('task_input_f14_2'),
+  ).toEqual({ consumed_by_run_id: cont2.id });
 });
 it('T029/T027 通知不唤醒，原生结束不能代替 finish', () => {
   const f = fixture();

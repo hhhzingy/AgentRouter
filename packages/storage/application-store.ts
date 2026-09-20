@@ -52,6 +52,7 @@ export function openApplicationStore(
       '015-context-transfer.sql',
       '016-participant-workloop.sql',
       '017-work-session-slots.sql',
+      '018-task-inputs.sql',
     ].map((name) => readFileSync(new URL(name, migrations), 'utf8'));
     const hashes = sources.map((sql) => createHash('sha256').update(sql).digest('hex'));
     if (
@@ -241,6 +242,59 @@ export function openApplicationStore(
         if ((db.pragma('foreign_key_check') as unknown[]).length)
           throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
         db.prepare('insert into schema_migrations values(17,?,?)').run(Date.now(), hashes[16]);
+      }).immediate();
+    }
+    if (rows.length < 18) {
+      db.transaction(() => {
+        db.exec(sources[17]);
+        const pendingInputs = db
+          .prepare(
+            `select t.id task_id,t.assignee_role_id role_id,t.role_session_id,
+                    w.generation wait_generation,c.body,c.at_ms,c.source_key,
+                    (select r.id from runs r where r.task_id=t.id order by r.created_at_ms desc limit 1) requested_by_run_id
+               from tasks t
+               join wait_records w on w.task_id=t.id and w.waiting_for='user_input' and w.ready=1
+               join conversation_items c on c.seq=(
+                 select max(c2.seq) from conversation_items c2
+                  where c2.task_id=t.id and c2.kind='USER_MESSAGE'
+               )
+              where t.state='WAITING_INPUT' and t.role_session_id is not null`,
+          )
+          .all() as {
+          task_id: string;
+          role_id: string;
+          role_session_id: string;
+          wait_generation: number;
+          body: string;
+          at_ms: number;
+          source_key: string | null;
+          requested_by_run_id: string | null;
+        }[];
+        const insertInput = db.prepare(
+          'insert into task_inputs(id,task_id,role_id,role_session_id,wait_key,requested_by_run_id,actor,payload,payload_sha256,operation_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?,?)',
+        );
+        for (const input of pendingInputs) {
+          const source = input.source_key ?? `legacy:${input.task_id}:${input.at_ms}`;
+          const identity = createHash('sha256')
+            .update(`${input.task_id}|${input.wait_generation}|${source}`)
+            .digest('hex');
+          insertInput.run(
+            'task_input_migrated_' + identity,
+            input.task_id,
+            input.role_id,
+            input.role_session_id,
+            `${input.task_id}:${input.wait_generation}`,
+            input.requested_by_run_id,
+            'migration:v18',
+            input.body,
+            createHash('sha256').update(Buffer.from(input.body, 'utf8')).digest('hex'),
+            source,
+            input.at_ms,
+          );
+        }
+        if ((db.pragma('foreign_key_check') as unknown[]).length)
+          throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
+        db.prepare('insert into schema_migrations values(18,?,?)').run(Date.now(), hashes[17]);
       }).immediate();
     }
     db.pragma('journal_mode=WAL');

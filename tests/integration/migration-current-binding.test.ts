@@ -69,7 +69,7 @@ it('DB-01:v5→v6→v7 升级恢复 one_current_binding_per_role 且拒绝双当
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
   // 006 重建 bindings 后 007 恢复了索引
   expect(
     up.prepare("select name from sqlite_master where name='one_current_binding_per_role'").get(),
@@ -83,6 +83,54 @@ it('DB-01:v5→v6→v7 升级恢复 one_current_binding_per_role 且拒绝双当
       )
       .run(),
   ).toThrow(/UNIQUE/);
+  up.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+it('DB-09:v17→v18 建立正式 TaskInput 账本并强制单次 wait/消费归属', async () => {
+  mkdirSync('.local/w11-tests', { recursive: true });
+  const dir = mkdtempSync(resolve('.local/w11-tests', 'db09-'));
+  const db = buildUpTo(dir, 17);
+  seedRealData(db);
+  db.prepare("update tasks set state='WAITING_INPUT' where id='t1'").run();
+  db.prepare(
+    "insert into wait_records(task_id,waiting_for,reason,dependency_json,ready,updated_at_ms) values('t1','user_input','legacy','[]',1,99)",
+  ).run();
+  db.prepare(
+    "insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,source_key,role_session_id) values('ci-legacy','p1','s1','r1','t1','USER_MESSAGE','legacy','升级前输入',98,'legacy-input-op','rs1')",
+  ).run();
+  db.close();
+  const { openApplicationStore } = await import(
+    pathToFileURL(resolve('packages/storage/application-store.ts')).href
+  );
+  const up = openApplicationStore(dir, FULL);
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
+  expect(
+    up
+      .prepare(
+        "select actor,payload,payload_sha256,operation_id,consumed_at_ms from task_inputs where wait_key='t1:1'",
+      )
+      .get(),
+  ).toEqual({
+    actor: 'migration:v18',
+    payload: '升级前输入',
+    payload_sha256: createHash('sha256').update(Buffer.from('升级前输入', 'utf8')).digest('hex'),
+    operation_id: 'legacy-input-op',
+    consumed_at_ms: null,
+  });
+  const insert = up.prepare(
+    'insert into task_inputs(id,task_id,role_id,role_session_id,wait_key,actor,payload,payload_sha256,operation_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?)',
+  );
+  insert.run('ti1', 't1', 'r1', 'rs1', 't1:2', 'human:test', 'A', 'a'.repeat(64), 'op1', 1);
+  expect(() =>
+    insert.run('ti2', 't1', 'r1', 'rs1', 't1:2', 'human:test', 'B', 'b'.repeat(64), 'op2', 2),
+  ).toThrow(/UNIQUE/);
+  up.prepare(
+    'update task_inputs set consumed_by_participant_request_key=?,consumed_at_ms=? where id=?',
+  ).run('claim-1', 3, 'ti1');
+  expect(
+    up.prepare('select consumed_by_participant_request_key,consumed_at_ms from task_inputs where id=?').get('ti1'),
+  ).toEqual({ consumed_by_participant_request_key: 'claim-1', consumed_at_ms: 3 });
   up.close();
   rmSync(dir, { recursive: true, force: true });
 });
@@ -157,7 +205,7 @@ it('DB-04:升级幂等——v7 库重复打开不再迁移且索引持续生效'
   const first = openApplicationStore(dir, FULL);
   first.close();
   const second = openApplicationStore(dir, FULL);
-  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
+  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
   expect(
     second
       .prepare("select name from sqlite_master where name='one_current_binding_per_role'")
@@ -177,7 +225,7 @@ it('DB-05:011 回填 WorkSession metadata/activation 且 immutable reference 受
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
   expect(
     up
       .prepare("select harness,driver_id,workspace_affinity_json from role_sessions where id='rs1'")
@@ -252,7 +300,7 @@ it('DB-07:012 建立 Role Context head/state/receipt，并保持 entry append-on
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
   expect(up.prepare("select * from role_context_heads where role_id='r1'").get()).toMatchObject({
     role_id: 'r1',
     head_seq: 0,

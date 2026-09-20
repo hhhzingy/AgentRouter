@@ -1,6 +1,7 @@
 import { it, expect } from 'vitest';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { ApplicationService } from '../../packages/core-service/application.ts';
 import { ParticipantExtension } from '../../packages/core-service/participant-extension.ts';
@@ -76,18 +77,30 @@ async function fixture(clock: () => number = Date.now) {
         'participant.artifact' as never,
         { role_id: roleId, name, content } as never,
       ) as unknown as Promise<Record<string, unknown>>;
-    const sendInput = async (task: string, body: string) =>
-      p.request(
+    const inputFrames = new Map<string, { body: string; expectedRevision: number }>();
+    const sendInput = async (
+      task: string,
+      body: string,
+      operationId = 'pinput_' + clientId + '_' + Math.random().toString(36).slice(2),
+    ) => {
+      const prior = inputFrames.get(operationId);
+      const expectedRevision =
+        prior?.body === body
+          ? prior.expectedRevision
+          : (await p.request('system.snapshot' as never, {} as never) as unknown as { revision: number }).revision;
+      if (!prior) inputFrames.set(operationId, { body, expectedRevision });
+      return p.request(
         'conversation.sendUserInput' as never,
         { role_id: roleId, task_id: task, body } as never,
         {
-          operationId: 'pinput_' + clientId + '_' + Math.random().toString(36).slice(2),
-          expectedRevision: (await p.request('system.snapshot' as never, {} as never) as unknown as { revision: number }).revision,
+          operationId,
+          expectedRevision,
           scope: { project_id: project.id, space_id: spaceId },
           // 冻结写帧必填 lease 字段;attachment 旁路服务端忽略其值(F-02:适配器统一注入)
           leaseId: 'participant-attachment',
         },
       ) as unknown as Promise<{ entityId: string }>;
+    };
     return { t, p, attach, artifact, sendInput };
   };
   // 使任务进入 WAITING_INPUT(fixture 直改 DB;写路径仍走服务校验)
@@ -126,10 +139,32 @@ it('PART-01/02/03:签发grant→attach→真实WAITING_INPUT任务 sendUserInput
     expect(at.project_id).toBe(f.project.id);
     expect(at.space_id).toBe(f.spaceId);
     const task = await f.makeWaitingTask('T1');
-    const r = await part.sendInput(task, '回答A');
+    const r = await part.sendInput(task, '回答A', 'pinput-chatA-T1');
     expect(r.entityId).toBe(task);
+    await expect(part.sendInput(task, '回答A', 'pinput-chatA-T1')).resolves.toEqual(r);
     const items = f.db.prepare("select count(*) c from conversation_items where task_id=? and body='回答A'").get(task) as { c: number };
     expect(items.c).toBe(1);
+    const input = f.db
+      .prepare(
+        'select id,payload,payload_sha256,operation_id,consumed_at_ms from task_inputs where task_id=?',
+      )
+      .get(task) as {
+      id: string;
+      payload: string;
+      payload_sha256: string;
+      operation_id: string;
+      consumed_at_ms: number | null;
+    };
+    expect(input).toMatchObject({
+      payload: '回答A',
+      payload_sha256: createHash('sha256').update(Buffer.from('回答A', 'utf8')).digest('hex'),
+      operation_id: 'pinput-chatA-T1',
+      consumed_at_ms: null,
+    });
+    expect(input.id).toMatch(/^task_input_/);
+    await expect(part.sendInput(task, '回答B', 'pinput-chatA-T1-conflict')).rejects.toMatchObject({
+      message: 'PLAN_STATE_CONFLICT',
+    });
     const ctxCount = f.db.prepare('select count(*) c from role_context_entries where role_id=?').get(f.roleId) as { c: number };
     expect(ctxCount.c).toBe(0);
     const wr = f.db.prepare('select ready from wait_records where task_id=?').get(task) as { ready: number };

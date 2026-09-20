@@ -467,7 +467,7 @@ export class Core {
           throw new RouteError('INVALID_WAIT_DEPENDENCY');
       }
       this.exec(
-        'insert into wait_records values(?,?,?,?,?,?) on conflict(task_id) do update set waiting_for=excluded.waiting_for,reason=excluded.reason,dependency_json=excluded.dependency_json,ready=excluded.ready,updated_at_ms=excluded.updated_at_ms',
+        'insert into wait_records(task_id,waiting_for,reason,dependency_json,ready,updated_at_ms) values(?,?,?,?,?,?) on conflict(task_id) do update set waiting_for=excluded.waiting_for,reason=excluded.reason,dependency_json=excluded.dependency_json,ready=excluded.ready,updated_at_ms=excluded.updated_at_ms,generation=wait_records.generation+1',
         p.taskId,
         input.waiting_for,
         input.reason,
@@ -670,18 +670,40 @@ export class Core {
       if (!activation) return this.blocked(roleId, 'work_session_binding_mismatch');
       const original = JSON.parse(String(task.request_json)) as Data;
       let snapshot = original;
+      let taskInputId: string | null = null;
       if (kind === 'CONTINUATION') {
         const wait = this.one('select waiting_for from wait_records where task_id=?', task.id);
         if (wait?.waiting_for === 'user_input') {
-          const last = this.one(
-            "select body,at_ms,source_key from conversation_items where task_id=? and kind='USER_MESSAGE' order by seq desc limit 1",
+          const formal = this.one(
+            'select id,payload,payload_sha256,actor,operation_id,created_at_ms from task_inputs where task_id=? and consumed_at_ms is null order by created_at_ms,id limit 1',
             task.id,
           );
-          const body = String(last?.body ?? '').trim();
+          const legacy = formal
+            ? undefined
+            : this.one(
+                "select body,at_ms,source_key from conversation_items where task_id=? and kind='USER_MESSAGE' order by seq desc limit 1",
+                task.id,
+              );
+          const body = String(formal?.payload ?? legacy?.body ?? '').trim();
           if (!body) return this.blocked(roleId, 'task_input_missing');
+          taskInputId = formal ? String(formal.id) : null;
           snapshot = {
             ...original,
-            task_input: { body, at_ms: Number(last!.at_ms), source_id: last!.source_key ?? null },
+            task_input: formal
+              ? {
+                  input_id: formal.id,
+                  body,
+                  payload_sha256: formal.payload_sha256,
+                  actor: formal.actor,
+                  created_at_ms: Number(formal.created_at_ms),
+                  source_id: formal.operation_id,
+                }
+              : {
+                  body,
+                  at_ms: Number(legacy!.at_ms),
+                  source_id: legacy!.source_key ?? null,
+                  legacy: true,
+                },
             body: String(original.body ?? '') + '\n\n[用户续办输入]\n' + body,
           };
         }
@@ -744,6 +766,15 @@ export class Core {
           task.id,
         );
         this.exec('update wait_records set ready=0 where task_id=?', task.id);
+      }
+      if (taskInputId) {
+        const consumed = this.exec(
+          'update task_inputs set consumed_by_run_id=?,consumed_at_ms=? where id=? and consumed_at_ms is null',
+          run,
+          now,
+          taskInputId,
+        );
+        if (consumed.changes !== 1) throw new RouteError('TASK_INPUT_ALREADY_CONSUMED');
       }
       this.event('DispatchIntent', { kind }, roleId, task.id, run);
       return {

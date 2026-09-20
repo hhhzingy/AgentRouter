@@ -1499,15 +1499,43 @@ export class ApplicationService extends Plans {
         p.task_id,
         p.role_id,
       );
+      const wait = task
+        ? this.one('select waiting_for,generation from wait_records where task_id=?', task.id)
+        : undefined;
       if (
         !task ||
         task.state !== 'WAITING_INPUT' ||
-        this.one('select waiting_for from wait_records where task_id=?', task.id)?.waiting_for !==
-          'user_input'
+        wait?.waiting_for !== 'user_input'
       )
         throw new C1R1Error('PLAN_STATE_CONFLICT');
       const atMs = this.clock();
       const sourceId = 'conversation-input:' + operation;
+      const waitKey = `${task.id}:${String(wait.generation)}`;
+      if (this.one('select id from task_inputs where task_id=? and wait_key=?', task.id, waitKey))
+        throw new C1R1Error('PLAN_STATE_CONFLICT');
+      const body = String(p.body);
+      const inputId = uid('task_input');
+      const requestedByRun = this.one(
+        'select id from runs where task_id=? order by created_at_ms desc limit 1',
+        task.id,
+      )?.id ?? null;
+      this.db
+        .prepare(
+          'insert into task_inputs(id,task_id,role_id,role_session_id,wait_key,requested_by_run_id,actor,payload,payload_sha256,operation_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?,?)',
+        )
+        .run(
+          inputId,
+          task.id,
+          p.role_id,
+          task.role_session_id,
+          waitKey,
+          requestedByRun,
+          `${c.principal}:${c.clientId}`,
+          body,
+          createHash('sha256').update(Buffer.from(body, 'utf8')).digest('hex'),
+          operation,
+          atMs,
+        );
       this.db
         .prepare(
           'insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,source_key,role_session_id) values(?,?,?,?,?,?,?,?,?,?,(select role_session_id from tasks where id=?))',
@@ -1520,7 +1548,7 @@ export class ApplicationService extends Plans {
           task.id,
           'USER_MESSAGE',
           '用户续办输入',
-          p.body,
+          body,
           atMs,
           sourceId,
           task.id,

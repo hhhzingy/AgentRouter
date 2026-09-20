@@ -151,6 +151,16 @@ export class ParticipantExtension {
         )
         .get(roleId, taskId) as { id: string } | undefined;
       if (busy) throw Error('ROLE_BUSY');
+      let taskInput:
+        | {
+            id: string;
+            payload: string;
+            payload_sha256: string;
+            actor: string;
+            operation_id: string;
+            created_at_ms: number;
+          }
+        | undefined;
       if (task.state === 'QUEUED') {
         this.db
           .prepare('update tasks set state=?,updated_at_ms=? where id=?')
@@ -161,6 +171,18 @@ export class ParticipantExtension {
           .get(taskId) as { waiting_for: string; ready: number } | undefined;
         if (!w || w.waiting_for !== 'user_input' || w.ready !== 1)
           throw Error('PLAN_STATE_CONFLICT');
+        taskInput = this.db
+          .prepare(
+            'select id,payload,payload_sha256,actor,operation_id,created_at_ms from task_inputs where task_id=? and consumed_at_ms is null order by created_at_ms,id limit 1',
+          )
+          .get(taskId) as typeof taskInput;
+        if (!taskInput) throw Error('TASK_INPUT_MISSING');
+        const consumed = this.db
+          .prepare(
+            'update task_inputs set consumed_by_participant_request_key=?,consumed_at_ms=? where id=? and consumed_at_ms is null',
+          )
+          .run(requestKey, this.clock(), taskInput.id);
+        if (consumed.changes !== 1) throw Error('TASK_INPUT_ALREADY_CONSUMED');
         this.db
           .prepare('update wait_records set ready=0,updated_at_ms=? where task_id=?')
           .run(this.clock(), taskId);
@@ -170,7 +192,23 @@ export class ParticipantExtension {
       } else throw Error('PLAN_STATE_CONFLICT');
       this.db.prepare('insert or ignore into role_slots(role_id,epoch) values(?,0)').run(roleId);
       this.db.prepare('update role_slots set active_task_id=? where role_id=?').run(taskId, roleId);
-      return { task_id: taskId, state: 'ACTIVE', claimed_at_ms: this.clock() };
+      return {
+        task_id: taskId,
+        state: 'ACTIVE',
+        claimed_at_ms: this.clock(),
+        ...(taskInput
+          ? {
+              task_input: {
+                input_id: taskInput.id,
+                body: taskInput.payload,
+                payload_sha256: taskInput.payload_sha256,
+                actor: taskInput.actor,
+                created_at_ms: taskInput.created_at_ms,
+                source_id: taskInput.operation_id,
+              },
+            }
+          : {}),
+      };
     });
   }
   /** 外接角色显式声明需要用户输入:ACTIVE→WAITING_INPUT(与原生 wait 工具同一 wait_records 形状)。 */
@@ -181,7 +219,7 @@ export class ParticipantExtension {
       if (task.state !== 'ACTIVE') throw Error('PLAN_STATE_CONFLICT');
       this.db
         .prepare(
-          'insert into wait_records values(?,?,?,?,?,?) on conflict(task_id) do update set waiting_for=excluded.waiting_for,reason=excluded.reason,dependency_json=excluded.dependency_json,ready=excluded.ready,updated_at_ms=excluded.updated_at_ms',
+          'insert into wait_records(task_id,waiting_for,reason,dependency_json,ready,updated_at_ms) values(?,?,?,?,?,?) on conflict(task_id) do update set waiting_for=excluded.waiting_for,reason=excluded.reason,dependency_json=excluded.dependency_json,ready=excluded.ready,updated_at_ms=excluded.updated_at_ms,generation=wait_records.generation+1',
         )
         .run(taskId, 'user_input', reason, '[]', 0, this.clock());
       this.db
@@ -336,6 +374,10 @@ export class ParticipantExtension {
            (select w.waiting_for from wait_records w where w.task_id=t.id) waiting_for,
            (select w.reason from wait_records w where w.task_id=t.id) wait_reason,
            (select w.ready from wait_records w where w.task_id=t.id) wait_ready,
+           (select i.id from task_inputs i where i.task_id=t.id and i.consumed_at_ms is null order by i.created_at_ms,i.id limit 1) task_input_id,
+           (select i.payload from task_inputs i where i.task_id=t.id and i.consumed_at_ms is null order by i.created_at_ms,i.id limit 1) task_input_payload,
+           (select i.payload_sha256 from task_inputs i where i.task_id=t.id and i.consumed_at_ms is null order by i.created_at_ms,i.id limit 1) task_input_sha256,
+           (select i.created_at_ms from task_inputs i where i.task_id=t.id and i.consumed_at_ms is null order by i.created_at_ms,i.id limit 1) task_input_created_at_ms,
            (select r.id from results r where r.task_id=t.id) result_id,
            (select r.outcome from results r where r.task_id=t.id) result_outcome,
            (select r.publication_state from results r where r.task_id=t.id) publication_state
@@ -393,6 +435,16 @@ export class ParticipantExtension {
               waiting_for: t.waiting_for ?? null,
               wait_reason: t.wait_reason ?? null,
               user_input_ready: t.wait_ready === 1,
+              ...(t.task_input_id
+                ? {
+                    task_input: {
+                      input_id: t.task_input_id,
+                      body: t.task_input_payload,
+                      payload_sha256: t.task_input_sha256,
+                      created_at_ms: t.task_input_created_at_ms,
+                    },
+                  }
+                : {}),
             }
           : {}),
         ...(t.result_id

@@ -407,6 +407,17 @@ it(
         params: { task_id: t2.id, body: '确认选项A,继续执行', request_key: 'wl-si-1' },
       });
       expect(inputReplay.entityId).toBe(t2.id);
+      {
+        const db = new Database(resolve(dir, 'core/router.db'), { readonly: true });
+        const storedInput = db
+          .prepare(
+            'select operation_id,consumed_at_ms from task_inputs where task_id=?',
+          )
+          .get(t2.id) as { operation_id: string; consumed_at_ms: number | null };
+        expect(storedInput.operation_id).toMatch(/^mcp_p_[a-f0-9]{64}$/);
+        expect(storedInput.consumed_at_ms).toBeNull();
+        db.close();
+      }
       // 就绪后继续推进:claim(WAITING_INPUT→ACTIVE)→ 提交包含用户决策的结果
       inbox = await call('participant_read_inbox');
       expect(inbox.tasks.find((t: any) => t.id === t2.id).user_input_ready).toBe(true);
@@ -414,6 +425,10 @@ it(
         params: { task_id: t2.id, request_key: 'wl-ck-2b' },
       });
       expect(resumed).toMatchObject({ task_id: t2.id, state: 'ACTIVE' });
+      expect(resumed.task_input).toMatchObject({
+        body: '确认选项A,继续执行',
+      });
+      expect(resumed.task_input.input_id).toMatch(/^task_input_/);
       const submitted2 = await call('participant_submit_result', {
         params: {
           task_id: t2.id,
@@ -436,6 +451,13 @@ it(
           (db.prepare('select active_task_id from role_slots where role_id=?').get(roleId) as any)
             .active_task_id,
         ).toBeNull();
+        expect(
+          db
+            .prepare(
+              'select consumed_by_participant_request_key from task_inputs where task_id=?',
+            )
+            .get(t2.id),
+        ).toEqual({ consumed_by_participant_request_key: 'wl-ck-2b' });
         db.close();
       }
       // 收件箱终态可见:两任务 DELIVERED,结果发布态与验收位齐全

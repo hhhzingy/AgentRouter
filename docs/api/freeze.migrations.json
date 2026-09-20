@@ -18,6 +18,7 @@
     "014-context-convergence.sql": "96c142acbc52b46d7bb5930034e124a595416a414e8969b84e606a246832e04f",
     "015-context-transfer.sql": "2943063cb49e73833f2df519d2a0bd67186948a56dad753ec80db173f0f6ed97",
     "016-participant-workloop.sql": "4989318ce97a9b6842174c92745cb3e3ed5ceed8665a4aa6da5a228c2820a740",
-    "017-work-session-slots.sql": "bdf7e3e65816fd48ac2cfd82384faa7d0bca0d846ca4b2b22412146a4917ec96"
+    "017-work-session-slots.sql": "bdf7e3e65816fd48ac2cfd82384faa7d0bca0d846ca4b2b22412146a4917ec96",
+    "018-task-inputs.sql": "64402edcf2fb96b1cbe63d2463a9886b1ab71ee04d740a304dd4df5881449c2c"
   }
 }
