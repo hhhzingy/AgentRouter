@@ -8,6 +8,7 @@ import { RemoteGateway } from '../../packages/remote/remote-gateway.ts';
 import { P1MemoryTransport } from '../../packages/client-transport/p1/memory.ts';
 import { RemoteWebSocketTransport } from '../../packages/client-transport/remote/websocket.ts';
 import { RemoteDeviceExtension } from '../../packages/remote/device-extension.ts';
+import { WebSocket } from 'ws';
 
 async function env() {
   mkdirSync('.local/v11-remote-tests', { recursive: true });
@@ -252,7 +253,12 @@ it('W09: remoteDevice 扩展——本机可生成配对码且网关可消费;远
   await gateway.listen(port, '127.0.0.1');
   const base = `http://127.0.0.1:${port}`;
   try {
-    const p = (await f.s.request('remoteDevice.createPairing' as never, { displayName: '手机配对码走Core', kind: 'MOBILE', ttlMs: 300000 } as never)) as {
+    const leaseId = await f.ensureLease();
+    const p = (await f.s.request(
+      'remoteDevice.createPairing' as never,
+      { displayName: '手机配对码走Core', kind: 'MOBILE', ttlMs: 300000 } as never,
+      { leaseId } as never,
+    )) as {
       challenge: string;
       expiresAtMs: number;
     };
@@ -270,10 +276,76 @@ it('W09: remoteDevice 扩展——本机可生成配对码且网关可消费;远
       es.request('remoteDevice.createPairing' as never, { displayName: 'x', kind: 'DESKTOP' } as never),
     ).rejects.toThrow('SCOPE_DENIED');
     evil.close?.();
+    await expect(
+      f.s.request('remoteDevice.createPairing' as never, { displayName: 'x', kind: 'DESKTOP' } as never),
+    ).rejects.toThrow(/CONTROL_LEASE/);
     // 参数拒绝:未知 kind / 无名称
     await expect(
-      f.s.request('remoteDevice.createPairing' as never, { displayName: 'x', kind: 'TABLET' } as never),
+      f.s.request(
+        'remoteDevice.createPairing' as never,
+        { displayName: 'x', kind: 'TABLET' } as never,
+        { leaseId } as never,
+      ),
     ).rejects.toThrow('INVALID_PARAMS');
+  } finally {
+    await gateway.close();
+    f.localTransport.close?.();
+    f.db.close();
+  }
+});
+
+it('F10: 畸形 cookie 不得 URIError 打崩网关', async () => {
+  const f = await env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
+  try {
+    const health = await fetch(`http://127.0.0.1:${port}/health`, { headers: { host: '127.0.0.1' } });
+    expect(health.status).toBe(200);
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, {
+      headers: { host: '127.0.0.1', cookie: 'ar_device=%E0%A4%A' },
+    });
+    const code = await new Promise<number>((resolve) => {
+      ws.once('close', (c) => resolve(c));
+      ws.once('error', () => resolve(-1));
+      setTimeout(() => resolve(-2), 5000);
+    });
+    expect(code).toBe(4003);
+    const health2 = await fetch(`http://127.0.0.1:${port}/health`, { headers: { host: '127.0.0.1' } });
+    expect(health2.status).toBe(200);
+  } finally {
+    await gateway.close();
+    f.localTransport.close?.();
+    f.db.close();
+  }
+});
+
+it('F11: remoteDevice.revoke 经 onRevoke 立即关闭 live WSS', async () => {
+  const f = await env();
+  const gateway = new RemoteGateway({ app: f.app, devices: f.devices });
+  f.app.remoteDevices = new RemoteDeviceExtension(f.devices, {
+    onRevoke: (deviceId) => gateway.revokeLive(deviceId),
+  });
+  const port = ++portSeq;
+  await gateway.listen(port, '127.0.0.1');
+  const base = `http://127.0.0.1:${port}`;
+  const url = `ws://127.0.0.1:${port}/ws`;
+  try {
+    const p = f.devices.createPairing({ displayName: 'live-revoke', kind: 'DESKTOP', canRequestController: true });
+    const res = await pair(base, p.challenge);
+    const token = (res.body as { token: string; deviceId: string }).token;
+    const deviceId = (res.body as { deviceId: string }).deviceId;
+    const { transport, session } = await connect(url, token, 'observer');
+    await session.request('system.snapshot', {});
+    const leaseId = await f.ensureLease();
+    const revoked = (await f.s.request(
+      'remoteDevice.revoke' as never,
+      { deviceId } as never,
+      { leaseId } as never,
+    )) as { revoked: boolean };
+    expect(revoked.revoked).toBe(true);
+    await expect(session.request('system.ping', {})).rejects.toBeTruthy();
+    await transport.close().catch(() => undefined);
   } finally {
     await gateway.close();
     f.localTransport.close?.();

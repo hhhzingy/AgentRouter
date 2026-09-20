@@ -64,7 +64,13 @@ export class RemoteGateway {
     this.server.on('upgrade', (req, socket, head) => {
       if (!this.requestAuthorized(req)) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
       if (!req.url?.startsWith('/ws')) { socket.write('HTTP/1.1 404 Not Found\r\n\r\n'); socket.destroy(); return; }
-      this.wss.handleUpgrade(req, socket as never, head, ws => this.onSocket(req, ws));
+      this.wss.handleUpgrade(req, socket as never, head, ws => {
+        try {
+          this.onSocket(req, ws);
+        } catch {
+          try { ws.close(4003, 'auth_failed'); } catch { try { ws.terminate(); } catch {} }
+        }
+      });
     });
   }
   listen(port: number, host = '127.0.0.1') {
@@ -184,7 +190,10 @@ export class RemoteGateway {
         authed.canRequestController,
         projectIdsOf(authed).size ? projectIdsOf(authed) : new Set<string>(),
       );
-      unsubscribe = app.subscribe(connection, event => sendFrame(event));
+      unsubscribe = app.subscribe(connection, event => {
+        if (!stillActive(authed)) { try { ws.close(4001, 'device_revoked'); } catch {} return; }
+        sendFrame(event);
+      });
       sendFrame({ attached: true, deviceId: device.deviceId, kind: device.kind, scope: device.scope, canRequestController: device.canRequestController });
       const set = this.liveSockets.get(device.deviceId) ?? new Set<WebSocket>();
       set.add(ws);
@@ -198,7 +207,14 @@ export class RemoteGateway {
     // 浏览器 WSS 无法自定义 header:配对成功后 cookie 自动携带;Electron 亦可 cookie 或首帧 token。
     const cookie = /(?:^|;\s*)ar_device=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
     if (cookie) {
-      const authed = this.devices.authenticate(decodeURIComponent(cookie), this.clock());
+      let token: string;
+      try {
+        token = decodeURIComponent(cookie);
+      } catch {
+        ws.close(4003, 'auth_failed');
+        return;
+      }
+      const authed = this.devices.authenticate(token, this.clock());
       if (!authed) { ws.close(4003, 'auth_failed'); return; }
       startSession(authed);
     }

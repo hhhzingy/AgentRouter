@@ -244,8 +244,11 @@ server.listen(address, async () => {
       engine.resumeInterrupted();
     }
     application.participant = new ParticipantExtension(db);
-    // W09:GUI 经 remoteDevice.* 生成手机配对码;远程网关(若启用)与它共用同一 remote_devices 表。
-    application.remoteDevices = new RemoteDeviceExtension(new RemoteDeviceStore(db));
+    // W09:GUI 经 remoteDevice.* 生成手机配对码;远程网关(若启用)必须共用同一 store,revoke 立即掐 live socket。
+    const remoteDeviceStore = new RemoteDeviceStore(db);
+    application.remoteDevices = new RemoteDeviceExtension(remoteDeviceStore, {
+      onRevoke: (deviceId) => remoteGateway?.revokeLive(deviceId),
+    });
     if (fixture) {
       driver = new FixtureDriver(application,fileURLToPath(new URL('./fixture-harness.mjs', import.meta.url)));
     } else {
@@ -291,7 +294,7 @@ server.listen(address, async () => {
       if (!existsSync(consoleAsset)) throw Error('REMOTE_CONSOLE_ASSET_MISSING');
       remoteGateway = new RemoteGateway({
         app: application,
-        devices: new RemoteDeviceStore(db),
+        devices: remoteDeviceStore,
         allowedHosts,
         ...(allowedOrigins.length ? { allowedOrigins } : {}),
         consoleHtml: readFileSync(consoleAsset, 'utf8'),

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, renameSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import {
   validateExternalApiFrame,
   extensionReply,
@@ -539,6 +539,14 @@ export class ParticipantExtension {
         writeFileSync(tempPath, bytes);
         renameSync(tempPath, finalPath);
         const sha = createHash('sha256').update(bytes).digest('hex');
+        const objectRoot = resolve(dirname(this.db.name), 'artifacts');
+        mkdirSync(objectRoot, { recursive: true });
+        const blobPath = join(objectRoot, sha);
+        if (!existsSync(blobPath)) {
+          const blobTemp = join(objectRoot, '.' + randomUUID() + '.tmp');
+          writeFileSync(blobTemp, bytes);
+          renameSync(blobTemp, blobPath);
+        }
         const id = 'artifact_' + randomUUID();
         this.db
           .prepare('insert into artifacts values(?,?,?,?,?,?,?,?,?)')

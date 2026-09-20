@@ -27,6 +27,7 @@ import { validatePlanShape } from '../client-contract/c1r1/index.ts';
 import r1 from '../../contracts/client-api.c1r1.schema.json' with { type: 'json' };
 import { Plans } from './plans.ts';
 import { RoleContextStore } from './role-context-store.ts';
+import { extensionErrorReply } from '../client-contract/external-api-1.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 const methods: Method[] = [
   'system.initialize',
@@ -200,7 +201,7 @@ export class ApplicationService extends Plans {
   defaultConnectionScope?: Set<string>;
   open(principal = 'human_local', authorized = true, allowedProjects?: Set<string>) {
     const id = uid('connection');
-    if (!allowedProjects && this.defaultConnectionScope && (principal === 'human_local' || principal.startsWith('mcp_')))
+    if (!allowedProjects && this.defaultConnectionScope && (principal.startsWith('human_') || principal.startsWith('mcp_')))
       allowedProjects = new Set(this.defaultConnectionScope);
     // WC03/W-05:远程设备自创建项目的持久可见策略——按 principal 的 project.create 审计恢复授权,
     // 重连/重启不丢失,也不外溢为全局可见(仍只对创建者设备)。
@@ -239,6 +240,7 @@ export class ApplicationService extends Plans {
   participantGrantIssue(connectionId: string, roleId: string, leaseId: string) {
     this.checkLease(connectionId, leaseId); // 管理面凭据:全局控制器租约
     const role = this.roleScope(roleId);
+    this.authorize(this.connection(connectionId), { project_id: role.project_id, space_id: role.space_id });
     const grantId = uid('pgrant');
     const token = randomBytes(24).toString('hex');
     return this.db
@@ -261,6 +263,12 @@ export class ApplicationService extends Plans {
   }
   participantGrantRevoke(connectionId: string, grantId: string, leaseId: string) {
     this.checkLease(connectionId, leaseId);
+    const existing = this.db.prepare('select role_id from participant_grants where id=?').get(grantId) as
+      | { role_id: string }
+      | undefined;
+    if (!existing) throw Error('PARTICIPANT_GRANT_NOT_FOUND');
+    const role = this.roleScope(existing.role_id);
+    this.authorize(this.connection(connectionId), { project_id: role.project_id, space_id: role.space_id });
     this.db
       .transaction(() => {
         const g = this.db.prepare('select id from participant_grants where id=?').get(grantId);
@@ -276,7 +284,8 @@ export class ApplicationService extends Plans {
   }
   participantGrantList(connectionId: string, roleId: string, leaseId: string) {
     this.checkLease(connectionId, leaseId);
-    this.roleScope(roleId);
+    const role = this.roleScope(roleId);
+    this.authorize(this.connection(connectionId), { project_id: role.project_id, space_id: role.space_id });
     const rows = this.db
       .prepare(
         'select id,role_id,state,generation,created_at_ms,revoked_at_ms from participant_grants where role_id=? order by generation',
@@ -492,16 +501,28 @@ export class ApplicationService extends Plans {
       typeof (raw as { method?: unknown })?.method === 'string' &&
       String((raw as { method?: unknown }).method).startsWith('remoteDevice.')
     ) {
+      const frameId = String((raw as { id?: unknown }).id ?? '');
+      const method = String((raw as { method?: unknown }).method);
       if (!c.initialized)
-        return {
-          v: 1,
-          id: String((raw as { id?: unknown }).id ?? ''),
-          error: { code: 'NOT_INITIALIZED' },
-        };
-      return this.remoteDevices.handle(raw, {
-        principal: c.principal,
-        ...(c.mode ? { mode: c.mode } : {}),
-      });
+        return { v: 1, id: frameId, error: { code: 'NOT_INITIALIZED' } };
+      try {
+        if (c.principal.startsWith('remote_device_')) throw Object.assign(new Error('SCOPE_DENIED'));
+        const mutation = method !== 'remoteDevice.listDevices';
+        if (mutation) {
+          if (!c.authorized || c.mode !== 'controller') throw Object.assign(new Error('CONTROL_LEASE_REQUIRED'));
+          const leaseId = String(
+            (raw as { lease_id?: unknown }).lease_id ??
+              ((raw as { params?: { lease_id?: unknown } }).params?.lease_id ?? ''),
+          );
+          this.checkLease(id, leaseId);
+        }
+        return this.remoteDevices.handle(raw, {
+          principal: c.principal,
+          ...(c.mode ? { mode: c.mode } : {}),
+        });
+      } catch (error) {
+        return extensionErrorReply(frameId, error);
+      }
     }
     if (
       this.participant &&

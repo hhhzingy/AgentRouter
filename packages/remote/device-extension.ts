@@ -9,7 +9,10 @@ export interface RemoteDeviceExtensionContext {
 /** W09:本机受信任 GUI 经 Core 生成/管理远程设备配对。仅非远程连接可调用;
  * 远程设备连接(principal=remote_device_*)绝不许自我配对(防权限升级)。 */
 export class RemoteDeviceExtension {
-  constructor(private readonly store: RemoteDeviceStore) {}
+  constructor(
+    private readonly store: RemoteDeviceStore,
+    private readonly hooks?: { onRevoke?: (deviceId: string) => void },
+  ) {}
   handle(raw: unknown, ctx: RemoteDeviceExtensionContext): unknown {
     const frame = raw as { id?: unknown; method?: unknown; params?: Record<string, unknown> };
     const id = typeof frame.id === 'string' ? frame.id : 'ext';
@@ -39,7 +42,9 @@ export class RemoteDeviceExtension {
       if (method === 'remoteDevice.revoke') {
         const deviceId = String(p.deviceId ?? '');
         if (!deviceId) throw Object.assign(new Error('INVALID_PARAMS'));
-        return extensionReply(id, { revoked: this.store.revoke(deviceId) === true });
+        const revoked = this.store.revoke(deviceId) === true;
+        if (revoked) this.hooks?.onRevoke?.(deviceId);
+        return extensionReply(id, { revoked });
       }
       throw Object.assign(new Error('METHOD_NOT_ALLOWED'));
     } catch (error) {

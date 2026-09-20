@@ -3,7 +3,7 @@ import { RouteError, validatePayload, id, digest, type Data } from '../protocol/
 import { readFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
-import { freezeFile } from '../artifacts/index.ts';
+import { freezeFile, resolveArtifactBlobPath } from '../artifacts/index.ts';
 import { assertTransition } from '../domain/index.ts';
 export interface Identity {
   roleId: string;
@@ -887,12 +887,12 @@ export class Core {
     return resolve(dirname(this.db.name), 'artifacts');
   }
   private readObject(a: Data) {
-    if (!/^(?:project_[A-Za-z0-9_-]+\/)?[a-f0-9]{64}$/.test(a.storage_key))
-      throw new RouteError('INVALID_STORAGE_KEY');
     let bytes: Buffer;
     try {
-      bytes = readFileSync(resolve(this.objectRoot(), a.storage_key));
-    } catch {
+      bytes = readFileSync(resolveArtifactBlobPath(this.objectRoot(), String(a.storage_key)));
+    } catch (error) {
+      if ((error as { code?: string }).code === 'INVALID_STORAGE_KEY' || error instanceof RouteError)
+        throw error instanceof RouteError ? error : new RouteError('INVALID_STORAGE_KEY');
       throw new RouteError('ARTIFACT_MISSING', 'UNAVAILABLE');
     }
     if (
@@ -1005,11 +1005,7 @@ export class Core {
     const workspace = this.one('select * from workspaces where id=?', input.workspace_id)!;
     return this.operation(p, op, { tool: 'artifact_register', input }, () => {
       if (!/^project_[A-Za-z0-9_-]+$/.test(p.projectId)) throw new RouteError('INVALID_PROJECT_ID');
-      const frozen = freezeFile(
-        workspace.display_path,
-        input.path,
-        resolve(this.objectRoot(), p.projectId),
-      );
+      const frozen = freezeFile(workspace.display_path, input.path, this.objectRoot());
       frozen.storage_key = p.projectId + '/' + frozen.storage_key;
       const existing = this.one(
         'select id from artifacts where project_id=? and storage_key=?',

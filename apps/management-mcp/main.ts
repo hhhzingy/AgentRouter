@@ -5,16 +5,16 @@ import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts'
 import { managementInputSchema } from '../../packages/management-gateway/schema.ts';
 import { ManagementGateway } from '../../packages/management-gateway/index.ts';
 import { roleSessionCommandProperties, validateRoleSessionCommand } from '../../packages/management-gateway/role-session-command.ts';
+import { assertManagementLauncher } from './launcher-guard.ts';
 const data = process.argv[2],
   mode = process.argv[3] ?? 'observer',
   clientId = process.argv[4] ?? 'mcp_management_codex';
-if (
-  !data ||
-  !['observer', 'controller'].includes(mode) ||
-  !/^mcp_management_[A-Za-z0-9_.:-]{1,100}$/.test(clientId) ||
-  process.env.AGENTROUTER_MANAGED_ROLE === '1'
-)
-  throw Error('MANAGEMENT_START_DENIED');
+assertManagementLauncher({
+  data,
+  mode,
+  clientId,
+  managedRole: process.env.AGENTROUTER_MANAGED_ROLE,
+});
 const gateway = new ManagementGateway(
   new LocalCoreTransport(data),
   mode as 'observer' | 'controller',

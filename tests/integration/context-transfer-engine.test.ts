@@ -298,3 +298,39 @@ it('WN01/裁决1:跨 Harness inherit——目标确认后提交事务内切换 b
   expect(sess.native_session_ref).toBe('native-b-1');
   expect(f.db.prepare("select count(*) c from role_sessions where role_id=? and state='ACTIVE'").get(f.roleId)).toEqual({ c: 1 });
 });
+
+it('F02: A→B→C 后 resumeInterrupted 不得把 C 打回已提交的 B', async () => {
+  const f = await fixture();
+  const toB = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'B', context_mode: 'inherit' }, 'rk-b')) as {
+    transfer: { op_id: string };
+  };
+  const stB = await f.settle(toB.transfer.op_id);
+  expect(stB.state).toBe('COMMITTED');
+  const bId = stB.session.id as string;
+  const toC = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'C', context_mode: 'blank' }, 'rk-c')) as {
+    session: { id: string };
+  };
+  const cId = toC.session.id;
+  const repairs: string[] = [];
+  const engine2 = new ContextTransferEngine({
+    db: f.db,
+    ports: new Map([['pi', f.port]]),
+    schedule: (fn) => fn(),
+    commit: () => {
+      throw Error('resume must not recommit');
+    },
+    repairCommitted: (input) => {
+      repairs.push(input.sessionId);
+    },
+  });
+  engine2.resumeInterrupted();
+  await new Promise((r) => setTimeout(r, 40));
+  expect(repairs).toEqual([]);
+  const listing = (await f.s.request('roleSession.list' as never, { role_id: f.roleId } as never)) as unknown as {
+    sessions: { id: string; state: string }[];
+    active_session_id: string;
+  };
+  expect(listing.active_session_id).toBe(cId);
+  expect(listing.sessions.find((x) => x.id === bId)?.state).toBe('ARCHIVED');
+  expect(listing.sessions.filter((x) => x.state === 'ACTIVE')).toHaveLength(1);
+});

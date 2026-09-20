@@ -181,14 +181,10 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
         const created = parseSnapshot(await c.request('session/create', { workspace: { workspacePath: home, workspaceKey: 'ar-context-' + operationId } }));
         if (!created.sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
         idempotency.set(operationId, created.sessionId);
-        const terminal = (async () => {
-          await c.request('session/subscribe', { sessionId: created.sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false });
-          await c.request('session/send', { sessionId: created.sessionId, content:
-            '以下是同一角色上一工作会话的可见历史(仅用户与助手文本;不含隐藏思维链)。理解后仅回复 READY,不要调用任何工具。\n' + seedText, inputId: 'ctxinit_' + operationId });
-          return true;
-        })();
-        void terminal.catch(() => {});
-        // 等待 turn 终态:send 成功受理即视为目标已建立(会话持久化);回复内容非本端口职责。
+        await c.request('session/subscribe', { sessionId: created.sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false });
+        await c.request('session/send', { sessionId: created.sessionId, content:
+          '以下是同一角色上一工作会话的可见历史(仅用户与助手文本;不含隐藏思维链)。理解后仅回复 READY,不要调用任何工具。\n' + seedText, inputId: 'ctxinit_' + operationId });
+        // send 受理后才返回;withClient 在此之后才关进程。模型 READY 文本不是确认证据。
         return created.sessionId;
       });
       return { nativeSessionRef: target, confirmed: true };

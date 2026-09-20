@@ -70,3 +70,14 @@ it('声明合法 scope:快照只见批准项目;跨项目写被 SCOPE_DENIED;未
   }
   f.db.close();
 });
+
+it('F07: defaultConnectionScope 落到 Named Pipe principal human_<hash>（不只 human_local）', async () => {
+  const f = await env();
+  f.app.defaultConnectionScope = new Set([f.p1.id]);
+  const t = new P1MemoryTransport(f.app, 'human_' + 'c'.repeat(24));
+  const s = await t.connect({ clientId: 'pipe_local', clientVersion: '1.0.0', requestedMode: 'controller' });
+  const snap = (await s.request('system.snapshot', {})) as { projects: { id: string }[] };
+  expect(snap.projects.map((x) => x.id)).toEqual([f.p1.id]);
+  t.close?.();
+  f.db.close();
+});

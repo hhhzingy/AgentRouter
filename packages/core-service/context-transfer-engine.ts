@@ -6,7 +6,7 @@ import { decideTransfer, type TransferDecision } from './context-transfer.ts';
  * - 网络调用一律在 DB 事务外;有稳定 operationId 传入端口,端口必须按 operationId 幂等(重试不重复建目标)。
  * - 目标初始化"确定未开始"才允许 FAILED;任何不确定保持非终态(暂停派发),有界 confirm,不伪造成功也不放开调度。
  * - 提交(op 终态+目标指针+归档源+激活目标+binding 切换)由 extension.commitTransfer 单事务完成。
- * - 崩溃恢复:PREPARING/EXPORTED 可安全重放(导出只读、init 幂等);SEEDED 走 confirm;COMMITTED 一致性核对。 */
+ * - 崩溃恢复:PREPARING/EXPORTED 可安全重放(导出只读、init 幂等);SEEDED 走 confirm。COMMITTED 是历史事实,不得用来复活后来合法的新 ACTIVE WS。 */
 
 export interface TransferDriverPort {
   /** 来源 FULL_VISIBLE 导出;truncated=true 必须如实上报 */
@@ -198,15 +198,9 @@ export class ContextTransferEngine {
     if (op.state === 'SEEDED') return this.settleSeeded(opId);
     return this.run(opId);
   }
-  /** 启动恢复:EXPORTED(未确定/中断)安全重放;SEEDED 有界 confirm;COMMITTED 与活动指针核对。 */
+  /** 启动恢复:仅未完成操作。COMMITTED 不得重放,否则会把后续空白/新 WS 打回历史目标。 */
   resumeInterrupted(): void {
-    for (const op of this.deps.db.prepare(`select * from context_transfer_ops where state in ${ACTIVE_STATES} or state='COMMITTED'`).all() as Row[]) {
-      if (op.state === 'COMMITTED') {
-        const active = this.one("select id from role_sessions where role_id=? and state='ACTIVE'", op.role_id);
-        if (op.to_session_id && active && active.id !== String(op.to_session_id))
-          this.deps.repairCommitted?.({ roleId: op.role_id, sessionId: String(op.to_session_id) });
-        continue;
-      }
+    for (const op of this.deps.db.prepare(`select * from context_transfer_ops where state in ${ACTIVE_STATES}`).all() as Row[]) {
       if (op.state === 'SEEDED') { void this.settleSeeded(op.id).catch(() => this.markUncertain(op.id, 'CONTEXT_TRANSFER_AMBIGUOUS')); continue; }
       // PREPARING/EXPORTED:重放整个受控流程(导出只读、init 幂等);无法恢复端口的按 INTERRUPTED 显式失败。
       void this.run(op.id).catch(() => this.fail(op.id, 'CONTEXT_TRANSFER_INTERRUPTED'));

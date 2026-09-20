@@ -2,11 +2,16 @@ import { readFileSync, existsSync, statSync, realpathSync } from 'node:fs';
 import { resolve, dirname, relative, basename, isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
 import { C1R1Error } from '../client-contract/c1r1p1/index.ts';
+import { artifactBlobHash, resolveArtifactBlobPath } from '../artifacts/index.ts';
 export function inspectArtifact(database: string, row: any, revision: number) {
-  if (!/^[a-f0-9]{64}$/.test(row.storage_key) || row.byte_size > 20971520)
+  try {
+    artifactBlobHash(String(row.storage_key ?? ''));
+  } catch {
     throw new C1R1Error('INVALID_PARAMS');
+  }
+  if (row.byte_size > 20971520) throw new C1R1Error('INVALID_PARAMS');
   const root = resolve(dirname(database), 'artifacts'),
-    path = resolve(root, row.storage_key);
+    path = resolveArtifactBlobPath(root, String(row.storage_key));
   let state = row.state,
     bytes: Buffer | undefined;
   if (!existsSync(path)) state = 'MISSING';

@@ -16,6 +16,7 @@
     "012-role-context-index.sql": "c3ba6d048be3af633128309f4248a0e4a60d2d169eb9640a00ba58e559bafaa3",
     "013-remote-devices.sql": "aa8e1ab630a01742235a6b5123584abf2f23b1f859a9d2db249880fbdb592ddc",
     "014-context-convergence.sql": "96c142acbc52b46d7bb5930034e124a595416a414e8969b84e606a246832e04f",
-    "015-context-transfer.sql": "2943063cb49e73833f2df519d2a0bd67186948a56dad753ec80db173f0f6ed97"
+    "015-context-transfer.sql": "2943063cb49e73833f2df519d2a0bd67186948a56dad753ec80db173f0f6ed97",
+    "016-participant-workloop.sql": "4989318ce97a9b6842174c92745cb3e3ed5ceed8665a4aa6da5a228c2820a740"
   }
 }

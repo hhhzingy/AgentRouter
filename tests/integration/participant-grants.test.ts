@@ -229,3 +229,68 @@ it('PART-10:grant.revoke 撤销后旧聊天失效;grant.issue 需要全局租约
     await expect(part.attach(g.grant_id, g.token)).rejects.toMatchObject({ message: 'PARTICIPANT_GRANT_REVOKED' });
   } finally { await f.close(); }
 });
+
+it('F09: 受限连接不得跨项目签发 grant；范围内角色可以签发', async () => {
+  const f = await fixture();
+  try {
+    const roots = await f.s.request('filesystem.listRoots', {});
+    const p2 = (await f.write(
+      'project.create',
+      { name: '越权项目', path_handle: roots.items[0].pathHandle },
+      {},
+      'p2',
+    )) as { id: string };
+    const ws2 = await f.s.request('workspace.list', { project_id: p2.id });
+    const plan = structuredClone(seed) as RolePlanInput;
+    plan.project_id = p2.id;
+    plan.groups = plan.groups.slice(0, 1);
+    plan.roles = plan.roles.slice(0, 1);
+    plan.groups[0].workspace_ref = ws2.items[0].id;
+    plan.roles[0].workspace_ref = ws2.items[0].id;
+    const v = await f.s.request('rolePlan.validate', { plan });
+    await f.write(
+      'rolePlan.apply',
+      { plan, plan_hash: v.planHash, confirmed: true, permission_grants: [] },
+      { project_id: p2.id },
+      'apply2',
+    );
+    const role2 = ((await f.s.request('role.list', { scope: { project_id: p2.id } })) as { items: { id: string }[] })
+      .items[0].id;
+    f.server.defaultConnectionScope = new Set([f.project.id]);
+    await f.s.request(
+      'control.release',
+      { lease_id: (f.lease as { leaseId: string }).leaseId },
+      { operationId: 'op_release_scope', expectedRevision: (await f.s.request('system.snapshot', {})).revision, scope: {} },
+    );
+    const scoped = new P1MemoryTransport(f.server, 'human_' + 'd'.repeat(24));
+    const ss = await scoped.connect({
+      clientId: 'mcp_management_cursor',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'controller',
+    });
+    const snap = (await ss.request('system.snapshot', {})) as { projects: { id: string }[]; revision: number };
+    expect(snap.projects.map((x) => x.id)).toEqual([f.project.id]);
+    const lease = await ss.request(
+      'control.acquire',
+      {},
+      { operationId: 'scoped_lease', expectedRevision: snap.revision, scope: {} },
+    );
+    await expect(
+      ss.request(
+        'participant.grant.issue' as never,
+        { role_id: role2 } as never,
+        { leaseId: (lease as { leaseId: string }).leaseId } as never,
+      ),
+    ).rejects.toThrow('SCOPE_DENIED');
+    await expect(
+      ss.request(
+        'participant.grant.issue' as never,
+        { role_id: f.roleId } as never,
+        { leaseId: (lease as { leaseId: string }).leaseId } as never,
+      ),
+    ).resolves.toMatchObject({ grant_id: expect.stringMatching(/^pgrant_/) });
+    scoped.close?.();
+  } finally {
+    await f.close();
+  }
+});

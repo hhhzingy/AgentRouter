@@ -60,3 +60,18 @@ export function freezeFile(root: string, path: string, store: string) {
     throw new RouteError('ARTIFACT_CORRUPTED', 'AMBIGUOUS');
   return { storage_key: sha256, sha256, byte_size: data.length };
 }
+/** Canonical blob filename is the content hash. Role rows may store `project_id/hash`. */
+export function artifactBlobHash(storageKey: string): string {
+  const match = /^(?:project_[A-Za-z0-9_-]+\/)?([a-f0-9]{64})$/.exec(storageKey);
+  if (!match) throw new RouteError('INVALID_STORAGE_KEY');
+  return match[1];
+}
+/** Prefer artifacts/<hash>; fall back to legacy artifacts/<project>/<hash>. */
+export function resolveArtifactBlobPath(root: string, storageKey: string): string {
+  const hash = artifactBlobHash(storageKey);
+  const hashed = resolve(root, hash);
+  if (existsSync(hashed)) return hashed;
+  const prefixed = resolve(root, storageKey);
+  if (existsSync(prefixed)) return prefixed;
+  return hashed;
+}
