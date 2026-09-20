@@ -1,0 +1,37 @@
+{
+  "schema": "agentrouter-v1.1-final-win-checkpoint/1",
+  "stage": "C10",
+  "source_sha": "16598f621d7160627ce769ecafb8d14ab55399f4",
+  "worktree": "E:/AgentRouter/.worktrees/v1.1-final-cursor-win",
+  "branch": "feat/v1.1-final-cursor-win",
+  "main_merge_authorized": false,
+  "release_authorized": false,
+  "fixed_scale": {
+    "conversation_100": "PASS",
+    "conversation_1k": "PASS",
+    "conversation_10k": "PASS",
+    "artifact_20mib_chunked_read": "PASS",
+    "reconnect_snapshot": "PASS",
+    "multi_role_plan": "PASS"
+  },
+  "migration": {
+    "check_migrations": "PASS",
+    "freeze_includes_017": true
+  },
+  "package": {
+    "w11_core_local_build": "PASS",
+    "management_mcp_local_build": "PASS",
+    "electron_packaged": "NOT_RUN"
+  },
+  "tests": {
+    "v11_c10_scale": "PASS"
+  },
+  "gate_c10": {
+    "no_unbounded_disconnect_at_10k": "PASS_DUT",
+    "packaged_electron_persist": "NOT_RUN"
+  },
+  "known_limitations": [
+    "Did not run a 4-hour soak; used fixed 100/1k/10k + 20 MiB chunks",
+    "Electron packaged installer was not built or launched"
+  ]
+}
