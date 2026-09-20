@@ -63,9 +63,12 @@ it('受管 Role 只在当前 workspace 写入小型 UTF-8 Artifact，并以 oper
     expect(f.core.writeArtifact(b.principal, 'write-artifact', input)).toEqual(first);
     expect(readFileSync(resolve(f.dir, 'agentrouter-artifacts', 'review.md'), 'utf8')).toBe(input.content);
     const read = f.core.readArtifact(b.principal, {
-      reference: { kind: 'artifact', artifact_id: first.artifact_id },
+      artifact_id: first.artifact_id,
     });
     expect(Buffer.from(read.content, 'base64').toString()).toBe(input.content);
+    const duplicate = f.core.writeArtifact(b.principal, 'same-bytes', { ...input, name: 'copy.md' });
+    expect(duplicate.artifact_id).toBe(first.artifact_id);
+    expect(duplicate.deduplicated).toBe(true);
     expect(() => f.core.writeArtifact(b.principal, 'bad-scope', { ...input, workspace_id: 'workspace_a' })).toThrow('WORKSPACE_SCOPE');
     expect(() => f.core.writeArtifact(b.principal, 'bad-name', { ...input, name: '../escape.md' })).toThrow('ARTIFACT_NAME_INVALID');
   } finally {

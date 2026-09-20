@@ -57,11 +57,12 @@ export const toolDefinitions = [
     inputSchema: {
       ...object({
         reference: { $ref: '#/$defs/reference' },
+        artifact_id: { $ref: '#/$defs/id' },
         offset_bytes: { type: 'integer', minimum: 0 },
         limit_bytes: { type: 'integer', minimum: 1, maximum: 65536 },
       }),
       $defs: schema.$defs,
-      required: ['reference'],
+      anyOf: [{ required: ['reference'] }, { required: ['artifact_id'] }],
     },
   },
 ].map((tool) => ({

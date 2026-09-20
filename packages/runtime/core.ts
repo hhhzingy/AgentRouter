@@ -1088,6 +1088,13 @@ export class Core {
       mkdirSync(objectRoot, { recursive: true });
       const blobPath = join(objectRoot, sha256);
       if (!existsSync(blobPath)) writeFileSync(blobPath, bytes, { flag: 'wx' });
+      const existing = this.one(
+        "select id from artifacts where project_id=? and storage_key=? and state='AVAILABLE'",
+        p.projectId,
+        sha256,
+      );
+      if (existing)
+        return { artifact_id: existing.id, sha256, byte_size: bytes.length, media_type: mediaType, name: input.name, deduplicated: true };
       const artifact = id('artifact');
       this.exec(
         'insert into artifacts values(?,?,?,?,?,?,?,?,?)',
@@ -1108,8 +1115,9 @@ export class Core {
     this.identity(p, true);
     if (
       !input ||
-      Object.keys(input).some((k) => !['reference', 'offset_bytes', 'limit_bytes'].includes(k)) ||
-      input.reference?.kind !== 'artifact'
+      Object.keys(input).some((k) => !['reference', 'artifact_id', 'offset_bytes', 'limit_bytes'].includes(k)) ||
+      (input.reference?.kind !== 'artifact' && typeof input.artifact_id !== 'string') ||
+      (input.reference !== undefined && input.artifact_id !== undefined)
     )
       throw new RouteError('INVALID_ARTIFACT_READ');
     const offset = input.offset_bytes ?? 0,
@@ -1124,7 +1132,7 @@ export class Core {
       throw new RouteError('ARTIFACT_READ_LIMIT');
     const a = this.one(
       "select * from artifacts where id=? and project_id=? and state='AVAILABLE'",
-      input.reference.artifact_id,
+      input.reference?.artifact_id ?? input.artifact_id,
       p.projectId,
     );
     if (!a) throw new RouteError('ARTIFACT_SCOPE', 'AUTHORIZATION');

@@ -326,7 +326,7 @@ try {
     const outputArtifact = await dispatchArtifactTask(
       'artifact-consumer',
       'Artifact读取与输出',
-      `Call route_context for task. Read the input artifact with route_artifact_read. Then write output.md using route_artifact_write; its content must include the exact decoded marker from the input. Finish succeeded with the new artifact as the only output.`,
+      `Call route_context for task. Call route_artifact_read with artifact_id ${inputArtifact}. Decode its content. Then call route_artifact_write with workspace_id ${workspaceId}, name output.md, and exact content REVIEWED:${artifactMarker}. Finish succeeded with the new artifact as the only output.`,
       [{ kind: 'artifact', artifact_id: inputArtifact }],
     );
     const verifyTransport = new LocalCoreTransport(path('core'));
