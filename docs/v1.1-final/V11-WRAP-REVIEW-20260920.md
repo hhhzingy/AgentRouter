@@ -1,246 +1,151 @@
-# V1.1 Windows 最终收口 — 总结复核
+# V1.1 Windows 最终收口复核（2026-09-20）
 
-**依据执行包：** `docs/执行包/AgentRouter_V1.1_Windows_最终修复优化测试执行包_Cursor_20260920`
+**依据：** `docs/执行包/AgentRouter_V1.1_Windows_最终修复优化测试执行包_Cursor_20260920/AgentRouter_V1.1_Windows_Final_Master_Execution.md`
 
-**复核日期：** 2026-09-20
+**结论：未完成 Windows RC Gate。不得宣称 `V1.1_WINDOWS_RC_READY_FOR_USER_ACCEPTANCE`。**
 
-**执行器：** Cursor（仅 Management MCP 客户端 `mcp_management_cursor`，不是 Role）
+本文只记录已复核事实。未授权且未执行 merge、tag、release；由于执行包尚未完成，本轮也未向 GitHub 推送“完成”提交。
 
-**RC 短语：** 未发出 `V1.1_WINDOWS_RC_READY_FOR_USER_ACCEPTANCE`（docs/12 未全满足）
-
-**merge / tag / release：** 未授权，未执行
-
-本文按执行包 `docs/13` 把「真实实现 / fixture / 真机 / NOT_RUN」分开写。`42 PUBLISHED` 只证明最小文本路径，**不**代替 docs/07 的 Artifact 工程链与 Level B。
-
----
-
-## 1. 结论（先回答闭环）
-
-| 问题 | 事实 |
-|---|---|
-| 当前能否宣称 Windows RC？ | **否**。docs/12 功能/测试/产品 Gate 仍有明确缺口。 |
-| 关键工作流是否闭环？ | **部分闭环。** 四家 Harness 走通隔离 Core 上的最小 Level A（bootstrap + 任务结果 `42`/`PUBLISHED`）。**未**证明 input/output Artifact hash 链、WAITING_INPUT 真值、同 ACTIVE WS Level B。 |
-| 是否有同一干净候选 SHA 的验收证据？ | **否。** 四个成功 live report 均记录 `dirty_source=true`；Pi 成功报告的 `code_sha=bbed011`，Kimi/Codex/DSH 为 `ed78235`。这些报告不能满足 docs/12 的“同一个干净 source SHA”测试 Gate。 |
-| Cursor 是否当了 Role？ | **否。** 仅 observer Management MCP。本 MCP Core 快照 `projects=[]`，没有 Cursor Role/WS。 |
-| 生产 Codex/ZCode 是否被覆盖？ | **否。** 使用隔离 HOME / `.local-protected`；未复制生产 token。 |
-| 用户还要做什么？ | 见第 8 节。不要 merge/tag，除非另行明确批准。 |
-
----
-
-## 2. 工作树 / 分支 / 源码身份
-
-### 2.1 本轮执行工作树
+## 1. 当前源码身份
 
 | 项 | 值 |
 |---|---|
-| 路径 | `E:\AgentRouter\.worktrees\v1.1-final-cursor-win` |
+| 专用工作树 | `E:\AgentRouter\.worktrees\v1.1-final-cursor-win` |
 | 分支 | `feat/v1.1-final-cursor-win` |
-| Canonical Windows SHA（C0 固定源） | `16598f621d7160627ce769ecafb8d14ab55399f4` |
-| C11 证据提交 | `ed78235f6459594d139de98fa8f2978e2ccc55c8`（`docs(v11-c11)`） |
-| 跟进实现提交 | `5cee6ee1f140ee689d30d572598b905401f329b7`（`fix(v1.1): complete Windows follow-up review`） |
-| 工作树状态 | **干净**（干净工程包复测并清理自动生成 evidence 后） |
-| live report 源码洁净性 | 四个成功报告均为 `dirty_source=true`；不能视为固定候选复测 |
-| Review SHA（禁止当补丁基线） | `0d92196` |
+| C0 规范源 | `16598f621d7160627ce769ecafb8d14ab55399f4` |
+| 本轮行为候选 | `0050c1b1f595ee4eb3bdc216334af4c04df06fd2` |
+| 当前关键提交 | `65d8ec4` Artifact 输出桥；`9fb6a95` Artifact read/dedup；`bf89877` Codex DUT 指纹；`0050c1b` DSH 百炼 profile |
+| 主目录 | `E:\AgentRouter` / `feat/contract-c1`，不是本轮 V1.1 源 |
+| 隔离等级 | `LIMITED_ISOLATION`（Windows Job 生命周期），不是全 OS 沙箱 |
 
-C0→C11 已提交：`babf88b` … `ed78235`（C0 基线 → C11 记录）；后续实现与复核已提交为 `5cee6ee`。
+`.local-protected/`、`.local/` 与凭据文件未提交。生产 Codex/ZCode HOME 未作为测试 HOME；未切账号、未覆盖已有会话。
 
-### 2.2 同机其他 worktree（本轮未在这些树上改 Core）
+## 2. 本轮新增实现
 
-| 路径 | HEAD | 分支 |
-|---|---|---|
-| `E:\AgentRouter` | `18c259c` | `feat/contract-c1`（**不是** V1.1 源） |
-| `.worktrees/v1.1-final-zcode` | `16598f6` | `feat/v1.1-final-windows-mobile` |
-| `.worktrees/v1.1-integration` | `29e732c` | `integration/v1.1-cross-platform` |
-| `.worktrees/v1.1-context-continuity` | `2bd41f9` | `feat/v1.1-context-continuity` |
-| `.worktrees/ui-ux-spec` | `8c3f0ed` | `feat/ui-ux-spec` |
-| `.worktrees/j1-integration` | `bbdea2a` | detached |
-| `.worktrees/contract-c1r1` | empty | `feat/contract-c1r1` |
+### 2.1 Managed Artifact 工程链
 
-### 2.3 本次跟进提交（不含密钥文件内容）
+新增受控 `route_artifact_write`，约束如下：
 
-- `.cursor/mcp.json`（项目级 Management MCP observer，已加入 `.gitignore`，不提交）
-- `tools/v11-cursor-mcp-start.mjs` / `v11-mint-mobile-pair.mjs` / `v11-seal-codex-dut-identity.mjs` / `v11-zcode-dut-login.mjs`
-- `packages/remote/remote-gateway.ts`（HTTP 配对 cookie；Tailscale Origin）
-- `packages/platform/local-native-runtime.ts`、`packages/platform/windows-native-process-host.ts`（ZCode 0.16.9、模型选择安全透传）
-- `tools/test-j3-production-pi.mjs`、`tools/login-j3-codex-dut.ps1`
-- `apps/desktop/workbench/store.tsx`（允许 `remoteDevice.*`）
-- `tools/desktop-test.mjs`（当前 UI / preload / 精确进程树收尾）
-- `docs/v1.1-final/V11-FINAL-RC.md`、`V11-C11-checkpoint.json` 与本文
+- 只能写当前绑定 workspace；文件名受限；仅 `.md/.json/.txt`；UTF-8，最大 256 KiB；
+- 临时文件到原子 rename，写入对象存储与 Artifact DB；
+- operation idempotency；相同 workspace+hash 内容寻址去重；
+- `route_artifact_read` 同时兼容 flat `artifact_id` 与旧 nested `reference`，拒绝二者同时出现；
+- Codex/Kimi/Pi/DSH 的受管 Route 工具清单、授权和测试同步更新。
 
-`.local-protected/` 含 DUT 登录态，**不得提交、不得贴进聊天。**
+### 2.2 DSH→百炼官方 adapter
 
----
+修复原实现“只注入 `BALIAN_API_KEY`，却未配置 provider/model”的假支持：
 
-## 3. 执行包阶段 C0–C11 对照
+- 预配 DSH 0.1.5-rc.1 官方 ACP profile，避免空 HOME 首启超过 RPC 活性界；
+- 通过官方 `@deepseek-ai/dsh-llm-pi-ai` 配置百炼 OpenAI-compatible endpoint；
+- ACP 默认 route 为 `bailian/qwen3.8-flash`；
+- `settings.yaml` 只写 endpoint/model 等非秘密信息，API key 只进入测试子进程环境；
+- 已存在配置只有与受控模板一致（或 DSH 官方规范化后的等价空配置）才复用，否则 `DSH_PROFILE_CONFIG_REVIEW_REQUIRED`。
 
-| 阶段 | 执行包 Gate | 本轮结果 | 证据 |
+## 3. 同一干净 SHA `0050c1b` 的自动化与工程包
+
+| 项 | 结果 |
+|---|---|
+| typecheck | PASS |
+| lint | PASS |
+| spec | 36/36 PASS |
+| unit | 41 files / 213 tests PASS |
+| integration | 49 files / 212 tests PASS |
+| contract | 8 files / 67 tests PASS |
+| chaos | 1 file / 3 tests PASS |
+| staged secret scan | PASS，2134 files，0 findings |
+| packaged Core | PASS；`sourceDirty=false`；artifact hash `e3952be31586a602b813985915caf44d493cec033b64518589d02c990eedc50d` |
+| Electron 工程包冒烟 | PASS；项目创建、Role Plan、导航上下文、renderer Node 禁用、Core 连接、进程停止 |
+| 工程包 | `release/AgentRouter-j3-0050c1b1f595-4cd9e523-801a-48aa-88cf-2811c5409f80` |
+| 手机浏览器 live test | PASS；配对 cookie/WSS、controller、断连/重连 |
+| 移动视口 | PASS；iPhone 390×844、Pixel 412×915，无横向溢出 |
+| 固定负载 | 3/3 PASS；cancel、reconnect、integrity、shutdown；RSS 约 200–203 MiB |
+
+注意：工程包是开发机 unpacked 包，不等于签名安装器、安装/升级或干净机验收。
+
+## 4. Harness DUT 矩阵
+
+执行包 Level A 要求：真实 bootstrap、input Artifact→output Artifact、`route_finish`/PUBLISHED、GUI/下游同字节 hash、原生终态与停止证据。
+
+| Harness | Provider / 模型 | 干净 SHA / 报告 | 结果 |
 |---|---|---|---|
-| C0 基线审计 | 最新仓 + F01–F30 + migration，不按旧 SHA 盲改 | **完成** | `docs/v1.1-final/V11-C0-baseline.md` · `babf88b` |
-| C1 Cursor Management MCP | observer 先于 controller；Cursor 不是 Role | **DUT observer 完成**；真机 IDE 已 Enable；当前 `CONNECTED_OBSERVER`。**未**在本 MCP Core 上做 controller 派发/改 charter | C1 checkpoint · 现场 `router_status` |
-| C2 P0 正确性/授权 | 公共入口负测 | **提交完成**（控制面） | `0999f4f` |
-| C3 工程工作流 | Artifact 输入/输出 hash 链，不是只算 42 | **控制面 drain/continuation 已提交**；真实 Harness 仍用 `17+25→42` | `dbb9e02`；live reports |
-| C4 WS/Context | 历史只读；ZCode Level B 或明确新 WS | **控制面提交**；ZCode 声明 `REQUIRES_NEW_WORKSESSION`；**无**同 WS 两轮真证 | `0183fba` · C7 声明矩阵 |
-| C5 Join/Slot/Identity | 网页 ChatGPT 真机 Join A–G | **DUT/测试提交**；本轮 **未**重跑网页 Participant | `0183fba` · C5 checkpoint |
-| C6 管理链+Participant 联合 | Management 与 Participant 同时工作 | **DUT 完成**；未与真机 ChatGPT 联跑 | `bbed011` |
-| C7 五 Harness DUT | 声明矩阵 + Level A/B + artifact | 声明矩阵 + supervisor Job **PASS**；Level A 真机见第 5 节；Level B **未跑** | `7e268ea` · live reports |
-| C8 真实环境 promotion | 新测试项目、不碰生产 HOME | 隔离 `V11-REAL-SMOKE` **PASS**；MCP/Remote 用隔离 Core（空项目） | `0641ff3` |
-| C9 Desktop/Mobile UX | 身份、阻塞、槽位、远程页 | **静态 UX 提交**；手机 HTTP+WS 配对成功 | `556a121` + 真机配对 |
-| C10 规模/迁移 | 10k / 20MiB / freeze | **fixture PASS** | `9c9272a` |
-| C11 收口 | docs/12 全满足才 RC | **AUTO_SCOPE_DONE_WITH_BLOCKERS** | `ed78235` + 本文 |
+| Pi | 百炼 `qwen3.8-flash` | `9fb6a95` / `run-TioZFo` | **Level A Artifact PASS**；input `71199b4b…`，output `7b3c3b5d…`，GUI 下载 hash/marker PASS，Core exited |
+| Kimi | 百炼 `bailian/qwen3.8-flash` | `9fb6a95` / `run-C0Ye3r` | **Level A Artifact PASS**；input `a6ab1227…`，output `5901e44a…`，GUI 下载 hash/marker PASS，Core exited |
+| DSH | 百炼 `bailian/qwen3.8-flash` | `0050c1b` / `run-L5gPEY` | **Level A Artifact PASS**；input `4b742892…`，output `20f1d739…`，GUI 下载 hash/marker PASS，Core exited |
+| Codex | 隔离 DUT，CLI `0.155.0-alpha.9.2`，`gpt-5.6-luna` | `bf89877` / `run-1efUVT` | **BLOCKED_BY_ACCOUNT_USAGE_LIMIT**；身份/策略验证后已创建 native session，官方最小 CLI 调用明确返回 usage limit；未消耗 reset credit |
+| ZCode | 隔离 OAuth DUT，`GLM-5.3` | `e0a28e5` / `run-tau0kc` | **BLOCKED_BY_PROVIDER_ACCOUNT_RESOURCE**；字段透传已修，官方 CLI 到达 account provider 后返回 1113 余额/资源包不足（HTTP 429） |
 
----
+Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不是执行包 docs/12 要求的“同一个干净候选 SHA 全矩阵”。因此三项只能算真实 Level A 证据，不能提升为 RC Gate PASS。
 
-## 4. 项目 / Core / MCP / 手机
+### 4.1 Level B 现状
 
-### 4.1 Cursor Management MCP Core（真机）
+执行包要求每 Harness 在同一个 ACTIVE WS 完成 marker 两轮、WAITING_INPUT、cancel、restart/resume 与 native identity。
 
-| 项 | 值 |
-|---|---|
-| 数据根 | `.local/v11-cursor-mcp/core` |
-| 模式 | `LOCAL_CORE` · `LIMITED_ISOLATION` |
-| 协议 | `C1R1P1` |
-| instance | `dataset_55ac4c24-…_2a107110-…` |
-| 网关 | `0.0.0.0:8787`（进程曾重建；当前 pid 以 `remote-gateway.json` 为准） |
-| Cursor clientId | `mcp_management_cursor` |
-| 连接 | `CONNECTED_OBSERVER` · health `OK` · lease `null` |
-| 快照 | `projects=[]` `roles=[]` `tasks=[]`（此 Core **没有** live Level A 项目；那些跑在一次性 `.local/j3-production-pi/run-*`） |
-| 配置 | `.cursor/mcp.json` → observer argv + 绝对 `node.exe` |
+- fixture/control-plane 已覆盖 continuation、cancel、history、restart 等部分语义；不能替代真实 Harness。
+- `0050c1b` Pi `--ab --cancel`：初始 Run PASS；创建 B WorkSession 后新 Pi native session 在 open 阶段报 `ENOENT`，Run=`UNKNOWN`，Task=`NEEDS_ATTENTION`，B 的 `native_session_ref=null`；报告 `run-Zne21T`，错误 `AB_RUN_NOT_VERIFIED`。
+- 旧 A WorkSession 已正确 ARCHIVED，未被重新激活；但 B 未完成，所以历史只读不等于 Level B PASS。
+- Codex 和 ZCode 受外部账号资源阻断，无法完成真实 Level B。
+- 五 Harness 的真实 WAITING_INPUT、同 WS marker continuity 与 restart/resume 尚未形成候选 SHA 完整证据。
 
-**未做：** Cursor 切 controller、在该 Core 上 create Role/派发任务、scope A/B 真机拒绝演示。
+因此 Harness Gate 仍为 **PARTIAL / FAIL（非 RC）**。
 
-### 4.2 远程 / 手机
-
-| 项 | 值 |
-|---|---|
-| 访问方式 | Tailscale IPv4 `http://100.74.12.59:8787/`（不要 Clash `198.18.0.1`） |
-| TLS | **HTTP+WS**。HTTPS+WSS / Tailscale Serve **未跑** |
-| 配对设备 | `rdev_ce732aaa…` · 显示名「手机」· `MOBILE` · `ACTIVE` · 可申请 controller |
-| UI 状态 | 用户确认绿点 / 观察者 |
-| 修复 | 允许 Tailscale Origin；明文 HTTP 不写 `Secure` cookie（否则手机丢 cookie） |
-| Exit Node | **不需要** |
-
-### 4.3 Desktop / Electron
-
-C9 静态工作台（Core 身份、需要关注、blockedReason、Slot、远程配对页）已改。随后完成 unpacked Electron 工程包与当前 UI 的桌面冒烟：
-
-- 工程包：`release/AgentRouter-j3-5cee6ee1f140-263f29e4-8980-452b-bdbe-b0ecb6abe1b3`
-- packaged Core：**PASS**（source SHA `5cee6ee1f140ee689d30d572598b905401f329b7`，`sourceDirty=false`，artifact hash `0aecde6c47b1081c77207508a2ff034b0c1ef83bff0e0de1cabca82279f96880`）
-- Desktop：**PASS**（创建项目、打开 Role Plan、导航上下文保持、renderer Node 禁用、Core 连接、Electron 进程树停止）
-
-该结果证明该干净代码提交的工程包可启动，但不是安装器签名/安装/升级验收，也不补齐真实 Harness/Artifact/Level B Gate，故不能提升为 RC 候选。
-
----
-
-## 5. DUT 与真实 Level A
-
-### 5.1 隔离 DUT 布局（不入 Git）
-
-| 用途 | 路径 | 说明 |
-|---|---|---|
-| C7 native-runtime | `.local/v11-c7-dut/` | pi/dsh/kimi/zcode；百炼**只引用路径**；`credential_copied=false`；`production_homes_used=false`；Codex 当时省略 |
-| MCP + Remote Core | `.local/v11-cursor-mcp/` | 与 live 跑次隔离 |
-| 一次性 live Core | `.local/j3-production-pi/run-*` | 每跑次独立 Core，跑完 shutdown |
-| Codex DUT | `.local-protected/codex-dut/` | 隔离 `home` + `dut-fj/home` + 仅哈希 `approved-identity.json` |
-| ZCode DUT | `.local-protected/zcode-dut/` | 隔离 `cli/` + `home`；后续隔离浏览器登录 **成功**，未触碰桌面生产 HOME |
-| 凭据文件（只引用） | `E:\AgentRouter\账号信息\通用API\百炼.txt` | pi / Kimi |
-| 凭据文件（只引用） | `E:\AgentRouter\账号信息\通用API\Deepseek.txt` | DSH 最终成功跑次（用户指定，偏离执行包「dsh 也用百炼」） |
-
-生产 `CODEX_HOME` / 桌面 ZCode HOME / `C:\Users\hap_p\.dsh` **未作为 sessionHome。**
-
-### 5.2 五 Harness 声明（C7，未改口）
-
-五家均为 **COLD_RUN**。ZCode `native_resume=UNSUPPORTED`，Level B 要求 **新 WorkSession**。LIMITED_ISOLATION = Windows Job 收尾，**不是**全 OS 沙箱。
-
-### 5.3 真实 Level A（以最后一次成功/失败为准）
-
-| Harness | Provider / 模型 | 结果 | 报告目录 | report `code_sha` / 源码状态 | 是否满足 docs/07 Level A |
-|---|---|---|---|---|---|
-| pi | 百炼 `qwen3.8-flash` | **PASS_TASK_AND_BOOTSTRAP** | `run-VkEwiu` | `bbed011` / `dirty_source=true` | 仅最小文本路径通过；**无** input/output Artifact |
-| Kimi | 百炼 `bailian/qwen3.8-flash` | **PASS_TASK_AND_BOOTSTRAP** | `run-wgaHuS` | `ed78235` / `dirty_source=true` | 同上 |
-| Codex | 隔离 DUT · `gpt-5.6-luna` · CLI 实测约 0.155 | **PASS_TASK_AND_BOOTSTRAP** | `run-1cSjvp` | `ed78235` / `dirty_source=true` | 同上；生产账号未复制 |
-| DSH | `Deepseek.txt` · `deepseek-v4-flash` | **PASS_TASK_AND_BOOTSTRAP** | `run-atFgNN` | `ed78235` / `dirty_source=true` | 同上；百炼绑定曾失败后按用户改官方 DeepSeek |
-| ZCode | Z.AI OAuth · `GLM-5.3` | 隔离登录 **PASS**；live **FAIL** `BOOTSTRAP_NOT_DELIVERED` | `run-ZK11Q4` / `run-h37a9d` / `run-EgRqZb` | `ed78235` / `dirty_source=true` | **未通过**；最终 DB 定位 `NATIVE_ZCODE_MODEL_SELECTION_REQUIRED` |
-
-这里的 PASS 是“真实 Harness 曾完成 bootstrap、运行、`42` 结果发布和进程收尾”的事实陈述，不是候选版本签核。由于成功报告不是同一干净 source SHA，且任务没有 Artifact 工程链，四项均不能提升为 docs/12 RC Gate PASS。
-
-失败过的 DSH 跑次（`run-2Kth7v` 配置拒绝、`run-jaVUtc`/`run-yRKxfY` bootstrap）**不**算通过。
-
-ZCode 最终失败已确定为本地字段透传缺口：运行时 JSON 已有 `account:zai-individual-coding-plan / GLM-5.3`，但 `WindowsNativeProcessHost` 未把 `zcodeModelSelection` 从 prepared process 复制到 `SecureNativeProcess`。本次已补透传和 Windows 回归断言，定向测试通过；为避免继续消耗真实服务调用，**未**再做第四次 live，因此 ZCode Gate 仍保持 FAIL，不能以代码修正代替真机证据。
-
-### 5.4 明确未完成的 Harness 验收（docs/07）
-
-- Level A 的 Artifact 读入/写出/hash 与 GUI 核对
-- Level B：同 ACTIVE WS 记 marker、WAITING_INPUT 真值、cancel 不假成功
-- 跨 Harness handoff（如 Codex → Kimi → ZCode）
-- ZCode 修正后的真实 Level A，以及新 WorkSession 的连续性证据
-- 真实环境 **用户已有项目** 上的 smoke（只允许新测试对象；本 MCP Core 仍为空项目）
-
----
-
-## 6. 已完成工作（按证据层）
-
-### 6.1 真实实现（已提交到 `ed78235`）
-
-- C0 以 `16598f6` 为 Windows 规范源，不按 `0d92196` 盲改
-- Management MCP 参数化 clientId；Cursor 示例为 observer
-- P0 授权/历史 WS/lease 等控制面收口（C2）
-- queued drain、用户输入 continuation（C3）
-- session home 精确绑定、停 RoleContext 运行时写入、Join/Slot（C4/C5）
-- Management + Participant 联合 DUT（C6）
-- 四 Harness 隔离 native-runtime + supervisor stdio Job（C7）
-- 隔离真实烟测项目（C8）
-- Desktop 身份/阻塞/槽位/远程页（C9）
-- 10k conversation、20MiB 分块 artifact、migration freeze 含 017（C10）
-
-### 6.2 单元 / fixture / DUT 控制面
-
-C7 `v11-c7-dut`、native process host、C10 fixture、C6 联合链：checkpoint 记 PASS。GitHub CI 仍为 **基础设施未跑**，不是本仓测试红。
-
-### 6.3 真机（C11 之后，多未提交）
-
-- Cursor IDE 启用 `agentrouter-management`，刷新后 observer 可用
-- 手机 Tailscale 配对观察者
-- pi / Kimi / Codex / DSH 最小 Level A PASS
-- Codex 隔离 device-auth 登录成功并封哈希身份
-- ZCode 隔离 OAuth 登录成功；失败原因已从登录问题收敛到 Windows 宿主字段透传，并完成离线回归修正
-- Electron unpacked 工程包的 packaged Core 与当前 UI 冒烟在干净代码提交 `5cee6ee` 上通过（仅工程证据）
-
----
-
-## 7. 未完成 / BLOCKED / NOT_RUN
+## 5. Cursor、Participant、Remote 与 Desktop
 
 | 项 | 状态 |
 |---|---|
-| docs/12 RC 全 Gate | **未满足** |
-| 同一干净候选 SHA 全量复测 | **NOT_RUN**；现有四个成功 live report 均为 dirty，且 Pi 来自较早 SHA |
-| ZCode 真实 Level A | FAIL；隔离登录已成功，最后 live 因 `NATIVE_ZCODE_MODEL_SELECTION_REQUIRED` 失败；字段透传已修但未再 live 复证 |
-| Artifact 工程黄金链 | 真实 Harness **未跑**（仍 42） |
-| Level B / WAITING_INPUT / cancel 真机 | 控制面 DUT 有；五 Harness 真机 **未跑** |
-| ChatGPT Web Participant Join/Identity/结果环 | 本轮 **NOT_RUN**（历史 wn05 有过网页侧记录，不能替代本固定 SHA 复测） |
-| Cursor Management **controller** 真机派发 | **NOT_RUN** |
-| Remote HTTPS+WSS | **NOT_RUN** |
-| Electron | unpacked 工程包 Core/UI 冒烟 **PASS（clean source `5cee6ee`）**；安装器签名、安装/升级与打包后持久化验收仍 **NOT_RUN** |
-| GitHub CI | **BLOCKED_CI_INFRA** |
-| 提交 C11 之后的跟进 diff | **DONE**：`5cee6ee`；`.local-protected` / `.cursor/mcp.json` 未进入提交 |
-| merge `main` / tag / release | **禁止**（无用户批准） |
+| Cursor Management MCP observer | 已连接；Core `projects=[]`；Cursor 不是 Role |
+| Cursor controller 完整矩阵 | NOT_RUN：create Role/Slot、dispatch、inspect participant result、A/B scope、release lease 未在当前真实 Core 全跑 |
+| Web ChatGPT Participant | NOT_RUN：当前固定 SHA 未完成真实网页 Join/Identity/Artifact/Result 联跑；自动 integration 不能替代网页 ChatGPT |
+| 手机 Tailscale | 历史现场 HTTP+WS 配对 observer 成功；本 SHA 自动浏览器测试 PASS |
+| Remote HTTPS+WSS | NOT_RUN；现场仍是 HTTP+WS，不可写成 HTTPS PASS |
+| Electron | 本 SHA unpacked 工程包 Core/UI 冒烟 PASS |
+| 签名安装器、安装/升级 | NOT_RUN |
 
-执行包原要求 dsh/Kimi/Pi 一律百炼。Kimi/Pi 遵守；DSH 在百炼失败后按用户改为 DeepSeek 官方 flash。若 RC 要以执行包原文验收 DSH→百炼，则 DSH 该项仍算未按原文关闭。
+## 6. docs/11 八条黄金工作流复核
 
----
+| 黄金工作流 | 状态 |
+|---|---|
+| Artifact 工程链 | Pi/Kimi/DSH 单 Harness真实链 PASS；跨 Harness `Codex→Kimi→ZCode` 未完成 |
+| WAITING_INPUT | integration PASS；五 Harness 真实链未完成 |
+| WS Queue | integration/fixture 有证据；真实 Harness 未形成完整候选证据 |
+| 历史只读 | 控制面 PASS；Pi 新 WS 真实启动暴露 `ENOENT` |
+| Context 故障 | fault/contract 有覆盖；各宣称支持 Harness 的真实能力矩阵未闭环 |
+| 权限矩阵 |自动测试 PASS；Cursor/Remote/Web 真机联合矩阵未闭环 |
+| 五 Harness | 三家 Level A Artifact PASS；Codex/ZCode 外部阻断；Level B 未闭环 |
+| 网页+Cursor 协作 | NOT_RUN（当前固定 SHA） |
 
-## 8. 用户只需的后续动作
+## 7. docs/12 Gate 判定
 
-1. **不要** merge / tag / release，除非另发明确批准。
-2. ZCode：隔离登录已完成；仍需在修正后的干净提交上重跑一次 Level A，不能用离线测试替代。
-3. 可选：手机「控制 → 获取控制器」（同时只能一名）。
-4. 网页 ChatGPT Participant、Electron 安装器/升级、HTTPS Remote：仍待独立真机场次。
+### 功能 Gate
 
----
+未满足：五 Harness 声明矩阵、Context capability 真证、Participant 网页结果链、Cursor controller、真实 Level B。
 
-## 9. 保护约束（本轮遵守情况）
+### 测试 Gate
 
-- Cursor 未 `participant_join`，未创建 Cursor Role。
-- 百炼 / DeepSeek 密钥未写入仓库、checkpoint 或对话。
-- 未复制生产 Codex/ZCode auth。
-- 未宣称 RC。
-- 测试对象在隔离数据根；MCP 观察 Core 仍无业务项目。
+部分满足：本 SHA 全仓测试、secret scan、packaged Core/Electron、mobile、fixed-load 已过。未满足：同一 SHA 的全部 DUT、Web Participant、real environment smoke、HTTPS Remote、安装器。
+
+### 数据 / 安全 Gate
+
+自动 migration/freeze、scope、grant/binding、malformed input 等已有覆盖；但签名安装/升级、真实 device revoke existing stream、真实多端联合场次仍缺。
+
+### 产品 Gate
+
+Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自己的 Role Identity；Codex/ZCode 的外部阻断也使用户完整五 Harness 验收无法完成。
+
+**最终判定：`AUTO_SCOPE_DONE_WITH_BLOCKERS`，不是 Windows RC。**
+
+## 8. 阻断与所需外部动作
+
+1. **Codex DUT：** 需要用户明确授权消耗一个 reset credit，或等账号额度窗口恢复；未获得明确确认前不得自动 reset。
+2. **ZCode DUT：** 需要该隔离登录账号补充余额/资源包；禁止自动切账号。
+3. **Web Participant：** 需要可操作的真实 ChatGPT 网页会话/连接，在本候选 SHA 上完成 Join/Identity/Artifact/Result。
+4. **Remote HTTPS/WSS：** 需要实际 TLS/Tailscale Serve 环境与真机复测。
+5. **安装器：** 需要签名/安装/升级环境；当前仅 unpacked 工程包。
+6. **GitHub CI：** 仍需可用远端 CI 基础设施。
+7. **Pi Level B：** 需修复新 WorkSession native session `ENOENT`，随后对五 Harness 重跑同 ACTIVE WS marker、WAITING_INPUT、cancel、restart/resume。
+
+## 9. Git 与发布边界
+
+- 本轮实现已形成本地提交，未包含 `.local-protected`、`.local`、凭据或生产 HOME。
+- 执行包尚未完成，所以没有按“完成后提交 GitHub”推送完成态。
+- 未 merge main、未 tag、未 release、未删除历史 feature/evidence、未切换账号。

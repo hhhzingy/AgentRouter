@@ -1,52 +1,54 @@
 {
   "schema": "agentrouter-v1.1-final-win-checkpoint/1",
-  "stage": "C11",
+  "stage": "C11_FOLLOWUP",
   "source_sha": "16598f621d7160627ce769ecafb8d14ab55399f4",
-  "c11_evidence_commit_sha": "ed78235f6459594d139de98fa8f2978e2ccc55c8",
-  "followup_implementation_commit_sha": "5cee6ee1f140ee689d30d572598b905401f329b7",
+  "behavior_candidate_sha": "0050c1b1f595ee4eb3bdc216334af4c04df06fd2",
   "worktree": "E:/AgentRouter/.worktrees/v1.1-final-cursor-win",
   "branch": "feat/v1.1-final-cursor-win",
   "rc_status": "AUTO_SCOPE_DONE_WITH_BLOCKERS",
   "rc_phrase_emitted": false,
   "main_merge_authorized": false,
   "release_authorized": false,
+  "github_completion_push": "NOT_DONE_INCOMPLETE",
   "wrap_review": "docs/v1.1-final/V11-WRAP-REVIEW-20260920.md",
-  "offline_gates": {
-    "c0_c6": "PASS_PRIOR_COMMITS",
-    "c7_dut": "PASS",
-    "c8_isolated_smoke": "PASS",
-    "c9_static_ux": "PASS",
-    "c10_scale_migration": "PASS"
+  "clean_candidate_gates": {
+    "type_lint_spec": "PASS",
+    "unit": "PASS_213",
+    "integration": "PASS_212",
+    "contract": "PASS_67",
+    "chaos": "PASS_3",
+    "secret_scan": "PASS",
+    "packaged_core": "PASS",
+    "electron_unpacked_smoke": "PASS",
+    "mobile_browser": "PASS",
+    "fixed_load": "PASS_3_OF_3"
+  },
+  "harness_level_a": {
+    "pi_bailian": "PASS_ARTIFACT_CLEAN_9FB6A95",
+    "kimi_bailian": "PASS_ARTIFACT_CLEAN_9FB6A95",
+    "dsh_bailian": "PASS_ARTIFACT_CLEAN_0050C1B",
+    "codex": "BLOCKED_ACCOUNT_USAGE_LIMIT",
+    "zcode": "BLOCKED_PROVIDER_ACCOUNT_RESOURCE_1113_HTTP_429"
+  },
+  "harness_level_b": {
+    "status": "FAIL_INCOMPLETE",
+    "pi_new_work_session": "FAIL_NATIVE_OPEN_ENOENT_RUN_UNKNOWN",
+    "marker_waiting_input_cancel_restart_resume_all_harnesses": "NOT_COMPLETE"
   },
   "cursor_management_mcp": {
     "status": "CONNECTED_OBSERVER",
     "client_id": "mcp_management_cursor",
     "is_role": false,
-    "core_data": ".local/v11-cursor-mcp/core"
-  },
-  "followup_live": {
-    "mobile_remote_http_ws": "PAIRED_OBSERVER_ACTIVE",
-    "remote_https_wss": "NOT_RUN",
-    "pi_bailian_level_a": "PASS_TASK_AND_BOOTSTRAP",
-    "kimi_bailian_level_a": "PASS_TASK_AND_BOOTSTRAP",
-    "codex_dut_level_a": "PASS_TASK_AND_BOOTSTRAP",
-    "dsh_deepseek_flash_level_a": "PASS_TASK_AND_BOOTSTRAP",
-    "zcode_isolated_login": "PASS",
-    "zcode_level_a": "FAIL_BOOTSTRAP_MODEL_SELECTION_FORWARDING_FIXED_OFFLINE_NOT_LIVE_RETESTED",
-    "electron_unpacked_core_ui_smoke": "PASS_CLEAN_SOURCE_5CEE6EE_NOT_INSTALLER_ACCEPTANCE"
+    "controller_matrix": "NOT_RUN"
   },
   "blockers": [
-    "Same-clean-source-SHA acceptance NOT_RUN; all four successful live reports are dirty, and Pi used bbed011 while Kimi/Codex/DSH used ed78235",
-    "ZCode live Level A not passed; isolated OAuth login succeeded, final live failed NATIVE_ZCODE_MODEL_SELECTION_REQUIRED, forwarding fix has only offline regression evidence",
-    "docs/07 artifact engineering chain and Level B not run on real harnesses",
-    "ChatGPT Web Participant live join/result NOT_RUN on this SHA",
-    "Remote HTTPS/WSS live NOT_RUN",
-    "Electron unpacked Core/UI smoke passed on clean source 5cee6ee; signed installer install/upgrade acceptance NOT_RUN",
-    "GitHub CI BLOCKED_CI_INFRA"
-  ],
-  "user_actions": [
-    "Do not merge/tag/release without explicit approval",
-    "Run one clean-source ZCode Level A after the forwarding fix if that gate is still required",
-    "Complete remaining Artifact, Level B, Web Participant, HTTPS, installer and CI gates before any RC claim"
+    "Codex DUT account usage limit; reset credit requires explicit user confirmation",
+    "ZCode DUT account has insufficient balance or no resource package (1113/HTTP 429)",
+    "Pi new WorkSession native session open fails ENOENT; real five-harness Level B incomplete",
+    "Web ChatGPT Participant live join/identity/artifact/result not rerun on candidate",
+    "Remote HTTPS/WSS not run",
+    "Signed installer install/upgrade not run",
+    "GitHub CI infrastructure not completed",
+    "Harness Level A evidence is split across clean SHAs 9fb6a95 and 0050c1b"
   ]
 }
