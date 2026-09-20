@@ -86,6 +86,8 @@ const transferStatusParams = compile({
 
 export class RoleSessionExtension {
   private transferEngine?: ContextTransferEngine;
+  /** 同一提交事务内把新 WS 交给 Participant/Managed Binding 原语。 */
+  onSessionCommitted?: (roleId: string, sessionId: string) => void;
   constructor(
     private readonly db: import('better-sqlite3').Database,
     private readonly clock = () => Date.now(),
@@ -417,8 +419,7 @@ export class RoleSessionExtension {
     this.assertRole(roleId);
     const sessions = this.rows(roleId).map((r) => this.vm(r));
     const active = sessions.find((s) => s.state === 'ACTIVE');
-    if (!active) throw Error('ROLE_SESSION_STATE_INVALID');
-    return { sessions, active_session_id: active.id };
+    return { sessions, active_session_id: active?.id ?? null };
   }
 
   private preflight(roleId: string, targetHarness?: string, sessionId?: string) {
@@ -466,7 +467,9 @@ export class RoleSessionExtension {
       role_id: roleId,
       target_harness: harness,
       session_id: sessionId ?? null,
-      active_session_id: this.active(roleId).id,
+      active_session_id:
+        this.one("select id from role_sessions where role_id=? and state='ACTIVE'", roleId)?.id ??
+        null,
       binding_id: binding.id,
       binding_epoch: binding.epoch,
       candidate: candidate
@@ -508,8 +511,12 @@ export class RoleSessionExtension {
       binding = transition(roleId, targetHarness);
       if (binding.harness !== targetHarness || binding.role_id !== roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
     }
-    const current = this.active(roleId);
+    const current = this.one(
+      "select * from role_sessions where role_id=? and state='ACTIVE'",
+      roleId,
+    );
     if (contextMode === 'inherit') {
+      if (!current) throw Error('CONTEXT_EXPORT_UNSUPPORTED');
       // SH-01:门控=来源 history_export 能力 + 来源/目标双端真实接线通道;不再硬编码 false。
       const sourceHarness = String(current.harness ?? binding.harness);
       const sourceCap = this.capabilityLookup?.(sourceHarness) ?? { historyExport: 'UNKNOWN' };
@@ -597,9 +604,10 @@ export class RoleSessionExtension {
               roleId,
             )?.n ?? 0,
           ) + 1;
-        this.db
-          .prepare("update role_sessions set state='ARCHIVED' where id=? and state='ACTIVE'")
-          .run(current.id);
+        if (current)
+          this.db
+            .prepare("update role_sessions set state='ARCHIVED' where id=? and state='ACTIVE'")
+            .run(current.id);
         this.db
           .prepare(
             'insert into role_sessions(id,role_id,seq,name,state,binding_id,binding_epoch,harness,driver_id,workspace_affinity_json,native_session_ref,generation,created_at_ms,activated_at_ms) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -621,6 +629,7 @@ export class RoleSessionExtension {
             now,
           );
         this.activateWithinTransaction(roleId, id, binding, operationId, now);
+        this.onSessionCommitted?.(roleId, id);
         return this.vm(this.one('select * from role_sessions where id=?', id)!);
       })
       .immediate(),
@@ -677,6 +686,7 @@ export class RoleSessionExtension {
             now,
           );
         this.activateWithinTransaction(input.roleId, id, binding, 'ctx_transfer_commit_' + now, now);
+        this.onSessionCommitted?.(input.roleId, id);
         // 裁决1:op 终态与目标指针在同一提交事务内写入(单一原子事实)。
         this.db
           .prepare("update context_transfer_ops set state='COMMITTED',to_session_id=?,error_code=NULL,updated_at_ms=? where id=?")

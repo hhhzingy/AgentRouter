@@ -107,8 +107,14 @@ it('C6 Gate: Management 派任务，Participant join/claim/artifact/result，下
       slot_id: slot.slot_id,
       participant_kind: 'CHATGPT_WEB',
       request_key: 'join-c6',
-    } as never)) as { identity: { charter_revision: number; role_id: string } };
+    } as never)) as {
+      work_session_id: string;
+      identity: { charter_revision: number; role_id: string };
+    };
     expect(joined.identity.role_id).toBe(f.roleId);
+    expect(
+      f.db.prepare('select role_session_id from tasks where id=?').get(task.id),
+    ).toEqual({ role_session_id: joined.work_session_id });
     const beforeRev = joined.identity.charter_revision;
 
     await w.request('participant.claim' as never, { role_id: f.roleId, task_id: task.id, request_key: 'claim-c6' } as never);

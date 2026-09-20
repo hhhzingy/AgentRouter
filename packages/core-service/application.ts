@@ -620,6 +620,8 @@ export class ApplicationService extends Plans {
                 claimCode: typeof params.claim_code === 'string' ? params.claim_code : null,
                 externalSessionRef:
                   typeof params.external_session_ref === 'string' ? params.external_session_ref : null,
+                generation:
+                  typeof params.generation === 'number' ? params.generation : undefined,
               }),
             ),
           );

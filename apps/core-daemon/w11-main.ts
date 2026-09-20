@@ -238,6 +238,8 @@ server.listen(address, async () => {
         sessionHomeOf,
       );
       application.roleSession = extension;
+      extension.onSessionCommitted = (roleId, sessionId) =>
+        application.participantJoin?.bindManagedSession(roleId, sessionId);
       // 跨 Harness 继承:目标 binding 切换仅在提交事务内经此回调发生。
       extension.transitionBindingForCommit = (role, harness, sessionId) => {
         const t = application.roleSessionTransition;
