@@ -13,13 +13,14 @@ const kimiBailian = process.argv.includes('--kimi-bailian'); // W05 kimi→百�
 const kimi = process.argv.includes('--kimi') || kimiBailian;
 const codex = process.argv.includes('--codex');
 if(kimi&&codex)throw Error('ONE_HARNESS_PER_TEST');
-const dsh = process.argv.includes('--dsh');
+const dshBailian = process.argv.includes('--dsh-bailian');
+const dsh = process.argv.includes('--dsh') || dshBailian;
 const zcode = process.argv.includes('--zcode'); // W11 ZCode→百炼(官方 openai-compatible provider)
 const bailian = process.argv.includes('--bailian'); // pi→百炼(DashScope MaaS)绑定
 const harnessLabel=codex?'Codex':kimi?(kimiBailian?'Kimi(百炼)':'Kimi'):dsh?'DeepSeek Harness':zcode?'ZCode':'pi';
 const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':zcode?'zcode':'pi';
-const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):zcode?'agentrouter-zcode':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
-const modelId=codex?'gpt-5.6-luna':kimi?(kimiBailian?'bailian/qwen3.8-flash':'kimi-code/kimi-for-coding'):zcode?'zcode-managed':bailian?'qwen3.8-flash':'deepseek-v4-flash';
+const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):zcode?'agentrouter-zcode':dshBailian?'agentrouter-dashscope':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
+const modelId=codex?'gpt-5.6-luna':kimi?(kimiBailian?'bailian/qwen3.8-flash':'kimi-code/kimi-for-coding'):zcode?'zcode-managed':(bailian||dshBailian)?'qwen3.8-flash':'deepseek-v4-flash';
 const effort=codex?'low':kimi?'on':'off';
 const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/247581e40ee272fb/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
 const dshBin='C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js';
@@ -68,7 +69,7 @@ writeFileSync(
     piExtension: extension,
     piExtensionSha256: sha(extension),
     credentialFile: bailian?'E:/AgentRouter/账号信息/通用API/百炼.txt':'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
-    ...(bailian?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt',dshCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
+    ...((bailian||dshBailian)?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},...(bailian?{piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),dshCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
     ...(kimiBailian?{kimiBailianCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json'}),
     codexApprovedIdentityFile:resolve('.local-protected/codex-dut/dut-fj/approved-identity.json'),
     roleBridge:resolve('.local/w11-core/role-bridge.mjs'),roleBridgeSha256:sha(resolve('.local/w11-core/role-bridge.mjs')),

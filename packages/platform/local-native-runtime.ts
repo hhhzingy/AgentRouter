@@ -233,14 +233,82 @@ export async function installLocalNativeRuntime(
         if (input.config.version !== '0.1.5-rc.1') throw Error('DSH_VERSION_UNVERIFIED');
         if (!c.dshBin || !isAbsolute(c.dshBin)) throw Error('DSH_RUNTIME_CONFIG_INVALID');
         const dshHome = c.dshHome ?? join(home, '.dsh');
-        if (!existsSync(join(dshHome, 'profiles'))) throw Error('NATIVE_CREDENTIALS_REQUIRED');
-        // 百炼官方路径:dsh settings.yaml 内置 balian provider(apiKeyEnv=BALIAN_API_KEY);注入标注密钥即可。
-        let dshEnv: Record<string, string | undefined> = { SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: join(home, 'bin'), DSH_HOME: dshHome };
+        const profileHome = join(dshHome, 'profiles', 'acp');
+        mkdirSync(profileHome, { recursive: true });
+        const provision = (filename: string, expected: string, accepted = [expected]) => {
+          if (existsSync(filename)) {
+            if (!accepted.includes(readFileSync(filename, 'utf8')))
+              throw Error('DSH_PROFILE_CONFIG_REVIEW_REQUIRED');
+          } else writeFileSync(filename, expected, { encoding: 'utf8', flag: 'wx' });
+        };
+        // 预配官方 ACP profile，避免空 HOME 首启自动初始化超过 RPC 活性界。
+        provision(
+          join(profileHome, 'package.json'),
+          JSON.stringify(
+            {
+              name: 'dsh-profile-acp',
+              private: true,
+              dependencies: {},
+              dsh: {
+                profile: {
+                  bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'],
+                  patchReload: 'startup',
+                },
+              },
+            },
+            null,
+            2,
+          ) + '\n',
+        );
+        const emptyCordis = '[]\n';
+        const normalizedEmptyCordis =
+          '# dsh profile root — an empty entry list. The tree is composed as patches:\n' +
+          "# each bundle in package.json's dsh.profile.bundles, then cordis.patch.yml, then any\n" +
+          '# --patch overlays. Edit cordis.patch.yml, not this file.\n[]\n';
+        provision(join(profileHome, 'cordis.yml'), emptyCordis, [emptyCordis, normalizedEmptyCordis]);
+        provision(join(profileHome, 'pnpm-workspace.yaml'), 'packages:\n  - .\n\nnodeLinker: hoisted\nautoInstallPeers: false\n');
+        let dshEnv: Record<string, string | undefined> = {
+          SystemRoot: process.env.SystemRoot,
+          WINDIR: process.env.WINDIR,
+          PATH: join(home, 'bin'),
+          DSH_HOME: dshHome,
+        };
         if (c.dshCredentialFile && c.piProvider) {
           if (!isAbsolute(c.dshCredentialFile)) throw Error('DSH_CREDENTIAL_PATH_INVALID');
           const cred = parseLabeledCredential(readFileSync(c.dshCredentialFile, 'utf8'));
+          if (cred.model !== c.piProvider.modelId) throw Error('DSH_BAILIAN_MODEL_MISMATCH');
+          const provider = 'bailian';
+          // settings.yaml 支持 JSON（YAML 子集）；只包含非秘密 endpoint/model，key 仅进子进程 env。
+          provision(
+            join(dshHome, 'settings.yaml'),
+            JSON.stringify({
+              'llm-pi-ai': {
+                providers: {
+                  [provider]: {
+                    displayName: 'Bailian',
+                    apiKeyEnv: 'BALIAN_API_KEY',
+                    api: 'openai-completions',
+                    baseURL: cred.baseUrl,
+                    models: [
+                      {
+                        id: c.piProvider.modelId,
+                        name: c.piProvider.modelId,
+                        contextWindow: c.piProvider.contextWindowTokens,
+                        maxTokens: c.piProvider.maxOutputTokens,
+                      },
+                    ],
+                  },
+                },
+              },
+            }) + '\n',
+          );
+          provision(
+            join(profileHome, 'cordis.patch.yml'),
+            JSON.stringify([{ id: 'acp', config: { provider, model: c.piProvider.modelId } }]) + '\n',
+          );
           dshEnv = { ...dshEnv, BALIAN_API_KEY: cred.apiKey };
         } else {
+          provision(join(profileHome, 'cordis.patch.yml'), '[]\n');
           const keyText = existsSync(c.credentialFile) ? readFileSync(c.credentialFile, 'utf8') : '';
           const dshKey = keyText.match(/sk-[A-Za-z0-9_-]{16,}/)?.[0];
           if (!dshKey) throw Error('NATIVE_CREDENTIALS_REQUIRED');
