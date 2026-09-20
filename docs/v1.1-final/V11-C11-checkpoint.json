@@ -1,0 +1,33 @@
+{
+  "schema": "agentrouter-v1.1-final-win-checkpoint/1",
+  "stage": "C11",
+  "source_sha": "16598f621d7160627ce769ecafb8d14ab55399f4",
+  "worktree": "E:/AgentRouter/.worktrees/v1.1-final-cursor-win",
+  "branch": "feat/v1.1-final-cursor-win",
+  "rc_status": "AUTO_SCOPE_DONE_WITH_BLOCKERS",
+  "rc_phrase_emitted": false,
+  "main_merge_authorized": false,
+  "release_authorized": false,
+  "offline_gates": {
+    "c0_c6": "PASS_PRIOR_COMMITS",
+    "c7_dut": "PASS",
+    "c8_isolated_smoke": "PASS",
+    "c9_static_ux": "PASS",
+    "c10_scale_migration": "PASS"
+  },
+  "blockers": [
+    "Codex live DUT identity missing (BLOCKED_USER)",
+    "dsh/kimi/zcode live Level A not re-run this wrap",
+    "ChatGPT Web Participant live join/result NOT_RUN",
+    "Mobile pairing USER_ACTION_REQUIRED",
+    "Remote HTTPS/WSS live NOT_RUN",
+    "Electron packaged local/remote NOT_RUN",
+    "GitHub CI BLOCKED_CI_INFRA"
+  ],
+  "user_actions": [
+    "Enable Cursor IDE MCP from .cursor/mcp.example.json if desired",
+    "Pair a phone to Remote gateway when AGENTROUTER_REMOTE_ENABLED=1",
+    "Provide an isolated Codex DUT identity if Codex live is required",
+    "Approve merge/tag/release explicitly; this wrap does not"
+  ]
+}
