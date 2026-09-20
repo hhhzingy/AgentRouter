@@ -4,7 +4,7 @@
 
 | ID | 优先级 | N0 判定 | 复核摘要 |
 |---|---:|---|---|
-| F01 | P0 | FIXED_AUTOMATED | ZCode `confirmed` 仅在 session/send 被接受后成立，不代表模型 READY。 |
+| F01 | P0 | FIXED_AUTOMATED_REAL_PENDING | Context Transfer 现要求 `seed_sha256 == acceptedPayloadHash`；target-created ref 在发送前持久化，session-exists-only/错误 hash 不得 commit。ZCode 真实 receipt DUT 待跑。 |
 | F02 | P0 | FIXED_AUTOMATED | 历史 WorkSession reactivation 被移除，repair/transfer 回归已有覆盖。 |
 | F03 | P1 | FIXED_AUTOMATED | Reference/Artifact 输入结构已有合同与黄金链测试。 |
 | F04 | P0 | FIXED_AUTOMATED_REAL_PARTIAL | Managed Artifact 路径、hash、读取/去重已修；四家有历史真实链，非同一干净 SHA，ZCode 缺。 |
@@ -19,7 +19,7 @@
 | F13 | P1 | FIXED_AUTOMATED | legacy RoleContext 停止作为运行时事实源；conversation_items 仅保留人类历史。 |
 | F14 | P1 | FIXED_AUTOMATED_REAL_PENDING | migration 018 建立正式 TaskInput、wait generation、hash/idempotency 与 Run/Participant 恰好一次消费；真实 Harness WAITING_INPUT 链未齐。 |
 | F15 | P1 | SUPERSEDED_UNSUPPORTED | ZCode 当前声明 COLD_RUN；同 WS native warm/resume 不支持，新 WS + transfer 才是可测路径。 |
-| F16 | P1 | PARTIAL | UNKNOWN 状态不自动重试已有合同；生产 reconcile/故障恢复证据仍需 N8。 |
+| F16 | P1 | PARTIAL_AUTOMATED | target create 后 UNKNOWN 已按持久 native ref + 特定 payload hash 只读 reconcile，错误 receipt 保持 UNRESOLVED/暂停派发；生产崩溃恢复与故障注入仍需 N8。 |
 | F17 | P1 | FIXED_AUTOMATED | P2/extension 合同与 participant principal 分离已有覆盖。 |
 | F18 | P1 | PARTIAL | capability 原值/UNKNOWN 展示合同已冻结；真实五 Harness 声明仍不完整。 |
 | F19 | P1 | PARTIAL | LOCAL/REMOTE Core 组合与本地包有证据；Electron 安装/升级未跑。 |
@@ -39,6 +39,6 @@
 
 1. N1 对 P0 修复做当前 SHA 定向回归，确认无回归后不重复改代码。
 2. N2/N3 补三条黄金流程及 Participant 真实链，形成 FUNC-CHECKPOINT-A/B。
-3. N4/N5 补 Context Transfer、UNKNOWN reconcile、Cursor controller 与 Remote 真实负测。
+3. N4 先修 ZCode target-window 探针所有权并跑真实 receipt/cross-Harness；N5 补 Cursor controller 与 Remote 真实负测。
 4. N6 以同一干净候选 SHA 跑五 Harness Level A/B；ZCode、Pi Level B 如仍失败须保留失败分母。
 5. N8—N10 补 migration/fault、安装包、CI 与 UI 合流；在此之前不宣称 Windows RC。
