@@ -20,6 +20,7 @@ import {
 } from '../../../packages/ui/index.ts';
 import type { RoleVM } from '../../../packages/client-contract/c1r1p1/generated.ts';
 import { ConversationView, DispatchDrawer, SpaceCard, TaskRow } from './composites.tsx';
+import {WaitingInputSheet} from './task-editor.tsx';
 import { useStore } from './store.tsx';
 
 const TABS = [{key:'overview',label:'工作台'},{key:'timeline',label:'动态'},{key:'inbox',label:'成果'},{key:'settings',label:'设置'}];
@@ -32,6 +33,8 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
   const [historyGroup,setHistoryGroup]=useState(''),[historyRole,setHistoryRole]=useState('');
   const setActiveTab = (next:string) => {location.hash = `#/project/${projectId}/${next}`;};
   const [dispatchRole, setDispatchRole] = useState<RoleVM | null>(null);
+  const [waitingTaskId,setWaitingTaskId]=useState<string|null>(null);
+  const [selectedResultId,setSelectedResultId]=useState<string|null>(null);
   if (!project) return <EmptyState title="项目不存在" body="可能已归档或连接的是另一个 Core。" />;
 
   const spaces = s.snapshot.spaces.filter(
@@ -49,6 +52,12 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
     .map((id) => ({ id }))
     .filter((v, i, a) => a.findIndex((x) => x.id === v.id) === i);
   const ssh = project.hostLabel.startsWith('SSH');
+  const waitingTask=tasks.find(t=>t.id===waitingTaskId);
+  const waitingRole=waitingTask?s.snapshot.roles.find(r=>r.id===waitingTask.assigneeRoleId):undefined;
+  const attentionTasks=tasks.filter(t=>t.state==='WAITING_INPUT'||t.state==='NEEDS_ATTENTION'||Boolean(t.blockedReason));
+  const unknownRuns=runs.filter(r=>r.state==='UNKNOWN'||r.reconciliationRequired);
+  const pendingResults=results.filter(r=>r.acceptance==='PENDING'||r.delivery==='UNKNOWN'||r.delivery==='UNDELIVERABLE');
+  const attentionCount=attentionTasks.length+unknownRuns.length+approvals.filter(a=>a.state==='PENDING').length+issues.filter(i=>i.state!=='RESOLVED').length+pendingResults.length;
 
   const tabBadges: Record<string, number | undefined> = {
     inbox: results.filter((r) => r.acceptance === 'PENDING').length,
@@ -97,6 +106,19 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
       {primaryTab==='settings'&&<nav aria-label="设置分类"><button className="btn" onClick={()=>setActiveTab('settings')}>项目设置</button><button className="btn" onClick={()=>setActiveTab('models')}>运行环境</button></nav>}
       {activeTab === 'overview' && (
         <div className="tab-body" data-tab="overview">
+          <section className="workbench-section needs-attention-section" aria-labelledby="needs-attention-title">
+            <div className="section-heading"><div><span className="eyebrow">ACTION CENTER</span><h2 id="needs-attention-title">需要关注</h2></div><Badge tone={attentionCount?'warning':'neutral'}>{attentionCount} 项</Badge></div>
+            {attentionCount===0?<p className="attention-empty">当前没有需要你介入的事项。空闲不代表工作已经完成。</p>:<div className="attention-list" data-testid="needs-attention">
+              {attentionTasks.map(t=>{const role=roles.find(r=>r.id===t.assigneeRoleId);return <article className="attention-item" key={'task-'+t.id}>
+                <div><Badge tone={t.state==='WAITING_INPUT'?'warning':'danger'}>{t.state==='WAITING_INPUT'?'等待你的输入':'任务受阻'}</Badge><h3>{t.summary}</h3><p>{role?.name??t.assigneeRoleId} · {t.blockedReason||'需要检查任务详情'}</p></div>
+                <div className="attention-actions">{t.state==='WAITING_INPUT'&&role&&<CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}><Button variant="primary" onClick={()=>setWaitingTaskId(t.id)}>回复</Button></CapabilityGate>}<a className="btn btn-secondary" href={`#/role/${t.assigneeRoleId}`}>查看角色</a></div>
+              </article>})}
+              {unknownRuns.map(r=><article className="attention-item" key={'run-'+r.id}><div><Badge tone="danger">状态未知</Badge><h3>Run 状态未知，需要对账</h3><p>{r.exitReason||'作用是否已经发生仍未确认；请勿盲目重试。'}</p></div><a className="btn btn-secondary" href={`#/role/${r.roleId}`}>检查并对账</a></article>)}
+              {approvals.filter(a=>a.state==='PENDING').map(a=><article className="attention-item" key={'approval-'+a.id}><div><Badge tone="warning">等待审批 · {a.riskLevel}</Badge><h3>{a.title}</h3><p>关联 Run {a.runId}</p></div><Button onClick={()=>setActiveTab('issues')}>查看审批</Button></article>)}
+              {pendingResults.map(r=><article className="attention-item" key={'result-'+r.id}><div><Badge tone={r.delivery==='UNDELIVERABLE'?'danger':'warning'}>{r.acceptance==='PENDING'?'结果等待复核':'结果交付异常'}</Badge><h3>{r.summary}</h3><p>Delivery {r.delivery} · Acceptance {r.acceptance}</p></div><Button onClick={()=>{setSelectedResultId(r.id);setActiveTab('inbox');}}>查看结果</Button></article>)}
+              {issues.filter(i=>i.state!=='RESOLVED').map(i=><article className="attention-item" key={'issue-'+i.id}><div><Badge tone="danger">{i.state==='OPEN'?'问题待介入':'问题已知悉'}</Badge><h3>{i.messageKey}</h3><p>{i.code}</p></div><Button onClick={()=>setActiveTab('issues')}>查看问题</Button></article>)}
+            </div>}
+          </section>
           <div className="overview-strip">
             <KeyValue k="协作组" v={spaces.length} />
             <KeyValue k="角色" v={roles.length} />
@@ -113,6 +135,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             <KeyValue k="排队任务" v={tasks.filter((t) => t.state === 'QUEUED').length} />
             <KeyValue k="未解决问题" v={issues.filter((i) => i.state !== 'RESOLVED').length} />
           </div>
+          <section className="workbench-section"><div className="section-heading"><div><span className="eyebrow">TEAM</span><h2>角色</h2></div><Button variant="secondary" onClick={() => (location.hash = `#/roleplan/${projectId}`)}>添加角色</Button></div>
           {spaces.map((sp) => (
             <SpaceCard key={sp.id} space={sp} onDispatch={setDispatchRole} />
           ))}
@@ -122,22 +145,9 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
               body="协作组是通信与规则边界。通过「编排角色」生成或导入 Role Plan 来创建第一个组。"
             />
           )}
-          <Card>
-            <h3>需要关注</h3>
-            {tasks.filter((t) => t.state === 'NEEDS_ATTENTION' || t.blockedReason).length === 0 ? (
-              <p className="muted">当前没有需要介入的任务。空闲 ≠ 已完成。</p>
-            ) : (
-              <ul className="task-rows" data-testid="needs-attention">
-                {tasks
-                  .filter((t) => t.state === 'NEEDS_ATTENTION' || t.blockedReason)
-                  .map((t) => (
-                    <TaskRow key={t.id} task={t} />
-                  ))}
-              </ul>
-            )}
-          </Card>
-          <Card>
-            <h3>进行中的任务</h3>
+          </section>
+          <Card className="workbench-section">
+            <div className="section-heading"><div><span className="eyebrow">WORK</span><h2>进行中与队列</h2></div></div>
             {tasks.filter((t) =>
               ['ACTIVE', 'QUEUED', 'WAITING_INPUT', 'NEEDS_ATTENTION'].includes(t.state),
             ).length === 0 ? (
@@ -153,6 +163,10 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                   ))}
               </ul>
             )}
+          </Card>
+          <Card className="workbench-section">
+            <div className="section-heading"><div><span className="eyebrow">DELIVERIES</span><h2>最近结果</h2></div><Button variant="ghost" onClick={()=>setActiveTab('inbox')}>查看全部</Button></div>
+            {results.length===0?<p className="muted">尚无结果。Run 成功也不会自动生成或接受 Result。</p>:<ul className="recent-results">{results.slice(0,4).map(r=><li key={r.id}><div><b>{r.summary}</b><small>Task {r.taskId} · {r.artifactIds.length} 个产物</small></div><div><Badge tone={r.delivery==='DELIVERED'?'ok':r.delivery==='UNKNOWN'||r.delivery==='UNDELIVERABLE'?'danger':'neutral'}>交付 {r.delivery}</Badge> <Badge tone={r.acceptance==='ACCEPTED'?'ok':r.acceptance==='PENDING'?'warning':'neutral'}>验收 {r.acceptance}</Badge></div></li>)}</ul>}
           </Card>
         </div>
       )}
@@ -182,9 +196,9 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
               body="只有显式发给你的结果会出现在这里；成功发信不产生回执，通知不唤醒角色。"
             />
           ) : (
-            <ul className="inbox-list">
+            <div className="results-layout"><ul className="inbox-list result-list">
               {results.map((r) => (
-                <li key={r.id} className="inbox-item">
+                <li key={r.id} className={`inbox-item ${selectedResultId===r.id?'selected':''}`}>
                   <div>
                     <Badge tone={r.acceptance === 'PENDING' ? 'warning' : 'neutral'}>
                       {r.acceptance === 'PENDING'
@@ -196,11 +210,9 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                             : '无需验收'}
                     </Badge>{' '}
                     <b>{r.summary}</b>
-                    <div className="muted">
-                      关联任务 {r.taskId} · 产物 {r.artifactIds.length} 个
-                      {r.artifactIds.length > 0 ? ' · ' + r.artifactIds.join(', ') : ''}
-                    </div>
+                    <div className="muted">Task {r.taskId} · Delivery {r.delivery} · 产物 {r.artifactIds.length} 个</div>
                   </div>
+                  <Button variant="ghost" onClick={()=>setSelectedResultId(r.id)}>详情</Button>
                   {r.acceptance === 'PENDING' && (
                     <div className="inbox-actions">
                       <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
@@ -211,7 +223,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                   )}
                 </li>
               ))}
-            </ul>
+            </ul><ResultDetail result={results.find(r=>r.id===(selectedResultId??results[0]?.id))} /></div>
           )}
         </div>
       )}
@@ -331,8 +343,8 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
       {activeTab === 'settings' && (
         <div className="tab-body" data-tab="settings">
-          <Card>
-            <h3>项目设置</h3><LocalDataPanel/>
+          <div className="settings-grid"><Card>
+            <span className="eyebrow">PROJECT</span><h3>项目</h3><LocalDataPanel/>
             <KeyValue k="项目 ID" v={project.id} />
             <KeyValue k="Core" v={project.hostLabel} />
             <KeyValue k="根路径（来自 Core）" v={project.displayRoot} />
@@ -341,13 +353,27 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
               项目没有独立的"暂停派发"开关；派发暂停是全局动作（运行时
               pauseDispatch），不会在项目页伪装成项目开关。
             </p>
-          </Card>
+          </Card><Card><span className="eyebrow">ROLES & PERMISSIONS</span><h3>角色与权限</h3><p>{roles.length} 个 Role；有效权限来自 Core 的 Role Charter。</p><Button onClick={()=>location.hash=`#/roleplan/${projectId}`}>管理角色方案</Button></Card><Card><span className="eyebrow">HARNESSES & MODELS</span><h3>Harness 与模型</h3><p>可用性、账号与 capability 均按 Core 原值展示。</p><Button onClick={()=>setActiveTab('models')}>查看运行环境</Button></Card><Card><span className="eyebrow">WORKSPACES</span><h3>工作区</h3><p>{(s.snapshot.workspaces??[]).filter(w=>w.projectId===projectId).length} 个已登记 workspace。</p><details><summary>查看路径</summary>{(s.snapshot.workspaces??[]).filter(w=>w.projectId===projectId).map(w=><KeyValue key={w.id} k={w.label} v={w.displayPath}/>)}</details></Card><Card><span className="eyebrow">CONNECTIONS</span><h3>连接与设备</h3><p>Management MCP 客户端属于连接，不属于 Role。</p><a className="btn btn-secondary" href="#/remote">远程设备与 Controller</a></Card><Card><span className="eyebrow">ADVANCED</span><h3>诊断</h3><details><summary>技术字段</summary><KeyValue k="Core instance" v={s.hello.serverInstanceId}/><KeyValue k="Contract" v={s.hello.contractRevision??s.hello.protocol}/><KeyValue k="Snapshot revision" v={s.snapshot.revision}/></details></Card></div>
         </div>
       )}
 
       {dispatchRole && <DispatchDrawer role={dispatchRole} onClose={() => setDispatchRole(null)} />}
+      {waitingTask&&waitingRole&&<WaitingInputSheet role={waitingRole} task={waitingTask} onClose={()=>setWaitingTaskId(null)}/>}
     </div>
   );
+}
+
+function ResultDetail({result}:{result:ReturnType<typeof useStore>['snapshot']['results'][number]|undefined}){
+ const s=useStore();
+ if(!result)return null;
+ const task=s.snapshot.tasks.find(t=>t.id===result.taskId);
+ const role=task?s.snapshot.roles.find(r=>r.id===task.assigneeRoleId):undefined;
+ const run=task?s.snapshot.runs.filter(r=>r.taskId===task.id).at(-1):undefined;
+ return <Card className="result-detail"><span className="eyebrow">RESULT DETAIL</span><h2>{result.summary}</h2>
+  <div className="result-state-grid"><KeyValue k="Task" v={task?.summary??result.taskId}/><KeyValue k="Role" v={role?.name??'Core 未提供'}/><KeyValue k="Run" v={run?`${run.id} · ${RUN_STATE_LABEL[run.state]}`:'未关联'}/><KeyValue k="Delivery" v={<Badge tone={result.delivery==='DELIVERED'?'ok':result.delivery==='UNKNOWN'||result.delivery==='UNDELIVERABLE'?'danger':'neutral'}>{result.delivery}</Badge>}/><KeyValue k="Acceptance" v={<Badge tone={result.acceptance==='ACCEPTED'?'ok':result.acceptance==='PENDING'?'warning':'neutral'}>{result.acceptance}</Badge>}/></div>
+  <h3>Artifacts / Evidence</h3><p className="muted">Artifact 可读、测试通过与用户接受是不同事实。以下只显示 Core 可验证的产物元数据。</p>
+  {result.artifactIds.length?<ArtifactList ids={result.artifactIds}/>:<p className="muted">该 Result 没有声明 Artifact。</p>}
+ </Card>;
 }
 
 function ArtifactList({ ids }: { ids: string[] }) {

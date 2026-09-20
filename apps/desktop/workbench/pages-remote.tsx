@@ -1,6 +1,7 @@
 /** W09:远程 Windows GUI——本机远程网关状态、手机/二机配对码生成与设备撤销。 */
 import React, { useCallback, useEffect, useState } from 'react';
 import { useStore } from './store.tsx';
+import {Badge,Button,CapabilityGate,formatDateTime} from '../../../packages/ui/index.ts';
 
 type Device = {
   deviceId: string;
@@ -77,6 +78,10 @@ export function RemoteDevicesPage() {
           </p>
         </div>
       </header>
+      <section className="remote-identity" aria-label="远程连接身份">
+        <div><span className="eyebrow">CURRENT CORE</span><b>{s.contextMode==='REMOTE_CORE'?'Remote Core':'This PC'}</b><small>{s.hello.serverInstanceId.slice(0,12)} · {s.connectionState==='CONNECTED_CONTROLLER'?'Controller':'Observer'}</small></div>
+        <div><Badge tone={s.connectionState==='CONNECTED_CONTROLLER'?'ok':'queue'}>{s.connectionState==='CONNECTED_CONTROLLER'?'可执行受权 mutation':'只读观察'}</Badge><Badge tone="warning">Transport security 未验证</Badge></div>
+      </section>
       {error && <p role="alert">操作失败:{error}</p>}
       <section className="card">
         <h2>生成配对</h2>
@@ -107,14 +112,14 @@ export function RemoteDevicesPage() {
               </label>
             ))}
           </fieldset>
-          <button onClick={() => void create()}>生成配对码(5 分钟有效)</button>
+          <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}><Button variant="primary" onClick={() => void create()}>生成配对码（5 分钟有效）</Button></CapabilityGate>
         </div>
       </section>
       {pair && (
         <section className="card" aria-label="配对码">
           <h2>{pair.name} 配对码(仅显示一次)</h2>
           <p style={{ fontSize: 22, wordBreak: 'break-all', fontFamily: 'monospace' }}>{pair.challenge}</p>
-          <p>有效期至 {new Date(pair.expiresAtMs).toLocaleTimeString()}</p>
+          <p>有效期至 {formatDateTime(pair.expiresAtMs)}</p>
         </section>
       )}
       <section className="card">
@@ -126,9 +131,9 @@ export function RemoteDevicesPage() {
               <span>
                 {d.displayName} · {d.kind} · {d.state}
                 {d.canRequestController ? ' · 可控制' : ''}
-                {d.lastSeenMs ? ` · 最近在线 ${new Date(d.lastSeenMs).toLocaleString()}` : ''}
+                {d.lastSeenMs ? ` · 最近在线 ${formatDateTime(d.lastSeenMs)}` : ' · Last seen 未提供'}
               </span>
-              {d.state === 'ACTIVE' && <button onClick={() => void revoke(d.deviceId)}>撤销</button>}
+              {d.state === 'ACTIVE' && <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}><Button variant="danger" onClick={() => void revoke(d.deviceId)}>撤销设备</Button></CapabilityGate>}
             </li>
           ))}
         </ul>

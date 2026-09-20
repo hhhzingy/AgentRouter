@@ -1,0 +1,78 @@
+{
+  "source": "working-tree",
+  "generatedAt": "2026-09-20T22:41:59.494Z",
+  "shots": [
+    {
+      "name": "01-home",
+      "route": "#/",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/01-home.png",
+      "horizontalOverflow": false
+    },
+    {
+      "name": "02-workbench",
+      "route": "#/project/proj_atlas",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/02-workbench.png",
+      "horizontalOverflow": false
+    },
+    {
+      "name": "03-role-worksession",
+      "route": "#/role/role_zhou",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/03-role-worksession.png",
+      "horizontalOverflow": false
+    },
+    {
+      "name": "04-results-evidence",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/04-results-evidence.png",
+      "horizontalOverflow": false
+    },
+    {
+      "name": "05-workbench-150dpi",
+      "route": "#/project/proj_atlas",
+      "scenario": "full",
+      "viewport": {
+        "width": 960,
+        "height": 600
+      },
+      "scale": 1.5,
+      "file": "screenshots/05-workbench-150dpi.png",
+      "horizontalOverflow": false
+    },
+    {
+      "name": "06-mobile-intervention",
+      "route": "#/project/proj_atlas",
+      "scenario": "observer",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scale": 1,
+      "file": "screenshots/06-mobile-intervention.png",
+      "horizontalOverflow": false
+    }
+  ]
+}

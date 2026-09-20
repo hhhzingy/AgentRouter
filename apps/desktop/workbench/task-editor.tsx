@@ -3,6 +3,7 @@ import type {RoleVM,TaskVM} from '../../../packages/client-contract/c1r1p1/gener
 import {useStore} from './store.tsx';
 import {compileTask,emptyTaskDraft,maySupplement,type TaskDraft} from './task-draft.ts';
 import {actionTone,failureState,errorMessage,type ActionState} from './action-state.ts';
+import {Button,Drawer} from '../../../packages/ui/index.ts';
 export function TaskEditor({role}:{role:RoleVM}){
  const s=useStore(),[mode,setMode]=useState<'NEW_TASK'|'TASK_INPUT'>('NEW_TASK'),[taskId,setTaskId]=useState('');
  const tasks=s.snapshot.tasks.filter(t=>t.assigneeRoleId===role.id),task=tasks.find(t=>t.id===taskId);
@@ -13,6 +14,21 @@ export function TaskEditor({role}:{role:RoleVM}){
  {mode==='TASK_INPUT'&&<label className="field">补充目标任务<select aria-label="补充目标任务" value={taskId} onChange={e=>setTaskId(e.target.value)}><option value="">请选择明确的任务…</option>{tasks.filter(t=>['WAITING_INPUT','ACTIVE'].includes(t.state)||t.id===taskId).map(t=><option key={t.id} value={t.id} disabled={!maySupplement(t)}>{t.summary} · {t.id}{maySupplement(t)?'（等待用户补充）':'（当前不能补充）'}</option>)}</select></label>}
  <DraftFields key={key} storageKey={key} role={role} mode={mode} task={task}/>
  </section>;
+}
+
+/** WAITING_INPUT 的正式 Sheet：问题、Task 范围与回复草稿始终绑定在一起。 */
+export function WaitingInputSheet({role,task,onClose}:{role:RoleVM;task:TaskVM;onClose:()=>void}){
+ const s=useStore();
+ const key='agentrouter.task-draft:'+JSON.stringify([s.pendingIdentity??s.hello.serverInstanceId,role.spaceId,role.id,'TASK_INPUT',task.id]);
+ return <Drawer title="回复等待输入的任务" onClose={onClose} footer={<Button onClick={onClose}>关闭</Button>}>
+  <div className="attention-context">
+   <span className="eyebrow">{role.name} · {task.id}</span>
+   <h3>{task.summary}</h3>
+   <p>{task.blockedReason||'该任务正在等待你的补充信息。'}</p>
+   <p className="muted">回复只关联当前 Task，不会创建新 Task，也不会写入历史 WorkSession。</p>
+  </div>
+  <DraftFields storageKey={key} role={role} mode="TASK_INPUT" task={task}/>
+ </Drawer>;
 }
 function DraftFields({storageKey,role,mode,task}:{storageKey:string;role:RoleVM;mode:'NEW_TASK'|'TASK_INPUT';task?:TaskVM}){
  const s=useStore();

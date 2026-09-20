@@ -21,7 +21,7 @@ type RemoteNodeRecord = { id: string; name: string; url: string; deviceId: strin
 declare global {
   interface Window {
     agentrouterDesktop?: {
-      getContext():Promise<{mode:'LOCAL_CORE'|'PREVIEW_MOCK';dataId:string;clientId:string;serverInstanceId:string}>;
+      getContext():Promise<{mode:'LOCAL_CORE'|'REMOTE_CORE'|'PREVIEW_MOCK';dataId:string;clientId:string;serverInstanceId:string}>;
       saveArtifact(id: string): Promise<{ saved: boolean }>;
       chooseProjectDirectory(): Promise<{
         name: string;

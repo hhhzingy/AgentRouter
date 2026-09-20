@@ -16,6 +16,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const observer = s.connectionState === 'CONNECTED_OBSERVER';
   const disconnected = s.connectionState === 'DISCONNECTED';
   const reconnecting = s.connectionState === 'RECONNECTING' || s.connectionState === 'DEGRADED';
+  const remote = s.contextMode === 'REMOTE_CORE';
+  const hostLabel = remote ? `Remote Core ${s.hello.serverInstanceId.slice(0, 8)}` : 'This PC';
+  const controlLabel = s.connectionState === 'CONNECTED_CONTROLLER' ? 'Controller' : 'Observer';
 
   return (
     <div className="wb-shell">
@@ -26,6 +29,10 @@ export function Shell({ children }: { children: ReactNode }) {
             AgentRouter<small>本地协作工作台</small>
           </span>
         </a>
+        <div className="wb-core-chip" data-testid="core-identity" title={s.hello.serverInstanceId}>
+          <span className={`status-dot tone-${disconnected?'danger':reconnecting?'warning':'ok'}`} aria-hidden="true" />
+          <span><b>{hostLabel}</b><small>{remote?'Remote':'Local'} · {disconnected?'Disconnected':reconnecting?'Reconnecting':'Connected'} · {controlLabel}</small></span>
+        </div>
         <div className="wb-topbar-status">
           {s.hello.capabilities.mock&&<Badge tone="warning">演示数据 · 不是真实执行</Badge>}
           {snap.runs.some((r) => r.nativeSessionDisplay === 'SIMULATED') && (
@@ -88,7 +95,7 @@ export function Shell({ children }: { children: ReactNode }) {
       )}
       <main className="wb-main"><PendingPanel />{children}</main>
       <footer className="wb-footer">
-        <div className="wb-core-identity" data-testid="core-identity" title={s.hello.serverInstanceId}>
+        <div className="wb-core-identity" title={s.hello.serverInstanceId}>
           Host {s.hello.platform} · Core {s.hello.serverInstanceId.slice(0, 12)} ·{' '}
           {s.hello.contractRevision ?? s.hello.protocol}
         </div>
