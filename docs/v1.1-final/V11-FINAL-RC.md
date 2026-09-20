@@ -1,8 +1,9 @@
 # V11 Final Windows RC — 固定源验收
 
 - 规范源 SHA（canonical Windows）：`16598f621d7160627ce769ecafb8d14ab55399f4`
-- 已提交证据 HEAD：`ed78235f6459594d139de98fa8f2978e2ccc55c8`
-- 工作树：`E:\AgentRouter\.worktrees\v1.1-final-cursor-win` · `feat/v1.1-final-cursor-win`（本文生成时跟进 diff 待提交）
+- C11 证据提交：`ed78235f6459594d139de98fa8f2978e2ccc55c8`
+- 跟进实现提交：`5cee6ee1f140ee689d30d572598b905401f329b7`
+- 工作树：`E:\AgentRouter\.worktrees\v1.1-final-cursor-win` · `feat/v1.1-final-cursor-win`（干净）
 - 完整复核：`docs/v1.1-final/V11-WRAP-REVIEW-20260920.md`
 - 状态：**`AUTO_SCOPE_DONE_WITH_BLOCKERS`**
 - 未发出：`V1.1_WINDOWS_RC_READY_FOR_USER_ACCEPTANCE`
@@ -23,9 +24,8 @@
 2. ZCode 隔离 OAuth 登录已成功，但真实 Level A 仍未过；最后一次 live 精确失败为 `NATIVE_ZCODE_MODEL_SELECTION_REQUIRED`。字段透传已修并通过离线回归，尚未再做 live 复证。
 3. docs/07 Artifact 工程链与 Level B 真机未跑（现有 live 仍是 42 文本路径）。
 4. ChatGPT Web Participant 本固定 SHA 真机 Join/结果环未跑。
-5. Remote HTTPS+WSS 未跑；Electron unpacked 工程包 Core/UI 冒烟已过（dirty source），安装器签名、安装/升级仍未跑。
+5. Remote HTTPS+WSS 未跑；Electron unpacked 工程包 Core/UI 冒烟已在干净 `5cee6ee` 上通过，安装器签名、安装/升级仍未跑。
 6. GitHub CI 基础设施阻断。
-7. 本文生成时 C11 后跟进 diff 尚待提交；本地身份目录与 `.cursor/mcp.json` 明确排除。
 
 ## 保护约束
 

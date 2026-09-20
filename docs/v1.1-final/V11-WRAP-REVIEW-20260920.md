@@ -36,12 +36,13 @@
 | 路径 | `E:\AgentRouter\.worktrees\v1.1-final-cursor-win` |
 | 分支 | `feat/v1.1-final-cursor-win` |
 | Canonical Windows SHA（C0 固定源） | `16598f621d7160627ce769ecafb8d14ab55399f4` |
-| 已提交证据 HEAD | `ed78235f6459594d139de98fa8f2978e2ccc55c8`（`docs(v11-c11)`） |
-| 工作树状态 | **脏。** 本文生成时 C11 后的 MCP/Remote/DUT、Electron 测试及 ZCode 修正尚待提交 |
+| C11 证据提交 | `ed78235f6459594d139de98fa8f2978e2ccc55c8`（`docs(v11-c11)`） |
+| 跟进实现提交 | `5cee6ee1f140ee689d30d572598b905401f329b7`（`fix(v1.1): complete Windows follow-up review`） |
+| 工作树状态 | **干净**（干净工程包复测并清理自动生成 evidence 后） |
 | live report 源码洁净性 | 四个成功报告均为 `dirty_source=true`；不能视为固定候选复测 |
 | Review SHA（禁止当补丁基线） | `0d92196` |
 
-C0→C11 已提交：`babf88b` … `ed78235`（C0 基线 → C11 记录）。后续改动仍在工作区。
+C0→C11 已提交：`babf88b` … `ed78235`（C0 基线 → C11 记录）；后续实现与复核已提交为 `5cee6ee`。
 
 ### 2.2 同机其他 worktree（本轮未在这些树上改 Core）
 
@@ -55,7 +56,7 @@ C0→C11 已提交：`babf88b` … `ed78235`（C0 基线 → C11 记录）。后
 | `.worktrees/j1-integration` | `bbdea2a` | detached |
 | `.worktrees/contract-c1r1` | empty | `feat/contract-c1r1` |
 
-### 2.3 本次跟进 diff（提交范围不含密钥文件内容）
+### 2.3 本次跟进提交（不含密钥文件内容）
 
 - `.cursor/mcp.json`（项目级 Management MCP observer，已加入 `.gitignore`，不提交）
 - `tools/v11-cursor-mcp-start.mjs` / `v11-mint-mobile-pair.mjs` / `v11-seal-codex-dut-identity.mjs` / `v11-zcode-dut-login.mjs`
@@ -122,11 +123,11 @@ C0→C11 已提交：`babf88b` … `ed78235`（C0 基线 → C11 记录）。后
 
 C9 静态工作台（Core 身份、需要关注、blockedReason、Slot、远程配对页）已改。随后完成 unpacked Electron 工程包与当前 UI 的桌面冒烟：
 
-- 工程包：`release/AgentRouter-j3-ed78235f6459-c66fdbc8-f8ca-4dfd-ac13-7a608150a219`
-- packaged Core：**PASS**（source SHA `ed78235`，构建时 `sourceDirty=true`，artifact hash `24a95a…`）
+- 工程包：`release/AgentRouter-j3-5cee6ee1f140-263f29e4-8980-452b-bdbe-b0ecb6abe1b3`
+- packaged Core：**PASS**（source SHA `5cee6ee1f140ee689d30d572598b905401f329b7`，`sourceDirty=false`，artifact hash `0aecde6c47b1081c77207508a2ff034b0c1ef83bff0e0de1cabca82279f96880`）
 - Desktop：**PASS**（创建项目、打开 Role Plan、导航上下文保持、renderer Node 禁用、Core 连接、Electron 进程树停止）
 
-该结果证明工程包可启动，不是安装器签名/安装/升级验收；构建源仍脏，故不能提升为 RC 候选证据。
+该结果证明该干净代码提交的工程包可启动，但不是安装器签名/安装/升级验收，也不补齐真实 Harness/Artifact/Level B Gate，故不能提升为 RC 候选。
 
 ---
 
@@ -202,7 +203,7 @@ C7 `v11-c7-dut`、native process host、C10 fixture、C6 联合链：checkpoint 
 - pi / Kimi / Codex / DSH 最小 Level A PASS
 - Codex 隔离 device-auth 登录成功并封哈希身份
 - ZCode 隔离 OAuth 登录成功；失败原因已从登录问题收敛到 Windows 宿主字段透传，并完成离线回归修正
-- Electron unpacked 工程包的 packaged Core 与当前 UI 冒烟通过（脏源，仅工程证据）
+- Electron unpacked 工程包的 packaged Core 与当前 UI 冒烟在干净代码提交 `5cee6ee` 上通过（仅工程证据）
 
 ---
 
@@ -218,9 +219,9 @@ C7 `v11-c7-dut`、native process host、C10 fixture、C6 联合链：checkpoint 
 | ChatGPT Web Participant Join/Identity/结果环 | 本轮 **NOT_RUN**（历史 wn05 有过网页侧记录，不能替代本固定 SHA 复测） |
 | Cursor Management **controller** 真机派发 | **NOT_RUN** |
 | Remote HTTPS+WSS | **NOT_RUN** |
-| Electron | unpacked 工程包 Core/UI 冒烟 **PASS（dirty source）**；安装器签名、安装/升级与打包后持久化验收仍 **NOT_RUN** |
+| Electron | unpacked 工程包 Core/UI 冒烟 **PASS（clean source `5cee6ee`）**；安装器签名、安装/升级与打包后持久化验收仍 **NOT_RUN** |
 | GitHub CI | **BLOCKED_CI_INFRA** |
-| 提交 C11 之后的跟进 diff | 本文生成时工作区脏；计划提交到当前特性分支，排除 `.local-protected` / `.cursor/mcp.json` |
+| 提交 C11 之后的跟进 diff | **DONE**：`5cee6ee`；`.local-protected` / `.cursor/mcp.json` 未进入提交 |
 | merge `main` / tag / release | **禁止**（无用户批准） |
 
 执行包原要求 dsh/Kimi/Pi 一律百炼。Kimi/Pi 遵守；DSH 在百炼失败后按用户改为 DeepSeek 官方 flash。若 RC 要以执行包原文验收 DSH→百炼，则 DSH 该项仍算未按原文关闭。

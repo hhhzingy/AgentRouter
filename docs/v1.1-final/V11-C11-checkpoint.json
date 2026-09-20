@@ -2,7 +2,8 @@
   "schema": "agentrouter-v1.1-final-win-checkpoint/1",
   "stage": "C11",
   "source_sha": "16598f621d7160627ce769ecafb8d14ab55399f4",
-  "evidence_commit_sha": "ed78235f6459594d139de98fa8f2978e2ccc55c8",
+  "c11_evidence_commit_sha": "ed78235f6459594d139de98fa8f2978e2ccc55c8",
+  "followup_implementation_commit_sha": "5cee6ee1f140ee689d30d572598b905401f329b7",
   "worktree": "E:/AgentRouter/.worktrees/v1.1-final-cursor-win",
   "branch": "feat/v1.1-final-cursor-win",
   "rc_status": "AUTO_SCOPE_DONE_WITH_BLOCKERS",
@@ -32,7 +33,7 @@
     "dsh_deepseek_flash_level_a": "PASS_TASK_AND_BOOTSTRAP",
     "zcode_isolated_login": "PASS",
     "zcode_level_a": "FAIL_BOOTSTRAP_MODEL_SELECTION_FORWARDING_FIXED_OFFLINE_NOT_LIVE_RETESTED",
-    "electron_unpacked_core_ui_smoke": "PASS_DIRTY_SOURCE_NOT_INSTALLER_ACCEPTANCE"
+    "electron_unpacked_core_ui_smoke": "PASS_CLEAN_SOURCE_5CEE6EE_NOT_INSTALLER_ACCEPTANCE"
   },
   "blockers": [
     "Same-clean-source-SHA acceptance NOT_RUN; all four successful live reports are dirty, and Pi used bbed011 while Kimi/Codex/DSH used ed78235",
@@ -40,9 +41,8 @@
     "docs/07 artifact engineering chain and Level B not run on real harnesses",
     "ChatGPT Web Participant live join/result NOT_RUN on this SHA",
     "Remote HTTPS/WSS live NOT_RUN",
-    "Electron unpacked Core/UI smoke passed on dirty source; signed installer install/upgrade acceptance NOT_RUN",
-    "GitHub CI BLOCKED_CI_INFRA",
-    "Follow-up diff pending commit when this checkpoint was generated; .local-protected and .cursor/mcp.json excluded"
+    "Electron unpacked Core/UI smoke passed on clean source 5cee6ee; signed installer install/upgrade acceptance NOT_RUN",
+    "GitHub CI BLOCKED_CI_INFRA"
   ],
   "user_actions": [
     "Do not merge/tag/release without explicit approval",
