@@ -337,6 +337,12 @@ export class RoleSessionExtension {
     );
     if (slot?.active_run_id || liveRun || liveInitialization)
       throw Error('ROLE_SESSION_SWITCH_BLOCKED');
+    // F06/C3:QUEUED/WAITING_INPUT 必须先 drain/cancel,不得静默挂在旧 WS 上无法派发。
+    const unfinished = this.one(
+      "select id,state from tasks where assignee_role_id=? and state in ('QUEUED','WAITING_INPUT','ACTIVE','RESULT_STAGED','NEEDS_ATTENTION') limit 1",
+      roleId,
+    );
+    if (unfinished) throw Error('ROLE_SESSION_QUEUE_NOT_DRAINED');
   }
 
 
@@ -661,13 +667,17 @@ export class RoleSessionExtension {
 
   private switch(roleId: string, sessionId: string, operationId: string, transition?: RoleSessionDispatchContext['transitionBinding']) {
     this.assertRole(roleId);
-    this.safeToSwitch(roleId);
     const target = this.one(
       'select * from role_sessions where id=? and role_id=?',
       sessionId,
       roleId,
     );
     if (!target) throw Error('ROLE_SESSION_NOT_FOUND');
+    // W02 新语义:历史 WS 永久只读。ARCHIVED→ACTIVE 重新激活已删除;
+    // 继续旧内容只能新建 WS(一次性 Context Transfer),不得复活旧会话。
+    if (target.state !== 'ACTIVE') throw Error('ROLE_SESSION_REACTIVATION_REMOVED');
+    const current = this.active(roleId);
+    if (current.id !== sessionId) this.safeToSwitch(roleId);
     let binding = this.binding(roleId);
     if (target.harness && target.harness !== binding.harness) {
       if (!transition) throw Error('ROLE_SESSION_TARGET_HARNESS_UNAVAILABLE');
@@ -675,9 +685,6 @@ export class RoleSessionExtension {
       if (binding.role_id !== roleId || binding.is_current !== 1) throw Error('NATIVE_BINDING_MISMATCH');
     }
     this.assertCompatible(target, binding);
-    // W02 新语义:历史 WS 永久只读。ARCHIVED→ACTIVE 重新激活已删除;
-    // 继续旧内容只能新建 WS(一次性 Context Transfer),不得复活旧会话。
-    if (target.state !== 'ACTIVE') throw Error('ROLE_SESSION_REACTIVATION_REMOVED');
     const now = this.clock();
     return this.db
       .transaction(() => {

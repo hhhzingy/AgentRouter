@@ -60,6 +60,29 @@ it('T030/T031/T032 关联结果先到后 wait 仍可续办，独立工作 FIFO',
   expect(continuation.kind).toBe('CONTINUATION');
   expect(continuation.taskId).toBe(a.taskId);
 });
+it('F14: WAITING_INPUT 的用户输入进入下一轮 CONTINUATION 快照，不改写历史 request_json', () => {
+  const f = fixture();
+  f.core.send(f.core.management('role_a'), 'root', request('role_b'));
+  const b = f.dispatch('role_b')!;
+  f.core.wait(b.principal, 'wait', { waiting_for: 'user_input', reason: '需要随机值' });
+  f.core.settle(b.id, 1, 'succeeded', { native: true, resourcesStopped: true });
+  const token = 'user-secret-' + Math.random().toString(36).slice(2);
+  const sessionId = f.db.prepare("select id from role_sessions where role_id='role_b' and state='ACTIVE'").get() as { id: string };
+  f.db
+    .prepare(
+      "insert into conversation_items(id,project_id,space_id,role_id,task_id,kind,title,body,at_ms,source_key,role_session_id) values('conversation_in','project_test','space_test','role_b',?,'USER_MESSAGE','用户续办输入',?,1,'conversation-input:f14',?)",
+    )
+    .run(b.taskId, token, sessionId.id);
+  f.db.prepare('update wait_records set ready=1 where task_id=?').run(b.taskId);
+  const cont = f.dispatch('role_b')!;
+  expect(cont.kind).toBe('CONTINUATION');
+  expect((cont.request as { task_input?: { body?: string } }).task_input?.body).toBe(token);
+  expect(String((cont.request as { body?: string }).body)).toContain(token);
+  const stored = f.db.prepare('select request_json from tasks where id=?').get(b.taskId) as { request_json: string };
+  expect(stored.request_json).not.toContain(token);
+  const snap = f.db.prepare('select request_snapshot_json from runs where id=?').get(cont.id) as { request_snapshot_json: string };
+  expect(snap.request_snapshot_json).toContain(token);
+});
 it('T029/T027 通知不唤醒，原生结束不能代替 finish', () => {
   const f = fixture();
   f.core.send(f.core.management('role_a'), 'notice', {

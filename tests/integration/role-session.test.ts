@@ -126,6 +126,13 @@ it('新建会话(W02 新语义)：旧会话永久只读,切回被拒绝;两边�
       { project_id: f.project.id, space_id: (await f.s.request('system.snapshot', {})).spaces[0].id },
       'task-1',
     );
+    const queuedId = (f.db.prepare("select id from tasks where summary='任务一'").get() as { id: string }).id;
+    await f.write(
+      'task.cancel',
+      { id: queuedId },
+      { project_id: f.project.id, space_id: (await f.s.request('system.snapshot', {})).spaces[0].id },
+      'cancel-1',
+    );
     const created = (await f.rs('roleSession.create', { role_id: f.roleId, name: '新方向' })) as { session: { id: string; generation: number; state: string } };
     expect(created.session.state).toBe('ACTIVE');
     expect(created.session.generation).toBe(2);
@@ -165,6 +172,34 @@ it('新建会话(W02 新语义)：旧会话永久只读,切回被拒绝;两边�
     expect(hB.items.some((i) => i.task_id === t2)).toBe(true);
     expect(hB.items.some((i) => i.task_id === t1)).toBe(false);
   } finally { await f.close(); }
+});
+
+it('F06: QUEUED 未 drain 时不得新建 WS；cancel 后可以', async () => {
+  const f = await fixture();
+  try {
+    await f.write(
+      'task.submitFromUser',
+      { request: { kind: 'task.request', to: { type: 'role', id: f.roleId }, summary: '排队任务', body: 'q', inputs: [], expected: ['x'], completion: { mode: 'result', to: { type: 'user' } } } },
+      { project_id: f.project.id, space_id: (await f.s.request('system.snapshot', {})).spaces[0].id },
+      'queued-1',
+    );
+    await expect(f.rs('roleSession.create', { role_id: f.roleId, name: '被队列挡住' })).rejects.toMatchObject({
+      message: 'ROLE_SESSION_QUEUE_NOT_DRAINED',
+    });
+    const queuedId = (f.db.prepare("select id from tasks where summary='排队任务'").get() as { id: string }).id;
+    await f.write(
+      'task.cancel',
+      { id: queuedId },
+      { project_id: f.project.id, space_id: (await f.s.request('system.snapshot', {})).spaces[0].id },
+      'cancel-queued',
+    );
+    const created = (await f.rs('roleSession.create', { role_id: f.roleId, name: '清空后再建' })) as {
+      session: { state: string };
+    };
+    expect(created.session.state).toBe('ACTIVE');
+  } finally {
+    await f.close();
+  }
 });
 
 it('create/switch需要控制器租约；未知角色/会话拒绝；观察者可读', async () => {

@@ -668,6 +668,24 @@ export class Core {
       if (!roleSessionId) return this.blocked(roleId, 'work_session_missing');
       const activation = this.ensureActiveActivation(roleId, b, roleSessionId);
       if (!activation) return this.blocked(roleId, 'work_session_binding_mismatch');
+      const original = JSON.parse(String(task.request_json)) as Data;
+      let snapshot = original;
+      if (kind === 'CONTINUATION') {
+        const wait = this.one('select waiting_for from wait_records where task_id=?', task.id);
+        if (wait?.waiting_for === 'user_input') {
+          const last = this.one(
+            "select body,at_ms,source_key from conversation_items where task_id=? and kind='USER_MESSAGE' order by seq desc limit 1",
+            task.id,
+          );
+          const body = String(last?.body ?? '').trim();
+          if (!body) return this.blocked(roleId, 'task_input_missing');
+          snapshot = {
+            ...original,
+            task_input: { body, at_ms: Number(last!.at_ms), source_id: last!.source_key ?? null },
+            body: String(original.body ?? '') + '\n\n[用户续办输入]\n' + body,
+          };
+        }
+      }
       const run = id('run');
       this.exec(
         'insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id,activation_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -679,7 +697,7 @@ export class Core {
         kind,
         b.epoch,
         null,
-        task.request_json,
+        JSON.stringify(snapshot),
         'STARTING',
         null,
         null,
@@ -740,7 +758,7 @@ export class Core {
           activationId: activation.id,
           activationEpoch: activation.activation_epoch,
         },
-        request: JSON.parse(task.request_json),
+        request: snapshot,
       };
     });
   }
