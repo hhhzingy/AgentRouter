@@ -1,6 +1,7 @@
 import { it, expect } from 'vitest';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { ApplicationService } from '../../packages/core-service/application.ts';
 import { RoleSessionExtension } from '../../packages/core-service/role-session-extension.ts';
@@ -109,7 +110,7 @@ async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capabili
     }
     throw Error('TRANSFER_UNTIL_TIMEOUT');
   };
-  return { db, s, roleId, firstSessionId, port, calls, rsCall, settle, settleUntil, engine };
+  return { db, s, roleId, firstSessionId, port, calls, rsCall, settle, settleUntil, engine, leaseId: (lease as { leaseId: string }).leaseId };
 }
 
 it('SH-02:T≥S 且 A=null 直接迁移;提交后新 WS 携带 native ref,旧 WS 归档', async () => {
@@ -333,4 +334,68 @@ it('F02: A→B→C 后 resumeInterrupted 不得把 C 打回已提交的 B', asyn
   expect(listing.active_session_id).toBe(cId);
   expect(listing.sessions.find((x) => x.id === bId)?.state).toBe('ARCHIVED');
   expect(listing.sessions.filter((x) => x.state === 'ACTIVE')).toHaveLength(1);
+});
+
+it('C4/F12:inherit 的 sessionHome 来自当前 binding 配置，而不是同 harness 第一个 profile', async () => {
+  const f = await fixture();
+  const binding = f.db.prepare('select id,epoch,workspace_id from bindings where role_id=? and is_current=1').get(f.roleId) as {
+    id: string;
+    epoch: number;
+    workspace_id: string;
+  };
+  const workspace = f.db.prepare('select canonical_path from workspaces where id=?').get(binding.workspace_id) as { canonical_path: string };
+  const config = {
+    harness: 'pi',
+    executable: 'E:/bin/pi.exe',
+    executableSha256: 'a'.repeat(64),
+    version: '1',
+    profileRef: 'pi-bound',
+    providerId: 'prov',
+    modelId: 'model',
+    effort: 'low',
+    workspace: workspace.canonical_path,
+    sessionHome: 'E:/homes/bound-not-first',
+    charterHash: 'c'.repeat(64),
+  };
+  const json = JSON.stringify(config);
+  f.db
+    .prepare('insert into native_binding_configs(binding_id,epoch,harness,config_json,config_hash,registered_at_ms) values(?,?,?,?,?,?)')
+    .run(binding.id, binding.epoch, 'pi', json, createHash('sha256').update(json).digest('hex'), Date.now());
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '精确HOME', context_mode: 'inherit' }, 'rk-f12')) as {
+    transfer: { op_id: string };
+  };
+  const row = f.db.prepare('select capacity_json from context_transfer_ops where id=?').get(created.transfer.op_id) as { capacity_json: string };
+  const meta = JSON.parse(row.capacity_json) as {
+    source_session_home: string;
+    source: { sessionHome: string; profileRef: string };
+  };
+  expect(meta.source_session_home).toBe('E:/homes/bound-not-first');
+  expect(meta.source.sessionHome).toBe('E:/homes/bound-not-first');
+  expect(meta.source.profileRef).toBe('pi-bound');
+  expect(meta.source_session_home).not.toBe('E:/homes/first');
+  await f.settle(created.transfer.op_id);
+});
+
+it('C4 Gate: A/B 历史只读，switch 回 A 被拒', async () => {
+  const f = await fixture();
+  const aId = f.firstSessionId;
+  const toB = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'B', context_mode: 'inherit' }, 'rk-b2')) as {
+    transfer: { op_id: string };
+  };
+  await f.settle(toB.transfer.op_id);
+  await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'C', context_mode: 'blank' }, 'rk-c2');
+  const snap = await f.s.request('system.snapshot', {});
+  const preflight = (await f.s.request('roleSession.preflight' as never, {
+    role_id: f.roleId,
+    session_id: aId,
+  } as never)) as unknown as { preflight_hash: string };
+  await expect(
+    f.s.request('roleSession.switch' as never, { role_id: f.roleId, session_id: aId } as never, {
+      leaseId: f.leaseId,
+      requestKey: 'rk-sw-a',
+      operationId: 'op-sw-a',
+      expectedRevision: snap.revision,
+      preflightHash: preflight.preflight_hash,
+    } as never),
+  ).rejects.toMatchObject({ message: 'ROLE_SESSION_REACTIVATION_REMOVED' });
 });

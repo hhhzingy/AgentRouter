@@ -10,6 +10,7 @@ import { ExternalApiExtension } from '../../packages/core-service/external-api-e
 import { ExternalApiRegistry } from '../../packages/management-gateway/external-api-registry.ts';
 import { RoleSessionExtension } from '../../packages/core-service/role-session-extension.ts';
 import { ContextTransferEngine } from '../../packages/core-service/context-transfer-engine.ts';
+import { createNativeProfileSessionHomeResolver } from '../../packages/core-service/resolved-execution-context.ts';
 import { ParticipantExtension } from '../../packages/core-service/participant-extension.ts';
 import { createCoreDatasetProfile } from '../../packages/core-service/external-api-provider.ts';
 import { FixtureDriver } from '../../packages/core-service/fixture-driver.ts';
@@ -207,10 +208,20 @@ server.listen(address, async () => {
       if (nativeConfigPath && existsSync(nativeConfigPath)) {
         try { nativeCfg = JSON.parse(readFileSync(nativeConfigPath, 'utf8')) as Record<string, any>; } catch { nativeCfg = undefined; }
       }
-      const sessionHomeOf = (harness: string): string | null => {
-        const profiles = (nativeCfg?.profiles ?? []) as { harness?: string; sessionHome?: string }[];
-        return profiles.find((x) => x.harness === harness)?.sessionHome ?? null;
-      };
+      const sessionHomeOf = createNativeProfileSessionHomeResolver(db, () => {
+        const profiles = (nativeCfg?.profiles ?? []) as {
+          id?: string;
+          harness?: string;
+          sessionHome?: string;
+          providerId?: string;
+          modelId?: string;
+          effort?: string;
+          workspace?: string;
+        }[];
+        return profiles.filter((x): x is { harness: string; sessionHome: string; id?: string; providerId?: string; modelId?: string; effort?: string; workspace?: string } =>
+          typeof x.harness === 'string' && typeof x.sessionHome === 'string' && x.sessionHome.length > 0,
+        );
+      });
       if (typeof nativeCfg?.zcodeCli === 'string' && nativeCfg.zcodeCli) {
         const { createZcodeContextPort } = await import('../../packages/platform/zcode-context-port.ts');
         transferPorts.set('zcode', createZcodeContextPort({

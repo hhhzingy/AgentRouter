@@ -27,6 +27,7 @@ import { validatePlanShape } from '../client-contract/c1r1/index.ts';
 import r1 from '../../contracts/client-api.c1r1.schema.json' with { type: 'json' };
 import { Plans } from './plans.ts';
 import { RoleContextStore } from './role-context-store.ts';
+import { ParticipantJoinExtension } from './participant-join.ts';
 import { extensionErrorReply } from '../client-contract/external-api-1.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 const methods: Method[] = [
@@ -120,6 +121,7 @@ export class ApplicationService extends Plans {
   roleSessionTransition?: import('./role-session-extension.ts').RoleSessionDispatchContext['transitionBinding'];
   readonly contextStore: RoleContextStore;
   participant?: import('./participant-extension.ts').ParticipantExtension;
+  participantJoin?: ParticipantJoinExtension;
   /** W09:本机 GUI 经扩展方法管理远程设备配对(仅非远程连接可调)。 */
   remoteDevices?: import('../remote/device-extension.ts').RemoteDeviceExtension;
   /** C1R1P2:已注册 Harness 列表(由宿主注入 DriverRegistry 视图)。 */
@@ -137,6 +139,8 @@ export class ApplicationService extends Plans {
   ) {
     super(db, clock);
     this.contextStore = new RoleContextStore(db, clock);
+    if (this.one("select 1 as ok from sqlite_master where type='table' and name='work_session_slots'"))
+      this.participantJoin = new ParticipantJoinExtension(db, clock);
     this.instanceId =
       this.one("select value from app_meta where key='dataset_id'").value + '_' + randomUUID();
     this.core = new Core(db, clock, {
@@ -525,7 +529,7 @@ export class ApplicationService extends Plans {
       }
     }
     if (
-      this.participant &&
+      (this.participant || this.participantJoin) &&
       typeof (raw as { method?: unknown })?.method === 'string' &&
       String((raw as { method?: unknown }).method).startsWith('participant.')
     ) {
@@ -570,6 +574,78 @@ export class ApplicationService extends Plans {
             ),
           );
         }
+        if (this.participantJoin && method === 'participant.slot.create') {
+          this.checkLease(id, leaseId);
+          const role = this.roleScope(roleId);
+          this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+          return Promise.resolve(
+            reply(
+              this.participantJoin.createSlot({
+                roleId,
+                name: String(params.name ?? 'W1'),
+                participantKind: String(params.participant_kind ?? 'CHATGPT_WEB') as
+                  | 'CHATGPT_WEB'
+                  | 'MANAGED_HARNESS'
+                  | 'PAIR_CODE',
+                workSessionId: typeof params.work_session_id === 'string' ? params.work_session_id : null,
+              }),
+            ),
+          );
+        }
+        if (this.participantJoin && method === 'participant.slot.list') {
+          if (c.mode === 'controller' && leaseId) this.checkLease(id, leaseId);
+          else if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
+          const role = this.roleScope(roleId);
+          this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+          return Promise.resolve(reply(this.participantJoin.listSlots(roleId)));
+        }
+        if (this.participantJoin && method === 'participant.join') {
+          if (!this.participantValid(id, roleId) && !params.claim_code) throw Error('PARTICIPANT_GENERATION_STALE');
+          const role = this.roleScope(roleId);
+          this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+          const attachment = this.participantAttachments.get(roleId);
+          return Promise.resolve(
+            reply(
+              this.participantJoin.join({
+                roleId,
+                slotId: typeof params.slot_id === 'string' ? params.slot_id : undefined,
+                shortRef: typeof params.short_ref === 'string' ? params.short_ref : undefined,
+                participantKind: String(params.participant_kind ?? 'CHATGPT_WEB') as
+                  | 'CHATGPT_WEB'
+                  | 'MANAGED_HARNESS'
+                  | 'PAIR_CODE',
+                requestKey: String(params.request_key ?? (raw as { request_key?: string }).request_key ?? ''),
+                principal: c.principal,
+                grantId: attachment?.grantId ?? (typeof params.grant_id === 'string' ? params.grant_id : null),
+                claimCode: typeof params.claim_code === 'string' ? params.claim_code : null,
+                externalSessionRef:
+                  typeof params.external_session_ref === 'string' ? params.external_session_ref : null,
+              }),
+            ),
+          );
+        }
+        if (this.participantJoin && method === 'participant.identity') {
+          if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
+          const role = this.roleScope(roleId);
+          this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+          return Promise.resolve(reply(this.participantJoin.identity(roleId, c.principal)));
+        }
+        if (this.participantJoin && method === 'participant.leave') {
+          if (c.mode === 'controller' && leaseId) this.checkLease(id, leaseId);
+          else if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
+          const role = this.roleScope(roleId);
+          this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+          return Promise.resolve(
+            reply(
+              this.participantJoin.leave({
+                roleId,
+                slotId: String(params.slot_id ?? ''),
+                principal: c.mode === 'controller' ? undefined : c.principal,
+              }),
+            ),
+          );
+        }
+        if (!this.participant) throw Error('UNSUPPORTED_METHOD');
         return this.participant.handle(raw, {
           principal: c.principal,
           ...(c.clientId ? { clientId: c.clientId } : {}),
@@ -1449,16 +1525,6 @@ export class ApplicationService extends Plans {
           sourceId,
           task.id,
         );
-      this.contextStore.appendConversation({
-        roleId: p.role_id,
-        sourceWorkSessionId: task.role_session_id ?? null,
-        sourceId,
-        kind: 'USER_MESSAGE',
-        title: '用户续办输入',
-        body: p.body,
-        taskId: task.id,
-        atMs,
-      });
       this.db.prepare('update wait_records set ready=1 where task_id=?').run(task.id);
       return { entityId: task.id, revision: this.revision };
     }
@@ -1563,18 +1629,6 @@ export class ApplicationService extends Plans {
             sourceId,
             roleSessionId,
           );
-        const item = this.one('select role_session_id from conversation_items where source_key=?', sourceId);
-        this.contextStore.appendConversation({
-          roleId,
-          sourceWorkSessionId: item?.role_session_id ?? null,
-          sourceId,
-          kind,
-          title,
-          body,
-          state,
-          taskId: m.task_id ?? null,
-          atMs: Number(m.created_at_ms),
-        });
       }
     }
   }

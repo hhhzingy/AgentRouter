@@ -51,6 +51,7 @@ export function openApplicationStore(
       '014-context-convergence.sql',
       '015-context-transfer.sql',
       '016-participant-workloop.sql',
+      '017-work-session-slots.sql',
     ].map((name) => readFileSync(new URL(name, migrations), 'utf8'));
     const hashes = sources.map((sql) => createHash('sha256').update(sql).digest('hex'));
     if (
@@ -233,6 +234,14 @@ export function openApplicationStore(
       } finally {
         db.pragma('foreign_keys=ON');
       }
+    }
+    if (rows.length < 17) {
+      db.transaction(() => {
+        db.exec(sources[16]);
+        if ((db.pragma('foreign_key_check') as unknown[]).length)
+          throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
+        db.prepare('insert into schema_migrations values(17,?,?)').run(Date.now(), hashes[16]);
+      }).immediate();
     }
     db.pragma('journal_mode=WAL');
     db.pragma('synchronous=FULL');

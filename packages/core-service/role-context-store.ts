@@ -223,6 +223,8 @@ export class RoleContextStore {
     runId?: string | null;
     atMs?: number;
   }) {
+    // F13:兼容表写入入口。运行时 sendUserInput/syncConversation/coordinator 已停止调用；
+    // 仅显式迁移/测试保留。人类历史仍写 conversation_items。
     return this.append({
       roleId: input.roleId,
       sourceWorkSessionId: input.sourceWorkSessionId,

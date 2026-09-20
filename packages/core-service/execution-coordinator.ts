@@ -534,16 +534,6 @@ export class ExecutionCoordinator {
         sourceId,
         roleSessionId,
       );
-    a.contextStore.appendConversation({
-      roleId: d.principal.roleId,
-      sourceWorkSessionId: roleSessionId,
-      sourceId,
-      kind: kind as import('./role-context-store.ts').PortableContextKind,
-      title,
-      body,
-      taskId: d.taskId,
-      runId: d.id,
-    });
   }
   private audit(project: string, kind: string) {
     this.app.db

@@ -167,6 +167,20 @@ export class Management {
           )
           .run(id('activation'), role, sessionId, binding, bindingRow.epoch, now, now);
       }
+      if (this.row("select 1 as ok from sqlite_master where type='table' and name='work_session_slots'")) {
+        const sessionId = 'rsess_' + role;
+        const now = Date.now();
+        this.db
+          .prepare(
+            "insert into work_session_slots(id,role_id,seq,name,participant_kind,state,work_session_id,binding_generation,created_at_ms) values(?,?,1,'managed','MANAGED_HARNESS','BOUND',?,1,?)",
+          )
+          .run('wslot_' + role, role, sessionId, now);
+        this.db
+          .prepare(
+            "insert into participant_bindings(id,slot_id,role_id,work_session_id,principal,participant_kind,generation,state,request_key,created_at_ms) values(?,?,?,?,?,'MANAGED_HARNESS',1,'ACTIVE',?,?)",
+          )
+          .run('pbind_managed_' + role, 'wslot_' + role, role, sessionId, 'managed_harness', 'managed:' + role, now);
+      }
     })();
     return { role, binding };
   }

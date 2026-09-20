@@ -330,6 +330,31 @@ export const dshDriver: HarnessDriver = {
 };
 const zcodeCliRef: { path?: string } = {};
 const dshBinRef: { path?: string } = {};
+
+/** C4/3.8:每个 Harness 必须声明 COLD_RUN 或 WARM_SESSION。本轮全部 COLD_RUN:
+ * ZCode 0.16.5 冷 resume 不可用，不把 warm 伪装成同 WS 连续；Level B 要求新 WS。 */
+export type HarnessLifecycleKind = 'COLD_RUN' | 'WARM_SESSION';
+export interface HarnessLifecycleDeclaration {
+  harness: string;
+  lifecycle: HarnessLifecycleKind;
+  continuity: 'SAME_SESSION_CONTINUOUS' | 'SESSION_CONTINUATION_UNSUPPORTED';
+  native_resume: string;
+  history_export: string;
+  level_b: 'DECLARED_UNVERIFIED' | 'REQUIRES_NEW_WORKSESSION';
+}
+export function harnessLifecycleDeclaration(harness: string): HarnessLifecycleDeclaration {
+  const driver = builtInDrivers().require(harness);
+  const continuity = driver.continuity ?? 'SESSION_CONTINUATION_UNSUPPORTED';
+  return {
+    harness,
+    lifecycle: 'COLD_RUN',
+    continuity,
+    native_resume: driver.contextCapabilities?.native_resume ?? 'UNKNOWN',
+    history_export: driver.contextCapabilities?.history_export ?? 'UNKNOWN',
+    level_b: continuity === 'SAME_SESSION_CONTINUOUS' ? 'DECLARED_UNVERIFIED' : 'REQUIRES_NEW_WORKSESSION',
+  };
+}
+
 /** 受信宿主在安装运行时注入官方 CLI 入口;驱动只产协议参数。 */
 export function builtInDrivers(cli?: { zcodeCli?: string; dshBin?: string }): HarnessDriverRegistry {
   zcodeCliRef.path = cli?.zcodeCli;

@@ -8,15 +8,24 @@ import { decideTransfer, type TransferDecision } from './context-transfer.ts';
  * - 提交(op 终态+目标指针+归档源+激活目标+binding 切换)由 extension.commitTransfer 单事务完成。
  * - 崩溃恢复:PREPARING/EXPORTED 可安全重放(导出只读、init 幂等);SEEDED 走 confirm。COMMITTED 是历史事实,不得用来复活后来合法的新 ACTIVE WS。 */
 
+export type TransferPortContext = {
+  harness: string;
+  sessionHome: string | null;
+  workspace?: string | null;
+  profileRef?: string | null;
+  bindingId?: string | null;
+  roleSessionId?: string | null;
+};
+
 export interface TransferDriverPort {
   /** 来源 FULL_VISIBLE 导出;truncated=true 必须如实上报 */
-  exportContext(input: { harness: string; nativeSessionRef: string; sessionHome: string | null }): Promise<{ text: string; truncated: boolean }>;
+  exportContext(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ text: string; truncated: boolean }>;
   /** 目标新会话初始化:注入 seed;以 operationId 幂等。抛 Error('NOT_STARTED') 表示确定未开始任何副作用。 */
-  initializeTarget(input: { harness: string; seedText: string; sessionHome: string | null; operationId: string }): Promise<{ nativeSessionRef: string; confirmed: boolean }>;
+  initializeTarget(input: TransferPortContext & { seedText: string; operationId: string }): Promise<{ nativeSessionRef: string; confirmed: boolean }>;
   /** SEEDED/崩溃恢复时按持久引用核对(只读,不创建)。 */
-  confirmTarget(input: { harness: string; nativeSessionRef: string; sessionHome: string | null }): Promise<{ confirmed: boolean }>;
-  targetWindowTokens?(input: { harness: string; sessionHome: string | null }): Promise<number | null>;
-  sourceCapacity?(input: { harness: string; nativeSessionRef: string; sessionHome: string | null }): Promise<{ windowTokens: number | null; usageTokens: number | null }>;
+  confirmTarget(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ confirmed: boolean }>;
+  targetWindowTokens?(input: TransferPortContext): Promise<number | null>;
+  sourceCapacity?(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ windowTokens: number | null; usageTokens: number | null }>;
   /** 受控源侧压缩(单一授权 profile);无此通道则 COMPRESS 决策显式失败 */
   compressSource?(input: { text: string; maxTokens: number }): Promise<{ text: string; truncated: boolean }>;
 }
@@ -50,6 +59,27 @@ const MAX_RETRIES = 2;
 const metaOf = (row: Row): Record<string, any> => {
   try { return JSON.parse(row.capacity_json ?? '{}') ?? {}; } catch { return {}; }
 };
+function sideOf(meta: Record<string, any>, side: 'source' | 'target'): Record<string, any> {
+  const value = meta[side];
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+function portContext(
+  meta: Record<string, any>,
+  side: 'source' | 'target',
+  harness: string,
+  session?: Row,
+): TransferPortContext {
+  const resolved = sideOf(meta, side);
+  const homeKey = side === 'source' ? 'source_session_home' : 'target_session_home';
+  return {
+    harness,
+    sessionHome: (resolved.sessionHome as string | null | undefined) ?? (meta[homeKey] as string | null | undefined) ?? null,
+    workspace: (resolved.workspacePath as string | null | undefined) ?? null,
+    profileRef: (resolved.profileRef as string | null | undefined) ?? null,
+    bindingId: (resolved.bindingId as string | null | undefined) ?? null,
+    roleSessionId: (resolved.roleSessionId as string | null | undefined) ?? (session?.id as string | undefined) ?? null,
+  };
+}
 
 export class ContextTransferEngine {
   private readonly clock: () => number;
@@ -104,11 +134,11 @@ export class ContextTransferEngine {
     if (!source || source.state !== 'ACTIVE') { this.fail(opId, 'CONTEXT_TRANSFER_RACE'); this.deps.onSettled?.(op.role_id); return; }
     const sourceRef = typeof source.native_session_ref === 'string' ? source.native_session_ref : null;
     if (!sourceRef) { this.fail(opId, 'CONTEXT_EXPORT_FAILED'); this.deps.onSettled?.(op.role_id); return; }
-    const sourceHome = (meta.source_session_home as string | null | undefined) ?? null;
-    const targetHome = (meta.target_session_home as string | null | undefined) ?? null;
+    const sourceCtx = portContext(meta, 'source', sourceHarness, source);
+    const targetCtx = portContext(meta, 'target', targetHarness);
     let exported: { text: string; truncated: boolean };
     try {
-      exported = await sourcePort.exportContext({ harness: sourceHarness, nativeSessionRef: sourceRef, sessionHome: sourceHome });
+      exported = await sourcePort.exportContext({ ...sourceCtx, nativeSessionRef: sourceRef });
     } catch { this.fail(opId, 'CONTEXT_EXPORT_FAILED'); this.deps.onSettled?.(op.role_id); return; }
     const exportedSha = createHash('sha256').update(exported.text).digest('hex');
     this.setMeta(opId, { exported_sha256: exportedSha, truncated: exported.truncated });
@@ -117,8 +147,8 @@ export class ContextTransferEngine {
     let sourceWindow: number | null = null;
     let sourceUsage: number | null = null;
     try {
-      targetWindow = targetPort.targetWindowTokens ? await targetPort.targetWindowTokens({ harness: targetHarness, sessionHome: targetHome }) : null;
-      const sc = sourcePort.sourceCapacity ? await sourcePort.sourceCapacity({ harness: sourceHarness, nativeSessionRef: sourceRef, sessionHome: sourceHome }) : null;
+      targetWindow = targetPort.targetWindowTokens ? await targetPort.targetWindowTokens(targetCtx) : null;
+      const sc = sourcePort.sourceCapacity ? await sourcePort.sourceCapacity({ ...sourceCtx, nativeSessionRef: sourceRef }) : null;
       sourceWindow = sc ? sc.windowTokens : null;
       sourceUsage = sc ? sc.usageTokens : null;
     } catch { /* 容量未知按 null 参与决策 */ }
@@ -137,7 +167,7 @@ export class ContextTransferEngine {
     // 目标初始化:确定未开始才 FAILED;其余不确定保持 EXPORTED+error_code,重放/重启按 operationId 幂等重试。
     let init: { nativeSessionRef: string; confirmed: boolean };
     try {
-      init = await targetPort.initializeTarget({ harness: targetHarness, seedText, sessionHome: targetHome, operationId: opId });
+      init = await targetPort.initializeTarget({ ...targetCtx, seedText, operationId: opId });
     } catch (error) {
       const definite = String((error as Error)?.message ?? error).includes('NOT_STARTED');
       if (definite) this.fail(opId, 'CONTEXT_TARGET_INIT_FAILED');
@@ -162,7 +192,7 @@ export class ContextTransferEngine {
     if (!confirmed) {
       const attempts = Number(meta.confirm_attempts ?? 0) + 1;
       this.setMeta(opId, { confirm_attempts: attempts });
-      try { confirmed = (await port.confirmTarget({ harness: targetHarness, nativeSessionRef: ref, sessionHome: (meta.target_session_home as string | null) ?? null })).confirmed; } catch { confirmed = false; }
+      try { confirmed = (await port.confirmTarget({ ...portContext(meta, 'target', targetHarness), nativeSessionRef: ref })).confirmed; } catch { confirmed = false; }
       if (!confirmed) {
         this.markUncertain(opId, attempts >= MAX_CONFIRM_ATTEMPTS ? 'CONTEXT_TRANSFER_UNRESOLVED' : 'CONTEXT_TRANSFER_AMBIGUOUS');
         if (attempts < MAX_CONFIRM_ATTEMPTS) this.scheduleRetry(opId);

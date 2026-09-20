@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
 import { inheritSupported } from './context-transfer.ts';
+import {
+  resolveSourceExecutionContext,
+  type SessionHomeQuery,
+} from './resolved-execution-context.ts';
 import type { ContextTransferEngine, TransferDriverPort } from './context-transfer-engine.ts';
 import {
   validateExternalApiFrame,
@@ -91,8 +95,8 @@ export class RoleSessionExtension {
     private readonly transferPorts?: ReadonlyMap<string, TransferDriverPort>,
     /** WC02:同 ACTIVE WS 原生连续性事实(由 Driver 能力投影)。 */
     private readonly continuityOf?: (harness: string) => string,
-    /** WN01:受管 profile 会话 HOME 解析(真实端口需要;无配置返回 null)。 */
-    private readonly sessionHomeOf?: (harness: string) => string | null,
+    /** WN01/F12:按 ResolvedExecutionContext 解析 sessionHome;禁止只按 harness 取第一个 profile。 */
+    private readonly sessionHomeOf?: (query: SessionHomeQuery) => string | null,
   ) {}
   /** WN01:目标 binding 安全切换回调(w11-main 注入;仅提交事务内使用)。 */
   transitionBindingForCommit?: (roleId: string, harness: string, sessionId?: string) => Record<string, any>;
@@ -522,6 +526,26 @@ export class RoleSessionExtension {
       // 持久 intent(短事务);引擎在事务外异步执行导出→判定→初始化→提交。
       const now = this.clock();
       const opId = 'ctop_' + globalThis.crypto.randomUUID();
+      const sourceCtx = resolveSourceExecutionContext(this.db, roleId);
+      const sourceQuery: SessionHomeQuery = {
+        harness: sourceHarness,
+        roleId,
+        side: 'source',
+        workspaceId: binding.workspace_id ?? null,
+        sessionId: current.id,
+        profileRef: sourceCtx.profileRef,
+      };
+      const targetQuery: SessionHomeQuery = {
+        harness: requestedHarness,
+        roleId,
+        side: 'target',
+        workspaceId: binding.workspace_id ?? null,
+        sessionId: current.id,
+        profileRef: sourceHarness === requestedHarness ? sourceCtx.profileRef : null,
+      };
+      const sourceHome = sourceCtx.sessionHome ?? this.sessionHomeOf?.(sourceQuery) ?? null;
+      const targetHome =
+        this.sessionHomeOf?.(targetQuery) ?? (sourceHarness === requestedHarness ? sourceHome : null);
       this.db
         .prepare(
           "insert into context_transfer_ops(id,role_id,from_session_id,to_session_id,mode,capacity_json,state,created_at_ms,updated_at_ms) values(?,?,?,NULL,'inherit',?,'PREPARING',?,?)",
@@ -534,8 +558,21 @@ export class RoleSessionExtension {
             target_harness: requestedHarness,
             source_harness: sourceHarness,
             workspace_id: binding.workspace_id ?? null,
-            source_session_home: this.sessionHomeOf?.(sourceHarness) ?? null,
-            target_session_home: this.sessionHomeOf?.(requestedHarness) ?? null,
+            source_session_home: sourceHome,
+            target_session_home: targetHome,
+            source: { ...sourceCtx, sessionHome: sourceHome },
+            target: {
+              harness: requestedHarness,
+              roleId,
+              roleSessionId: null,
+              workspaceId: binding.workspace_id ?? null,
+              workspacePath: sourceCtx.workspacePath,
+              bindingId: sourceHarness === requestedHarness ? sourceCtx.bindingId : null,
+              bindingEpoch: sourceHarness === requestedHarness ? sourceCtx.bindingEpoch : null,
+              profileRef: targetQuery.profileRef,
+              sessionHome: targetHome,
+              nativeSessionRef: null,
+            },
             name,
           }),
           now,

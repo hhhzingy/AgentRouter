@@ -69,7 +69,7 @@ it('DB-01:v5→v6→v7 升级恢复 one_current_binding_per_role 且拒绝双当
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 16 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
   // 006 重建 bindings 后 007 恢复了索引
   expect(
     up.prepare("select name from sqlite_master where name='one_current_binding_per_role'").get(),
@@ -157,7 +157,7 @@ it('DB-04:升级幂等——v7 库重复打开不再迁移且索引持续生效'
   const first = openApplicationStore(dir, FULL);
   first.close();
   const second = openApplicationStore(dir, FULL);
-  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 16 });
+  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
   expect(
     second
       .prepare("select name from sqlite_master where name='one_current_binding_per_role'")
@@ -177,7 +177,7 @@ it('DB-05:011 回填 WorkSession metadata/activation 且 immutable reference 受
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 16 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
   expect(
     up
       .prepare("select harness,driver_id,workspace_affinity_json from role_sessions where id='rs1'")
@@ -252,7 +252,7 @@ it('DB-07:012 建立 Role Context head/state/receipt，并保持 entry append-on
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 16 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 17 });
   expect(up.prepare("select * from role_context_heads where role_id='r1'").get()).toMatchObject({
     role_id: 'r1',
     head_seq: 0,
