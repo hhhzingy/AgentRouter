@@ -76,7 +76,7 @@ writeFileSync(
       {
         id: 'production_'+harness,
         harness, executable, executableSha256:sha(executable),
-        version: codex?'0.154.0-alpha.6.2':kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.9':'0.85.1',
+        version: codex?'0.155.0-alpha.9.2':kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.9':'0.85.1',
         providerId, modelId, effort,
         sessionHome: codex?resolve('.local-protected/codex-dut/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcode?resolve('.local-protected/zcode-dut/home'):dsh?path('managed/dsh'):path('managed/pi'),
       },
