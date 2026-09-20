@@ -15,6 +15,10 @@ import type { ClientSession, ClientTransport, ConnectOptions, RequestOptions } f
 import { isExtensionMethod, validateExternalApiFrame, validateExtensionResult } from '../../client-contract/external-api-1.ts';
 
 type WireReply = { id?: string; result?: unknown; error?: { code: string; category?: string } };
+type ExtensionRequestOptions = RequestOptions & {
+  requestKey?: string;
+  preflightHash?: string;
+};
 
 export interface WebSocketLike {
   readonly readyState: number;
@@ -127,6 +131,13 @@ class RemoteSession implements ClientSession {
       frame.scope = opts.scope ?? {};
     }
     if (opts.leaseId) frame.lease_id = opts.leaseId;
+    if (extension) {
+      const extensionOptions = opts as ExtensionRequestOptions;
+      if (extensionOptions.requestKey) frame.request_key = extensionOptions.requestKey;
+      if (opts.operationId) frame.operation_id = opts.operationId;
+      if (opts.expectedRevision !== undefined) frame.expected_revision = opts.expectedRevision;
+      if (extensionOptions.preflightHash) frame.preflight_hash = extensionOptions.preflightHash;
+    }
     if (extension) validateExternalApiFrame(frame as never);
     else validateFrameForRevision(frame, this.revision);
     const reply = await this.exchange(id, frame, this.revision, opts.timeoutMs ?? this.timeoutMs);

@@ -3,11 +3,12 @@ import type { RemoteDeviceStore } from './device-store.ts';
 
 export interface RemoteDeviceExtensionContext {
   principal: string;
+  principalKind?: 'LOCAL_CLIENT' | 'REMOTE_DEVICE' | 'PARTICIPANT' | 'UNAUTHENTICATED';
   mode?: string;
 }
 
 /** W09:本机受信任 GUI 经 Core 生成/管理远程设备配对。仅非远程连接可调用;
- * 远程设备连接(principal=remote_device_*)绝不许自我配对(防权限升级)。 */
+ * 远程设备连接按 AuthContext principalKind 识别，绝不从 principal/clientId 文本猜权限。 */
 export class RemoteDeviceExtension {
   constructor(
     private readonly store: RemoteDeviceStore,
@@ -17,7 +18,7 @@ export class RemoteDeviceExtension {
     const frame = raw as { id?: unknown; method?: unknown; params?: Record<string, unknown> };
     const id = typeof frame.id === 'string' ? frame.id : 'ext';
     try {
-      if (ctx.principal.startsWith('remote_device_')) throw Object.assign(new Error('SCOPE_DENIED'));
+      if (ctx.principalKind !== 'LOCAL_CLIENT') throw Object.assign(new Error('SCOPE_DENIED'));
       const method = String(frame.method);
       const p = (frame.params ?? {}) as Record<string, unknown>;
       if (method === 'remoteDevice.createPairing') {

@@ -248,6 +248,12 @@ it('PART-10:grant.revoke 撤销后旧聊天失效;grant.issue 需要全局租约
     const g = await f.issueGrant();
     const part = await f.makeParticipant('client_r');
     await part.attach(g.grant_id, g.token);
+    await expect(
+      part.p.request(
+        'participant.slot.list' as never,
+        { role_id: f.roleId } as never,
+      ),
+    ).resolves.toMatchObject({ slots: expect.any(Array) });
     // 无租约的参与者连接不能自行签发
     await expect(
       part.p.request('participant.grant.issue' as never, { role_id: f.roleId } as never, { leaseId: 'nope' } as never),
@@ -259,6 +265,12 @@ it('PART-10:grant.revoke 撤销后旧聊天失效;grant.issue 需要全局租约
       { leaseId: (f.lease as { leaseId: string }).leaseId },
     );
     await expect(part.artifact('post-revoke.md', 'x')).rejects.toMatchObject({ message: 'PARTICIPANT_GENERATION_STALE' });
+    await expect(
+      part.p.request(
+        'participant.slot.list' as never,
+        { role_id: f.roleId } as never,
+      ),
+    ).rejects.toMatchObject({ message: 'PARTICIPANT_GENERATION_STALE' });
     await expect(part.attach(g.grant_id, g.token)).rejects.toMatchObject({ message: 'PARTICIPANT_GRANT_REVOKED' });
   } finally { await f.close(); }
 });
@@ -295,6 +307,32 @@ it('F09: 受限连接不得跨项目签发 grant；范围内角色可以签发',
       { lease_id: (f.lease as { leaseId: string }).leaseId },
       { operationId: 'op_release_scope', expectedRevision: (await f.s.request('system.snapshot', {})).revision, scope: {} },
     );
+    const scopedObserver = new P1MemoryTransport(f.server, 'human_' + 'o'.repeat(24));
+    const observer = await scopedObserver.connect({
+      clientId: 'mcp_management_cursor',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'observer',
+    });
+    await expect(
+      observer.request(
+        'participant.slot.list' as never,
+        { role_id: f.roleId } as never,
+      ),
+    ).resolves.toMatchObject({ slots: expect.any(Array) });
+    await expect(
+      observer.request(
+        'participant.slot.list' as never,
+        { role_id: role2 } as never,
+      ),
+    ).rejects.toThrow('SCOPE_DENIED');
+    await expect(
+      observer.request(
+        'participant.slot.create' as never,
+        { role_id: f.roleId, name: 'observer-no-write', participant_kind: 'CHATGPT_WEB' } as never,
+        { requestKey: 'observer-no-write', operationId: 'observer-no-write', expectedRevision: 1 } as never,
+      ),
+    ).rejects.toThrow('CONTROL_LEASE_REQUIRED');
+    await scopedObserver.close();
     const scoped = new P1MemoryTransport(f.server, 'human_' + 'd'.repeat(24));
     const ss = await scoped.connect({
       clientId: 'mcp_management_cursor',

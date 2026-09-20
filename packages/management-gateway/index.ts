@@ -1,6 +1,11 @@
 import { validateManagementInput } from './schema.ts';
 import { createHash } from 'node:crypto';
-import { validateRoleSessionCommand, type RoleSessionCommand } from './role-session-command.ts';
+import {
+  validateManagementMutationCommand,
+  validateRoleSessionCommand,
+  type ManagementMutationCommand,
+  type RoleSessionCommand,
+} from './role-session-command.ts';
 import {
   methodMetadata,
   validateDefinition,
@@ -292,6 +297,56 @@ export class ManagementGateway {
   }
   roleSessionSwitch(roleId: string, sessionId: string, command?: RoleSessionCommand) {
     return this.roleSessionCall('roleSession.switch', { role_id: roleId, session_id: sessionId }, true, command);
+  }
+  /** Slot 管理扩展：observer 只读；create/leave 走稳定 request_key + revision + 当前 controller lease。 */
+  private participantSlotCall(
+    method: 'participant.slot.list' | 'participant.slot.create' | 'participant.leave',
+    params: Record<string, unknown>,
+    command?: ManagementMutationCommand,
+  ): Promise<unknown> {
+    const mutation = method !== 'participant.slot.list';
+    const action = async () => {
+      const request = this.get().request as (
+        method: string,
+        params: unknown,
+        options?: ManagementRequestOptions,
+      ) => Promise<unknown>;
+      if (!mutation) return request(method, params);
+      if (this.mode !== 'controller' || !this.lease) throw Error('CONTROL_LEASE_REQUIRED');
+      const metadata = validateManagementMutationCommand(command);
+      return request(method, params, {
+        leaseId: this.lease,
+        requestKey: metadata.request_key,
+        operationId:
+          'mcp_' + createHash('sha256').update(metadata.request_key).digest('hex'),
+        expectedRevision: metadata.expected_revision,
+      });
+    };
+    if (!mutation) return action();
+    const pending = this.serial.then(action, action);
+    this.serial = pending.catch(() => {});
+    return pending;
+  }
+  participantSlotList(roleId: string) {
+    return this.participantSlotCall('participant.slot.list', { role_id: roleId });
+  }
+  participantSlotCreate(
+    input: {
+      role_id: string;
+      name: string;
+      participant_kind: 'CHATGPT_WEB' | 'MANAGED_HARNESS' | 'PAIR_CODE';
+      work_session_id?: string;
+    },
+    command?: ManagementMutationCommand,
+  ) {
+    return this.participantSlotCall('participant.slot.create', input, command);
+  }
+  participantSlotLeave(roleId: string, slotId: string, command?: ManagementMutationCommand) {
+    return this.participantSlotCall(
+      'participant.leave',
+      { role_id: roleId, slot_id: slotId },
+      command,
+    );
   }
   async externalApiCall(input: { params: Record<string, unknown> }): Promise<unknown> {
     const action = async () => {

@@ -37,7 +37,13 @@ export interface ClientTransport {
   close(): Promise<void>;
 }
 export interface ClientServer {
-  open(principal?: string, authorized?: boolean): string;
+  open(
+    principal?: string,
+    mayAcquireController?: boolean,
+    allowedProjects?: Set<string>,
+    authenticated?: boolean,
+    principalKind?: 'LOCAL_CLIENT' | 'REMOTE_DEVICE' | 'PARTICIPANT' | 'UNAUTHENTICATED',
+  ): string;
   handle(connection: string, request: unknown): Promise<unknown>;
   subscribe(connection: string, handler: (event: Event) => void): () => void;
   disconnect(connection: string): void;

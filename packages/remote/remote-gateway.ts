@@ -5,7 +5,13 @@ import { RemoteDeviceStore } from './device-store.ts';
 import { methodMetadata } from '../client-contract/c1r1p1/generated.ts';
 
 export interface RemoteCoreServer {
-  open(principal?: string, authorized?: boolean, allowedProjects?: Set<string>): string;
+  open(
+    principal?: string,
+    mayAcquireController?: boolean,
+    allowedProjects?: Set<string>,
+    authenticated?: boolean,
+    principalKind?: 'LOCAL_CLIENT' | 'REMOTE_DEVICE' | 'PARTICIPANT' | 'UNAUTHENTICATED',
+  ): string;
   handle(connection: string, request: unknown): Promise<unknown>;
   subscribe(connection: string, handler: (event: unknown) => void): () => void;
   disconnect(connection: string): void;
@@ -198,6 +204,8 @@ export class RemoteGateway {
         'remote_device_' + authed.deviceId,
         authed.canRequestController,
         projectIdsOf(authed).size ? projectIdsOf(authed) : new Set<string>(),
+        true,
+        'REMOTE_DEVICE',
       );
       unsubscribe = app.subscribe(connection, event => {
         if (!stillActive(authed)) { try { ws.close(4001, 'device_revoked'); } catch {} return; }

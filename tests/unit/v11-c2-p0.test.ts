@@ -82,3 +82,31 @@ it('C1: mcp_management_cursor 允许启动；Cursor 不得作为 Role', () => {
     assertManagementLauncher({ data: 'E:/dut', mode: 'observer', clientId: 'cursor' }),
   ).toThrow('MANAGEMENT_START_DENIED');
 });
+
+it.each(['mcp_management_codex', 'mcp_management_zcode'])(
+  'N5: %s 仅作为通用 Management Client 通过启动门禁',
+  (clientId) => {
+    expect(() =>
+      assertManagementLauncher({
+        data: 'E:/dut',
+        mode: 'observer',
+        clientId,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertManagementLauncher({
+        data: 'E:/dut',
+        mode: 'controller',
+        clientId,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertManagementLauncher({
+        data: 'E:/dut',
+        mode: 'controller',
+        clientId,
+        managedRole: '1',
+      }),
+    ).toThrow('MANAGEMENT_START_DENIED');
+  },
+);

@@ -137,12 +137,15 @@ async function dutFixture() {
   const snap = await s.request('system.snapshot', {});
   const roleId = (snap.roles as { id: string }[])[0].id;
   const spaceId = (snap.spaces as { id: string }[])[0].id;
-  const ext = async (method: string, params: Record<string, unknown>) =>
-    s.request(method as never, params as never, {
+  const ext = async (method: string, params: Record<string, unknown>) => {
+    const key = 'c7_' + ++n;
+    return s.request(method as never, params as never, {
       leaseId,
-      operationId: 'c7_' + ++n,
+      requestKey: key,
+      operationId: key,
       expectedRevision: (await s.request('system.snapshot', {})).revision,
     } as never);
+  };
   return {
     dir,
     db,

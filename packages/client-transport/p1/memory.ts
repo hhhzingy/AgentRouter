@@ -37,11 +37,18 @@ export class P1MemoryTransport implements ClientTransport {
     readonly server: ClientServer,
     readonly principal = 'mock_human',
     readonly authorized = true,
+    readonly principalKind?: 'LOCAL_CLIENT' | 'REMOTE_DEVICE' | 'PARTICIPANT' | 'UNAUTHENTICATED',
   ) {}
   async connect(options: ConnectOptions): Promise<ClientSession> {
     if (this.connection) await this.close();
     const generation = ++this.generation,
-      c = this.server.open(this.principal, this.authorized);
+      c = this.server.open(
+        this.principal,
+        this.authorized,
+        undefined,
+        this.authorized,
+        this.principalKind,
+      );
     this.connection = c;
     let revision = options.contractRevision ?? 'C1R1P1';
     let lease: LeaseVM | null = null;

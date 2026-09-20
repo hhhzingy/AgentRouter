@@ -54,12 +54,15 @@ async function fixture() {
   const snap2 = await s.request('system.snapshot', {});
   const roleId = (snap2.roles as { id: string }[])[0].id;
   const spaceId = (snap2.spaces as { id: string }[])[0].id;
-  const ext = async (method: string, params: Record<string, unknown>) =>
-    s.request(method as never, params as never, {
+  const ext = async (method: string, params: Record<string, unknown>) => {
+    const key = 'c6_' + ++n;
+    return s.request(method as never, params as never, {
       leaseId,
-      operationId: 'c6_' + ++n,
+      requestKey: key,
+      operationId: key,
       expectedRevision: (await s.request('system.snapshot', {})).revision,
     } as never);
+  };
   return { dir, db, server, s, write, project, roleId, spaceId, leaseId, ext, plan, async close() { await transport.close(); db.close(); } };
 }
 

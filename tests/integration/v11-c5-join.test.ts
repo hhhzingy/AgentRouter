@@ -50,13 +50,16 @@ async function fixture() {
   await write('rolePlan.apply', { plan, plan_hash: v.planHash, confirmed: true, permission_grants: [] }, { project_id: project.id }, 'apply');
   const snap2 = await s.request('system.snapshot', {});
   const roleId = (snap2.roles as { id: string }[])[0].id;
-  const ext = async (method: string, params: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
-    s.request(method as never, params as never, {
+  const ext = async (method: string, params: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
+    const key = 'c5_' + ++n;
+    return s.request(method as never, params as never, {
       leaseId,
-      operationId: 'c5_' + ++n,
+      requestKey: key,
+      operationId: key,
       expectedRevision: (await s.request('system.snapshot', {})).revision,
       ...extra,
     } as never);
+  };
   let rsN = 0;
   const rsCreate = async (name: string) => {
     const preflight = (await s.request(
@@ -136,6 +139,58 @@ it('C5-A: Slot 无 WS 时 join 原子创建新 WS，同 request_key 不建第二
       f.db.prepare("select count(*) c from role_sessions where role_id=? and state='ARCHIVED'").get(f.roleId),
     ).toEqual({ c: 1 });
     await web.close();
+  } finally {
+    await f.close();
+  }
+});
+
+it('N5: Management Slot create 以 request_key/revision 持久幂等，参数漂移冲突且缺 metadata 拒绝', async () => {
+  const f = await fixture();
+  try {
+    const revision = (await f.s.request('system.snapshot', {})).revision;
+    const options = {
+      leaseId: f.leaseId,
+      requestKey: 'n5-slot-create',
+      operationId: 'n5-slot-create-op',
+      expectedRevision: revision,
+    };
+    const params = {
+      role_id: f.roleId,
+      name: 'N5 Web Slot',
+      participant_kind: 'CHATGPT_WEB',
+    };
+    const first = (await f.s.request(
+      'participant.slot.create' as never,
+      params as never,
+      options as never,
+    )) as unknown as { slot_id: string };
+    const replay = (await f.s.request(
+      'participant.slot.create' as never,
+      params as never,
+      options as never,
+    )) as unknown as { slot_id: string };
+    expect(replay).toEqual(first);
+    expect(
+      (
+        f.db
+          .prepare("select count(*) c from work_session_slots where role_id=? and name='N5 Web Slot'")
+          .get(f.roleId) as { c: number }
+      ).c,
+    ).toBe(1);
+    await expect(
+      f.s.request(
+        'participant.slot.create' as never,
+        { ...params, name: 'drifted' } as never,
+        options as never,
+      ),
+    ).rejects.toMatchObject({ message: 'OPERATION_CONFLICT' });
+    await expect(
+      f.s.request(
+        'participant.slot.create' as never,
+        { ...params, name: 'missing metadata' } as never,
+        { leaseId: f.leaseId } as never,
+      ),
+    ).rejects.toMatchObject({ message: 'REQUEST_KEY_AND_REVISION_REQUIRED' });
   } finally {
     await f.close();
   }

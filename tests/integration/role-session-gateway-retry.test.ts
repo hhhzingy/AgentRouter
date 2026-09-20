@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { ManagementGateway } from '../../packages/management-gateway/index.ts';
 import type { ClientTransport } from '../../packages/client-transport/p1/types.ts';
 
-function fixture() {
+function fixture(mode: 'observer' | 'controller' = 'controller') {
   const calls: { method: string; params: unknown; options: any }[] = [];
   const transport = {
     async connect() {
@@ -19,7 +19,7 @@ function fixture() {
     },
     async close() {},
   } as unknown as ClientTransport;
-  return { gateway: new ManagementGateway(transport, 'controller'), calls };
+  return { gateway: new ManagementGateway(transport, mode), calls };
 }
 
 it('响应丢失并重建 Gateway 后原样转发调用方保存的请求键、revision 和 preflight', async () => {
@@ -49,6 +49,46 @@ it('缺少调用方元数据时拒绝新建和切换', async () => {
     await expect(f.gateway.roleSessionSwitch('role', 'session')).rejects.toThrow('REQUEST_KEY_AND_REVISION_REQUIRED');
     expect(f.calls).toHaveLength(1);
   } finally { await f.gateway.close(); }
+});
+
+it('N5: Slot 管理写入原样转发 request_key/revision；observer 只允许 list', async () => {
+  const command = { request_key: 'slot-create-saved', expected_revision: 12 };
+  const f = fixture();
+  try {
+    await f.gateway.connect();
+    await f.gateway.call('router_control_acquire', { params: {}, request_key: 'lease', expected_revision: 1, scope: {} });
+    await expect(
+      f.gateway.participantSlotCreate(
+        { role_id: 'role', name: 'Web W1', participant_kind: 'CHATGPT_WEB' },
+        command,
+      ),
+    ).rejects.toThrow('REQUEST_TIMEOUT');
+    const write = f.calls.find((c) => c.method === 'participant.slot.create')!;
+    expect(write.options).toMatchObject({
+      requestKey: command.request_key,
+      expectedRevision: command.expected_revision,
+      leaseId: 'lease',
+    });
+    expect(write.options.operationId).toMatch(/^mcp_[a-f0-9]{64}$/);
+  } finally {
+    await f.gateway.close();
+  }
+
+  const observer = fixture('observer');
+  try {
+    await observer.gateway.connect();
+    await expect(observer.gateway.participantSlotList('role')).rejects.toThrow('REQUEST_TIMEOUT');
+    expect(observer.calls.some((c) => c.method === 'participant.slot.list')).toBe(true);
+    await expect(
+      observer.gateway.participantSlotCreate(
+        { role_id: 'role', name: 'nope', participant_kind: 'CHATGPT_WEB' },
+        command,
+      ),
+    ).rejects.toThrow('CONTROL_LEASE_REQUIRED');
+    expect(observer.calls.some((c) => c.method === 'participant.slot.create')).toBe(false);
+  } finally {
+    await observer.gateway.close();
+  }
 });
 
 // —— WN02:context_mode 透传 / transferStatus 查询 / router_status 数据最小化 / P2 协商 ——

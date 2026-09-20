@@ -28,7 +28,10 @@ import r1 from '../../contracts/client-api.c1r1.schema.json' with { type: 'json'
 import { Plans } from './plans.ts';
 import { RoleContextStore } from './role-context-store.ts';
 import { ParticipantJoinExtension } from './participant-join.ts';
-import { extensionErrorReply } from '../client-contract/external-api-1.ts';
+import {
+  extensionErrorReply,
+  validateExternalApiFrame,
+} from '../client-contract/external-api-1.ts';
 const uid = (p: string) => p + '_' + randomUUID();
 const methods: Method[] = [
   'system.initialize',
@@ -97,7 +100,11 @@ const methods: Method[] = [
 ];
 type Connection = {
   principal: string;
-  authorized: boolean;
+  principalKind: 'LOCAL_CLIENT' | 'REMOTE_DEVICE' | 'PARTICIPANT' | 'UNAUTHENTICATED';
+  /** 凭据/本地通道已认证；只决定能否建立只读 AuthContext。 */
+  authenticated: boolean;
+  /** 独立 controller 资格；不能由 requested_mode/client_id 推导。 */
+  mayAcquireController: boolean;
   clientId?: string;
   mode?: string;
   revision: RevisionName | 'C1R1P2';
@@ -203,13 +210,21 @@ export class ApplicationService extends Plans {
   }
   /** WN04:受限专用 core 进程在启动时设定;之后所有全局 principal 连接继承(仅收紧)。 */
   defaultConnectionScope?: Set<string>;
-  open(principal = 'human_local', authorized = true, allowedProjects?: Set<string>) {
+  open(
+    principal = 'human_local',
+    mayAcquireController = true,
+    allowedProjects?: Set<string>,
+    authenticated = mayAcquireController,
+    principalKind: Connection['principalKind'] = authenticated
+      ? 'LOCAL_CLIENT'
+      : 'UNAUTHENTICATED',
+  ) {
     const id = uid('connection');
-    if (!allowedProjects && this.defaultConnectionScope && (principal.startsWith('human_') || principal.startsWith('mcp_')))
+    if (!allowedProjects && this.defaultConnectionScope && principalKind === 'LOCAL_CLIENT')
       allowedProjects = new Set(this.defaultConnectionScope);
     // WC03/W-05:远程设备自创建项目的持久可见策略——按 principal 的 project.create 审计恢复授权,
     // 重连/重启不丢失,也不外溢为全局可见(仍只对创建者设备)。
-    if (allowedProjects && principal.startsWith('remote_device_')) {
+    if (allowedProjects && principalKind === 'REMOTE_DEVICE') {
       for (const row of this.all(
         "select distinct project_id from application_audit where actor=? and kind='project.create' and project_id is not null",
         principal,
@@ -218,7 +233,9 @@ export class ApplicationService extends Plans {
     }
     this.connections.set(id, {
       principal,
-      authorized,
+      principalKind,
+      authenticated,
+      mayAcquireController,
       revision: 'C1',
       initialized: false,
       allowedProjects,
@@ -304,7 +321,7 @@ export class ApplicationService extends Plans {
     grantToken: string,
   ) {
     const c = this.connection(connectionId);
-    if (!c.authorized) throw new C1R1Error('SCOPE_DENIED');
+    if (!c.authenticated) throw new C1R1Error('SCOPE_DENIED');
     const role = this.roleScope(roleId);
     if (!grantId || typeof grantToken !== 'string' || !grantToken)
       throw Error('PARTICIPANT_GRANT_REVOKED');
@@ -323,6 +340,7 @@ export class ApplicationService extends Plans {
         space_id: role.space_id,
       }; // 同连接同 grant 幂等
     this.participantAttachments.set(roleId, { connectionId, generation: g.generation, grantId });
+    c.principalKind = 'PARTICIPANT';
     return {
       role_id: roleId,
       generation: g.generation,
@@ -337,6 +355,98 @@ export class ApplicationService extends Plans {
       | { state: string }
       | undefined;
     return !!g && g.state === 'ACTIVE';
+  }
+  /** Management Slot 变更与冻结写路径使用同等级的 lease/revision/request-key 持久幂等。 */
+  private participantSlotMutation<T>(
+    connectionId: string,
+    c: Connection,
+    frame: ReturnType<typeof validateExternalApiFrame>,
+    roleId: string,
+    execute: () => T,
+  ): T {
+    if (
+      !c.authenticated ||
+      !c.mayAcquireController ||
+      c.mode !== 'controller' ||
+      !c.clientId ||
+      c.clientId !== frame.client_id
+    )
+      throw Error('CONTROL_LEASE_REQUIRED');
+    this.checkLease(connectionId, frame.lease_id ?? '');
+    if (
+      !frame.request_key ||
+      !frame.operation_id ||
+      !Number.isSafeInteger(frame.expected_revision) ||
+      frame.expected_revision! < 0
+    )
+      throw Error('REQUEST_KEY_AND_REVISION_REQUIRED');
+    const role = this.roleScope(roleId);
+    this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+    const ledgerKey =
+      'participantSlot:' +
+      createHash('sha256')
+        .update(JSON.stringify([role.project_id, roleId, frame.request_key]))
+        .digest('hex');
+    const requestHash = digest({
+      method: frame.method,
+      params: frame.params ?? {},
+      request_key: frame.request_key,
+      operation_id: frame.operation_id,
+      expected_revision: frame.expected_revision,
+    });
+    let replay = false;
+    const result = this.db
+      .transaction(() => {
+        const old = this.one(
+          'select request_hash,response_json from command_ledger where principal=? and client_id=? and operation_id=?',
+          c.principal,
+          c.clientId,
+          ledgerKey,
+        );
+        if (old) {
+          if (old.request_hash !== requestHash) throw Error('OPERATION_CONFLICT');
+          replay = true;
+          return JSON.parse(old.response_json) as T;
+        }
+        if (frame.expected_revision !== this.revision) throw Error('REVISION_MISMATCH');
+        this.next();
+        const value = execute();
+        if (this.failNextCommit) {
+          this.failNextCommit = false;
+          throw Error('INTERNAL_ERROR');
+        }
+        this.db
+          .prepare('insert into command_ledger values(?,?,?,?,?,?)')
+          .run(
+            c.principal,
+            c.clientId,
+            ledgerKey,
+            requestHash,
+            JSON.stringify(value),
+            this.clock(),
+          );
+        this.db
+          .prepare(
+            'insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(?,?,?,?,?)',
+          )
+          .run(
+            role.project_id,
+            c.principal,
+            frame.method,
+            JSON.stringify({
+              client_id: c.clientId,
+              role_id: roleId,
+              operation_id: frame.operation_id,
+              request_key: frame.request_key,
+            }),
+            this.clock(),
+          );
+        this.event(role.project_id, String(frame.method), roleId);
+        return value;
+      })
+      .immediate();
+    if (!replay) this.notify();
+    return result;
   }
   subscribe(id: string, handler: (e: Event) => void) {
     const c = this.connection(id);
@@ -363,7 +473,7 @@ export class ApplicationService extends Plans {
       ),
       remote_filesystem: false,
       event_stream: true,
-      controller_lease: true,
+      controller_lease: c.mayAcquireController,
       auth_unit_max_active_runs: 1,
       reference_types: { artifact: true, external: true, git: false, live: false },
       output_types: ['artifact'],
@@ -467,7 +577,7 @@ export class ApplicationService extends Plans {
     ) {
       const method = String((raw as { method?: unknown }).method);
       const mutation = method === 'roleSession.create' || method === 'roleSession.switch';
-      if (!c.initialized || !c.authorized) return {
+      if (!c.initialized || !c.authenticated) return {
         v: 1, id: (raw as { id?: unknown }).id,
         error: { code: !c.initialized ? 'NOT_INITIALIZED' : 'SCOPE_DENIED' },
       };
@@ -510,10 +620,11 @@ export class ApplicationService extends Plans {
       if (!c.initialized)
         return { v: 1, id: frameId, error: { code: 'NOT_INITIALIZED' } };
       try {
-        if (c.principal.startsWith('remote_device_')) throw Object.assign(new Error('SCOPE_DENIED'));
+        if (!c.authenticated || c.principalKind !== 'LOCAL_CLIENT')
+          throw Object.assign(new Error('SCOPE_DENIED'));
         const mutation = method !== 'remoteDevice.listDevices';
         if (mutation) {
-          if (!c.authorized || c.mode !== 'controller') throw Object.assign(new Error('CONTROL_LEASE_REQUIRED'));
+          if (!c.mayAcquireController || c.mode !== 'controller') throw Object.assign(new Error('CONTROL_LEASE_REQUIRED'));
           const leaseId = String(
             (raw as { lease_id?: unknown }).lease_id ??
               ((raw as { params?: { lease_id?: unknown } }).params?.lease_id ?? ''),
@@ -522,6 +633,7 @@ export class ApplicationService extends Plans {
         }
         return this.remoteDevices.handle(raw, {
           principal: c.principal,
+          principalKind: c.principalKind,
           ...(c.mode ? { mode: c.mode } : {}),
         });
       } catch (error) {
@@ -542,6 +654,7 @@ export class ApplicationService extends Plans {
         (raw as { lease_id?: unknown }).lease_id ?? params.lease_id ?? '',
       );
       try {
+        const extensionFrame = validateExternalApiFrame(raw);
         const reply = (result: unknown) => ({ v: 1, id: frameId, result });
         const roleId = String(params.role_id ?? '');
         if (method === 'participant.grant.issue') {
@@ -575,26 +688,30 @@ export class ApplicationService extends Plans {
           );
         }
         if (this.participantJoin && method === 'participant.slot.create') {
-          this.checkLease(id, leaseId);
-          const role = this.roleScope(roleId);
-          this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
           return Promise.resolve(
             reply(
-              this.participantJoin.createSlot({
-                roleId,
-                name: String(params.name ?? 'W1'),
-                participantKind: String(params.participant_kind ?? 'CHATGPT_WEB') as
-                  | 'CHATGPT_WEB'
-                  | 'MANAGED_HARNESS'
-                  | 'PAIR_CODE',
-                workSessionId: typeof params.work_session_id === 'string' ? params.work_session_id : null,
-              }),
+              this.participantSlotMutation(id, c, extensionFrame, roleId, () =>
+                this.participantJoin!.createSlot({
+                  roleId,
+                  name: String(params.name ?? 'W1'),
+                  participantKind: String(params.participant_kind ?? 'CHATGPT_WEB') as
+                    | 'CHATGPT_WEB'
+                    | 'MANAGED_HARNESS'
+                    | 'PAIR_CODE',
+                  workSessionId: typeof params.work_session_id === 'string' ? params.work_session_id : null,
+                }),
+              ),
             ),
           );
         }
         if (this.participantJoin && method === 'participant.slot.list') {
-          if (c.mode === 'controller' && leaseId) this.checkLease(id, leaseId);
-          else if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
+          if (!c.authenticated) throw Error('SCOPE_DENIED');
+          if (
+            c.principalKind === 'PARTICIPANT' &&
+            !this.participantValid(id, roleId)
+          )
+            throw Error('PARTICIPANT_GENERATION_STALE');
+          if (leaseId) this.checkLease(id, leaseId);
           const role = this.roleScope(roleId);
           this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
           return Promise.resolve(reply(this.participantJoin.listSlots(roleId)));
@@ -633,10 +750,20 @@ export class ApplicationService extends Plans {
           return Promise.resolve(reply(this.participantJoin.identity(roleId, c.principal)));
         }
         if (this.participantJoin && method === 'participant.leave') {
-          if (c.mode === 'controller' && leaseId) this.checkLease(id, leaseId);
-          else if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
           const role = this.roleScope(roleId);
           this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+          if (c.mode === 'controller' && leaseId)
+            return Promise.resolve(
+              reply(
+                this.participantSlotMutation(id, c, extensionFrame, roleId, () =>
+                  this.participantJoin!.leave({
+                    roleId,
+                    slotId: String(params.slot_id ?? ''),
+                  }),
+                ),
+              ),
+            );
+          if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
           return Promise.resolve(
             reply(
               this.participantJoin.leave({
@@ -674,7 +801,7 @@ export class ApplicationService extends Plans {
       typeof (raw as { method?: unknown })?.method === 'string' &&
       (raw as { method?: unknown }).method === 'contract.upgrade'
     ) {
-      if (!c.initialized || !c.authorized) throw new C1R1Error('NOT_INITIALIZED');
+      if (!c.initialized || !c.authenticated) throw new C1R1Error('NOT_INITIALIZED');
       // 协议协商仅改变读取投影；observer 的写权限仍由 mutate 单独拒绝。
       const revision = (raw as { params?: { revision?: unknown } }).params?.revision;
       if (revision !== 'C1R1P2') throw new C1R1Error('INVALID_PARAMS');
@@ -771,7 +898,12 @@ export class ApplicationService extends Plans {
     }
   }
   private mutate(id: string, c: Connection, r: any): unknown {
-    if (!c.authorized || c.mode !== 'controller' || c.clientId !== r.client_id)
+    if (
+      !c.authenticated ||
+      !c.mayAcquireController ||
+      c.mode !== 'controller' ||
+      c.clientId !== r.client_id
+    )
       throw new C1R1Error('CONTROL_LEASE_REQUIRED');
     this.authorize(c, r.scope);
     if (r.method.startsWith('control.')) {
@@ -892,13 +1024,13 @@ export class ApplicationService extends Plans {
   }
   desktopContext(connection: string) {
     const c=this.connection(connection);
-    if(!c.authorized || !c.initialized) throw new C1R1Error('SCOPE_DENIED');
+    if(!c.authenticated || !c.initialized) throw new C1R1Error('SCOPE_DENIED');
     return {dataId:this.one("select value from app_meta where key='dataset_id'").value as string,clientId:c.clientId!,serverInstanceId:this.instanceId};
   }
   /** 仅认证的本机 Main 原生选目录后调用，不在 Renderer Client API 方法表。 */
   grantSelectedDirectory(connection: string, path: string) {
     const c = this.connection(connection);
-    if (!c.authorized || c.mode !== 'controller') throw new C1R1Error('SCOPE_DENIED');
+    if (!c.mayAcquireController || c.mode !== 'controller') throw new C1R1Error('SCOPE_DENIED');
     this.checkLease(connection, this.lease?.id ?? '');
     if (path.startsWith('\\\\')) throw new C1R1Error('SCOPE_DENIED');
     const real = realpathSync(path);
