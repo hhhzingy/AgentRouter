@@ -29,7 +29,7 @@
 | F23 | P2 | FIXED_AUTOMATED | run provenance migration/投影已存在；真实矩阵仍需记录 effective provider/model。 |
 | F24 | P2 | PARTIAL | 已去除关键 first-profile/固定 identity 路径；N1—N5 继续做定向扫描。 |
 | F25 | P1 | PARTIAL_HOST | credential hash/safeStorage/remote locality 已实现；HTTPS/WSS 真实部署未验证。 |
-| F26 | P1 | PARTIAL_REAL_PENDING | Participant Join/Identity/claim/artifact/result/downstream 自动联合 DUT PASS；真实网页 ChatGPT 未跑。 |
+| F26 | P1 | PARTIAL_REAL_AND_APPROVAL_PENDING | Join 无/预建 WS、reconnect/replacement/generation/drain、Managed 自动绑定及 claim/artifact/result/downstream 自动 DUT PASS；真实网页 ChatGPT 未跑，Identity current_assignment 全载荷扩展待明确安全授权。 |
 | F27 | P2 | FIXED_BASELINE | migrations `001`—`018` freeze + EOL guard PASS；v17 ready input backfill 已测，完整升级/回滚/备份恢复仍属 N8。 |
 | F28 | P2 | PARTIAL | 自动 unit/integration/contract/chaos 历史全绿；当前功能分支需分阶段重跑并固定分母。 |
 | F29 | P2 | PARTIAL | lease/scope 有正负测；controller 细粒度真实矩阵未跑。 |
