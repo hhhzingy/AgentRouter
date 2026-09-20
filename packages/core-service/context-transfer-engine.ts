@@ -21,9 +21,19 @@ export interface TransferDriverPort {
   /** 来源 FULL_VISIBLE 导出;truncated=true 必须如实上报 */
   exportContext(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ text: string; truncated: boolean }>;
   /** 目标新会话初始化:注入 seed;以 operationId 幂等。抛 Error('NOT_STARTED') 表示确定未开始任何副作用。 */
-  initializeTarget(input: TransferPortContext & { seedText: string; operationId: string }): Promise<{ nativeSessionRef: string; confirmed: boolean }>;
-  /** SEEDED/崩溃恢复时按持久引用核对(只读,不创建)。 */
-  confirmTarget(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ confirmed: boolean }>;
+  initializeTarget(input: TransferPortContext & {
+    seedText: string;
+    operationId: string;
+    expectedPayloadHash: string;
+    /** Driver 创建目标后、注入 seed 前立即持久化 native ref，供 UNKNOWN_EFFECT/重启核对。 */
+    recordTargetCreated(nativeSessionRef: string): void;
+  }): Promise<{ nativeSessionRef: string; confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string }>;
+  /** SEEDED/崩溃恢复时按持久引用核对特定 payload(只读,不创建)。 */
+  confirmTarget(input: TransferPortContext & {
+    nativeSessionRef: string;
+    operationId: string;
+    expectedPayloadHash: string;
+  }): Promise<{ confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string }>;
   targetWindowTokens?(input: TransferPortContext): Promise<number | null>;
   sourceCapacity?(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ windowTokens: number | null; usageTokens: number | null }>;
   /** 受控源侧压缩(单一授权 profile);无此通道则 COMPRESS 决策显式失败 */
@@ -136,6 +146,16 @@ export class ContextTransferEngine {
     if (!sourceRef) { this.fail(opId, 'CONTEXT_EXPORT_FAILED'); this.deps.onSettled?.(op.role_id); return; }
     const sourceCtx = portContext(meta, 'source', sourceHarness, source);
     const targetCtx = portContext(meta, 'target', targetHarness);
+    // TARGET_CREATED 已持久化但进程在 INPUT_ACCEPTED 回执前中断：不得再创建目标；只读核对既有目标。
+    if (
+      op.state === 'EXPORTED' &&
+      typeof meta.target_native_ref === 'string' &&
+      typeof meta.seed_sha256 === 'string'
+    ) {
+      this.deps.db.prepare("update context_transfer_ops set state='SEEDED',updated_at_ms=? where id=? and state='EXPORTED'").run(this.clock(), opId);
+      await this.settleSeeded(opId);
+      return;
+    }
     let exported: { text: string; truncated: boolean };
     try {
       exported = await sourcePort.exportContext({ ...sourceCtx, nativeSessionRef: sourceRef });
@@ -164,18 +184,45 @@ export class ContextTransferEngine {
         this.setMeta(opId, { compressed: true, compressed_truncated: compressed.truncated });
       } catch { this.fail(opId, 'CONTEXT_SOURCE_COMPRESSION_UNAVAILABLE'); this.deps.onSettled?.(op.role_id); return; }
     }
+    const seedSha = createHash('sha256').update(seedText).digest('hex');
+    this.setMeta(opId, { seed_sha256: seedSha });
     // 目标初始化:确定未开始才 FAILED;其余不确定保持 EXPORTED+error_code,重放/重启按 operationId 幂等重试。
-    let init: { nativeSessionRef: string; confirmed: boolean };
+    let init: { nativeSessionRef: string; confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string };
     try {
-      init = await targetPort.initializeTarget({ ...targetCtx, seedText, operationId: opId });
+      init = await targetPort.initializeTarget({
+        ...targetCtx,
+        seedText,
+        operationId: opId,
+        expectedPayloadHash: seedSha,
+        recordTargetCreated: (nativeSessionRef) => {
+          if (!nativeSessionRef) throw Error('CONTEXT_TARGET_REF_EMPTY');
+          this.setMeta(opId, { target_native_ref: nativeSessionRef, target_created: true });
+        },
+      });
     } catch (error) {
       const definite = String((error as Error)?.message ?? error).includes('NOT_STARTED');
       if (definite) this.fail(opId, 'CONTEXT_TARGET_INIT_FAILED');
-      else this.scheduleRetry(opId);
+      else {
+        const after = this.op(opId);
+        const afterMeta = after ? metaOf(after) : {};
+        if (typeof afterMeta.target_native_ref === 'string') {
+          this.deps.db.prepare("update context_transfer_ops set state='SEEDED',error_code=?,updated_at_ms=? where id=? and state='EXPORTED'")
+            .run('CONTEXT_TRANSFER_AMBIGUOUS', this.clock(), opId);
+          await this.settleSeeded(opId);
+        } else this.scheduleRetry(opId);
+      }
       this.deps.onSettled?.(op.role_id);
       return;
     }
-    this.setMeta(opId, { target_native_ref: init.nativeSessionRef, target_confirmed: init.confirmed, init_unknown: false });
+    const receiptMatches = init.confirmed === true && init.acceptedPayloadHash === seedSha;
+    this.setMeta(opId, {
+      target_native_ref: init.nativeSessionRef,
+      target_created: true,
+      target_confirmed: receiptMatches,
+      accepted_payload_sha256: receiptMatches ? seedSha : null,
+      native_receipt: typeof init.nativeReceipt === 'string' ? init.nativeReceipt : null,
+      init_unknown: false,
+    });
     this.deps.db.prepare("update context_transfer_ops set state='SEEDED',error_code=NULL,updated_at_ms=? where id=? and state='EXPORTED'").run(this.clock(), opId);
     await this.settleSeeded(opId);
   }
@@ -187,18 +234,32 @@ export class ContextTransferEngine {
     const targetHarness = String(meta.target_harness ?? '');
     const port = this.deps.ports.get(targetHarness);
     const ref = typeof meta.target_native_ref === 'string' ? meta.target_native_ref : null;
-    if (!port || !ref) { this.markUncertain(opId, 'CONTEXT_TRANSFER_UNRESOLVED'); return; }
-    let confirmed = meta.target_confirmed === true;
+    const expectedPayloadHash = typeof meta.seed_sha256 === 'string' ? meta.seed_sha256 : null;
+    if (!port || !ref || !expectedPayloadHash) { this.markUncertain(opId, 'CONTEXT_TRANSFER_UNRESOLVED'); return; }
+    let confirmed = meta.target_confirmed === true && meta.accepted_payload_sha256 === expectedPayloadHash;
     if (!confirmed) {
       const attempts = Number(meta.confirm_attempts ?? 0) + 1;
       this.setMeta(opId, { confirm_attempts: attempts });
-      try { confirmed = (await port.confirmTarget({ ...portContext(meta, 'target', targetHarness), nativeSessionRef: ref })).confirmed; } catch { confirmed = false; }
+      let receipt: { confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string } | null = null;
+      try {
+        receipt = await port.confirmTarget({
+          ...portContext(meta, 'target', targetHarness),
+          nativeSessionRef: ref,
+          operationId: opId,
+          expectedPayloadHash,
+        });
+        confirmed = receipt.confirmed === true && receipt.acceptedPayloadHash === expectedPayloadHash;
+      } catch { confirmed = false; }
       if (!confirmed) {
         this.markUncertain(opId, attempts >= MAX_CONFIRM_ATTEMPTS ? 'CONTEXT_TRANSFER_UNRESOLVED' : 'CONTEXT_TRANSFER_AMBIGUOUS');
         if (attempts < MAX_CONFIRM_ATTEMPTS) this.scheduleRetry(opId);
         return;
       }
-      this.setMeta(opId, { target_confirmed: true });
+      this.setMeta(opId, {
+        target_confirmed: true,
+        accepted_payload_sha256: expectedPayloadHash,
+        native_receipt: typeof receipt?.nativeReceipt === 'string' ? receipt.nativeReceipt : null,
+      });
     }
     const current = this.one("select id from role_sessions where role_id=? and state='ACTIVE'", op.role_id);
     if (!current || current.id !== op.from_session_id) { this.fail(opId, 'CONTEXT_TRANSFER_RACE'); this.deps.onSettled?.(op.role_id); return; }

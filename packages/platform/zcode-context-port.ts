@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseLabeledCredential } from '../security/labeled-credential.ts';
@@ -168,12 +169,12 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
         });
       } catch { return null; }
     },
-    async initializeTarget({ seedText, sessionHome, operationId }) {
+    async initializeTarget({ seedText, sessionHome, operationId, expectedPayloadHash, recordTargetCreated }) {
       // 幂等:同 operationId 已登记目标则仅 confirm,不再创建。
       const known = idempotency.get(operationId);
       if (known) {
-        const ok = await this.confirmTarget({ harness: 'zcode', nativeSessionRef: known, sessionHome });
-        return { nativeSessionRef: known, confirmed: ok.confirmed };
+        const ok = await this.confirmTarget({ harness: 'zcode', nativeSessionRef: known, sessionHome, operationId, expectedPayloadHash });
+        return { nativeSessionRef: known, ...ok };
       }
       const cred = readCredential(opts.credentialFile);
       const home = homeOf(sessionHome);
@@ -181,22 +182,30 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
         const created = parseSnapshot(await c.request('session/create', { workspace: { workspacePath: home, workspaceKey: 'ar-context-' + operationId } }));
         if (!created.sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
         idempotency.set(operationId, created.sessionId);
+        recordTargetCreated(created.sessionId);
         await c.request('session/subscribe', { sessionId: created.sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false });
+        const marker = 'AGENTROUTER_CONTEXT_TRANSFER:' + operationId + ':' + expectedPayloadHash;
         await c.request('session/send', { sessionId: created.sessionId, content:
-          '以下是同一角色上一工作会话的可见历史(仅用户与助手文本;不含隐藏思维链)。理解后仅回复 READY,不要调用任何工具。\n' + seedText, inputId: 'ctxinit_' + operationId });
+          marker + '\n以下是同一角色上一工作会话的可见历史(仅用户与助手文本;不含隐藏思维链)。理解后仅回复 READY,不要调用任何工具。\n' + seedText, inputId: 'ctxinit_' + operationId });
         // send 受理后才返回;withClient 在此之后才关进程。模型 READY 文本不是确认证据。
         return created.sessionId;
       });
-      return { nativeSessionRef: target, confirmed: true };
+      // 回执绑定“本次 operation + 特定 seed hash”，不能以 session exists 替代 seed accepted。
+      return { nativeSessionRef: target, confirmed: true, acceptedPayloadHash: expectedPayloadHash, nativeReceipt: 'zcode:session/send:ctxinit_' + operationId };
     },
-    async confirmTarget({ nativeSessionRef, sessionHome }) {
+    async confirmTarget({ nativeSessionRef, sessionHome, operationId, expectedPayloadHash }) {
       try {
-        await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+        const snap = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
           const snap = parseSnapshot(await c.request('session/resume', { sessionId: nativeSessionRef }));
           if (!snap.sessionId) throw Error('no');
           return snap;
         });
-        return { confirmed: true };
+        const marker = 'AGENTROUTER_CONTEXT_TRANSFER:' + operationId + ':' + expectedPayloadHash;
+        // resume 必须能观察到带 operation/hash 的原生输入；仅会话存在不构成 INPUT_ACCEPTED 证据。
+        const accepted = JSON.stringify(snap.messages).includes(marker);
+        return accepted
+          ? { confirmed: true, acceptedPayloadHash: expectedPayloadHash, nativeReceipt: 'zcode:history:' + createHash('sha256').update(marker).digest('hex') }
+          : { confirmed: false };
       } catch { return { confirmed: false }; }
     },
   };

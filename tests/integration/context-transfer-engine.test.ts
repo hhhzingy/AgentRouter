@@ -25,8 +25,15 @@ async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capabili
   const calls: Record<string, number> = {};
   const port: TransferDriverPort = {
     exportContext: async () => { calls.export = (calls.export ?? 0) + 1; return { text: 'CTX-MARKER-alpha-42', truncated: false }; },
-    initializeTarget: async () => { calls.init = (calls.init ?? 0) + 1; return { nativeSessionRef: 'native-target-1', confirmed: true }; },
-    confirmTarget: async () => { calls.confirm = (calls.confirm ?? 0) + 1; return { confirmed: true }; },
+    initializeTarget: async (input) => {
+      calls.init = (calls.init ?? 0) + 1;
+      input.recordTargetCreated('native-target-1');
+      return { nativeSessionRef: 'native-target-1', confirmed: true, acceptedPayloadHash: input.expectedPayloadHash };
+    },
+    confirmTarget: async (input) => {
+      calls.confirm = (calls.confirm ?? 0) + 1;
+      return { confirmed: true, acceptedPayloadHash: input.expectedPayloadHash };
+    },
     targetWindowTokens: async () => 1000,
     sourceCapacity: async () => ({ windowTokens: 800, usageTokens: null }),
     ...portOverrides,
@@ -141,10 +148,11 @@ it('WN01/CT-02:确定未开始(NOT_STARTED)才 FAILED → 原 ACTIVE 与 binding
 it('WN01/CT-02:发送后未知结果不 FAILED 不放开;有界幂等重试最终提交一次', async () => {
   let initCalls = 0;
   const f = await fixture({
-    initializeTarget: async () => {
+    initializeTarget: async (input) => {
       initCalls++;
       if (initCalls === 1) throw Error('ZCODE_TIMEOUT_AFTER_SEND');
-      return { nativeSessionRef: 'native-target-retry', confirmed: true };
+      input.recordTargetCreated('native-target-retry');
+      return { nativeSessionRef: 'native-target-retry', confirmed: true, acceptedPayloadHash: input.expectedPayloadHash };
     },
   });
   const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '未知重试', context_mode: 'inherit' })) as any;
@@ -173,6 +181,42 @@ it('WN01/CT-02:持续未知 → 有界后 UNRESOLVED 且派发仍暂停(不伪�
   expect(f.engine.hasActive(f.roleId)).toBe(true);
 });
 
+it('N4: TARGET_CREATED 后 send 结果未知，只读核对特定 payload receipt 后提交且不重建目标', async () => {
+  let initCalls = 0;
+  const f = await fixture({
+    initializeTarget: async (input) => {
+      initCalls++;
+      input.recordTargetCreated('native-created-before-timeout');
+      throw Error('ZCODE_TIMEOUT_AFTER_SEND');
+    },
+  });
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'receipt-reconcile', context_mode: 'inherit' })) as any;
+  const st = await f.settle(created.transfer.op_id);
+  expect(st.state).toBe('COMMITTED');
+  expect(initCalls).toBe(1);
+  expect(f.calls.confirm).toBe(1);
+  const row = f.db.prepare('select capacity_json from context_transfer_ops where id=?').get(created.transfer.op_id) as { capacity_json: string };
+  const meta = JSON.parse(row.capacity_json);
+  expect(meta.target_native_ref).toBe('native-created-before-timeout');
+  expect(meta.accepted_payload_sha256).toBe(meta.seed_sha256);
+});
+
+it('N4: session exists 或错误 payload hash 不能替代 seed accepted，保持 UNRESOLVED 并暂停派发', async () => {
+  const f = await fixture({
+    initializeTarget: async (input) => {
+      input.recordTargetCreated('native-wrong-payload');
+      return { nativeSessionRef: 'native-wrong-payload', confirmed: true, acceptedPayloadHash: '0'.repeat(64) };
+    },
+    confirmTarget: async () => ({ confirmed: true, acceptedPayloadHash: '0'.repeat(64) }),
+  });
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'wrong-receipt', context_mode: 'inherit' })) as any;
+  const st = await f.settleUntil(created.transfer.op_id, (x) => x.error_code === 'CONTEXT_TRANSFER_UNRESOLVED', 300);
+  expect(st.state).toBe('SEEDED');
+  expect(f.engine.hasActive(f.roleId)).toBe(true);
+  const listing = (await f.s.request('roleSession.list' as never, { role_id: f.roleId } as never)) as unknown as { active_session_id: string };
+  expect(listing.active_session_id).toBe(f.firstSessionId);
+});
+
 it('T<S 且 A 未知 → ASK_USER 显式失败;COMPRESS 无通道 → 显式失败', async () => {
   const ask = await fixture({ targetWindowTokens: async () => 500 });
   const c1 = (await ask.rsCall('roleSession.create', { role_id: ask.roleId, name: 'ask', context_mode: 'inherit' })) as any;
@@ -188,14 +232,18 @@ it('SH-01:来源能力非 FULL_VISIBLE → create 即显式拒绝(不再硬编�
 });
 
 it('重启后 SEEDED 恢复走 confirm 且只提交一次;相同 request_key 不重复创建', async () => {
-  const f = await fixture({ initializeTarget: async (i) => { await new Promise((r) => setTimeout(r, 150)); return { nativeSessionRef: 'native-target-1', confirmed: true }; } });
+  const f = await fixture({ initializeTarget: async (i) => {
+    await new Promise((r) => setTimeout(r, 150));
+    i.recordTargetCreated('native-target-1');
+    return { nativeSessionRef: 'native-target-1', confirmed: true, acceptedPayloadHash: i.expectedPayloadHash };
+  } });
   // 直接构造一次"初始化已发出但进程中断"的持久状态:SEEDED + 持久目标引用(等价 ops 表的崩溃核对职责)。
   const listing0 = (await f.s.request('roleSession.list' as never, { role_id: f.roleId } as never)) as unknown as { sessions: any[] };
   const activeId = listing0.sessions.find((x) => x.state === 'ACTIVE')!.id;
   const opId = 'ctop_' + 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
   f.db
     .prepare("insert into context_transfer_ops(id,role_id,from_session_id,to_session_id,mode,capacity_json,state,created_at_ms,updated_at_ms) values(?,?,?,NULL,'inherit',?,'SEEDED',?,?)")
-    .run(opId, f.roleId, activeId, JSON.stringify({ target_harness: 'pi', source_harness: 'pi', name: '恢复会话', target_native_ref: 'native-target-9' }), Date.now(), Date.now());
+    .run(opId, f.roleId, activeId, JSON.stringify({ target_harness: 'pi', source_harness: 'pi', name: '恢复会话', target_native_ref: 'native-target-9', seed_sha256: 'b'.repeat(64) }), Date.now(), Date.now());
   // 重启:同库重建 extension/engine(新实例),恢复 SEEDED → confirm → 提交一次
   const extension2 = new RoleSessionExtension(f.db, undefined, () => ({ historyExport: 'FULL_VISIBLE' }), new Map([['pi', f.port]]));
   const engine2 = new ContextTransferEngine({ db: f.db, ports: new Map([['pi', f.port]]), schedule: (fn) => fn(), commit: (i) => extension2.commitTransfer(i) });
@@ -265,8 +313,8 @@ it('WN01/裁决1:跨 Harness inherit——目标确认后提交事务内切换 b
   // 把端口表扩成 a→b:先取当前(pi)能力与端口,构造第二个假 harness 端口
   const bPort: import('../../packages/core-service/context-transfer-engine.ts').TransferDriverPort = {
     exportContext: async () => ({ text: 'unused', truncated: false }),
-    initializeTarget: async () => ({ nativeSessionRef: 'native-b-1', confirmed: true }),
-    confirmTarget: async () => ({ confirmed: true }),
+    initializeTarget: async (input) => ({ nativeSessionRef: 'native-b-1', confirmed: true, acceptedPayloadHash: input.expectedPayloadHash }),
+    confirmTarget: async (input) => ({ confirmed: true, acceptedPayloadHash: input.expectedPayloadHash }),
   };
   const ports = new Map([['pi', f.port], ['b', bPort]]);
   const ext2 = new RoleSessionExtension(f.db, undefined, (h) => ({ historyExport: h === 'pi' || h === 'b' ? 'FULL_VISIBLE' : 'UNKNOWN' }), ports, undefined, () => null);
