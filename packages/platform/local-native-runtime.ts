@@ -169,7 +169,7 @@ export async function installLocalNativeRuntime(
               const effective=await request('config/read',{cwd:input.config.workspace,includeLayers:false});
               if(effective.config?.features?.shell_tool!==false || effective.config?.web_search!=='disabled' || effective.config?.sandbox_mode!=='read-only' || effective.config?.approval_policy!=='never')throw Error('CODEX_NATIVE_POLICY_MISMATCH');
               const mcp=await request('mcpServerStatus/list',{});
-              const expected=['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read'].sort();
+              const expected=['route_context','route_send','route_finish','route_wait','route_artifact_write','route_artifact_register','route_artifact_read'].sort();
               if(!expected.every(t=>effective.config?.mcp_servers?.['agentrouter-role']?.tools?.[t]?.approval_mode==='approve'))throw Error('CODEX_ROUTE_APPROVAL_MISMATCH');
               if(mcp.nextCursor || mcp.data?.length!==1 || mcp.data[0].name!=='agentrouter-role' || JSON.stringify(Object.keys(mcp.data[0].tools??{}).sort())!==JSON.stringify(expected))throw Error('CODEX_MCP_BOUNDARY_MISMATCH');
               const approved=JSON.parse(readFileSync(c.codexApprovedIdentityFile!,'utf8'));
@@ -403,6 +403,7 @@ export async function installLocalNativeRuntime(
         'route_send',
         'route_finish',
         'route_wait',
+        'route_artifact_write',
         'route_artifact_register',
         'route_artifact_read',
       ].includes(tool),
@@ -417,6 +418,7 @@ export async function installLocalNativeRuntime(
     'route_send',
     'route_finish',
     'route_wait',
+    'route_artifact_write',
     'route_artifact_register',
     'route_artifact_read',
   ]);

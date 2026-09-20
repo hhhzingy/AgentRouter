@@ -99,5 +99,5 @@ test.each(['2024-11-05','2025-03-26','2025-06-18','2025-11-25'])('STDIO negotiat
   expect(child.status).toBe(0);
   const responses=child.stdout.trim().split('\n').map(x=>JSON.parse(x));
   expect(responses[0].result.protocolVersion).toBe(version);
-  expect(responses[1].result.tools.map((x:any)=>x.name).sort()).toEqual(['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read'].sort());
+  expect(responses[1].result.tools.map((x:any)=>x.name).sort()).toEqual(['route_context','route_send','route_finish','route_wait','route_artifact_write','route_artifact_register','route_artifact_read'].sort());
 });

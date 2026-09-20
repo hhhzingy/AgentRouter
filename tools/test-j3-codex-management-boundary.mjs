@@ -34,13 +34,13 @@ try{
  const configuration=await lifecycle.peer.request('config/read',{cwd:work,includeLayers:false});
  report.shellDisabled=configuration.config?.features?.shell_tool===false;
  report.webDisabled=configuration.config?.web_search==='disabled';
- report.routeApprovalExplicit=['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read'].every(t=>configuration.config?.mcp_servers?.['agentrouter-role']?.tools?.[t]?.approval_mode==='approve');
+ report.routeApprovalExplicit=['route_context','route_send','route_finish','route_wait','route_artifact_write','route_artifact_register','route_artifact_read'].every(t=>configuration.config?.mcp_servers?.['agentrouter-role']?.tools?.[t]?.approval_mode==='approve');
  if(!report.routeApprovalExplicit)throw Error('ROUTE_APPROVAL_CONFIG_NOT_EFFECTIVE');
  if(!report.shellDisabled||!report.webDisabled)throw Error('CODEX_TOOL_CONFIG_NOT_EFFECTIVE');
  const mcp=await lifecycle.peer.request('mcpServerStatus/list',{});
  report.serverNames=(mcp.data??[]).map(x=>/^[a-z0-9_-]+$/.test(x.name)?x.name:'REDACTED');
  if(mcp.nextCursor||report.serverNames.length!==1||report.serverNames[0]!=='agentrouter-role')throw Error('MCP_INVENTORY_MISMATCH');
- const expected=['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read'].sort();
+ const expected=['route_context','route_send','route_finish','route_wait','route_artifact_write','route_artifact_register','route_artifact_read'].sort();
  report.tools=Object.keys(mcp.data[0].tools??{}).sort();
  if(JSON.stringify(report.tools)!==JSON.stringify(expected))throw Error('ROUTE_TOOLS_INVENTORY_MISMATCH');
  report.status='PASS';

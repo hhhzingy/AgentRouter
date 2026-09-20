@@ -16,6 +16,7 @@ const routeTools = [
   'route_send',
   'route_finish',
   'route_wait',
+  'route_artifact_write',
   'route_artifact_register',
   'route_artifact_read',
 ];

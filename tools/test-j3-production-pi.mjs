@@ -4,7 +4,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { build } from 'esbuild';
 import Database from 'better-sqlite3';
 import { piEntry } from './pi-location.mjs';
@@ -184,7 +184,9 @@ try {
   role.requested_permissions = {
     workspace_access: 'read_only',
     allowed_paths: [],
-    tool_profiles: ['route_context', 'route_finish'],
+    tool_profiles: process.argv.includes('--artifact')
+      ? ['route_context', 'route_finish', 'route_artifact_write', 'route_artifact_read']
+      : ['route_context', 'route_finish'],
     network_profile: 'none',
   };
   const v = await s.request('rolePlan.validate', { plan });
@@ -288,6 +290,60 @@ try {
   )
     throw Error('TASK_RESULT_NOT_VERIFIED');
   report.checks.push('真实Route工具、指定用户结果、原生终态与全树屏障');
+  if (process.argv.includes('--artifact')) {
+    const artifactMarker = 'AR-' + randomUUID().slice(0, 8);
+    const waitTask = async (taskId) => {
+      for (let i = 0; i < 180; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const run = db.prepare('select state from runs where task_id=? order by created_at_ms desc limit 1').get(taskId);
+        const result = db.prepare('select publication_state,summary,outputs_json from results where task_id=?').get(taskId);
+        db.close();
+        if (run && ['SUCCEEDED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(run.state)) return { run, result };
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      throw Error('ARTIFACT_TASK_TIMEOUT');
+    };
+    const dispatchArtifactTask = async (key, summary, body, inputs = []) => {
+      const state = await call('router_status');
+      const created = await call('router_task_dispatch', {
+        request_key: key,
+        expected_revision: state.snapshot.revision,
+        scope,
+        params: { request: { kind: 'task.request', to: { type: 'role', id: target.id }, summary, body, inputs, expected: ['artifact'], completion: { mode: 'result', to: { type: 'user' } } } },
+      });
+      const done = await waitTask(created.id);
+      if (done.run.state !== 'SUCCEEDED' || done.result?.publication_state !== 'PUBLISHED') throw Error('ARTIFACT_TASK_NOT_PUBLISHED');
+      const outputs = JSON.parse(done.result.outputs_json ?? '[]');
+      if (outputs.length !== 1 || outputs[0]?.kind !== 'artifact') throw Error('ARTIFACT_OUTPUT_MISSING');
+      return outputs[0].artifact_id;
+    };
+    const workspaceId = ws.items[0].id;
+    const inputArtifact = await dispatchArtifactTask(
+      'artifact-producer',
+      'Artifact输入生成',
+      `Call route_context for task identity. Then call route_artifact_write with workspace_id ${workspaceId}, name input.md, and exact content ${artifactMarker}. Finish succeeded with that artifact as the only output.`,
+    );
+    const outputArtifact = await dispatchArtifactTask(
+      'artifact-consumer',
+      'Artifact读取与输出',
+      `Call route_context for task. Read the input artifact with route_artifact_read. Then write output.md using route_artifact_write; its content must include the exact decoded marker from the input. Finish succeeded with the new artifact as the only output.`,
+      [{ kind: 'artifact', artifact_id: inputArtifact }],
+    );
+    const verifyTransport = new LocalCoreTransport(path('core'));
+    const verifySession = await verifyTransport.connect({ clientId: 'j3_artifact_verify', clientVersion: '1.0.0', requestedMode: 'observer', contractRevision: 'C1R1P1', mode: 'LOCAL_CORE' });
+    try {
+      const inputView = await verifySession.request('artifact.verify', { id: inputArtifact });
+      const outputView = await verifySession.request('artifact.verify', { id: outputArtifact });
+      const downloaded = await verifySession.request('artifact.download', { id: outputArtifact, offset_bytes: 0, limit_bytes: 65536 });
+      const outputBytes = Buffer.from(downloaded.content, 'base64');
+      if (inputView.state !== 'AVAILABLE' || outputView.state !== 'AVAILABLE' || downloaded.hasMore || createHash('sha256').update(outputBytes).digest('hex') !== outputView.sha256 || !outputBytes.toString('utf8').includes(artifactMarker))
+        throw Error('ARTIFACT_GUI_PATH_HASH_MISMATCH');
+      report.artifact = { inputArtifact, outputArtifact, inputHash: inputView.sha256, outputHash: outputView.sha256, markerVerified: true };
+      report.checks.push('真实input Artifact读取→output Artifact→Result PUBLISHED→GUI同路径下载/hash核对');
+    } finally {
+      await verifyTransport.close();
+    }
+  }
   if (process.argv.includes('--ab')) {
     // R4:A→B→A→C 原生会话隔离+交接包 ACK——切回必须恢复各自原生会话
     const abListA = await call('router_role_session_list', { params: { role_id: target.id } });

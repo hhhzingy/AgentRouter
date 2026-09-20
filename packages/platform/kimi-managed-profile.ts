@@ -25,7 +25,7 @@ max_context_size = 262144
 capabilities = ["thinking", "always_thinking", "image_in", "video_in", "tool_use"]
 display_name = "K2.7 Coding"
 [tools]
-enabled = ["mcp__agentrouter-role__route_context", "mcp__agentrouter-role__route_send", "mcp__agentrouter-role__route_finish", "mcp__agentrouter-role__route_wait", "mcp__agentrouter-role__route_artifact_register", "mcp__agentrouter-role__route_artifact_read"]
+enabled = ["mcp__agentrouter-role__route_context", "mcp__agentrouter-role__route_send", "mcp__agentrouter-role__route_finish", "mcp__agentrouter-role__route_wait", "mcp__agentrouter-role__route_artifact_write", "mcp__agentrouter-role__route_artifact_register", "mcp__agentrouter-role__route_artifact_read"]
 [[permission.rules]]
 decision = "allow"
 pattern = "mcp__agentrouter-role__route_context"
@@ -38,6 +38,9 @@ pattern = "mcp__agentrouter-role__route_finish"
 [[permission.rules]]
 decision = "allow"
 pattern = "mcp__agentrouter-role__route_wait"
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_artifact_write"
 [[permission.rules]]
 decision = "allow"
 pattern = "mcp__agentrouter-role__route_artifact_register"
@@ -70,7 +73,7 @@ display_name = "Qwen3.8 Flash (Bailian)"
 `;
 }
 const toolsTail = `[tools]
-enabled = ["mcp__agentrouter-role__route_context", "mcp__agentrouter-role__route_send", "mcp__agentrouter-role__route_finish", "mcp__agentrouter-role__route_wait", "mcp__agentrouter-role__route_artifact_register", "mcp__agentrouter-role__route_artifact_read"]
+enabled = ["mcp__agentrouter-role__route_context", "mcp__agentrouter-role__route_send", "mcp__agentrouter-role__route_finish", "mcp__agentrouter-role__route_wait", "mcp__agentrouter-role__route_artifact_write", "mcp__agentrouter-role__route_artifact_register", "mcp__agentrouter-role__route_artifact_read"]
 [[permission.rules]]
 decision = "allow"
 pattern = "mcp__agentrouter-role__route_context"
@@ -83,6 +86,9 @@ pattern = "mcp__agentrouter-role__route_finish"
 [[permission.rules]]
 decision = "allow"
 pattern = "mcp__agentrouter-role__route_wait"
+[[permission.rules]]
+decision = "allow"
+pattern = "mcp__agentrouter-role__route_artifact_write"
 [[permission.rules]]
 decision = "allow"
 pattern = "mcp__agentrouter-role__route_artifact_register"
@@ -169,7 +175,7 @@ export function prepareManagedKimiProfile(input: {
   );
   writeFileSync(
     agentPath,
-    '---\nname: agent\ndescription: AgentRouter managed role\noverride: true\ntools: [mcp__agentrouter-role__route_context, mcp__agentrouter-role__route_send, mcp__agentrouter-role__route_finish, mcp__agentrouter-role__route_wait, mcp__agentrouter-role__route_artifact_register, mcp__agentrouter-role__route_artifact_read]\nsubagents: []\n---\nUse only the Route tools supplied for this managed role.\n',
+    '---\nname: agent\ndescription: AgentRouter managed role\noverride: true\ntools: [mcp__agentrouter-role__route_context, mcp__agentrouter-role__route_send, mcp__agentrouter-role__route_finish, mcp__agentrouter-role__route_wait, mcp__agentrouter-role__route_artifact_write, mcp__agentrouter-role__route_artifact_register, mcp__agentrouter-role__route_artifact_read]\nsubagents: []\n---\nUse only the Route tools supplied for this managed role.\n',
     'utf8',
   );
   return { home, agentPath, credentialCopied };
@@ -180,7 +186,7 @@ export function prepareManagedKimiProfile(input: {
  */
 export async function approveManagedKimiRoute(params: unknown) {
   const p = params as any;
-  const names = ['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read'].map(n=>'mcp__agentrouter-role__'+n);
+  const names = ['route_context','route_send','route_finish','route_wait','route_artifact_write','route_artifact_register','route_artifact_read'].map(n=>'mcp__agentrouter-role__'+n);
   if (!p || !names.includes(p.toolCall?.title) || typeof p.toolCall?.toolCallId !== 'string' || !p.toolCall.toolCallId || !Array.isArray(p.options)) throw Error('KIMI_PERMISSION_DENIED');
   const once = p.options.filter((o:any)=>o?.kind==='allow_once' && o.optionId==='approve_once');
   if (once.length!==1) throw Error('KIMI_PERMISSION_DENIED');

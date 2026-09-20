@@ -257,7 +257,7 @@ export const zcodeDriver: HarnessDriver = {
       // 托管角色权限白名单:仅 Route 工具(route_*)可 allow_once;其余走 deny option。
       onApproval: (params) => {
         const name = String((params as { toolName?: unknown })?.toolName ?? '');
-        if (/route_(context|send|finish|wait|artifact_register|artifact_read)$/i.test(name)) return { decision: 'allow' };
+        if (/route_(context|send|finish|wait|artifact_write|artifact_register|artifact_read)$/i.test(name)) return { decision: 'allow' };
         return { decision: 'deny' };
       } });
     return {

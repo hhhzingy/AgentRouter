@@ -453,6 +453,7 @@ export class ExecutionCoordinator {
     else if(tool==='route_send') result=a.core.send(p,op,input);
     else if(tool==='route_finish') result=a.core.finish(p,op,input);
     else if(tool==='route_wait') result=a.core.wait(p,op,input);
+    else if(tool==='route_artifact_write') result=a.core.writeArtifact(p,op,input);
     else if(tool==='route_artifact_register') result=a.core.registerArtifact(p,op,input);
     else if(tool==='route_artifact_read') result=a.core.readArtifact(p,input);
     else throw Error('TOOL_UNAVAILABLE');

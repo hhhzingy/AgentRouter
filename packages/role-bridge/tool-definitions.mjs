@@ -28,6 +28,19 @@ export const toolDefinitions = [
     inputSchema: { type: 'object', $defs: schema.$defs, ...schema.$defs.wait },
   },
   {
+    name: 'route_artifact_write',
+    inputSchema: {
+      ...object({
+        workspace_id: { $ref: '#/$defs/id' },
+        name: { type: 'string', minLength: 1, maxLength: 96 },
+        content: { type: 'string', minLength: 1, maxLength: 262144 },
+        media_type: { type: 'string', maxLength: 200 },
+      }),
+      $defs: schema.$defs,
+      required: ['workspace_id', 'name', 'content'],
+    },
+  },
+  {
     name: 'route_artifact_register',
     inputSchema: {
       ...object({

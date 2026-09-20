@@ -50,13 +50,13 @@ it('copies only explicit credentials once and creates fixed minimal managed conf
   expect(config).toContain('"always_thinking"');
   expect(config).toContain('enabled = true');
   expect(config).not.toContain('services');
-  expect(config.match(/decision = "allow"/g)).toHaveLength(6);
+  expect(config.match(/decision = "allow"/g)).toHaveLength(7);
   expect(config).not.toContain('pattern = "*"');
   expect(config).toContain('[tools]');
   expect(config).not.toContain('FAKE CREDENTIAL');
   const agent = readFileSync(result.agentPath, 'utf8');
   expect(agent).toContain('subagents: []');
-  for (const tool of ['route_context','route_send','route_finish','route_wait','route_artifact_register','route_artifact_read']) expect(agent).toContain('mcp__agentrouter-role__'+tool);
+  for (const tool of ['route_context','route_send','route_finish','route_wait','route_artifact_write','route_artifact_register','route_artifact_read']) expect(agent).toContain('mcp__agentrouter-role__'+tool);
   expect(agent).not.toMatch(/Bash|ReadFile|mcp__agentrouter-management|mcp__agentrouter-role__\*/);
   expect(result.agentPath).toBe(join(result.home, 'agents/agent.md'));
 });

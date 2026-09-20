@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { RouteError, validatePayload, id, digest, type Data } from '../protocol/index.ts';
-import { readFileSync, mkdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { readFileSync, mkdirSync, writeFileSync, renameSync, existsSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { freezeFile, resolveArtifactBlobPath } from '../artifacts/index.ts';
 import { assertTransition } from '../domain/index.ts';
@@ -1045,6 +1045,63 @@ export class Core {
         this.clock(),
       );
       return { artifact_id: artifact, ...frozen };
+    });
+  }
+  /** 受管 Role 的小型 UTF-8 输出：只写当前绑定 workspace 的固定子目录，随后冻结为 Artifact。 */
+  writeArtifact(p: Identity, op: string, input: Data) {
+    if (
+      !input ||
+      Object.keys(input).some((k) => !['workspace_id', 'name', 'content', 'media_type'].includes(k)) ||
+      typeof input.workspace_id !== 'string' ||
+      typeof input.name !== 'string' ||
+      typeof input.content !== 'string' ||
+      input.content.length === 0
+    )
+      throw new RouteError('INVALID_ARTIFACT_INPUT');
+    const binding = this.identity(p);
+    if (binding.workspace_id !== input.workspace_id)
+      throw new RouteError('WORKSPACE_SCOPE', 'AUTHORIZATION');
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(input.name) || input.name.includes('..'))
+      throw new RouteError('ARTIFACT_NAME_INVALID', 'AUTHORIZATION');
+    const mediaByExtension: Record<string, string> = {
+      '.md': 'text/markdown',
+      '.json': 'application/json',
+      '.txt': 'text/plain',
+    };
+    const dot = input.name.lastIndexOf('.');
+    const mediaType = mediaByExtension[input.name.slice(dot).toLowerCase()];
+    if (!mediaType || (input.media_type !== undefined && input.media_type !== mediaType))
+      throw new RouteError('ARTIFACT_TYPE_REJECTED', 'AUTHORIZATION');
+    const bytes = Buffer.from(input.content, 'utf8');
+    if (bytes.length > 262144) throw new RouteError('ARTIFACT_LIMIT');
+    const workspace = this.one('select * from workspaces where id=?', input.workspace_id)!;
+    return this.operation(p, op, { tool: 'artifact_write', input }, () => {
+      const dir = resolve(workspace.display_path, 'agentrouter-artifacts');
+      mkdirSync(dir, { recursive: true });
+      const finalPath = join(dir, input.name);
+      if (existsSync(finalPath)) throw new RouteError('ARTIFACT_NAME_TAKEN', 'CONFLICT');
+      const tempPath = join(dir, `.${id('write')}.tmp`);
+      writeFileSync(tempPath, bytes, { flag: 'wx' });
+      renameSync(tempPath, finalPath);
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      const objectRoot = this.objectRoot();
+      mkdirSync(objectRoot, { recursive: true });
+      const blobPath = join(objectRoot, sha256);
+      if (!existsSync(blobPath)) writeFileSync(blobPath, bytes, { flag: 'wx' });
+      const artifact = id('artifact');
+      this.exec(
+        'insert into artifacts values(?,?,?,?,?,?,?,?,?)',
+        artifact,
+        p.projectId,
+        sha256,
+        sha256,
+        bytes.length,
+        mediaType,
+        JSON.stringify({ workspace_id: input.workspace_id, path: finalPath, name: input.name, task_id: p.taskId, source: 'NATIVE_ROLE' }),
+        'AVAILABLE',
+        this.clock(),
+      );
+      return { artifact_id: artifact, sha256, byte_size: bytes.length, media_type: mediaType, name: input.name };
     });
   }
   readArtifact(p: Identity, input: Data) {
