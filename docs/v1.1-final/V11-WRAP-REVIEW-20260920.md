@@ -170,3 +170,8 @@ Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自�
 - 在受管 writeArtifact 中，仅当同名目标为普通文件、字节完全相同、数据库已存在 AVAILABLE Artifact 时，把新 operation ID 的重复写视为去重并返回同一 artifact_id；不同内容仍返回 ARTIFACT_NAME_TAKEN，不覆盖文件。补充两项集成断言。
 - 定向 Artifact 测试 4/4 PASS；typecheck、lint、spec 36/36 PASS；unit 213/213、integration 212/212、contract+chaos 70/70 PASS。
 - 重建 Core 后，隔离 Codex DUT 的 run-K3FTGr 完成真实 input Artifact→读取→output Artifact→Result PUBLISHED→GUI 同路径下载/hash/marker 与 Core stop。代码仍为 dirty_source=true；待提交形成新 SHA 后重测，不能据此宣称 Windows RC。
+## 13. ZCode Bigmodel 终端登录核验
+
+- 隔离 CLI 0.16.9 的公开 login 子命令仅指向 Z.AI。仅在 .local-protected 中临时将其入口接到包内 Bigmodel OAuth 实现，并以 --no-browser 输出用户自行打开的 Bigmodel 链接；未修改安装目录或生产 HOME。
+- 浏览器回调后的 token 交换报 BigModel OAuth appSecret is required。隔离凭据键名核对未发现 Bigmodel 授权；此次登录未成功，不得继续声称 ZCode Level A 已可测试。
+- 临时 CLI 副本已清理。Bigmodel / GLM-5.3-Flash 默认选择仍保留；需要官方桌面授权入口或厂商修复 CLI 登录路径，不能要求用户提供或猜测 appSecret。
