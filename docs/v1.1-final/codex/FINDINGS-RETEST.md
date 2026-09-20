@@ -17,7 +17,7 @@
 | F11 | P0 | FIXED_AUTOMATED_REAL_PENDING | revoke 后端断流/写入围栏有测试；真实 HTTPS/WSS existing stream 未跑。 |
 | F12 | P1 | FIXED_AUTOMATED | ResolvedExecutionContext 精确绑定 profile/workspace，不再 first-profile。 |
 | F13 | P1 | FIXED_AUTOMATED | legacy RoleContext 停止作为运行时事实源；conversation_items 仅保留人类历史。 |
-| F14 | P1 | FIXED_AUTOMATED_REAL_PENDING | TaskInput 被折入下一 Run request snapshot；真实 Harness WAITING_INPUT 链未齐。 |
+| F14 | P1 | FIXED_AUTOMATED_REAL_PENDING | migration 018 建立正式 TaskInput、wait generation、hash/idempotency 与 Run/Participant 恰好一次消费；真实 Harness WAITING_INPUT 链未齐。 |
 | F15 | P1 | SUPERSEDED_UNSUPPORTED | ZCode 当前声明 COLD_RUN；同 WS native warm/resume 不支持，新 WS + transfer 才是可测路径。 |
 | F16 | P1 | PARTIAL | UNKNOWN 状态不自动重试已有合同；生产 reconcile/故障恢复证据仍需 N8。 |
 | F17 | P1 | FIXED_AUTOMATED | P2/extension 合同与 participant principal 分离已有覆盖。 |
@@ -30,7 +30,7 @@
 | F24 | P2 | PARTIAL | 已去除关键 first-profile/固定 identity 路径；N1—N5 继续做定向扫描。 |
 | F25 | P1 | PARTIAL_HOST | credential hash/safeStorage/remote locality 已实现；HTTPS/WSS 真实部署未验证。 |
 | F26 | P1 | PARTIAL_REAL_PENDING | Participant Join/Identity/claim/artifact/result/downstream 自动联合 DUT PASS；真实网页 ChatGPT 未跑。 |
-| F27 | P2 | FIXED_BASELINE | migrations `001`—`017` freeze + EOL guard PASS；升级/回滚/备份恢复仍属 N8。 |
+| F27 | P2 | FIXED_BASELINE | migrations `001`—`018` freeze + EOL guard PASS；v17 ready input backfill 已测，完整升级/回滚/备份恢复仍属 N8。 |
 | F28 | P2 | PARTIAL | 自动 unit/integration/contract/chaos 历史全绿；当前功能分支需分阶段重跑并固定分母。 |
 | F29 | P2 | PARTIAL | lease/scope 有正负测；controller 细粒度真实矩阵未跑。 |
 | F30 | P2 | FIXED_BASELINE | 独立功能 worktree 已从最新功能 HEAD 创建，UI Base 祖先关系已验证，未复用 UI 工作树。 |
