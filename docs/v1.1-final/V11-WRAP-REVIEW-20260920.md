@@ -175,3 +175,14 @@ Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自�
 - 隔离 CLI 0.16.9 的公开 login 子命令仅指向 Z.AI。仅在 .local-protected 中临时将其入口接到包内 Bigmodel OAuth 实现，并以 --no-browser 输出用户自行打开的 Bigmodel 链接；未修改安装目录或生产 HOME。
 - 浏览器回调后的 token 交换报 BigModel OAuth appSecret is required。隔离凭据键名核对未发现 Bigmodel 授权；此次登录未成功，不得继续声称 ZCode Level A 已可测试。
 - 临时 CLI 副本已清理。Bigmodel / GLM-5.3-Flash 默认选择仍保留；需要官方桌面授权入口或厂商修复 CLI 登录路径，不能要求用户提供或猜测 appSecret。
+
+## 14. UI Base 后 ZCode/工具复核（2026-09-20）
+
+本节更新第 4、8、10、13 节的历史时点叙述；那些段落是当时证据，不应继续解读为“尚未登录”或“百炼尚未测试”。
+
+- UI 基线 89a41b5e0ff6af198141ded3c1d5c627fdcf9a52 已推送 origin/feat/v1.1-final-cursor-win；它只供 Kimi 从固定业务合同分叉，不是 Windows RC。
+- ZCode 隔离桌面 Bigmodel 账户登录已成功，模型选择 account:bigmodel-individual-coding-plan / GLM-5.3-Flash。隔离凭据只核对键名、加密前缀及可解密一致性，未输出秘密。官方 CLI 0.16.9 的 Provider Registry 仍显示该账户 entitled:false / providerCount=0；真实入口 run-l9GCAy 在 session/create 被明确拒绝“Provider Registry 中不存在 Model”，Bootstrap=FAILED。桌面登录不能等同于受管 Harness 授权完成。
+- 用户指定的百炼 qwen3.8-flash 备选已做**显式隔离路径诊断**，不是自动回退。第一次 run-vjjmZr 因官方 CLI 与内置 provider 文件未同目录，在加载 registry 前失败；修正隔离副本布局后，第二次 run-IvcdKA 进入 session/create，Core 审计 NATIVE_ZCODE_REQUEST_REJECTED。独立即时响应的 session/create 诊断确认错误为“Provider Registry 中不存在 Model: bailian/qwen3.8-flash”。两次测试均未建立任务 Run，也未调用百炼模型。
+- 该 ZCode 版本旧式 .zcode/cli/config.json 的 model/provider 不足以向 v2 Provider Registry 注册模型；发行物中 login 仅声明 Z.AI OAuth，未发现 ZCODE_API_KEY 官方环境变量入口。执行包 F06-bailian-probe.md 要求官方配置路径不成立时标 BLOCKED_PROVIDER_BINDING，不得用自制 wrapper 冒充。因此仅本轮实验脚本改动已撤销，工作树随后恢复干净。若未来在隔离 GUI/TUI 中完成官方百炼 provider+credential 配置，需重新从真实入口做 Level A/Artifact/Level B；当前 ZCode 状态仍 FAIL/BLOCKED，不是自动 fallback PASS。
+- computer-use 插件用于检查官方 UI 时，先前误用 cua_repl 入口；改按技能指定 node_repl + @oai/sky，重试并重置后仍在导入阶段返回 trusted Node process exited unexpectedly。插件 manifest 与 Codex 日志显示插件已安装、MCP server ready，但 native trusted Node 执行失败；未操作 ZCode 窗口、未改系统设置。按技能恢复规则停止 UI 自动化，不能把这条工具链算作桌面人工验收。
+- 当前没有重新执行 docs/12 同一干净候选 SHA 全矩阵；没有 merge、tag、release，也未使用 Codex reset credit。

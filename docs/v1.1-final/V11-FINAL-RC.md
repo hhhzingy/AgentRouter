@@ -25,3 +25,10 @@
 6. 四家 Artifact Level A 的真实 PASS 尚不是同一个干净候选 SHA 的完整矩阵，其中 Codex 为脏工作树；ZCode 仍 FAIL。
 
 因此不能宣称 Windows RC。工作分支已按用户要求推送 GitHub，但不是完成态发布。
+
+## UI Base 后复核补充（2026-09-20）
+
+- UI_BASE_SHA=89a41b5e0ff6af198141ded3c1d5c627fdcf9a52，已推送，非 RC。
+- ZCode 隔离桌面 Bigmodel 登录已成功，但 CLI 0.16.9 registry 对 GLM-5.3-Flash 仍 entitled:false，真实 session/create 拒绝。百炼 qwen3.8-flash 显式备选也被 registry 拒绝；隔离探针未产生模型调用，状态为 BLOCKED_PROVIDER_BINDING，无自动回退证据。
+- computer-use 正确的 node_repl + @oai/sky 入口在本机 trusted Node 启动时退出；插件包存在且 MCP ready，UI 自动验收暂受工具宿主阻塞。
+- 第 2 条“缺 Bigmodel 官方授权/备选尚未验证”是早期时点；以上为最新事实。仍不能宣称 V1.1_WINDOWS_RC_READY_FOR_USER_ACCEPTANCE。
