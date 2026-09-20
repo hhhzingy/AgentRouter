@@ -6,7 +6,7 @@
 - 完整复核：`docs/v1.1-final/V11-WRAP-REVIEW-20260920.md`
 - 状态：**`AUTO_SCOPE_DONE_WITH_BLOCKERS`**
 - 未发出：`V1.1_WINDOWS_RC_READY_FOR_USER_ACCEPTANCE`
-- 未执行：merge main / tag / release / GitHub 完成态推送
+- 未执行：merge main / tag / release；工作分支已阶段性推送 GitHub
 
 ## 已证实
 
@@ -17,11 +17,11 @@
 
 ## 未关闭
 
-1. Codex DUT 被账号 usage limit 阻断；未获明确授权，不消耗 reset credit。
-2. ZCode DUT 被账号余额/资源包 1113（HTTP 429）阻断；不切账号。
+1. Codex 额度自然恢复后最小 Level A 在隔离 DUT PASS（42 / PUBLISHED）；Artifact Level A 与 Level B 尚缺。未使用 reset credit。
+2. ZCode 隔离 DUT 已选择 Bigmodel / GLM-5.3-Flash，但缺 Bigmodel 官方授权，Bootstrap FAILED；百炼 qwen3.8-flash 备选尚未在 ZCode 受管链验证。
 3. Pi 新 WorkSession Level B 暴露 native open `ENOENT`，Run UNKNOWN；五 Harness marker/WAITING_INPUT/cancel/restart-resume 未闭环。
 4. 当前固定 SHA 的 Web ChatGPT Participant 与 Cursor controller 联跑未完成。
 5. Remote HTTPS+WSS、签名安装器安装/升级、GitHub CI 未完成。
 6. 三家 Level A PASS 不是同一个干净候选 SHA 的完整矩阵。
 
-因此不能宣称 Windows RC，也不满足“完成后提交 GitHub”的条件。
+因此不能宣称 Windows RC。工作分支已按用户要求推送 GitHub，但不是完成态发布。

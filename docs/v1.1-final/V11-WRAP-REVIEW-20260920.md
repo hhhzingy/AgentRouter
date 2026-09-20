@@ -4,7 +4,7 @@
 
 **结论：未完成 Windows RC Gate。不得宣称 `V1.1_WINDOWS_RC_READY_FOR_USER_ACCEPTANCE`。**
 
-本文只记录已复核事实。未授权且未执行 merge、tag、release；由于执行包尚未完成，本轮也未向 GitHub 推送“完成”提交。
+本文只记录已复核事实。未授权且未执行 merge、tag、release。工作分支已按用户要求推送 GitHub，但不代表执行包完成。
 
 ## 1. 当前源码身份
 
@@ -72,8 +72,8 @@
 | Pi | 百炼 `qwen3.8-flash` | `9fb6a95` / `run-TioZFo` | **Level A Artifact PASS**；input `71199b4b…`，output `7b3c3b5d…`，GUI 下载 hash/marker PASS，Core exited |
 | Kimi | 百炼 `bailian/qwen3.8-flash` | `9fb6a95` / `run-C0Ye3r` | **Level A Artifact PASS**；input `a6ab1227…`，output `5901e44a…`，GUI 下载 hash/marker PASS，Core exited |
 | DSH | 百炼 `bailian/qwen3.8-flash` | `0050c1b` / `run-L5gPEY` | **Level A Artifact PASS**；input `4b742892…`，output `20f1d739…`，GUI 下载 hash/marker PASS，Core exited |
-| Codex | 隔离 DUT，CLI `0.155.0-alpha.9.2`，`gpt-5.6-luna` | `bf89877` / `run-1efUVT` | **BLOCKED_BY_ACCOUNT_USAGE_LIMIT**；身份/策略验证后已创建 native session，官方最小 CLI 调用明确返回 usage limit；未消耗 reset credit |
-| ZCode | 隔离 OAuth DUT，`GLM-5.3` | `e0a28e5` / `run-tau0kc` | **BLOCKED_BY_PROVIDER_ACCOUNT_RESOURCE**；字段透传已修，官方 CLI 到达 account provider 后返回 1113 余额/资源包不足（HTTP 429） |
+| Codex | 隔离 DUT，CLI 0.155.0-alpha.9.2，gpt-5.6-luna | 9925402 / run-KqLIuZ | 最小 Level A（非 Artifact）PASS：真实入口 42 / PUBLISHED / Core exited；工作树脏，Artifact Level A 与 Level B 仍缺；未消耗 reset credit |
+| ZCode | 隔离 DUT 已选 Bigmodel Coding Plan / GLM-5.3-Flash；百炼 qwen3.8-flash 为指定备选 | 9925402 / run-8GiXnu | FAIL：Bigmodel 尚无隔离 HOME 官方授权，真实入口 Bootstrap=FAILED；百炼备选尚未在 ZCode 受管链实测，不可写为自动回退 |
 
 Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不是执行包 docs/12 要求的“同一个干净候选 SHA 全矩阵”。因此三项只能算真实 Level A 证据，不能提升为 RC Gate PASS。
 
@@ -84,7 +84,7 @@ Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不
 - fixture/control-plane 已覆盖 continuation、cancel、history、restart 等部分语义；不能替代真实 Harness。
 - `0050c1b` Pi `--ab --cancel`：初始 Run PASS；创建 B WorkSession 后新 Pi native session 在 open 阶段报 `ENOENT`，Run=`UNKNOWN`，Task=`NEEDS_ATTENTION`，B 的 `native_session_ref=null`；报告 `run-Zne21T`，错误 `AB_RUN_NOT_VERIFIED`。
 - 旧 A WorkSession 已正确 ARCHIVED，未被重新激活；但 B 未完成，所以历史只读不等于 Level B PASS。
-- Codex 和 ZCode 受外部账号资源阻断，无法完成真实 Level B。
+- Codex 最小 Level A 已在额度自然恢复后重测通过；其 Artifact Level A/Level B 和 ZCode Bigmodel 登录/Level A/Level B 仍缺。
 - 五 Harness 的真实 WAITING_INPUT、同 WS marker continuity 与 restart/resume 尚未形成候选 SHA 完整证据。
 
 因此 Harness Gate 仍为 **PARTIAL / FAIL（非 RC）**。
@@ -111,7 +111,7 @@ Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不
 | 历史只读 | 控制面 PASS；Pi 新 WS 真实启动暴露 `ENOENT` |
 | Context 故障 | fault/contract 有覆盖；各宣称支持 Harness 的真实能力矩阵未闭环 |
 | 权限矩阵 |自动测试 PASS；Cursor/Remote/Web 真机联合矩阵未闭环 |
-| 五 Harness | 三家 Level A Artifact PASS；Codex/ZCode 外部阻断；Level B 未闭环 |
+| 五 Harness | 三家 Level A Artifact PASS；Codex 最小 Level A PASS、Artifact 未测；ZCode FAIL；Level B 未闭环 |
 | 网页+Cursor 协作 | NOT_RUN（当前固定 SHA） |
 
 ## 7. docs/12 Gate 判定
@@ -130,14 +130,14 @@ Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不
 
 ### 产品 Gate
 
-Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自己的 Role Identity；Codex/ZCode 的外部阻断也使用户完整五 Harness 验收无法完成。
+Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自己的 Role Identity；Codex Artifact 与 ZCode 授权/运行链未闭环，使用户完整五 Harness 验收无法完成。
 
 **最终判定：`AUTO_SCOPE_DONE_WITH_BLOCKERS`，不是 Windows RC。**
 
 ## 8. 阻断与所需外部动作
 
-1. **Codex DUT：** 需要用户明确授权消耗一个 reset credit，或等账号额度窗口恢复；未获得明确确认前不得自动 reset。
-2. **ZCode DUT：** 需要该隔离登录账号补充余额/资源包；禁止自动切账号。
+1. **Codex DUT：** 额度已自然恢复，最小 Level A 复测通过；仍需在干净同 SHA 上完成 Artifact Level A 与 Level B。用户明确要求不使用 reset credit。
+2. **ZCode DUT：** 已在隔离 HOME 选择 Bigmodel / GLM-5.3-Flash，但尚无 Bigmodel 官方授权；需在隔离桌面/TUI 完成登录。百炼 qwen3.8-flash 是指定备选，尚未证明 ZCode 受管链或自动回退。禁止复制生产 HOME 凭据。
 3. **Web Participant：** 需要可操作的真实 ChatGPT 网页会话/连接，在本候选 SHA 上完成 Join/Identity/Artifact/Result。
 4. **Remote HTTPS/WSS：** 需要实际 TLS/Tailscale Serve 环境与真机复测。
 5. **安装器：** 需要签名/安装/升级环境；当前仅 unpacked 工程包。
@@ -147,5 +147,14 @@ Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自�
 ## 9. Git 与发布边界
 
 - 本轮实现已形成本地提交，未包含 `.local-protected`、`.local`、凭据或生产 HOME。
-- 执行包尚未完成，所以没有按“完成后提交 GitHub”推送完成态。
+- 分支已推送 origin/feat/v1.1-final-cursor-win，属于阶段性提交，不是完成态或 RC。
 - 未 merge main、未 tag、未 release、未删除历史 feature/evidence、未切换账号。
+
+
+## 10. 后续复测（2026-09-20）
+
+- 用户要求先提交 GitHub；已推送工作分支，未 merge、tag 或 release。
+- Codex 额度自然恢复后，在隔离 DUT 对 HEAD 9925402 跑真实产品入口最小任务，报告 run-KqLIuZ：42 / PUBLISHED，Core 正常退出；测试时工作树为 dirty_source=true，不等于干净 SHA 的 Artifact Level A 或 Level B。全程未使用 Codex reset credit。
+- ZCode 隔离 DUT 默认选择现为 account:bigmodel-individual-coding-plan / GLM-5.3-Flash。当前隔离凭据仅有 Z.AI 授权；官方 CLI login 只提供 Z.AI，Bigmodel 需要隔离桌面/TUI 授权。真实产品入口 run-8GiXnu 的 Bootstrap 为 FAILED，任务未建立。
+- 百炼 qwen3.8-flash 为用户指定备选。官方内置模板支持该模型，但尚未在 ZCode 受管链完成凭据绑定、真实任务与自动回退验证，不能写成已支持自动回退。
+- 当前本轮桌面证据文件仍有未提交改动，未丢弃；本次提交只纳入复核文档。
