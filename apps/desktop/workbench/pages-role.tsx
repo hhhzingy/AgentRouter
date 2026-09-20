@@ -131,6 +131,7 @@ export function RolePage({ roleId }: { roleId: string }) {
           </Card>
 
           <SessionWorkflow roleId={role.id} />
+          <SlotBindingPanel roleId={role.id} />
         </div>
 
         {settingsOpen&&<Drawer title="角色设置" onClose={()=>setSettingsOpen(false)}><div className="role-col-side">
@@ -429,6 +430,48 @@ function SessionWorkflow({ roleId }: { roleId: string }) {
         </ul>
       )}
       {error && <p role="alert">{error}</p>}
+    </Card>
+  );
+}
+
+/** 规划槽位 / 参与者绑定：与执行槽（role_slots.active_run）分离。 */
+function SlotBindingPanel({ roleId }: { roleId: string }) {
+  const s = useStore();
+  const [slots, setSlots] = useState<
+    { id: string; name: string; participant_kind: string; state: string; work_session_id: string | null }[] | null
+  >(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    s.callExtension('participant.slot.list', { role_id: roleId })
+      .then((v) => {
+        if (active) setSlots((v as { slots: NonNullable<typeof slots> }).slots);
+      })
+      .catch((e) => {
+        if (active) setError(errorMessage(e));
+      });
+    return () => {
+      active = false;
+    };
+  }, [roleId, s]);
+  return (
+    <Card>
+      <h3>槽位与绑定</h3>
+      <p className="muted">
+        Slot 是规划/认领位，Binding 把参与者接到一个 ACTIVE WorkSession。历史 WorkSession 只读，不能重新激活。
+      </p>
+      {error && <p className="hint tone-warning">槽位列表暂不可用：{error}</p>}
+      {slots && slots.length === 0 && <p className="muted">当前角色没有槽位。</p>}
+      {slots && slots.length > 0 && (
+        <ul className="spec-list" data-testid="slot-list">
+          {slots.map((slot) => (
+            <li key={slot.id}>
+              {slot.name} · {slot.participant_kind} · {slot.state}
+              {slot.work_session_id ? ' · 已绑定会话' : ' · 未绑定会话'}
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }

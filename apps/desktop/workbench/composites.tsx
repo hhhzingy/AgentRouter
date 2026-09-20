@@ -285,6 +285,11 @@ export function TaskRow({ task }: { task: TaskVM }) {
             Run {RUN_STATE_LABEL[run.state]}
           </Badge>
         )}
+        {task.blockedReason && (
+          <span className="task-blocked" data-testid="blocked-reason" title={task.blockedReason}>
+            受阻：{task.blockedReason}
+          </span>
+        )}
       </div>
     </li>
   );

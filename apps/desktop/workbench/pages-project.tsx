@@ -123,6 +123,20 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             />
           )}
           <Card>
+            <h3>需要关注</h3>
+            {tasks.filter((t) => t.state === 'NEEDS_ATTENTION' || t.blockedReason).length === 0 ? (
+              <p className="muted">当前没有需要介入的任务。空闲 ≠ 已完成。</p>
+            ) : (
+              <ul className="task-rows" data-testid="needs-attention">
+                {tasks
+                  .filter((t) => t.state === 'NEEDS_ATTENTION' || t.blockedReason)
+                  .map((t) => (
+                    <TaskRow key={t.id} task={t} />
+                  ))}
+              </ul>
+            )}
+          </Card>
+          <Card>
             <h3>进行中的任务</h3>
             {tasks.filter((t) =>
               ['ACTIVE', 'QUEUED', 'WAITING_INPUT', 'NEEDS_ATTENTION'].includes(t.state),
@@ -184,6 +198,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                     <b>{r.summary}</b>
                     <div className="muted">
                       关联任务 {r.taskId} · 产物 {r.artifactIds.length} 个
+                      {r.artifactIds.length > 0 ? ' · ' + r.artifactIds.join(', ') : ''}
                     </div>
                   </div>
                   {r.acceptance === 'PENDING' && (

@@ -88,6 +88,10 @@ export function Shell({ children }: { children: ReactNode }) {
       )}
       <main className="wb-main"><PendingPanel />{children}</main>
       <footer className="wb-footer">
+        <div className="wb-core-identity" data-testid="core-identity" title={s.hello.serverInstanceId}>
+          Host {s.hello.platform} · Core {s.hello.serverInstanceId.slice(0, 12)} ·{' '}
+          {s.hello.contractRevision ?? s.hello.protocol}
+        </div>
         <details><summary>帮助与连接说明</summary><span>
           关闭窗口仅退出界面，本地 Core 独立运行；远程状态需重新连接确认。
           {s.hello.capabilities.mock && ' · 预览数据（Mock）'}
