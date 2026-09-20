@@ -72,10 +72,10 @@
 | Pi | 百炼 `qwen3.8-flash` | `9fb6a95` / `run-TioZFo` | **Level A Artifact PASS**；input `71199b4b…`，output `7b3c3b5d…`，GUI 下载 hash/marker PASS，Core exited |
 | Kimi | 百炼 `bailian/qwen3.8-flash` | `9fb6a95` / `run-C0Ye3r` | **Level A Artifact PASS**；input `a6ab1227…`，output `5901e44a…`，GUI 下载 hash/marker PASS，Core exited |
 | DSH | 百炼 `bailian/qwen3.8-flash` | `0050c1b` / `run-L5gPEY` | **Level A Artifact PASS**；input `4b742892…`，output `20f1d739…`，GUI 下载 hash/marker PASS，Core exited |
-| Codex | 隔离 DUT，CLI 0.155.0-alpha.9.2，gpt-5.6-luna | 9925402 / run-KqLIuZ | 最小 Level A（非 Artifact）PASS：真实入口 42 / PUBLISHED / Core exited；工作树脏，Artifact Level A 与 Level B 仍缺；未消耗 reset credit |
+| Codex | 隔离 DUT，CLI 0.155.0-alpha.9.2，gpt-5.6-luna | 修复前 bb0b70e / run-hmmCyZ；修复后同工作树 / run-K3FTGr | **Level A Artifact PASS（dirty source）**：input→read→output Artifact、PUBLISHED、下载 hash/marker 与 Core stop；待新干净 SHA 复测 |
 | ZCode | 隔离 DUT 已选 Bigmodel Coding Plan / GLM-5.3-Flash；百炼 qwen3.8-flash 为指定备选 | 9925402 / run-8GiXnu | FAIL：Bigmodel 尚无隔离 HOME 官方授权，真实入口 Bootstrap=FAILED；百炼备选尚未在 ZCode 受管链实测，不可写为自动回退 |
 
-Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不是执行包 docs/12 要求的“同一个干净候选 SHA 全矩阵”。因此三项只能算真实 Level A 证据，不能提升为 RC Gate PASS。
+Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不是执行包 docs/12 要求的“同一个干净候选 SHA 全矩阵”。因此这些证据不能提升为同一干净 SHA 的 RC Gate PASS；Codex 的新 PASS 另见第 12 节。
 
 ### 4.1 Level B 现状
 
@@ -84,7 +84,7 @@ Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不
 - fixture/control-plane 已覆盖 continuation、cancel、history、restart 等部分语义；不能替代真实 Harness。
 - `0050c1b` Pi `--ab --cancel`：初始 Run PASS；创建 B WorkSession 后新 Pi native session 在 open 阶段报 `ENOENT`，Run=`UNKNOWN`，Task=`NEEDS_ATTENTION`，B 的 `native_session_ref=null`；报告 `run-Zne21T`，错误 `AB_RUN_NOT_VERIFIED`。
 - 旧 A WorkSession 已正确 ARCHIVED，未被重新激活；但 B 未完成，所以历史只读不等于 Level B PASS。
-- Codex 最小 Level A 已在额度自然恢复后重测通过；其 Artifact Level A/Level B 和 ZCode Bigmodel 登录/Level A/Level B 仍缺。
+- Codex 最小 Level A 与 Artifact Level A 已在额度自然恢复后重测通过；后者仍需新干净 SHA 复测，Level B 未测。ZCode Bigmodel 登录/Level A/Level B 仍缺。
 - 五 Harness 的真实 WAITING_INPUT、同 WS marker continuity 与 restart/resume 尚未形成候选 SHA 完整证据。
 
 因此 Harness Gate 仍为 **PARTIAL / FAIL（非 RC）**。
@@ -111,7 +111,7 @@ Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不
 | 历史只读 | 控制面 PASS；Pi 新 WS 真实启动暴露 `ENOENT` |
 | Context 故障 | fault/contract 有覆盖；各宣称支持 Harness 的真实能力矩阵未闭环 |
 | 权限矩阵 |自动测试 PASS；Cursor/Remote/Web 真机联合矩阵未闭环 |
-| 五 Harness | 三家 Level A Artifact PASS；Codex 最小 Level A PASS、Artifact 未测；ZCode FAIL；Level B 未闭环 |
+| 五 Harness | 四家 Level A Artifact 有真实 PASS（Codex 为脏工作树），ZCode FAIL；Level B 未闭环 |
 | 网页+Cursor 协作 | NOT_RUN（当前固定 SHA） |
 
 ## 7. docs/12 Gate 判定
@@ -130,13 +130,13 @@ Pi/Kimi 的 PASS 来自干净 `9fb6a95`，DSH 来自干净 `0050c1b`；它们不
 
 ### 产品 Gate
 
-Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自己的 Role Identity；Codex Artifact 与 ZCode 授权/运行链未闭环，使用户完整五 Harness 验收无法完成。
+Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自己的 Role Identity；Codex Artifact 尚缺新干净 SHA 证据，ZCode 授权/运行链未闭环，使用户完整五 Harness 验收无法完成。
 
 **最终判定：`AUTO_SCOPE_DONE_WITH_BLOCKERS`，不是 Windows RC。**
 
 ## 8. 阻断与所需外部动作
 
-1. **Codex DUT：** 额度已自然恢复，最小 Level A 复测通过；仍需在干净同 SHA 上完成 Artifact Level A 与 Level B。用户明确要求不使用 reset credit。
+1. **Codex DUT：** 额度已自然恢复，最小 Level A 复测通过；同名同字节重试已修复，Artifact Level A 在脏工作树实测 PASS；仍需在新干净 SHA 上复测并完成 Level B。用户明确要求不使用 reset credit。
 2. **ZCode DUT：** 已在隔离 HOME 选择 Bigmodel / GLM-5.3-Flash，但尚无 Bigmodel 官方授权；需在隔离桌面/TUI 完成登录。百炼 qwen3.8-flash 是指定备选，尚未证明 ZCode 受管链或自动回退。禁止复制生产 HOME 凭据。
 3. **Web Participant：** 需要可操作的真实 ChatGPT 网页会话/连接，在本候选 SHA 上完成 Join/Identity/Artifact/Result。
 4. **Remote HTTPS/WSS：** 需要实际 TLS/Tailscale Serve 环境与真机复测。
@@ -158,3 +158,15 @@ Desktop/Remote 展示已有自动证据；网页 GPT 尚未在本 SHA 回答自�
 - ZCode 隔离 DUT 默认选择现为 account:bigmodel-individual-coding-plan / GLM-5.3-Flash。当前隔离凭据仅有 Z.AI 授权；官方 CLI login 只提供 Z.AI，Bigmodel 需要隔离桌面/TUI 授权。真实产品入口 run-8GiXnu 的 Bootstrap 为 FAILED，任务未建立。
 - 百炼 qwen3.8-flash 为用户指定备选。官方内置模板支持该模型，但尚未在 ZCode 受管链完成凭据绑定、真实任务与自动回退验证，不能写成已支持自动回退。
 - 当前本轮桌面证据文件仍有未提交改动，未丢弃；本次提交只纳入复核文档。
+## 11. Codex Artifact Level A 复测故障（2026-09-20）
+
+- 当前 HEAD bb0b70e、工作树 dirty_source=true；隔离 DUT 报告 run-hmmCyZ。
+- 最小算术阶段仍为 Run SUCCEEDED、Result 42 / PUBLISHED；Artifact producer 阶段首次 route_artifact_write 已在 workspace 写出 input.md，Artifact DB 中有 AVAILABLE 记录。
+- 同一 producer 随后重复调用 route_artifact_write；同名路径已存在，bridge 对该异常只返回 BRIDGE_HANDLER_FAILED。Codex 最终未调用 route_finish，Task=NEEDS_ATTENTION，Result 缺失；测试报 ARTIFACT_TASK_NOT_PUBLISHED。
+- 该故障不能简化为额度问题或计为 Artifact Level A PASS。当时需处理同内容安全重试与不同内容冲突并补测试；后续修复和复测见第 12 节。
+
+## 12. Codex Artifact 修复与回归（2026-09-20）
+
+- 在受管 writeArtifact 中，仅当同名目标为普通文件、字节完全相同、数据库已存在 AVAILABLE Artifact 时，把新 operation ID 的重复写视为去重并返回同一 artifact_id；不同内容仍返回 ARTIFACT_NAME_TAKEN，不覆盖文件。补充两项集成断言。
+- 定向 Artifact 测试 4/4 PASS；typecheck、lint、spec 36/36 PASS；unit 213/213、integration 212/212、contract+chaos 70/70 PASS。
+- 重建 Core 后，隔离 Codex DUT 的 run-K3FTGr 完成真实 input Artifact→读取→output Artifact→Result PUBLISHED→GUI 同路径下载/hash/marker 与 Core stop。代码仍为 dirty_source=true；待提交形成新 SHA 后重测，不能据此宣称 Windows RC。

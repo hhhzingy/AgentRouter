@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import { RouteError, validatePayload, id, digest, type Data } from '../protocol/index.ts';
-import { readFileSync, mkdirSync, writeFileSync, renameSync, existsSync } from 'node:fs';
+import { readFileSync, mkdirSync, writeFileSync, renameSync, existsSync, lstatSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { freezeFile, resolveArtifactBlobPath } from '../artifacts/index.ts';
@@ -1079,7 +1079,20 @@ export class Core {
       const dir = resolve(workspace.display_path, 'agentrouter-artifacts');
       mkdirSync(dir, { recursive: true });
       const finalPath = join(dir, input.name);
-      if (existsSync(finalPath)) throw new RouteError('ARTIFACT_NAME_TAKEN', 'CONFLICT');
+      if (existsSync(finalPath)) {
+        // 只允许同一普通文件、同字节内容重试；绝不覆盖已有路径或跟随符号链接。
+        if (lstatSync(finalPath).isFile() && readFileSync(finalPath).equals(bytes)) {
+          const retryHash = createHash('sha256').update(bytes).digest('hex');
+          const existing = this.one(
+            "select id from artifacts where project_id=? and storage_key=? and state='AVAILABLE'",
+            p.projectId,
+            retryHash,
+          );
+          if (existing)
+            return { artifact_id: existing.id, sha256: retryHash, byte_size: bytes.length, media_type: mediaType, name: input.name, deduplicated: true };
+        }
+        throw new RouteError('ARTIFACT_NAME_TAKEN', 'CONFLICT');
+      }
       const tempPath = join(dir, `.${id('write')}.tmp`);
       writeFileSync(tempPath, bytes, { flag: 'wx' });
       renameSync(tempPath, finalPath);

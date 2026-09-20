@@ -69,6 +69,12 @@ it('受管 Role 只在当前 workspace 写入小型 UTF-8 Artifact，并以 oper
     const duplicate = f.core.writeArtifact(b.principal, 'same-bytes', { ...input, name: 'copy.md' });
     expect(duplicate.artifact_id).toBe(first.artifact_id);
     expect(duplicate.deduplicated).toBe(true);
+    const retried = f.core.writeArtifact(b.principal, 'same-name-new-operation', input);
+    expect(retried.artifact_id).toBe(first.artifact_id);
+    expect(retried.deduplicated).toBe(true);
+    expect(() =>
+      f.core.writeArtifact(b.principal, 'same-name-different-content', { ...input, content: 'DIFFERENT' }),
+    ).toThrow('ARTIFACT_NAME_TAKEN');
     expect(() => f.core.writeArtifact(b.principal, 'bad-scope', { ...input, workspace_id: 'workspace_a' })).toThrow('WORKSPACE_SCOPE');
     expect(() => f.core.writeArtifact(b.principal, 'bad-name', { ...input, name: '../escape.md' })).toThrow('ARTIFACT_NAME_INVALID');
   } finally {

@@ -17,11 +17,11 @@
 
 ## 未关闭
 
-1. Codex 额度自然恢复后最小 Level A 在隔离 DUT PASS（42 / PUBLISHED）；Artifact Level A 与 Level B 尚缺。未使用 reset credit。
+1. Codex 自然恢复后，最小 Level A 与 Artifact Level A 实测 PASS；同名同字节重试故障已修复，后者仍是脏工作树证据，待新干净 SHA 复测；Level B 尚缺。未使用 reset credit。
 2. ZCode 隔离 DUT 已选择 Bigmodel / GLM-5.3-Flash，但缺 Bigmodel 官方授权，Bootstrap FAILED；百炼 qwen3.8-flash 备选尚未在 ZCode 受管链验证。
 3. Pi 新 WorkSession Level B 暴露 native open `ENOENT`，Run UNKNOWN；五 Harness marker/WAITING_INPUT/cancel/restart-resume 未闭环。
 4. 当前固定 SHA 的 Web ChatGPT Participant 与 Cursor controller 联跑未完成。
 5. Remote HTTPS+WSS、签名安装器安装/升级、GitHub CI 未完成。
-6. 三家 Level A PASS 不是同一个干净候选 SHA 的完整矩阵。
+6. 四家 Artifact Level A 的真实 PASS 尚不是同一个干净候选 SHA 的完整矩阵，其中 Codex 为脏工作树；ZCode 仍 FAIL。
 
 因此不能宣称 Windows RC。工作分支已按用户要求推送 GitHub，但不是完成态发布。
