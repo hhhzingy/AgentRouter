@@ -1,5 +1,21 @@
 import schema from '../protocol/route.schema.json' with { type: 'json' };
 const object = (properties) => ({ type: 'object', properties, additionalProperties: false });
+const descriptions = {
+  route_context:
+    '读取当前受管 Role 的身份、任务、输入和可见结果；只读，不完成任务。Read current managed Role context; read-only and never completes the task.',
+  route_send:
+    '按任务合同向另一个 Role 发送请求或通知；发送成功不完成当前任务。Send a routed request or notice; success does not complete the current task.',
+  route_finish:
+    '当前任务的必需终态提交。完成工作及所有 Artifact 操作后必须调用一次；成功后停止。Required terminal submission for the current task. Call once after all work and Artifact operations, then stop.',
+  route_wait:
+    '等待已路由子任务或输入，不完成当前任务。Wait for routed work or input; this never completes the current task.',
+  route_artifact_write:
+    '写入或幂等复用 Workspace Artifact。成功不完成任务；随后必须用 route_finish 提交结果，并按任务要求把 response.reference 原样放入 outputs。Write or idempotently reuse an Artifact. Success does not complete the task; then call route_finish and copy response.reference into outputs when requested.',
+  route_artifact_register:
+    '登记已存在的 Workspace 文件为 Artifact。成功不完成任务；随后必须用 route_finish 提交结果，并按任务要求把 response.reference 原样放入 outputs。Register an existing file as an Artifact. Success does not complete the task; then call route_finish and copy response.reference into outputs when requested.',
+  route_artifact_read:
+    '读取已授权 Artifact 的一个分块。只读且不完成任务；处理完成后仍须用 route_finish 提交结果。Read an authorized Artifact chunk; read-only and never completes the task. Call route_finish after processing.',
+};
 export const toolDefinitions = [
   {
     name: 'route_context',
@@ -67,5 +83,5 @@ export const toolDefinitions = [
   },
 ].map((tool) => ({
   ...tool,
-  description: 'AgentRouter 内部受控工具；成功仅返回必要数据，不产生业务回执。',
+  description: descriptions[tool.name],
 }));

@@ -1061,7 +1061,12 @@ export class Core {
         p.projectId,
         frozen.storage_key,
       );
-      if (existing) return { artifact_id: existing.id, ...frozen };
+      if (existing)
+        return {
+          artifact_id: existing.id,
+          reference: { kind: 'artifact', artifact_id: existing.id },
+          ...frozen,
+        };
       const artifact = id('artifact');
       this.exec(
         'insert into artifacts values(?,?,?,?,?,?,?,?,?)',
@@ -1075,7 +1080,11 @@ export class Core {
         'AVAILABLE',
         this.clock(),
       );
-      return { artifact_id: artifact, ...frozen };
+      return {
+        artifact_id: artifact,
+        reference: { kind: 'artifact', artifact_id: artifact },
+        ...frozen,
+      };
     });
   }
   /** 受管 Role 的小型 UTF-8 输出：只写当前绑定 workspace 的固定子目录，随后冻结为 Artifact。 */
@@ -1120,7 +1129,15 @@ export class Core {
             retryHash,
           );
           if (existing)
-            return { artifact_id: existing.id, sha256: retryHash, byte_size: bytes.length, media_type: mediaType, name: input.name, deduplicated: true };
+            return {
+              artifact_id: existing.id,
+              reference: { kind: 'artifact', artifact_id: existing.id },
+              sha256: retryHash,
+              byte_size: bytes.length,
+              media_type: mediaType,
+              name: input.name,
+              deduplicated: true,
+            };
         }
         throw new RouteError('ARTIFACT_NAME_TAKEN', 'CONFLICT');
       }
@@ -1138,7 +1155,15 @@ export class Core {
         sha256,
       );
       if (existing)
-        return { artifact_id: existing.id, sha256, byte_size: bytes.length, media_type: mediaType, name: input.name, deduplicated: true };
+        return {
+          artifact_id: existing.id,
+          reference: { kind: 'artifact', artifact_id: existing.id },
+          sha256,
+          byte_size: bytes.length,
+          media_type: mediaType,
+          name: input.name,
+          deduplicated: true,
+        };
       const artifact = id('artifact');
       this.exec(
         'insert into artifacts values(?,?,?,?,?,?,?,?,?)',
@@ -1152,7 +1177,14 @@ export class Core {
         'AVAILABLE',
         this.clock(),
       );
-      return { artifact_id: artifact, sha256, byte_size: bytes.length, media_type: mediaType, name: input.name };
+      return {
+        artifact_id: artifact,
+        reference: { kind: 'artifact', artifact_id: artifact },
+        sha256,
+        byte_size: bytes.length,
+        media_type: mediaType,
+        name: input.name,
+      };
     });
   }
   readArtifact(p: Identity, input: Data) {

@@ -118,6 +118,13 @@ export const codexDriver: HarnessDriver = {
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => ['app-server'],
+  runPrompt({ request }) {
+    return (
+      '本轮任务请求:' + JSON.stringify(request) + '\n' +
+      '执行协议:先按任务需要调用获授权的 Route 工具。route_context、route_send、route_wait、route_artifact_write、route_artifact_register、route_artifact_read 的成功都只是中间步骤,不会完成任务。' +
+      '结束本轮原生 turn 前必须调用 route_finish 恰好一次提交终态;完成时提交 succeeded 及要求的 outputs,无法完成时也必须提交 failed 和诚实原因。route_finish 成功后立即停止。'
+    );
+  },
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
     const lifecycle = new CodexLifecycle({ write, onEvent });
     return {

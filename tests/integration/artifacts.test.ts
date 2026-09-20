@@ -26,6 +26,7 @@ it('F14 完整注册/重复/读取/结果发布，缺失内容不允许交付', 
       workspace_id: 'workspace_b',
       path: 'result.txt',
     });
+    expect(artifact.reference).toEqual({ kind: 'artifact', artifact_id: artifact.artifact_id });
     expect(
       f.core.registerArtifact(b.principal, 'artifact2', {
         workspace_id: 'workspace_b',
@@ -60,6 +61,7 @@ it('受管 Role 只在当前 workspace 写入小型 UTF-8 Artifact，并以 oper
       media_type: 'text/markdown',
     };
     const first = f.core.writeArtifact(b.principal, 'write-artifact', input);
+    expect(first.reference).toEqual({ kind: 'artifact', artifact_id: first.artifact_id });
     expect(f.core.writeArtifact(b.principal, 'write-artifact', input)).toEqual(first);
     expect(readFileSync(resolve(f.dir, 'agentrouter-artifacts', 'review.md'), 'utf8')).toBe(input.content);
     const read = f.core.readArtifact(b.principal, {
@@ -68,9 +70,11 @@ it('受管 Role 只在当前 workspace 写入小型 UTF-8 Artifact，并以 oper
     expect(Buffer.from(read.content, 'base64').toString()).toBe(input.content);
     const duplicate = f.core.writeArtifact(b.principal, 'same-bytes', { ...input, name: 'copy.md' });
     expect(duplicate.artifact_id).toBe(first.artifact_id);
+    expect(duplicate.reference).toEqual(first.reference);
     expect(duplicate.deduplicated).toBe(true);
     const retried = f.core.writeArtifact(b.principal, 'same-name-new-operation', input);
     expect(retried.artifact_id).toBe(first.artifact_id);
+    expect(retried.reference).toEqual(first.reference);
     expect(retried.deduplicated).toBe(true);
     expect(() =>
       f.core.writeArtifact(b.principal, 'same-name-different-content', { ...input, content: 'DIFFERENT' }),
