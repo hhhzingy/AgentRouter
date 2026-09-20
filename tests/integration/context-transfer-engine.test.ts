@@ -28,6 +28,7 @@ async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capabili
     initializeTarget: async (input) => {
       calls.init = (calls.init ?? 0) + 1;
       input.recordTargetCreated('native-target-1');
+      input.recordInputDispatch();
       return { nativeSessionRef: 'native-target-1', confirmed: true, acceptedPayloadHash: input.expectedPayloadHash };
     },
     confirmTarget: async (input) => {
@@ -152,6 +153,7 @@ it('WN01/CT-02:发送后未知结果不 FAILED 不放开;有界幂等重试最�
       initCalls++;
       if (initCalls === 1) throw Error('ZCODE_TIMEOUT_AFTER_SEND');
       input.recordTargetCreated('native-target-retry');
+      input.recordInputDispatch();
       return { nativeSessionRef: 'native-target-retry', confirmed: true, acceptedPayloadHash: input.expectedPayloadHash };
     },
   });
@@ -187,6 +189,7 @@ it('N4: TARGET_CREATED 后 send 结果未知，只读核对特定 payload receip
     initializeTarget: async (input) => {
       initCalls++;
       input.recordTargetCreated('native-created-before-timeout');
+      input.recordInputDispatch();
       throw Error('ZCODE_TIMEOUT_AFTER_SEND');
     },
   });
@@ -201,10 +204,54 @@ it('N4: TARGET_CREATED 后 send 结果未知，只读核对特定 payload receip
   expect(meta.accepted_payload_sha256).toBe(meta.seed_sha256);
 });
 
+it('N4: target-window 探测若创建 native session，initialize 必须复用同一目标而非创建探针孤儿', async () => {
+  let reserved = '';
+  let initialized = '';
+  const f = await fixture({
+    targetWindowTokens: async (input) => {
+      reserved = 'native-window-and-target';
+      input.recordTargetCreated(reserved);
+      return 1000;
+    },
+    initializeTarget: async (input) => {
+      initialized = String(input.targetNativeSessionRef ?? '');
+      input.recordInputDispatch();
+      return {
+        nativeSessionRef: initialized,
+        confirmed: true,
+        acceptedPayloadHash: input.expectedPayloadHash,
+      };
+    },
+  });
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'window-owned-target', context_mode: 'inherit' })) as any;
+  expect((await f.settle(created.transfer.op_id)).state).toBe('COMMITTED');
+  expect(initialized).toBe(reserved);
+  expect(reserved).toBe('native-window-and-target');
+});
+
+it('N4: target-window 已保留目标后，Driver 返回不同 native ref 必须拒绝 commit', async () => {
+  const f = await fixture({
+    targetWindowTokens: async (input) => {
+      input.recordTargetCreated('native-reserved-a');
+      return 1000;
+    },
+    initializeTarget: async (input) => {
+      input.recordInputDispatch();
+      return { nativeSessionRef: 'native-drifted-b', confirmed: true, acceptedPayloadHash: input.expectedPayloadHash };
+    },
+  });
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: 'ref-drift', context_mode: 'inherit' })) as any;
+  const st = await f.settleUntil(created.transfer.op_id, (x) => x.error_code === 'CONTEXT_TARGET_REF_MISMATCH');
+  expect(st.state).toBe('SEEDED');
+  const listing = (await f.s.request('roleSession.list' as never, { role_id: f.roleId } as never)) as unknown as { active_session_id: string };
+  expect(listing.active_session_id).toBe(f.firstSessionId);
+});
+
 it('N4: session exists 或错误 payload hash 不能替代 seed accepted，保持 UNRESOLVED 并暂停派发', async () => {
   const f = await fixture({
     initializeTarget: async (input) => {
       input.recordTargetCreated('native-wrong-payload');
+      input.recordInputDispatch();
       return { nativeSessionRef: 'native-wrong-payload', confirmed: true, acceptedPayloadHash: '0'.repeat(64) };
     },
     confirmTarget: async () => ({ confirmed: true, acceptedPayloadHash: '0'.repeat(64) }),
@@ -235,6 +282,7 @@ it('重启后 SEEDED 恢复走 confirm 且只提交一次;相同 request_key 不
   const f = await fixture({ initializeTarget: async (i) => {
     await new Promise((r) => setTimeout(r, 150));
     i.recordTargetCreated('native-target-1');
+    i.recordInputDispatch();
     return { nativeSessionRef: 'native-target-1', confirmed: true, acceptedPayloadHash: i.expectedPayloadHash };
   } });
   // 直接构造一次"初始化已发出但进程中断"的持久状态:SEEDED + 持久目标引用(等价 ops 表的崩溃核对职责)。

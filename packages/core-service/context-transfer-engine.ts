@@ -25,8 +25,11 @@ export interface TransferDriverPort {
     seedText: string;
     operationId: string;
     expectedPayloadHash: string;
+    targetNativeSessionRef?: string | null;
     /** Driver 创建目标后、注入 seed 前立即持久化 native ref，供 UNKNOWN_EFFECT/重启核对。 */
     recordTargetCreated(nativeSessionRef: string): void;
+    /** 在向 native transport 写入 seed 前持久化；此后异常一律按 UNKNOWN_EFFECT 只读核对。 */
+    recordInputDispatch(): void;
   }): Promise<{ nativeSessionRef: string; confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string }>;
   /** SEEDED/崩溃恢复时按持久引用核对特定 payload(只读,不创建)。 */
   confirmTarget(input: TransferPortContext & {
@@ -34,7 +37,12 @@ export interface TransferDriverPort {
     operationId: string;
     expectedPayloadHash: string;
   }): Promise<{ confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string }>;
-  targetWindowTokens?(input: TransferPortContext): Promise<number | null>;
+  targetWindowTokens?(input: TransferPortContext & {
+    operationId: string;
+    targetNativeSessionRef?: string | null;
+    /** 若探测窗口必须创建目标，此 ref 就是本次迁移的目标，不得另建一次性探针会话。 */
+    recordTargetCreated(nativeSessionRef: string): void;
+  }): Promise<number | null>;
   sourceCapacity?(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ windowTokens: number | null; usageTokens: number | null }>;
   /** 受控源侧压缩(单一授权 profile);无此通道则 COMPRESS 决策显式失败 */
   compressSource?(input: { text: string; maxTokens: number }): Promise<{ text: string; truncated: boolean }>;
@@ -150,7 +158,8 @@ export class ContextTransferEngine {
     if (
       op.state === 'EXPORTED' &&
       typeof meta.target_native_ref === 'string' &&
-      typeof meta.seed_sha256 === 'string'
+      typeof meta.seed_sha256 === 'string' &&
+      meta.seed_send_started === true
     ) {
       this.deps.db.prepare("update context_transfer_ops set state='SEEDED',updated_at_ms=? where id=? and state='EXPORTED'").run(this.clock(), opId);
       await this.settleSeeded(opId);
@@ -167,7 +176,16 @@ export class ContextTransferEngine {
     let sourceWindow: number | null = null;
     let sourceUsage: number | null = null;
     try {
-      targetWindow = targetPort.targetWindowTokens ? await targetPort.targetWindowTokens(targetCtx) : null;
+      const beforeTarget = metaOf(this.op(opId) ?? {});
+      targetWindow = targetPort.targetWindowTokens ? await targetPort.targetWindowTokens({
+        ...targetCtx,
+        operationId: opId,
+        targetNativeSessionRef: typeof beforeTarget.target_native_ref === 'string' ? beforeTarget.target_native_ref : null,
+        recordTargetCreated: (nativeSessionRef) => {
+          if (!nativeSessionRef) throw Error('CONTEXT_TARGET_REF_EMPTY');
+          this.setMeta(opId, { target_native_ref: nativeSessionRef, target_created: true });
+        },
+      }) : null;
       const sc = sourcePort.sourceCapacity ? await sourcePort.sourceCapacity({ ...sourceCtx, nativeSessionRef: sourceRef }) : null;
       sourceWindow = sc ? sc.windowTokens : null;
       sourceUsage = sc ? sc.usageTokens : null;
@@ -189,15 +207,19 @@ export class ContextTransferEngine {
     // 目标初始化:确定未开始才 FAILED;其余不确定保持 EXPORTED+error_code,重放/重启按 operationId 幂等重试。
     let init: { nativeSessionRef: string; confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string };
     try {
+      const beforeInit = metaOf(this.op(opId) ?? {});
+      const reservedTargetRef = typeof beforeInit.target_native_ref === 'string' ? beforeInit.target_native_ref : null;
       init = await targetPort.initializeTarget({
         ...targetCtx,
         seedText,
         operationId: opId,
         expectedPayloadHash: seedSha,
+        targetNativeSessionRef: reservedTargetRef,
         recordTargetCreated: (nativeSessionRef) => {
           if (!nativeSessionRef) throw Error('CONTEXT_TARGET_REF_EMPTY');
           this.setMeta(opId, { target_native_ref: nativeSessionRef, target_created: true });
         },
+        recordInputDispatch: () => this.setMeta(opId, { seed_send_started: true }),
       });
     } catch (error) {
       const definite = String((error as Error)?.message ?? error).includes('NOT_STARTED');
@@ -211,6 +233,15 @@ export class ContextTransferEngine {
           await this.settleSeeded(opId);
         } else this.scheduleRetry(opId);
       }
+      this.deps.onSettled?.(op.role_id);
+      return;
+    }
+    const recorded = metaOf(this.op(opId) ?? {});
+    const recordedTargetRef = typeof recorded.target_native_ref === 'string' ? recorded.target_native_ref : null;
+    if (recordedTargetRef && recordedTargetRef !== init.nativeSessionRef) {
+      this.setMeta(opId, { target_returned_ref: init.nativeSessionRef });
+      this.deps.db.prepare("update context_transfer_ops set state='SEEDED',error_code=?,updated_at_ms=? where id=? and state='EXPORTED'")
+        .run('CONTEXT_TARGET_REF_MISMATCH', this.clock(), opId);
       this.deps.onSettled?.(op.role_id);
       return;
     }

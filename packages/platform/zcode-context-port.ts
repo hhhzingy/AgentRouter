@@ -161,34 +161,42 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
         return { windowTokens: snap.contextWindow, usageTokens: snap.contextUsed };
       } catch { return { windowTokens: null, usageTokens: null }; }
     },
-    async targetWindowTokens({ sessionHome }) {
+    async targetWindowTokens({ sessionHome, operationId, targetNativeSessionRef, recordTargetCreated }) {
       try {
         return await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
-          const snap = parseSnapshot(await c.request('session/create', { workspace: { workspacePath: homeOf(sessionHome), workspaceKey: homeOf(sessionHome) } }));
+          const existing = targetNativeSessionRef ?? idempotency.get(operationId);
+          const snap = existing
+            ? parseSnapshot(await c.request('session/resume', { sessionId: existing }))
+            : parseSnapshot(await c.request('session/create', { workspace: { workspacePath: homeOf(sessionHome), workspaceKey: 'ar-context-' + operationId } }));
+          if (!snap.sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
+          idempotency.set(operationId, snap.sessionId);
+          if (!existing) recordTargetCreated(snap.sessionId);
           return snap.contextWindow;
         });
       } catch { return null; }
     },
-    async initializeTarget({ seedText, sessionHome, operationId, expectedPayloadHash, recordTargetCreated }) {
+    async initializeTarget({ seedText, sessionHome, operationId, expectedPayloadHash, targetNativeSessionRef, recordTargetCreated, recordInputDispatch }) {
       // 幂等:同 operationId 已登记目标则仅 confirm,不再创建。
-      const known = idempotency.get(operationId);
+      const known = targetNativeSessionRef ?? idempotency.get(operationId);
       if (known) {
         const ok = await this.confirmTarget({ harness: 'zcode', nativeSessionRef: known, sessionHome, operationId, expectedPayloadHash });
-        return { nativeSessionRef: known, ...ok };
+        if (ok.confirmed) return { nativeSessionRef: known, ...ok };
       }
       const cred = readCredential(opts.credentialFile);
       const home = homeOf(sessionHome);
       const target = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: home, apiKey: cred?.apiKey ?? null, budgetMs: (opts.budgetMs ?? 45000) * 2 }, async (c) => {
-        const created = parseSnapshot(await c.request('session/create', { workspace: { workspacePath: home, workspaceKey: 'ar-context-' + operationId } }));
-        if (!created.sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
-        idempotency.set(operationId, created.sessionId);
-        recordTargetCreated(created.sessionId);
-        await c.request('session/subscribe', { sessionId: created.sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false });
+        const sessionId = known ?? parseSnapshot(await c.request('session/create', { workspace: { workspacePath: home, workspaceKey: 'ar-context-' + operationId } })).sessionId;
+        if (!sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
+        idempotency.set(operationId, sessionId);
+        if (!known) recordTargetCreated(sessionId);
+        else await c.request('session/resume', { sessionId });
+        await c.request('session/subscribe', { sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false });
         const marker = 'AGENTROUTER_CONTEXT_TRANSFER:' + operationId + ':' + expectedPayloadHash;
-        await c.request('session/send', { sessionId: created.sessionId, content:
+        recordInputDispatch();
+        await c.request('session/send', { sessionId, content:
           marker + '\n以下是同一角色上一工作会话的可见历史(仅用户与助手文本;不含隐藏思维链)。理解后仅回复 READY,不要调用任何工具。\n' + seedText, inputId: 'ctxinit_' + operationId });
         // send 受理后才返回;withClient 在此之后才关进程。模型 READY 文本不是确认证据。
-        return created.sessionId;
+        return sessionId;
       });
       // 回执绑定“本次 operation + 特定 seed hash”，不能以 session exists 替代 seed accepted。
       return { nativeSessionRef: target, confirmed: true, acceptedPayloadHash: expectedPayloadHash, nativeReceipt: 'zcode:session/send:ctxinit_' + operationId };
