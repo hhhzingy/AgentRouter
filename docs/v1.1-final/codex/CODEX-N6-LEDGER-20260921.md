@@ -49,7 +49,7 @@
 
 ### 持续会话 marker / 正式 TaskInput 子项
 
-以下 `--marker`、`--wait-input` 是新增真实 DUT 模式；运行时测试脚本有未提交改动，所以全部明确记为 dirty evidence，不能当作固定 clean 候选。基础 `42` 任务失败也计入分母，不无限刷绿。`--marker` 的第二轮请求不包含随机值，核对同一 ACTIVE WorkSession 与同一 native ref；`--wait-input` 通过正式 controller P1 API 写 TaskInput，核对 CONTINUATION Run 消费与 PUBLISHED Result。初版 wait-input 证据已核对同一 WS，但当时尚未增加前后 native ref 不暗换断言；该断言需 clean 候选复测。
+以下 `--marker`、`--wait-input` 是新增真实 DUT 模式。第一批运行时测试脚本有未提交改动，故明确记为 dirty evidence；后续在 clean `e731880` 固定候选复测。基础 `42` 任务失败也计入分母，不无限刷绿。`--marker` 的第二轮请求不包含随机值，核对同一 ACTIVE WorkSession 与同一 native ref；`--wait-input` 通过正式 controller P1 API 写 TaskInput，核对 CONTINUATION Run 消费与 PUBLISHED Result。初版 dirty wait-input 尚未核对前后 native ref；clean 候选已补上并通过。
 
 | 子项 | Harness | source | DUT 别名 | 结果 |
 |---|---|---|---|---|
@@ -61,14 +61,20 @@
 | TaskInput | Kimi Code | `dd601dd` dirty | `run-Wxg0Ra` | FAIL：初始 42 Run SUCCEEDED、Task NEEDS_ATTENTION、无 Result；未进入 TaskInput。 |
 | TaskInput | Kimi Code | `dd601dd` dirty | `run-Z18pyh` | PASS，正式 TaskInput 被同 WS 的 CONTINUATION Run 消费；分母 1 FAIL / 1 PASS。 |
 | TaskInput | DSH | `dd601dd` dirty | `run-gMA5Og` | PASS，正式 TaskInput 被同 WS 的 CONTINUATION Run 消费。 |
+| marker | Pi | `e731880` clean | `run-mfklri` | PASS，两轮随机 marker、同 ACTIVE WS/native ref、Core stop。 |
+| TaskInput | Pi | `e731880` clean | `run-XR6iUz` | PASS，正式 TaskInput、同 WS/native ref、CONTINUATION Run、Result PUBLISHED、Core stop。 |
+| marker | Kimi Code | `e731880` clean | `run-QIPJpn` | PASS，两轮随机 marker、同 ACTIVE WS/native ref、Core stop；此前 dirty 失败仍保留。 |
+| TaskInput | Kimi Code | `e731880` clean | `run-O8V5Qo` | PASS，正式 TaskInput、同 WS/native ref、CONTINUATION Run、Result PUBLISHED、Core stop；此前 dirty 失败仍保留。 |
+| marker | DSH | `e731880` clean | `run-uibEsw` | PASS，两轮随机 marker、同 ACTIVE WS/native ref、Core stop。 |
+| TaskInput | DSH | `e731880` clean | `run-5Qgn3e` | PASS，正式 TaskInput、同 WS/native ref、CONTINUATION Run、Result PUBLISHED、Core stop。 |
 
 ## 当前分层判定
 
 | Harness | Level A | Level B | 尚缺 |
 |---|---|---|---|
-| Pi | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel clean；marker/TaskInput dirty） | marker/TaskInput clean 候选、Core/client reconnect、cold resume 完整证据。 |
-| Kimi Code | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel clean；marker/TaskInput dirty，均有初始 42 失败分母） | marker/TaskInput clean 候选、波动根因、reconnect/cold resume。 |
-| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PARTIAL（A→B→C/cancel clean；marker/TaskInput dirty） | 首次 Bootstrap 瞬断根因、marker/TaskInput clean 候选、reconnect/cold resume。 |
+| Pi | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 均有 clean 子项 PASS） | Core/client reconnect、cold resume 完整证据。 |
+| Kimi Code | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 均有 clean 子项 PASS；dirty 初始 42 失败分母保留） | 波动根因、reconnect/cold resume。 |
+| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PARTIAL（A→B→C/cancel、marker、TaskInput 均有 clean 子项 PASS） | 首次 Bootstrap 瞬断根因、reconnect/cold resume。 |
 | Codex | PASS_WITH_FAILURE_DENOMINATOR（`28bf80a` clean，1 FAIL/1 PASS） | BLOCKED_BY_BOOTSTRAP_ON_LATEST（`dd601dd` clean） | Level B 全项；不使用 reset credit。 |
 | ZCode | BLOCKED_PROVIDER_BINDING（`28bf80a` clean） | BLOCKED / `native_resume=UNSUPPORTED` | 官方 Bigmodel registry 授权；无官方绑定前不能宣称 Level A、warm 或百炼 fallback。 |
 
@@ -81,7 +87,7 @@
 
 ## 下一步与禁止扩大声明
 
-- 先提交并在 clean 候选复测 marker/正式 TaskInput（含同 native ref 断言），再补 Core/client reconnect、cold resume。记录每次真实失败，不靠反复刷绿。
+- 下一步补 Core/client reconnect、cold resume；再按同一候选推进 Codex 与 ZCode 可用边界。记录每次真实失败，不靠反复刷绿。
 - ZCode 需要官方 provider/entitlement 状态变化；不得复制生产认证、伪造 registry 或把客户端误改为普通 CLI Role。
 - DUT 关键场景完整通过后才按执行包进入对应 Harness 的真实环境新对象测试；本账本不声明任何真实生产环境 PASS。
 - 网页 ChatGPT Participant、Tailscale HTTPS/WSS 手机、Context Transfer 真 receipt、migration/fault/stability、Electron 包、CI 与 UI 合流仍待后续；禁止 Windows RC 声明，未 merge/tag/release。
