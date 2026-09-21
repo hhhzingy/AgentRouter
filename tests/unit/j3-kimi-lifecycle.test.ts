@@ -1,5 +1,14 @@
 import { it, expect } from 'vitest';
 import { KimiLifecycle } from '../../packages/adapters/kimi/lifecycle.ts';
+import { kimiDriver } from '../../packages/core-service/harness-drivers.ts';
+it('Kimi 任务轮须用 route_finish 提交终态而非自然语言结束', () => {
+  const request = { kind: 'task.request', body: '17+25' };
+  const prompt = kimiDriver.runPrompt!({ request, charter: {}, charterHash: 'hash' });
+  expect(prompt).toContain(JSON.stringify(request));
+  expect(prompt).toContain('必须调用 route_finish 恰好一次');
+  expect(prompt).toContain('自然语言回答');
+  expect(prompt).toContain('无法完成时提交 failed');
+});
 const tick = () => new Promise((r) => setImmediate(r));
 function fixture(
   onApproval?: (method: string, params: unknown) => Promise<unknown>,

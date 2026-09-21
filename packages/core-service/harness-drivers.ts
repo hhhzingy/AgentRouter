@@ -163,6 +163,13 @@ export const kimiDriver: HarnessDriver = {
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => ['acp'],
+  runPrompt({ request }) {
+    return (
+      '本轮任务请求:' + JSON.stringify(request) + '\n' +
+      '执行协议:按任务需要调用获授权的 Route 工具。任何自然语言回答、route_context、route_send、route_wait、route_artifact_write、route_artifact_register、route_artifact_read 都不是任务终态。' +
+      '在结束原生 turn 前必须调用 route_finish 恰好一次;成功时提交 succeeded 和任务要求的 outputs,无法完成时提交 failed 和诚实原因。route_finish 成功后停止。'
+    );
+  },
   createLifecycle({ config, epoch, write, onEvent, promptTimeoutMs, onApproval }) {
     const lifecycle = new KimiLifecycle({
       epoch,
