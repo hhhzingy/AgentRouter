@@ -4,7 +4,9 @@ import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 
 const hash = (s) => createHash('sha256').update(s).digest('hex');
-const authPath = resolve(process.argv[2] ?? '.local-protected/codex-dut/home/.codex/auth.json');
+const authPath = resolve(
+  process.argv[2] ?? '.local-protected/codex-dut/dut-fj/home/.codex/auth.json',
+);
 const outPath = resolve(
   process.argv[3] ?? '.local-protected/codex-dut/dut-fj/approved-identity.json',
 );

@@ -85,3 +85,12 @@ it('rejects unapproved home, missing login, binary drift and non-loopback bridge
   rmSync(join(f.sessionHome, '.codex/auth.json'));
   expect(() => prepareManagedCodexProfile(f)).toThrow('CODEX_MANAGED_LOGIN_REQUIRED');
 });
+it('login、identity seal 与生产 DUT runner 使用同一受保护 dut-fj 根', () => {
+  const login = readFileSync('tools/login-j3-codex-dut.ps1', 'utf8').replaceAll('\\', '/');
+  const seal = readFileSync('tools/v11-seal-codex-dut-identity.mjs', 'utf8');
+  const runner = readFileSync('tools/test-j3-production-pi.mjs', 'utf8');
+  for (const source of [login, seal, runner])
+    expect(source).toContain('.local-protected/codex-dut/dut-fj');
+  expect(login).not.toContain('.local-protected/codex-dut/home');
+  expect(seal).not.toContain('.local-protected/codex-dut/home');
+});
