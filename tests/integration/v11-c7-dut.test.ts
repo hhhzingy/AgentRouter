@@ -20,7 +20,7 @@ const PROD_HOMES = [
   'C:/Users/hap_p/.zcode',
 ];
 
-it('C7:五 Harness 声明矩阵均为 COLD_RUN；ZCode Level B 要求新 WS', () => {
+it('C7:五 Harness 声明矩阵均为 COLD_RUN；ZCode 0.16.9 resume 接线仍待 DUT 验证', () => {
   const registry = builtInDrivers();
   expect(registry.list().sort()).toEqual(['codex', 'deepseek_harness', 'kimi_code', 'pi', 'zcode']);
   for (const harness of registry.list()) {
@@ -28,8 +28,8 @@ it('C7:五 Harness 声明矩阵均为 COLD_RUN；ZCode Level B 要求新 WS', ()
     expect(d.lifecycle).toBe('COLD_RUN');
   }
   const zcode = harnessLifecycleDeclaration('zcode');
-  expect(zcode.level_b).toBe('REQUIRES_NEW_WORKSESSION');
-  expect(zcode.native_resume).toBe('UNSUPPORTED');
+  expect(zcode.level_b).toBe('DECLARED_UNVERIFIED');
+  expect(zcode.native_resume).toBe('IMPLEMENTED_UNVERIFIED');
   expect(harnessLifecycleDeclaration('pi').level_b).toBe('DECLARED_UNVERIFIED');
   expect(harnessLifecycleDeclaration('codex').level_b).toBe('DECLARED_UNVERIFIED');
 });

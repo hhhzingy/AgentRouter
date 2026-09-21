@@ -16,18 +16,18 @@ it('create 读取官方 Wbt snapshot.session.sessionId', async () => {
 });
 it('resume 读取官方完整 snapshot 而非要求顶层 sessionId', async () => {
   const d = fixture({ session: { sessionId: 'native' }, projection: { sessionId: 'native' }, runtime: { eventSeq: 9 } });
-  await expect(d.resume('native')).resolves.toBeUndefined();
+  await expect(d.resume({ sessionId: 'native', workspacePath: 'test', workspaceKey: 'test' })).resolves.toBeUndefined();
   d.disconnect();
 });
 it('拒绝 snapshot 的 session 与 projection 身份冲突', async () => {
   const d = fixture({ sessionId: 'native', session: { sessionId: 'native' }, projection: { sessionId: 'other' } });
-  await expect(d.resume('native')).rejects.toThrow('ZCODE_SESSION_MISMATCH');
+  await expect(d.resume({ sessionId: 'native', workspacePath: 'test', workspaceKey: 'test' })).rejects.toThrow('ZCODE_SESSION_MISMATCH');
   d.disconnect();
 });
-it('拒绝身份错配或含意外历史的订阅响应', async () => {
+it('允许官方 replay 缺口并把 eventSeq 提升为新 Run floor', async () => {
   const d = fixture({ sessionId: 'native', eventSeq: 9, events: [{ type: 'turn.started' }] });
   await d.open({ workspacePath: 'test', workspaceKey: 'test' });
-  await expect(d.subscribe()).rejects.toThrow('ZCODE_SUBSCRIBE_REJECTED');
+  await expect(d.subscribe()).resolves.toBeUndefined();
   d.disconnect();
 });
 it('订阅 eventSeq 之前的事件不能绑定新 run', async () => {

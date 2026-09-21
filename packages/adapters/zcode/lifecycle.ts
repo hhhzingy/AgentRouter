@@ -1,6 +1,6 @@
 import { JsonLfDecoder } from '../../platform/framing.ts';
 import { NativeRpcError } from '../shared/rpc-peer.ts';
-/** ZCode Protocol 实验级生命周期(0.16.5 app-server)。
+/** ZCode Protocol 生命周期(0.16.9 app-server)。
  * 帧形经真实往返确认:{id, method, params} 换行分帧;方法面自官方发行物提取。
  * 会话创建依赖已登录/已配置的 ZCode 实例(沙箱无凭据时挂起)——执行闭环未认证前不宣称可用。 */
 export interface ZcodeLifecycleOptions {
@@ -43,14 +43,25 @@ export class ZcodeLifecycle {
     }));
     const id = this.snapshotSessionId(reply);
     this.sessionId = id;
+    this.eventFloor = this.snapshotEventSeq(reply);
     return { id };
   }
-  async resume(sessionId: string, mcpServers?: unknown[]): Promise<void> {
+  async resume(input: {
+    sessionId: string; workspacePath: string; workspaceKey: string; mcpServers?: unknown[];
+    toolAllowlist?: string[]; toolDenylist?: string[];
+  }): Promise<void> {
     this.phase = 'RESUME';
-    const reply = await this.request('session/resume', { sessionId, ...(mcpServers ? { mcpServers } : {}) });
-    if (this.snapshotSessionId(reply) !== sessionId)
+    const reply = await this.request('session/resume', {
+      sessionId: input.sessionId,
+      workspace: { workspacePath: input.workspacePath, workspaceKey: input.workspaceKey },
+      ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
+      ...(input.toolAllowlist ? { toolAllowlist: input.toolAllowlist } : {}),
+      ...(input.toolDenylist ? { toolDenylist: input.toolDenylist } : {}),
+    });
+    if (this.snapshotSessionId(reply) !== input.sessionId)
       throw new NativeRpcError('ZCODE_SESSION_MISMATCH', 'possible');
-    this.sessionId = sessionId;
+    this.sessionId = input.sessionId;
+    this.eventFloor = this.snapshotEventSeq(reply);
   }
   private snapshotSessionId(value: unknown): string {
     const reply = value as { sessionId?: unknown; id?: unknown;
@@ -66,14 +77,22 @@ export class ZcodeLifecycle {
     if (new Set(known).size !== 1) throw new NativeRpcError('ZCODE_SESSION_MISMATCH', 'possible');
     return known[0] as string;
   }
-  async subscribe(): Promise<void> {
+  private snapshotEventSeq(value: unknown): number {
+    const reply = value as { eventSeq?: unknown; session?: { eventSeq?: unknown }; projection?: { eventSeq?: unknown }; runtime?: { eventSeq?: unknown } } | null;
+    const values = [reply?.eventSeq, reply?.session?.eventSeq, reply?.projection?.eventSeq, reply?.runtime?.eventSeq]
+      .filter((v): v is number => Number.isSafeInteger(v) && Number(v) >= 0);
+    return values.length ? Math.max(...values) : 0;
+  }
+  async subscribe(afterSeq = this.eventFloor): Promise<void> {
     if (!this.sessionId || this.active) throw new NativeRpcError('ZCODE_SUBSCRIBE_STATE_INVALID', 'none-proven');
     const reply = await this.request('session/subscribe', {
       sessionId: this.sessionId, deliveryKind: 'desktop-continuous', includeSnapshot: false,
+      afterSeq,
     }) as { sessionId?: string; eventSeq?: number; events?: unknown[] };
     if (reply?.sessionId !== this.sessionId || !Number.isSafeInteger(reply.eventSeq)
-      || reply.eventSeq! < 0 || !Array.isArray(reply.events) || reply.events.length !== 0)
+      || reply.eventSeq! < afterSeq || !Array.isArray(reply.events))
       throw new NativeRpcError('ZCODE_SUBSCRIBE_REJECTED', 'possible');
+    // Replay 只补当前订阅者的历史缺口；新 Run 尚未 admission，不能重放为本轮事件。
     this.eventFloor = reply.eventSeq!;
   }
   async start(input: { runId: string; text: string }): Promise<void> {
@@ -152,7 +171,7 @@ export class ZcodeLifecycle {
           clearTimeout(entry.timer);
           if (m.error) {
             if (process.env.AR_ZCODE_DEBUG) console.error('[zcode-reject]', key, JSON.stringify(m.error).slice(0, 300));
-            entry.reject(new NativeRpcError('ZCODE_REQUEST_REJECTED', 'possible'));
+            entry.reject(new NativeRpcError(this.safeRejectCode(m.error), 'possible'));
           }
           else entry.resolve(m.result);
         } else if (typeof m.method === 'string') {
@@ -184,6 +203,13 @@ export class ZcodeLifecycle {
     } catch {
       this.disconnect('ZCODE_INVALID_FRAME');
     }
+  }
+  private safeRejectCode(value: unknown): string {
+    const error = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    const data = error.data && typeof error.data === 'object' ? error.data as Record<string, unknown> : {};
+    const candidate = typeof data.code === 'string' ? data.code : typeof error.code === 'string' ? error.code : '';
+    const normalized = candidate.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[^A-Za-z0-9]+/g, '_').toUpperCase();
+    return normalized && normalized.length <= 80 ? `ZCODE_${normalized}` : 'ZCODE_REQUEST_REJECTED';
   }
   disconnect(reason = 'ZCODE_DISCONNECTED'): void {
     if (this.closed) return;

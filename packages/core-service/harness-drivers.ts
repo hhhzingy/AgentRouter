@@ -246,10 +246,9 @@ export const piDriver: HarnessDriver = {
 };
 export const zcodeDriver: HarnessDriver = {
   harness: 'zcode',
-  // 0.16.5 实测:冷进程 session/resume 可绑定但后续 send 报 ZCODE_RUNTIME_MODEL_UNAVAILABLE
-  // (setModel 亦不能恢复),即原生续轮跨进程不可用;任务轮一律新会话+runPrompt 重申章程。
-  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'UNSUPPORTED' },
-  continuity: 'SESSION_CONTINUATION_UNSUPPORTED',
+  // 0.16.9 已提供正式 cold resume；实现已接线但必须等真实 DUT 后才能升级为 VERIFIED/PASS。
+  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: false,
   supportsFreshSession: true,
   processArgs: () => {
@@ -284,8 +283,13 @@ export const zcodeDriver: HarnessDriver = {
         await lifecycle.initialize();
       },
       async open({ config: cfg, process }) {
-        // 冷 resume 会话的模型客户端在 0.16.5 不可恢复(见 contextCapabilities 注释):忽略旧引用,始终新会话。
         if (!process.zcodeModelSelection) throw Error('ZCODE_MODEL_SELECTION_REQUIRED');
+        if (process.session?.id) {
+          await lifecycle.resume({ sessionId: process.session.id, workspacePath: cfg.workspace,
+            workspaceKey: cfg.workspace, mcpServers: process.mcpServers });
+          await lifecycle.subscribe();
+          return { id: process.session.id };
+        }
         const opened = await lifecycle.open({
           workspacePath: cfg.workspace,
           workspaceKey: cfg.workspace,
@@ -353,8 +357,8 @@ export const dshDriver: HarnessDriver = {
 const zcodeCliRef: { path?: string } = {};
 const dshBinRef: { path?: string } = {};
 
-/** C4/3.8:每个 Harness 必须声明 COLD_RUN 或 WARM_SESSION。本轮全部 COLD_RUN:
- * ZCode 0.16.5 冷 resume 不可用，不把 warm 伪装成同 WS 连续；Level B 要求新 WS。 */
+/** C4/3.8:每个 Harness 必须声明 COLD_RUN 或 WARM_SESSION。本轮全部 COLD_RUN。
+ * ZCode 0.16.9 cold resume 已接线，但 Level B 仍须真实 DUT 后才能从 DECLARED_UNVERIFIED 升级。 */
 export type HarnessLifecycleKind = 'COLD_RUN' | 'WARM_SESSION';
 export interface HarnessLifecycleDeclaration {
   harness: string;

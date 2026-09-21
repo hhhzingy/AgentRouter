@@ -161,13 +161,13 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
         return { windowTokens: snap.contextWindow, usageTokens: snap.contextUsed };
       } catch { return { windowTokens: null, usageTokens: null }; }
     },
-    async targetWindowTokens({ sessionHome, operationId, targetNativeSessionRef, recordTargetCreated }) {
+    async targetWindowTokens({ sessionHome, workspace, operationId, targetNativeSessionRef, recordTargetCreated }) {
       try {
         return await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
           const existing = targetNativeSessionRef ?? idempotency.get(operationId);
           const snap = existing
             ? parseSnapshot(await c.request('session/resume', { sessionId: existing }))
-            : parseSnapshot(await c.request('session/create', { workspace: { workspacePath: homeOf(sessionHome), workspaceKey: 'ar-context-' + operationId } }));
+            : parseSnapshot(await c.request('session/create', { workspace: { workspacePath: workspace || (() => { throw Error('ZCODE_WORKSPACE_UNCONFIGURED'); })(), workspaceKey: 'ar-context-' + operationId } }));
           if (!snap.sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
           idempotency.set(operationId, snap.sessionId);
           if (!existing) recordTargetCreated(snap.sessionId);
@@ -175,7 +175,7 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
         });
       } catch { return null; }
     },
-    async initializeTarget({ seedText, sessionHome, operationId, expectedPayloadHash, targetNativeSessionRef, recordTargetCreated, recordInputDispatch }) {
+    async initializeTarget({ seedText, sessionHome, workspace, operationId, expectedPayloadHash, targetNativeSessionRef, recordTargetCreated, recordInputDispatch }) {
       // 幂等:同 operationId 已登记目标则仅 confirm,不再创建。
       const known = targetNativeSessionRef ?? idempotency.get(operationId);
       if (known) {
@@ -185,7 +185,8 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
       const cred = readCredential(opts.credentialFile);
       const home = homeOf(sessionHome);
       const target = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: home, apiKey: cred?.apiKey ?? null, budgetMs: (opts.budgetMs ?? 45000) * 2 }, async (c) => {
-        const sessionId = known ?? parseSnapshot(await c.request('session/create', { workspace: { workspacePath: home, workspaceKey: 'ar-context-' + operationId } })).sessionId;
+        if (!workspace) throw Error('ZCODE_WORKSPACE_UNCONFIGURED');
+        const sessionId = known ?? parseSnapshot(await c.request('session/create', { workspace: { workspacePath: workspace, workspaceKey: 'ar-context-' + operationId } })).sessionId;
         if (!sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
         idempotency.set(operationId, sessionId);
         if (!known) recordTargetCreated(sessionId);

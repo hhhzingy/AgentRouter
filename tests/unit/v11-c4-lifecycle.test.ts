@@ -67,7 +67,7 @@ it('F13:运行时路径不再写入 RoleContext（sendUserInput/syncConversation
   expect(main).toMatch(/createNativeProfileSessionHomeResolver/);
 });
 
-it('F15/C4:五 Harness 均为 COLD_RUN；ZCode Level B 要求新 WS 且不得暗换 native session', () => {
+it('F15/C4:五 Harness 均为 COLD_RUN；ZCode 0.16.9 cold resume 保持未验证声明', () => {
   const registry = builtInDrivers();
   for (const harness of registry.list()) {
     const d = harnessLifecycleDeclaration(harness);
@@ -75,9 +75,9 @@ it('F15/C4:五 Harness 均为 COLD_RUN；ZCode Level B 要求新 WS 且不得暗
     expect(d.harness).toBe(harness);
   }
   const zcode = harnessLifecycleDeclaration('zcode');
-  expect(zcode.continuity).toBe('SESSION_CONTINUATION_UNSUPPORTED');
-  expect(zcode.native_resume).toBe('UNSUPPORTED');
-  expect(zcode.level_b).toBe('REQUIRES_NEW_WORKSESSION');
+  expect(zcode.continuity).toBe('SAME_SESSION_CONTINUOUS');
+  expect(zcode.native_resume).toBe('IMPLEMENTED_UNVERIFIED');
+  expect(zcode.level_b).toBe('DECLARED_UNVERIFIED');
   expect(harnessLifecycleDeclaration('codex').level_b).toBe('DECLARED_UNVERIFIED');
   const backend = readFileSync('packages/core-service/native-process-backend.ts', 'utf8');
   expect(backend).toMatch(/continuityRefSaved/);
