@@ -17,6 +17,22 @@ const dshBailian = process.argv.includes('--dsh-bailian');
 const dsh = process.argv.includes('--dsh') || dshBailian;
 const zcode = process.argv.includes('--zcode'); // W11 ZCode→百炼(官方 openai-compatible provider)
 const bailian = process.argv.includes('--bailian'); // pi→百炼(DashScope MaaS)绑定
+const packageArgIndex = process.argv.indexOf('--package');
+if (packageArgIndex >= 0 && packageArgIndex + 1 >= process.argv.length)
+  throw Error('PACKAGE_PATH_REQUIRED');
+const packageRoot =
+  packageArgIndex >= 0 ? resolve(process.argv[packageArgIndex + 1]) : null;
+const packageManifest = packageRoot
+  ? JSON.parse(readFileSync(resolve(packageRoot, 'manifest.json'), 'utf8'))
+  : null;
+const currentSourceSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+  encoding: 'utf8',
+}).trim();
+if (
+  packageManifest &&
+  (packageManifest.sourceDirty !== false || packageManifest.sourceSHA !== currentSourceSha)
+)
+  throw Error('PACKAGE_SOURCE_MISMATCH');
 const harnessLabel=codex?'Codex':kimi?(kimiBailian?'Kimi(百炼)':'Kimi'):dsh?'DeepSeek Harness':zcode?'ZCode':'pi';
 const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':zcode?'zcode':'pi';
 const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):zcode?'agentrouter-zcode':dshBailian?'agentrouter-dashscope':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
@@ -39,19 +55,38 @@ const path = (n) => resolve(root, n),
   sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 for (const dir of ['core', 'workspace', 'managed', 'managed/pi', 'managed/dsh', 'managed/dsh-home/profiles'])
   mkdirSync(path(dir), { recursive: true });
-const supervisor = path('supervisor.exe'),
-  entry = piEntry();
-execFileSync(
-  resolve(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),
-  [
-    '/nologo',
-    '/target:exe',
-    '/out:' + supervisor,
-    resolve('native/windows-supervisor/Supervisor.cs'),
-  ],
-  { windowsHide: true, stdio: 'pipe' },
-);
-const extension = resolve('.local/w11-core/role-tools.mjs');
+let supervisor;
+if (packageRoot) {
+  supervisor = resolve(packageRoot, 'resources/w11-core/windows-supervisor.exe');
+} else {
+  supervisor = path('supervisor.exe');
+  execFileSync(
+    resolve(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),
+    [
+      '/nologo',
+      '/target:exe',
+      '/out:' + supervisor,
+      resolve('native/windows-supervisor/Supervisor.cs'),
+    ],
+    { windowsHide: true, stdio: 'pipe' },
+  );
+}
+const entry = piEntry();
+const coreNode = packageRoot
+  ? resolve(packageRoot, 'resources/app/core-node.exe')
+  : process.execPath;
+const coreEntry = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/core.mjs')
+  : resolve('.local/w11-core/core.mjs');
+const managementEntry = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/management-mcp.mjs')
+  : resolve('.local/management-mcp/main.mjs');
+const extension = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/role-tools.mjs')
+  : resolve('.local/w11-core/role-tools.mjs');
+const roleBridge = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/role-bridge.mjs')
+  : resolve('.local/w11-core/role-bridge.mjs');
 writeFileSync(
   path('runtime.json'),
   JSON.stringify({
@@ -72,7 +107,7 @@ writeFileSync(
     ...((bailian||dshBailian)?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},...(bailian?{piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),dshCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
     ...(kimiBailian?{kimiBailianCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json'}),
     codexApprovedIdentityFile:resolve('.local-protected/codex-dut/dut-fj/approved-identity.json'),
-    roleBridge:resolve('.local/w11-core/role-bridge.mjs'),roleBridgeSha256:sha(resolve('.local/w11-core/role-bridge.mjs')),
+    roleBridge, roleBridgeSha256:sha(roleBridge),
     profiles: [
       {
         id: 'production_'+harness,
@@ -104,7 +139,7 @@ const coreEnv = {
   AGENTROUTER_NATIVE_CONFIG: path('runtime.json'),
   ...(process.env.AR_ZCODE_DEBUG ? { AR_ZCODE_DEBUG: process.env.AR_ZCODE_DEBUG } : {}),
 };
-const core = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
+const core = spawn(coreNode, [coreEntry], {
   windowsHide: true,
   stdio: ['ignore', 'ignore', 'pipe'],
   env: coreEnv,
@@ -120,10 +155,26 @@ const closed = new Promise((r) =>
   }),
 );
 const report = {
-  scope: codex?'PRODUCTION_CORE_REAL_CODEX':kimi?'PRODUCTION_CORE_REAL_KIMI':dsh?'PRODUCTION_CORE_REAL_DEEPSEEK_HARNESS':zcode?'PRODUCTION_CORE_REAL_ZCODE':'PRODUCTION_CORE_REAL_PI',
+  scope:
+    (packageRoot ? 'PACKAGED_' : '') +
+    (codex
+      ? 'PRODUCTION_CORE_REAL_CODEX'
+      : kimi
+        ? 'PRODUCTION_CORE_REAL_KIMI'
+        : dsh
+          ? 'PRODUCTION_CORE_REAL_DEEPSEEK_HARNESS'
+          : zcode
+            ? 'PRODUCTION_CORE_REAL_ZCODE'
+            : 'PRODUCTION_CORE_REAL_PI'),
   status: 'FAIL',
-  code_sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+  code_sha: currentSourceSha,
   dirty_source: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(),
+  ...(packageManifest
+    ? {
+        package_source_sha: packageManifest.sourceSHA,
+        package_artifact_hash: packageManifest.artifactHash,
+      }
+    : {}),
   checks: [],
   fullIsolationCertified: false,
 };
@@ -237,8 +288,8 @@ try {
   client = new Client({ name: 'j3-production-pi', version: '1.0.0' });
   await client.connect(
     new StdioClientTransport({
-      command: process.execPath,
-      args: [resolve('.local/management-mcp/main.mjs'), path('core'), 'controller'],
+      command: coreNode,
+      args: [managementEntry, path('core'), 'controller'],
       env: {
         SystemRoot: process.env.SystemRoot,
         WINDIR: process.env.WINDIR,
@@ -582,7 +633,7 @@ try {
     await Promise.race([closed, new Promise((_, reject) => setTimeout(() => reject(Error('RESTART_OLD_CORE_EXIT_TIMEOUT')), 10000))]);
     if (!didClose) throw Error('RESTART_OLD_CORE_NOT_EXITED');
     const oldEndpointCredential = endpoint.credential;
-    const resumedCore = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
+    const resumedCore = spawn(coreNode, [coreEntry], {
       windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], env: coreEnv,
     });
     const resumedErrChunks = [];
