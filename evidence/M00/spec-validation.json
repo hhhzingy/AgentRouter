@@ -1,6 +1,6 @@
 {
   "scope": "Offline specification / examples / SQL declared constraints only; not application tests",
-  "checked_at_utc": "2026-09-21T15:18:45.977734+00:00",
+  "checked_at_utc": "2026-09-21T15:44:08.212950+00:00",
   "python": "3.13.5",
   "sqlite_used_for_syntax_check": "3.45.3",
   "sqlite_runtime_is_production_certified": false,

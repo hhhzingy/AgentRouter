@@ -1,0 +1,122 @@
+{
+  "schema": "agentrouter-last-round-ownership-ledger/1",
+  "batch_id": "v1.1-final-pre-release-20260921",
+  "runtime_candidate_sha": "823d8d23d321e32cbb44aeb1ce4dd4360ef4bfae",
+  "branch": "feat/v1.1-functional-closeout-codex",
+  "created_at": "2026-09-21T23:46:00+08:00",
+  "protected_existing_assets": [
+    {
+      "kind": "zcode_production_credential_store",
+      "path_alias": "%APPDATA%/SPB_Data/.zcode/v2/credentials.json",
+      "policy": "read required account in memory and compare before/after hash only; never persist hash, copy, print, commit, mutate, or delete",
+      "sha256_before_after_equal": true
+    },
+    {
+      "kind": "protected_dut_roots",
+      "path_alias": ".local-protected",
+      "policy": "never clean or mutate as generated test output"
+    },
+    {
+      "kind": "production_home_projects_sessions",
+      "path_alias": "user production HOME",
+      "policy": "out of cleanup scope"
+    }
+  ],
+  "current_evidence_objects": [
+    {
+      "kind": "runtime_zcode_level_a",
+      "path_alias": ".local/j3-production-pi/run-x1akWF/report.json",
+      "source_sha": "823d8d23d321e32cbb44aeb1ce4dd4360ef4bfae",
+      "result": "DELIVERED/SUCCEEDED/42/PUBLISHED;credential_hash_unchanged",
+      "cleanup_status": "RETAIN_CURRENT_EVIDENCE"
+    },
+    {
+      "kind": "runtime_zcode_task_input",
+      "path_alias": ".local/j3-production-pi/run-AfdgrF/report.json",
+      "source_sha": "6116fde83441763caeb32e99d43e99cf8b6dd157",
+      "result": "WAITING_INPUT/TaskInput/CONTINUATION/PUBLISHED",
+      "cleanup_status": "RETAIN_CURRENT_EVIDENCE"
+    },
+    {
+      "kind": "runtime_zcode_core_restart",
+      "path_alias": ".local/j3-production-pi/run-haW6Dc/report.json",
+      "source_sha": "6116fde83441763caeb32e99d43e99cf8b6dd157",
+      "result": "CORE_RESTART/SAME_NATIVE_REF/MARKER_RECALL/PUBLISHED",
+      "cleanup_status": "RETAIN_CURRENT_EVIDENCE"
+    },
+    {
+      "kind": "runtime_zcode_artifact_and_cold_resume",
+      "path_alias": ".local/j3-production-pi/run-YxAQ7M/report.json",
+      "source_sha": "6116fde83441763caeb32e99d43e99cf8b6dd157",
+      "result": "TWO_COLD_RESUMES/ARTIFACT_HASH_AND_MARKER_VERIFIED/PUBLISHED",
+      "cleanup_status": "RETAIN_CURRENT_EVIDENCE"
+    },
+    {
+      "kind": "source_package",
+      "path_alias": "release/AgentRouter-j3-823d8d23d321-408a5c07-ed0d-4a63-952e-ae436b36457b",
+      "source_sha": "823d8d23d321e32cbb44aeb1ce4dd4360ef4bfae",
+      "artifact_hash": "0dd2450450bd21cec2031ca4b6cad9f10f7b1714b3877937aeb4080af978629f",
+      "result": "SECRET_SCAN/CORE_RESTART/ZCODE_REAL_SMOKE_PASS",
+      "cleanup_status": "RETAIN_CURRENT_CANDIDATE"
+    },
+    {
+      "kind": "release_zip",
+      "path_alias": "release/AgentRouter-j3-823d8d23d321.zip",
+      "source_sha": "823d8d23d321e32cbb44aeb1ce4dd4360ef4bfae",
+      "bytes": 200093492,
+      "sha256": "2f45edccff9f86debf2310b4068de4baf32671f9f3438ea2575f85bc400ae443",
+      "cleanup_status": "RETAIN_CURRENT_CANDIDATE"
+    },
+    {
+      "kind": "unpacked_release_candidate",
+      "path_alias": ".local/unpacked-823d8d23d321/AgentRouter-j3-823d8d23d321-408a5c07-ed0d-4a63-952e-ae436b36457b",
+      "source_sha": "823d8d23d321e32cbb44aeb1ce4dd4360ef4bfae",
+      "result": "SECRET_SCAN/CORE_RESTART/ZCODE_REAL_SMOKE_PASS;credential_hash_unchanged",
+      "report_alias": ".local/j3-production-pi/run-l3m3KD/report.json",
+      "cleanup_status": "RETAIN_CURRENT_EVIDENCE"
+    }
+  ],
+  "failure_denominator": [
+    {
+      "kind": "kimi_first_attempt",
+      "path_alias": ".local/j3-production-pi/run-xSrRDw/report.json",
+      "result": "NATIVE_PROCESS_CLOSED/UNKNOWN",
+      "independent_retry_alias": ".local/j3-production-pi/run-ZTMFws/report.json",
+      "retry_result": "PASS"
+    },
+    {
+      "kind": "dsh_first_attempt",
+      "path_alias": ".local/j3-production-pi/run-T8lrZW/report.json",
+      "result": "NATIVE_DISCONNECTED",
+      "independent_retry_alias": ".local/j3-production-pi/run-uHSZcw/report.json",
+      "retry_result": "PASS"
+    }
+  ],
+  "skipped_or_blocked": [
+    {
+      "gate": "G1_CODEX",
+      "status": "SKIPPED_BY_USER",
+      "policy": "no reset credit used"
+    },
+    {
+      "gate": "G5_REMOTE",
+      "status": "BLOCKED_ENABLEMENT",
+      "evidence": "Tailscale CertDomains=null; serve status={}"
+    },
+    {
+      "gate": "G7_CI",
+      "status": "BLOCKED_CI_BILLING",
+      "evidence": "C1 and W11 steps=[]; account payments/spending limit annotation"
+    }
+  ],
+  "removed_regenerable_objects": [
+    ".local/unpacked-b9eaf97152b5",
+    ".local/zcode-upstream-872ad960",
+    "release/AgentRouter-j3-82195197c4c9-c86f7fed-162b-4d58-b479-000a4cc69e20",
+    "release/AgentRouter-j3-b9eaf97152b5-60d58b45-fcaf-4003-a27c-2b8faa03950b",
+    "release/AgentRouter-j3-82195197c4c9.zip",
+    "release/AgentRouter-j3-b9eaf97152b5.zip"
+  ],
+  "release_decision": "NOT_V1.1_NON_UI_FUNCTIONAL_RC_READY",
+  "prohibited_claim": "WINDOWS_RC"
+}
