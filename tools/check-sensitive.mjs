@@ -15,6 +15,7 @@ const git = (args, input) => {
 };
 const findings = [];
 let count = 0;
+const HISTORY_BUFFER_BYTES = 512 * 1024 * 1024;
 function inspect(name, bytes, pathGate = true) {
   count++;
   const rules = scanText(bytes.toString('utf8'));
@@ -27,19 +28,32 @@ function inspect(name, bytes, pathGate = true) {
   if (rules.length) findings.push({ file: name, rules });
 }
 if (process.argv.includes('--history')) {
-  // 历史保留原提交，不因历史原始离线日志路径阻断；内容仍扫描。
-  const lines = git(['rev-list', '--objects', '--all']).trim().split('\n');
+  // 扫描所有可发布分支、标签和远端历史。排除 refs/codex 等本机工具私有
+  // checkpoint；它们不是仓库发布历史，且可能包含受保护 DUT 的本地快照。
+  const lines = git([
+    'rev-list',
+    '--objects',
+    '--branches',
+    '--tags',
+    '--remotes',
+  ])
+    .trim()
+    .split('\n');
   const ids = lines.map((l) => l.split(' ')[0]);
   const r = spawnSync(
     'git',
     ['-c', `safe.directory=${process.cwd().replaceAll('\\', '/')}`, 'cat-file', '--batch'],
     {
       input: ids.join('\n') + '\n',
-      maxBuffer: 128 * 1024 * 1024,
+      maxBuffer: HISTORY_BUFFER_BYTES,
       windowsHide: true,
     },
   );
-  if (r.status !== 0) throw Error('SCAN_HISTORY_UNAVAILABLE');
+  if (r.status !== 0) {
+    throw Error(
+      `SCAN_HISTORY_UNAVAILABLE:${r.error?.code ?? r.status ?? 'UNKNOWN'}`,
+    );
+  }
   let offset = 0;
   for (const line of lines) {
     const end = r.stdout.indexOf(10, offset);

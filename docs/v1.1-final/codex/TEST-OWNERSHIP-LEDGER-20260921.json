@@ -1,0 +1,39 @@
+{
+  "schema": "agentrouter-test-ownership-ledger/1",
+  "batch_id": "non-ui-final-closeout-20260921",
+  "source_sha": "8c50febc6d464ef0fd598bd66a8ba526c99eac1a",
+  "created_at": "2026-09-21T11:35:15+08:00",
+  "protected_existing_assets": [
+    {
+      "kind": "dut_data_root",
+      "path_alias": ".local-protected/codex-dut",
+      "policy": "read identity through trusted loader only; never copy, print, or delete credentials"
+    },
+    {
+      "kind": "dut_data_root",
+      "path_alias": ".local-protected/zcode-dut",
+      "policy": "reuse existing logged account through official host protocol only; never copy, print, or delete credentials"
+    },
+    {
+      "kind": "production_home_and_existing_conversations",
+      "path_alias": "user production HOME",
+      "policy": "out of scope; do not mutate or delete"
+    }
+  ],
+  "created_objects": [],
+  "created_object_fields": [
+    "kind",
+    "router_id",
+    "native_id_alias",
+    "project_id",
+    "role_id",
+    "work_session_id",
+    "path_alias",
+    "created_at",
+    "created_by_this_batch",
+    "safe_delete_supported",
+    "evidence",
+    "cleanup_status"
+  ],
+  "cleanup_policy": "only_created_by_this_batch_true_after_evidence_freeze"
+}
