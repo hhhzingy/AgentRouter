@@ -97,14 +97,17 @@
 | Kimi Code | `ebc1ada` dirty | `run-UeDkM8` | FAIL：重启前基础任务只分块输出旧 `AGENTROUTER_CHARTER_ACK`，未调用 Route 工具，Run SUCCEEDED、Task NEEDS_ATTENTION、无 Result。定位为任务轮未显式作废 Bootstrap 一次性 ACK。 |
 | Kimi Code | `ebc1ada` dirty（含 ACK 作废修复） | `run-8NrkvL` | PASS（强证据）：随机 marker 跨 Core 重启准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
 | DSH | `ebc1ada` dirty | `run-M5SRnJ` | PASS（强证据）：随机 marker 跨 Core 重启准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
+| Pi | `7fe1774` clean | `run-88bZO7` | PASS（强证据）：随机 marker 跨 Core 重启准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
+| Kimi Code | `7fe1774` clean | `run-SZLS4x` | PASS（强证据）：ACK 作废修复后的随机 marker 跨 Core 重启准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
+| DSH | `7fe1774` clean | `run-XXlBng` | PASS（强证据）：随机 marker 跨 Core 重启准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
 
 ## 当前分层判定
 
 | Harness | Level A | Level B | 尚缺 |
 |---|---|---|---|
-| Pi | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput、client reconnect 有 clean PASS；strong cold continuation dirty PASS_WITH_FAILURE_DENOMINATOR） | strong cold continuation clean 候选与完整组合批次。 |
-| Kimi Code | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput、client reconnect 有 clean PASS；strong cold continuation 修复后 dirty PASS_WITH_FAILURE_DENOMINATOR） | ACK 作废修复 clean 候选、稳定性分母、完整组合批次。 |
-| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PARTIAL（A→B→C/cancel、marker、TaskInput、client reconnect 有 clean PASS；strong cold continuation dirty PASS） | 首次 Bootstrap 瞬断根因、strong cold continuation clean 候选与完整组合批次。 |
+| Pi | PASS（`b45390d` clean） | PASS_BY_SUBITEMS（A→B→C/cancel、marker、TaskInput、client reconnect、strong cold continuation 均有 clean PASS；早期失败分母保留） | 还需按稳定性章节执行三轮完整组合批次，才能扩大为整体验收。 |
+| Kimi Code | PASS（`b45390d` clean） | PASS_BY_SUBITEMS_WITH_FAILURE_DENOMINATOR（上述 Level B 子项均有 clean PASS；ACK 修复前多次无 Result） | 三轮完整组合批次与稳定性分母；不得抹去修复前失败。 |
+| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PASS_BY_SUBITEMS（上述 Level B 子项均有 clean PASS） | 首次 Bootstrap 瞬断根因与三轮完整组合批次。 |
 | Codex | PASS_WITH_FAILURE_DENOMINATOR（`28bf80a` clean，1 FAIL/1 PASS） | BLOCKED_BY_BOOTSTRAP_ON_LATEST（`dd601dd` clean） | Level B 全项；不使用 reset credit。 |
 | ZCode | BLOCKED_PROVIDER_BINDING（`28bf80a` clean） | BLOCKED / `native_resume=UNSUPPORTED` | 官方 Bigmodel registry 授权；无官方绑定前不能宣称 Level A、warm 或百炼 fallback。 |
 
@@ -114,11 +117,11 @@
 2. `533557c`：Pi 新 WorkSession 首个 Run 可以持久保留未物化的 session 文件路径，但仅限当前有效 Run、无旧 native ref、受管 HOME 内；后续 load/recovery 仍要求真实文件，防止假连续。
 3. `533557c` 门禁：typecheck/lint PASS，unit 216/216（第一次全套有 supervisor 30 秒超时 1/216；该文件隔离复跑 4/4、完整复跑 216/216），integration 226/226，contract+chaos 70/70，打包态 Remote Core 1/1，staged secret scan 0 findings。
 4. `dd601dd`：Kimi 原生 driver 增加明确 `route_finish` 终态提交提示，避免只输出自然语言导致 Run 成功但 Task 无 Result；typecheck/lint PASS、unit 217/217、integration 226/226、contract+chaos 70/70、secret scan 0 findings。真实 Kimi 仍出现过初始 42 无 Result，故不声称完全稳定。
-5. 当前 dirty 修复：Kimi 任务轮与 DSH 一样显式作废 Bootstrap 一次性 `AGENTROUTER_CHARTER_ACK`，并重申生效章程；失败 DUT 的 conversation/event 证据显示模型此前只复读 ACK 且没有工具调用。修复后 `run-8NrkvL` 的真实强 cold continuation PASS。当前门禁：typecheck/lint PASS，unit 217/217，integration 226/226，contract 67/67，chaos 3/3；尚待提交并在 clean SHA 复测。
+5. `7fe1774`：Kimi 任务轮与 DSH 一样显式作废 Bootstrap 一次性 `AGENTROUTER_CHARTER_ACK`，并重申生效章程；失败 DUT 的 conversation/event 证据显示模型此前只复读 ACK 且没有工具调用。修复后 dirty `run-8NrkvL` 与 clean `run-SZLS4x` 的真实强 cold continuation 均 PASS。门禁：typecheck/lint PASS，unit 217/217，integration 226/226，contract 67/67，chaos 3/3，提交 secret scan 0 findings。
 
 ## 下一步与禁止扩大声明
 
-- 下一步提交 Kimi ACK 作废修复与 strong cold continuation 工具，在 clean SHA 复测 Pi/Kimi/DSH；随后执行三轮固定组合稳定性批次，并按同一候选推进 Codex 与 ZCode 可用边界。记录每次真实失败，不靠反复刷绿。
+- 下一步执行三轮固定组合稳定性批次，并按同一候选推进 Codex 与 ZCode 可用边界。记录每次真实失败，不靠反复刷绿。
 - ZCode 需要官方 provider/entitlement 状态变化；不得复制生产认证、伪造 registry 或把客户端误改为普通 CLI Role。
 - DUT 关键场景完整通过后才按执行包进入对应 Harness 的真实环境新对象测试；本账本不声明任何真实生产环境 PASS。
 - 网页 ChatGPT Participant、Tailscale HTTPS/WSS 手机、Context Transfer 真 receipt、migration/fault/stability、Electron 包、CI 与 UI 合流仍待后续；禁止 Windows RC 声明，未 merge/tag/release。
