@@ -58,13 +58,12 @@ it('probe 结果必须经过同一 shape/harness 校验', async () => {
   });
 });
 
-it('内置 Driver resume 声明限于代码层枚举,禁止未核验 VERIFIED', () => {
+it('内置 Driver resume 声明只允许有对应证据的 VERIFIED', () => {
   const registry = builtInDrivers();
   for (const harness of registry.list()) {
     const { capabilities } = registry.capabilities(harness);
-    // zcode 经协议探针证实冷进程 resume 后模型不可恢复 → 允许诚实的 UNSUPPORTED;其余保持 IMPLEMENTED_UNVERIFIED。
-    expect(['IMPLEMENTED_UNVERIFIED', 'UNSUPPORTED']).toContain(capabilities.native_resume);
-    if (harness !== 'zcode') expect(capabilities.native_resume).toBe('IMPLEMENTED_UNVERIFIED');
+    if (harness === 'zcode') expect(capabilities.native_resume).toBe('VERIFIED');
+    else expect(capabilities.native_resume).toBe('IMPLEMENTED_UNVERIFIED');
     expect(capabilities.context_capacity).toBe('UNKNOWN');
     expect(capabilities.context_usage).toBe('UNKNOWN');
     expect(capabilities.native_compaction).toBe('UNKNOWN');
