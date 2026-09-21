@@ -202,7 +202,10 @@ export class NativeProcessBackend implements ExecutionBackend {
                 ? 'BOOTSTRAP_ACK_MISSING'
                 : e.outcome === 'cancelled'
                   ? 'BOOTSTRAP_NATIVE_CANCELLED'
-                  : 'BOOTSTRAP_NATIVE_FAILED',
+                  : typeof e.diagnosticCode === 'string' &&
+                      /^CODEX_[A-Z0-9_]{1,89}$/.test(e.diagnosticCode)
+                    ? e.diagnosticCode
+                    : 'BOOTSTRAP_NATIVE_FAILED',
             phase,
           });
         frame({ kind: 'terminal', outcome: e.outcome });

@@ -88,7 +88,7 @@ function fixture(
       };
     },
   };
-  const backend = new NativeProcessBackend(host);
+  const backend = new NativeProcessBackend(host, 120000, 10000, hooks.registry);
   const config = {
     harness: 'pi',
     charterHash: 'hash',
@@ -482,4 +482,37 @@ it('authentication notices or empty native success cannot acknowledge a charter'
  const f=fixture();f.launch({mode:'bootstrap'});await tick();f.settled();await tick();
  expect(f.frames.some(x=>x.kind==='charter')).toBe(false);
  expect(f.frames.some(x=>x.kind==='diagnostic'&&x.code==='BOOTSTRAP_ACK_MISSING')).toBe(true);
+});
+it('Codex 官方失败 discriminator 覆盖泛化 Bootstrap 错误且拒绝非白名单诊断', async () => {
+  const driver = (diagnosticCode: string) => ({
+    harness: 'codex-test',
+    requiresSessionPath: false,
+    supportsFreshSession: true,
+    processArgs: () => [],
+    createLifecycle: ({ onEvent }: any) => ({
+      initialize: async () => {},
+      open: async () => ({ id: 'thread-1' }),
+      start: async () =>
+        onEvent({ type: 'RunSettled', outcome: 'failed', diagnosticCode }),
+      cancel: async () => ({ state: 'not-running' }),
+      accept: () => {},
+      disconnect: () => {},
+    }),
+  });
+  for (const [input, expected] of [
+    ['CODEX_USAGE_LIMIT_EXCEEDED', 'CODEX_USAGE_LIMIT_EXCEEDED'],
+    ['PRIVATE_MESSAGE', 'BOOTSTRAP_NATIVE_FAILED'],
+  ]) {
+    const f = fixture(undefined, undefined, {
+      registry: { require: () => driver(input) },
+    });
+    f.launch({
+      mode: 'bootstrap',
+      config: { harness: 'codex-test', charterHash: 'hash' },
+    });
+    await tick();
+    await tick();
+    expect(f.frames.find((x) => x.kind === 'diagnostic')?.code).toBe(expected);
+    await f.backend.stop();
+  }
 });

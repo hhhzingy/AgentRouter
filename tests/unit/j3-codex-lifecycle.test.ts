@@ -59,6 +59,68 @@ it('真实协议命令与原生完成分离；终态不授予资源停止证明�
   );
   f.driver.peer.disconnect();
 });
+it('失败终态只透传官方 codexErrorInfo 枚举，不保存错误正文或附加详情', async () => {
+  const f = fixture();
+  await f.open();
+  const p = f.driver.start({ runId: 'run-1', text: '任务' });
+  f.reply('turn/start', { turn: { id: 'turn-1' } });
+  await p;
+  f.event('turn/completed', {
+    threadId: 'thread-1',
+    turn: {
+      id: 'turn-1',
+      status: 'failed',
+      error: {
+        message: 'sensitive upstream message',
+        additionalDetails: 'sensitive details',
+        codexErrorInfo: 'usageLimitExceeded',
+      },
+    },
+  });
+  expect(f.events.at(-1)).toMatchObject({
+    type: 'RunSettled',
+    outcome: 'failed',
+    diagnosticCode: 'CODEX_USAGE_LIMIT_EXCEEDED',
+  });
+  expect(JSON.stringify(f.events.at(-1))).not.toContain('sensitive');
+  f.driver.peer.disconnect();
+});
+it('结构化网络错误只映射稳定 discriminator，未知形状不透传', async () => {
+  const mapped = fixture();
+  await mapped.open();
+  const first = mapped.driver.start({ runId: 'run-1', text: '任务' });
+  mapped.reply('turn/start', { turn: { id: 'turn-1' } });
+  await first;
+  mapped.event('turn/completed', {
+    threadId: 'thread-1',
+    turn: {
+      id: 'turn-1',
+      status: 'failed',
+      error: {
+        message: 'network',
+        codexErrorInfo: { responseStreamDisconnected: { httpStatusCode: 503 } },
+      },
+    },
+  });
+  expect(mapped.events.at(-1).diagnosticCode).toBe('CODEX_RESPONSE_STREAM_DISCONNECTED');
+  mapped.driver.peer.disconnect();
+
+  const unknown = fixture();
+  await unknown.open();
+  const second = unknown.driver.start({ runId: 'run-2', text: '任务' });
+  unknown.reply('turn/start', { turn: { id: 'turn-2' } });
+  await second;
+  unknown.event('turn/completed', {
+    threadId: 'thread-1',
+    turn: {
+      id: 'turn-2',
+      status: 'failed',
+      error: { message: 'private', codexErrorInfo: { futureVariant: {} } },
+    },
+  });
+  expect(unknown.events.at(-1)).not.toHaveProperty('diagnosticCode');
+  unknown.driver.peer.disconnect();
+});
 it('turn/start 回应前取消会在获得原生 ID 后发送，ack 不是完成', async () => {
   const f = fixture();
   await f.open();

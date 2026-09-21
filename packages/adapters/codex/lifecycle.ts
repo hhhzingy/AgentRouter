@@ -10,6 +10,7 @@ export interface CodexLifecycleOptions {
     acceptedPromptHash?: string;
     text?: string;
     outcome?: string;
+    diagnosticCode?: string;
   }) => void;
   /** Core 绑定的审批处理器；未提供时原生逆向请求全部拒绝。 */
   onApproval?: NativeRpcOptions['onRequest'];
@@ -233,6 +234,7 @@ export class CodexLifecycle {
           threadId: this.threadId,
           turnId: run.turnId,
           outcome: settled.outcome,
+          ...(settled.diagnosticCode ? { diagnosticCode: settled.diagnosticCode } : {}),
         });
       }
     } else {
