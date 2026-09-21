@@ -78,6 +78,7 @@ interface Dependencies {
   homedir?: () => string;
   platform?: () => NodeJS.Platform;
   username?: () => string;
+  readCredentialFile?: (path: string) => Buffer;
 }
 
 const sha256 = (value: Buffer | string) => createHash('sha256').update(value).digest('hex');
@@ -274,14 +275,16 @@ export function createZcodeExistingAccountHost(
   let prepared:
     | { accountIdentityHash: string; credentialFileSha256: string; overlayRevision: string }
     | undefined;
-  const inspect = () => {
-    if (closed) throw stableError('ZCODE_EXISTING_ACCOUNT_BROKER_CLOSED');
-    let bytes: Buffer;
+  const readCredentialBytes = () => {
     try {
-      bytes = readFileSync(credentialPath);
+      return dependencies.readCredentialFile?.(credentialPath) ?? readFileSync(credentialPath);
     } catch {
       throw stableError('ZCODE_EXISTING_ACCOUNT_REFRESH_REQUIRED');
     }
+  };
+  const inspect = () => {
+    if (closed) throw stableError('ZCODE_EXISTING_ACCOUNT_BROKER_CLOSED');
+    const bytes = readCredentialBytes();
     const target = resolveTarget(readRecord(bytes), config.expectedProviderId);
     return { bytes, target };
   };
@@ -308,7 +311,7 @@ export function createZcodeExistingAccountHost(
     },
     probe() {
       const before = inspect();
-      const after = readFileSync(credentialPath);
+      const after = readCredentialBytes();
       if (sha256(before.bytes) !== sha256(after))
         throw stableError('ZCODE_EXISTING_ACCOUNT_STORE_CHANGED');
       const accountIdentityHash = sha256(before.target.accountIdentity);
@@ -343,7 +346,7 @@ export function createZcodeExistingAccountHost(
       const apiKey = decrypt(before.target.encrypted, dependencies).trim();
       if (!apiKey) throw stableError('ZCODE_EXISTING_ACCOUNT_REFRESH_REQUIRED');
       if (expected.signal.aborted) throw stableError('ZCODE_EXISTING_ACCOUNT_REQUEST_CANCELLED');
-      const after = readFileSync(credentialPath);
+      const after = readCredentialBytes();
       if (sha256(before.bytes) !== sha256(after))
         throw stableError('ZCODE_EXISTING_ACCOUNT_STORE_CHANGED');
       return { headersApplied: true, requestAuth: { apiKey } };

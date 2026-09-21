@@ -229,3 +229,16 @@ it('rejects mismatched or cancelled runtime-auth requests before returning a sec
   ).rejects.toThrow('ZCODE_EXISTING_ACCOUNT_REQUEST_CANCELLED');
   expect(JSON.stringify(host.overlay)).not.toContain(canary);
 });
+
+it('normalizes a credential store that becomes unreadable after the first read', () => {
+  const f = fixture();
+  const bytes = Buffer.from(JSON.stringify({ [f.key]: canary }));
+  let reads = 0;
+  const host = createZcodeExistingAccountHost(f.config, {
+    readCredentialFile: () => {
+      if (++reads === 1) return bytes;
+      throw Error('synthetic transient read failure');
+    },
+  });
+  expect(() => host.probe()).toThrow('ZCODE_EXISTING_ACCOUNT_REFRESH_REQUIRED');
+});

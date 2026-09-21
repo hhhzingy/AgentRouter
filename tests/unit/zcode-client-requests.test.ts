@@ -236,3 +236,143 @@ it('cancellation fences a late runtime secret response', async () => {
   expect(JSON.stringify(sent)).not.toContain('late-secret-must-not-be-sent');
   lifecycle.disconnect();
 });
+
+it('deduplicates reannounced runtime-auth requests and replies to each protocol id', async () => {
+  const sent: any[] = [];
+  let resolveAuth!: (value: {
+    headersApplied: true;
+    requestAuth: { apiKey: string };
+  }) => void;
+  const host = {
+    resolveRuntimeHeaders: vi.fn(
+      () =>
+        new Promise<{
+          headersApplied: true;
+          requestAuth: { apiKey: string };
+        }>((resolve) => {
+          resolveAuth = resolve;
+        }),
+    ),
+    close: vi.fn(),
+  };
+  const lifecycle = new ZcodeLifecycle({
+    write: async (bytes) => {
+      sent.push(JSON.parse(bytes.toString()));
+    },
+    onEvent: () => {},
+    onDisconnect: () => {},
+  });
+  const params = {
+    requestId: 'request-reannounced',
+    sessionId: 'session-1',
+    workspace: { workspacePath: 'C:\\work', workspaceKey: 'C:\\work' },
+    modelSelection: {
+      providerId: 'account:bigmodel-individual-coding-plan',
+      modelId: 'GLM-5.3-Flash',
+    },
+    providerId: 'account:bigmodel-individual-coding-plan',
+    accountAccess: {
+      type: 'zhipu-account',
+      accountType: 'bigmodel',
+      mode: 'individual-coding-plan',
+      entitled: true,
+    },
+    reason: 'model-request',
+  };
+  Object.assign(lifecycle as any, {
+    accountHost: host,
+    accountWorkspace: params.workspace,
+    sessionId: params.sessionId,
+  });
+  for (const id of ['server-reannounce-1', 'server-reannounce-2'])
+    lifecycle.accept(
+      Buffer.from(
+        JSON.stringify({
+          id,
+          method: 'interaction/requestProviderRuntimeHeaders',
+          params,
+        }) + '\n',
+      ),
+    );
+  expect(host.resolveRuntimeHeaders).toHaveBeenCalledOnce();
+  resolveAuth({
+    headersApplied: true,
+    requestAuth: { apiKey: ['synthetic', 'reannounced', 'secret'].join('-') },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(sent.map((message) => message.id).sort()).toEqual([
+    'server-reannounce-1',
+    'server-reannounce-2',
+  ]);
+  lifecycle.disconnect();
+});
+
+it('disconnect aborts pending runtime auth and fences its late response', async () => {
+  const sent: any[] = [];
+  let resolveAuth!: (value: {
+    headersApplied: true;
+    requestAuth: { apiKey: string };
+  }) => void;
+  let signal: AbortSignal | undefined;
+  const host = {
+    resolveRuntimeHeaders: vi.fn(
+      (_request, expected) => {
+        signal = expected.signal;
+        return new Promise<{
+          headersApplied: true;
+          requestAuth: { apiKey: string };
+        }>((resolve) => {
+          resolveAuth = resolve;
+        });
+      },
+    ),
+    close: vi.fn(),
+  };
+  const lifecycle = new ZcodeLifecycle({
+    write: async (bytes) => {
+      sent.push(JSON.parse(bytes.toString()));
+    },
+    onEvent: () => {},
+    onDisconnect: () => {},
+  });
+  const params = {
+    requestId: 'request-disconnect',
+    sessionId: 'session-1',
+    workspace: { workspacePath: 'C:\\work', workspaceKey: 'C:\\work' },
+    modelSelection: {
+      providerId: 'account:bigmodel-individual-coding-plan',
+      modelId: 'GLM-5.3-Flash',
+    },
+    providerId: 'account:bigmodel-individual-coding-plan',
+    accountAccess: {
+      type: 'zhipu-account',
+      accountType: 'bigmodel',
+      mode: 'individual-coding-plan',
+      entitled: true,
+    },
+    reason: 'model-request',
+  };
+  Object.assign(lifecycle as any, {
+    accountHost: host,
+    accountWorkspace: params.workspace,
+    sessionId: params.sessionId,
+  });
+  lifecycle.accept(
+    Buffer.from(
+      JSON.stringify({
+        id: 'server-disconnect',
+        method: 'interaction/requestProviderRuntimeHeaders',
+        params,
+      }) + '\n',
+    ),
+  );
+  lifecycle.disconnect();
+  expect(signal?.aborted).toBe(true);
+  expect(host.close).toHaveBeenCalledOnce();
+  resolveAuth({
+    headersApplied: true,
+    requestAuth: { apiKey: ['late', 'disconnect', 'secret'].join('-') },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(sent).toEqual([]);
+});
