@@ -80,3 +80,5 @@
 | 10,000 | 343 ms | 101 | 15552 B | 9901 B | 1 ms | 815 B |
 
 本次请求 latency p95 为 18 ms；RSS 从 114836 KiB 到 358120 KiB，低于该 sanity test 的 +512 MiB 上限。20 MiB Artifact 首/中/末块仍分别验证 65536/65536/4096 bytes 与 `hasMore`。这些数字是单机一次 dirty run，只用于发现明显断线、全量 frame 或无界增长，不是性能承诺。
+
+补强提交为 `34fc116263cac44cd2d567a9fa9029c6b74c0eba` 后，clean 工作树针对性测试 2/2 PASS：100/1k/10k 完整分页分别 11/42/345 ms，最大页 15552 B，snapshot 9901 B，event catchup 1–3 ms、frame 815 B，请求 p95 11 ms，RSS 115008→357352 KiB；20 MiB Artifact 分块断言继续通过。Performance sanity 子项判定为 `PASS_CLEAN_SANITY_ONLY`，不构成吞吐/延迟承诺。
