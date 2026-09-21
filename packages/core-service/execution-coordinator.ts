@@ -16,13 +16,23 @@ function safeModel(modelJson: unknown): unknown {
 }
 export class ExecutionCoordinator {
   private scheduled = false;
+  private retryTimer?: ReturnType<typeof setTimeout>;
   private active = new Map<string, () => void>();
   private stopping = false;
   constructor(
     readonly app: ApplicationService,
     readonly backend: ExecutionBackend,
+    private readonly retryDelayMs = 1000,
   ) {
     app.onChanged = () => this.kick();
+  }
+  private retryAfterTemporaryBlock() {
+    if (this.stopping || this.retryTimer) return;
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = undefined;
+      this.kick();
+    }, this.retryDelayMs);
+    this.retryTimer.unref?.();
   }
   kick() {
     if (this.stopping || (!this.app.fixtureMode && !this.app.nativeAuthorization) || this.scheduled) return;
@@ -117,6 +127,12 @@ export class ExecutionCoordinator {
           a.notify();
           this.kick();
         });
+      } else {
+        const blocked = a.one('select blocked_reason from role_slots where role_id=?', profile.role_id)
+          ?.blocked_reason;
+        // 时间型门禁会自行过期，不会产生数据库变更；协调器必须主动重试，否则 QUEUED 永久饿死。
+        if (blocked === 'rate_limited' || blocked === 'clock_rollback')
+          this.retryAfterTemporaryBlock();
       }
     }
   }
@@ -649,6 +665,10 @@ export class ExecutionCoordinator {
   }
   async stop() {
     this.stopping = true;
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = undefined;
+    }
     try {
       await this.backend.stop();
     } finally {

@@ -12,6 +12,42 @@ import type {
   ExecutionBackend,
   ExecutionExit,
 } from '../../packages/core-service/execution-backend.ts';
+
+it('rate_limited 是时间型门禁，窗口到期前协调器会主动重新调度且 stop 清理 timer', async () => {
+  let dispatches = 0;
+  let blocked = 'rate_limited';
+  const app: any = {
+    fixtureMode: true,
+    onChanged: undefined,
+    db: { transaction: (fn: () => unknown) => ({ immediate: fn }) },
+    all(sql: string) {
+      if (sql.includes('cancel_intents')) return [];
+      if (sql.includes('execution_profiles')) return [{ role_id: 'role', source: 'SIMULATED', scenario_json: '{}' }];
+      return [];
+    },
+    one(sql: string) {
+      if (sql.includes('from bindings')) return { id: 'binding' };
+      if (sql.includes('from role_charters')) return { id: 'charter' };
+      if (sql.includes('from bootstrap_deliveries')) return { state: 'DELIVERED' };
+      if (sql.includes('from context_transfer_ops')) return undefined;
+      if (sql.includes('select blocked_reason')) return { blocked_reason: blocked };
+      return undefined;
+    },
+    core: {
+      dispatch() {
+        dispatches++;
+        if (dispatches > 1) blocked = 'no_task';
+        return null;
+      },
+    },
+  };
+  const backend: ExecutionBackend = { launch: () => ({}), cancel: () => false, stop: async () => {} };
+  const coordinator = new ExecutionCoordinator(app, backend, 5);
+  coordinator.kick();
+  for (let i = 0; i < 20 && dispatches < 2; i++) await new Promise((r) => setTimeout(r, 5));
+  expect(dispatches).toBe(2);
+  await coordinator.stop();
+});
 import { P1MemoryTransport } from '../../packages/client-transport/p1/memory.ts';
 import seed from '../../fixtures/client-c1r1/two-groups.plan.json' with { type: 'json' };
 import type { RolePlanInput, Method, Scope } from '../../packages/client-contract/c1r1p1/index.ts';
