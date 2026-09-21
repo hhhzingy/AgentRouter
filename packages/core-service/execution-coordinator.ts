@@ -161,7 +161,8 @@ export class ExecutionCoordinator {
       .immediate();
     let delivered = false,
       terminal = false,
-      broken = false;
+      broken = false,
+      lastDiagnostic = '';
     const child = this.launch(
       attempt,
       { mode: 'bootstrap', bindingId:b.id, roleId:role, epoch: b.epoch, charterHash: charter.hash, charter:JSON.parse(charter.spec_json), scenario },
@@ -170,7 +171,11 @@ export class ExecutionCoordinator {
           this.audit(charter.project_id, 'STALE_BOOTSTRAP_EVENT');
           return;
         }
-        if (event.kind === 'diagnostic') this.audit(charter.project_id, 'NATIVE_' + event.code);
+        if (event.kind === 'diagnostic') {
+          if (typeof event.code === 'string' && /^[A-Z][A-Z0-9_]{1,95}$/.test(event.code))
+            lastDiagnostic = event.code;
+          this.audit(charter.project_id, 'NATIVE_' + event.code);
+        }
         if (event.kind === 'charter' && event.charterHash === charter.hash) delivered = true;
         if (event.kind === 'terminal') terminal = true;
       },
@@ -198,7 +203,11 @@ export class ExecutionCoordinator {
               )
               .run(
                 success ? 'DELIVERED' : 'FAILED',
-                success ? null : stopped ? 'BOOTSTRAP_EXECUTION_FAILED' : 'BOOTSTRAP_STOP_UNPROVEN',
+                success
+                  ? null
+                  : stopped
+                    ? lastDiagnostic || 'BOOTSTRAP_EXECUTION_FAILED'
+                    : 'BOOTSTRAP_STOP_UNPROVEN',
                 a.clock(),
                 d.id,
               );

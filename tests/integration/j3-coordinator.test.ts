@@ -66,7 +66,7 @@ async function fixture(clock = () => Date.now(), fixtureMode = true) {
   };
 }
 
-async function setup(mode: 'unknown' | 'broken' | 'throw' | 'commit-failure') {
+async function setup(mode: 'unknown' | 'broken' | 'throw' | 'commit-failure' | 'diagnostic') {
   const f = await fixture();
   const v = await f.s.request('rolePlan.validate', { plan: f.plan });
   await f.write(
@@ -85,7 +85,9 @@ async function setup(mode: 'unknown' | 'broken' | 'throw' | 'commit-failure') {
       launches++;
       if (mode === 'throw') throw Error('SPAWN_FAILED_WITHOUT_STOP_PROOF');
       setImmediate(() => {
-        frame({ kind: 'charter', epoch: packet.epoch, charterHash: packet.charterHash });
+        if (mode === 'diagnostic')
+          frame({ kind: 'diagnostic', epoch: packet.epoch, code: 'BOOTSTRAP_ACK_MISSING' });
+        else frame({ kind: 'charter', epoch: packet.epoch, charterHash: packet.charterHash });
         frame({ kind: 'terminal', epoch: packet.epoch });
         if (mode === 'broken') broken?.();
         if (mode === 'commit-failure')
@@ -162,6 +164,24 @@ it('Bootstrap 合法 terminal 后出现坏帧不得交付，即使进程退出�
       state: 'FAILED',
     });
     expect(f.db.prepare('select * from initialization_leases').all()).toHaveLength(0);
+  } finally {
+    await f.coordinator.stop();
+    await f.close();
+  }
+});
+it('Bootstrap 安全诊断码写入 delivery reason，不保存原生正文', async () => {
+  const f = await setup('diagnostic');
+  try {
+    expect(
+      f.db.prepare('select state,reason from bootstrap_deliveries').get(),
+    ).toEqual({ state: 'FAILED', reason: 'BOOTSTRAP_ACK_MISSING' });
+    expect(
+      f.db
+        .prepare(
+          "select count(*) count from application_audit where kind='NATIVE_BOOTSTRAP_ACK_MISSING'",
+        )
+        .get(),
+    ).toEqual({ count: 1 });
   } finally {
     await f.coordinator.stop();
     await f.close();

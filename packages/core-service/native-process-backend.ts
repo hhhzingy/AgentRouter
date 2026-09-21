@@ -188,17 +188,30 @@ export class NativeProcessBackend implements ExecutionBackend {
           return;
         }
         r.terminal = true;
-        if (
+        const charterAccepted =
           packet.mode === 'bootstrap' &&
           e.outcome === 'succeeded' &&
-          bootstrapText.includes(bootstrapAck)
-        )
+          bootstrapText.includes(bootstrapAck);
+        if (charterAccepted)
           frame({ kind: 'charter', charterHash: packet.charterHash });
+        else if (packet.mode === 'bootstrap')
+          frame({
+            kind: 'diagnostic',
+            code:
+              e.outcome === 'succeeded'
+                ? 'BOOTSTRAP_ACK_MISSING'
+                : e.outcome === 'cancelled'
+                  ? 'BOOTSTRAP_NATIVE_CANCELLED'
+                  : 'BOOTSTRAP_NATIVE_FAILED',
+            phase,
+          });
         frame({ kind: 'terminal', outcome: e.outcome });
         void r.finish(false, 0);
       }
     };
     const wallTimer = setTimeout(() => {
+      if (packet.mode === 'bootstrap')
+        frame({ kind: 'diagnostic', code: 'BOOTSTRAP_TIMEOUT', phase });
       void r.finish(true);
     }, this.wallClockMs);
     r.cleanup.push(() => clearTimeout(wallTimer));

@@ -466,4 +466,5 @@ it('unknown containment remains available for later cleanup without rewriting Co
 it('authentication notices or empty native success cannot acknowledge a charter', async()=>{
  const f=fixture();f.launch({mode:'bootstrap'});await tick();f.settled();await tick();
  expect(f.frames.some(x=>x.kind==='charter')).toBe(false);
+ expect(f.frames.some(x=>x.kind==='diagnostic'&&x.code==='BOOTSTRAP_ACK_MISSING')).toBe(true);
 });
