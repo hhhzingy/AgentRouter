@@ -2,7 +2,7 @@
 
 日期：2026-09-21
 
-状态：`IN_PROGRESS_WITH_FAILURE_DENOMINATOR`
+状态：`COMPLETE_WITH_FAILURE_DENOMINATOR`
 
 结论：不是 Windows RC，也不是 `V1.1_NON_UI_FUNCTIONAL_RC_READY`。
 
@@ -25,8 +25,14 @@
 - 新增确定性测试证明无外部状态变化时仍会重新 dispatch。
 - 门禁：unit `220/220`、integration `228/228`、contract + chaos `71/71`、typecheck、lint、diff check 全部 PASS。
 
-## 待执行
+## 修复后 clean SHA 定向回归
 
-- 在修复提交后的 clean SHA 复测 Pi 同一短批次。
-- Kimi（百炼 `qwen3.8-flash`）和 DSH（百炼 `qwen3.8-flash`）各一次短回归。
-- 所有失败与修复前分母继续保留。
+固定 source SHA：`5385dc51209ac852684c2e87c1478a4e7b8d10b5`，三组均为 `sourceDirty=false`。
+
+| Harness | DUT | 结果 | 覆盖 |
+|---|---|---|---|
+| Pi / 百炼 `qwen3.8-flash` | `.local/j3-production-pi/run-1Tlipx` | PASS | Bootstrap、42/PUBLISHED、Role MCP、同 native ref marker、Artifact hash/marker、限流后自动恢复、原生 CANCELLED、Core exit |
+| Kimi / 百炼 `qwen3.8-flash` | `.local/j3-production-pi/run-sbZKnP` | PASS | 同上 |
+| DSH / 百炼 `qwen3.8-flash` | `.local/j3-production-pi/run-GboXU5` | PASS | 同上；报告同时确认 P2 upgrade 路径 |
+
+F3 低优先级定向回归已闭环。所有修复前失败继续保留；本结论不扩展为 Codex、ZCode、Participant、Remote、Package、CI 或整体 RC。

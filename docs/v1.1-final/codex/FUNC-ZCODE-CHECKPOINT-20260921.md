@@ -35,3 +35,18 @@
 5. 百炼 `qwen3.8-flash` 仅作为用户指定备选，尚未触发真实请求。
 
 在上述真实 DUT 与剩余 Host 合同完成前，ZCode Level A/B 不得记为 PASS，整体不得宣称 RC。
+
+## Existing Account 上游合同复核
+
+固定上游：`zai-org/ZCode@872ad960de7ec172591f7e1952f7849229f94521`。
+
+- `runZCodeProtocolAgent()` 启动 `startProcessProviderRegistryRuntime(runtimeEnv)` 时不传 `standalone`；`app-server` 因而固定为 hosted account 模式。
+- Standalone credential store 只由 prompt/TUI 路径显式传入；公开 `app-server` 命令没有 standalone account 开关。
+- hosted 模式要求外部 Host 产生完整 Account Overlay，通过 `provider/updateAccountConfig` 交付，并在每次模型请求响应 `interaction/requestProviderRuntimeHeaders`。
+- Account Overlay 不是从客户端登录目录复制出的静态配置；请求期凭据也不得进入 Provider Config、模型、Route、日志或测试证据。
+
+因此，用户已登录 ZCode 桌面客户端这一事实不能通过公开 `app-server` 合同直接复用。AgentRouter 没有 ZCode 官方外部 Host broker，也未获授权读取/复制私有 credential store；按执行包要求，此项准确标记为：
+
+`BLOCKED_BY_UPSTREAM_ACCOUNT_HOST_CONTRACT`
+
+不能用 Managed Provider 或读取私有认证文件把 Existing Account 伪装成 PASS。该阻塞只针对 ZCode G2；其他 F3—F6 工作继续执行。
