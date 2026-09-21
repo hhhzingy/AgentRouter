@@ -284,6 +284,7 @@ export const zcodeDriver: HarnessDriver = {
       },
       async open({ config: cfg, process }) {
         if (!process.zcodeModelSelection) throw Error('ZCODE_MODEL_SELECTION_REQUIRED');
+        const { thoughtLevel, ...modelSelection } = process.zcodeModelSelection;
         if (process.zcodeAccountHost)
           await lifecycle.attachExistingAccountHost(process.zcodeAccountHost, {
             workspacePath: cfg.workspace,
@@ -291,7 +292,7 @@ export const zcodeDriver: HarnessDriver = {
           });
         if (process.session?.id) {
           await lifecycle.resume({ sessionId: process.session.id, workspacePath: cfg.workspace,
-            workspaceKey: cfg.workspace, mcpServers: process.mcpServers });
+            workspaceKey: cfg.workspace, mcpServers: process.mcpServers, thoughtLevel });
           await lifecycle.subscribe();
           return { id: process.session.id };
         }
@@ -299,7 +300,8 @@ export const zcodeDriver: HarnessDriver = {
           workspacePath: cfg.workspace,
           workspaceKey: cfg.workspace,
           mcpServers: process.mcpServers,
-          model: process.zcodeModelSelection,
+          model: modelSelection,
+          thoughtLevel,
         });
         await lifecycle.subscribe();
         return { id: opened.id };

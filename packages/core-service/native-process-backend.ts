@@ -18,7 +18,12 @@ export interface SecureNativeProcess {
   approveKimi?: (params: unknown) => Promise<unknown>;
   verifyCodex?: (request: (method: string, params: unknown) => Promise<any>) => Promise<void>;
   /** Owner-resolved non-secret model selection required by ZCode session/create. */
-  zcodeModelSelection?: { providerId: string; modelId: string };
+  zcodeModelSelection?: {
+    providerId: string;
+    modelId: string;
+    options?: { reasoningLevel: string };
+    thoughtLevel?: string;
+  };
   zcodeAccountHost?: ZcodeExistingAccountHost;
   /** Storage must conditionally commit binding/epoch and call isCurrent immediately before commit. */
   saveSession(

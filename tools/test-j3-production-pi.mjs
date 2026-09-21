@@ -97,7 +97,7 @@ writeFileSync(
     // 端点从受控凭据文件运行时解析,绝不写进 Git 可见的常量。
     ...(zcodeExisting?{
       zcodeCli,
-      zcodeModelSelection:{providerId:'account:bigmodel-individual-coding-plan',modelId:'GLM-5.3-Flash'},
+      zcodeModelSelection:{providerId:'account:bigmodel-individual-coding-plan',modelId:'GLM-5.3-Flash',options:{reasoningLevel:'low'},thoughtLevel:'low'},
       zcodeExistingAccount:{
         mode:'EXISTING_ACCOUNT',
         dataBaseDir:'C:/Users/hap_p/AppData/Roaming/SPB_Data',

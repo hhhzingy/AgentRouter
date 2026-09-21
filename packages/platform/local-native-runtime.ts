@@ -33,7 +33,12 @@ interface Config {
   /** 非秘密 ZCode model/provider allowlist 设置(owner 配置,绝不经 MCP/model/renderer 传入)。 */
   zcodeProvider?: ZcodeModelProviderConfig;
   /** OAuth/API 配置解析后的非秘密默认模型；透传到 ZCode session/create。 */
-  zcodeModelSelection?: { providerId: string; modelId: string };
+  zcodeModelSelection?: {
+    providerId: string;
+    modelId: string;
+    options?: { reasoningLevel: string };
+    thoughtLevel?: string;
+  };
   /** owner 授权的 ZCode API key 文件;存在即注入 env 认证(apiKey 模式)。缺失时由官方 oauth DUT 登录。 */
   zcodeCredentialFile?: string;
   zcodeExistingAccount?: ZcodeExistingAccountBrokerConfig;
@@ -212,7 +217,9 @@ export async function installLocalNativeRuntime(
             c.zcodeCredentialFile ||
             c.zcodeProvider ||
             c.zcodeModelSelection?.providerId !== ZCODE_EXISTING_ACCOUNT.providerId ||
-            c.zcodeModelSelection?.modelId !== ZCODE_EXISTING_ACCOUNT.modelId)
+            c.zcodeModelSelection?.modelId !== ZCODE_EXISTING_ACCOUNT.modelId ||
+            c.zcodeModelSelection?.options?.reasoningLevel !== 'low' ||
+            c.zcodeModelSelection?.thoughtLevel !== 'low')
         )
           throw Error('ZCODE_EXISTING_ACCOUNT_CONFIG_INVALID');
         if (

@@ -73,7 +73,12 @@ export class ZcodeLifecycle {
     workspacePath: string;
     workspaceKey: string;
     mcpServers?: unknown[];
-    model?: { providerId: string; modelId: string };
+    model?: {
+      providerId: string;
+      modelId: string;
+      options?: { reasoningLevel: string };
+    };
+    thoughtLevel?: string;
   }): Promise<{ id: string }> {
     if (this.closed) throw new NativeRpcError('RPC_CLOSED', 'none-proven');
     this.phase = 'OPEN';
@@ -81,6 +86,7 @@ export class ZcodeLifecycle {
       workspace: { workspacePath: input.workspacePath, workspaceKey: input.workspaceKey },
       ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
       ...(input.model ? { model: input.model } : {}),
+      ...(input.thoughtLevel ? { thoughtLevel: input.thoughtLevel } : {}),
     }));
     const id = this.snapshotSessionId(reply);
     this.sessionId = id;
@@ -90,12 +96,14 @@ export class ZcodeLifecycle {
   async resume(input: {
     sessionId: string; workspacePath: string; workspaceKey: string; mcpServers?: unknown[];
     toolAllowlist?: string[]; toolDenylist?: string[];
+    thoughtLevel?: string;
   }): Promise<void> {
     this.phase = 'RESUME';
     const reply = await this.request('session/resume', {
       sessionId: input.sessionId,
       workspace: { workspacePath: input.workspacePath, workspaceKey: input.workspaceKey },
       ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
+      ...(input.thoughtLevel ? { thoughtLevel: input.thoughtLevel } : {}),
       ...(input.toolAllowlist ? { toolAllowlist: input.toolAllowlist } : {}),
       ...(input.toolDenylist ? { toolDenylist: input.toolDenylist } : {}),
     });

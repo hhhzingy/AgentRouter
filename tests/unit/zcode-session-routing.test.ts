@@ -73,6 +73,8 @@ it('Existing Account overlay is acknowledged before opening a business session',
       zcodeModelSelection: {
         providerId: 'account:bigmodel-individual-coding-plan',
         modelId: 'GLM-5.3-Flash',
+        options: { reasoningLevel: 'low' },
+        thoughtLevel: 'low',
       },
     } as any,
     instructions: '',
@@ -84,6 +86,12 @@ it('Existing Account overlay is acknowledged before opening a business session',
     'session/create',
     'session/subscribe',
   ]);
+  expect(f.sent[1].params.model).toEqual({
+    providerId: 'account:bigmodel-individual-coding-plan',
+    modelId: 'GLM-5.3-Flash',
+    options: { reasoningLevel: 'low' },
+  });
+  expect(f.sent[1].params.thoughtLevel).toBe('low');
   f.lifecycle.disconnect();
 });
 it('任务轮 runPrompt 作废 bootstrap ACK 并重申章程(新会话无历史)', async () => {
