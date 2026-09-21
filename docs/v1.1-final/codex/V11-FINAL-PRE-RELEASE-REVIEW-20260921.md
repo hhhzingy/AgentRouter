@@ -141,6 +141,11 @@ Codex 安装包冒烟未运行，原因是用户明确要求先跳过 Codex 测�
 - `pnpm doctor`：PASS，1 个非阻塞 warning（全局 pnpm bin 未进 PATH）
 - `pnpm db:verify`：Node 24.14.0、SQLite 3.53.4、WAL、FK on、integrity ok
 - 完整 Vitest：113 files passed / 1 skipped；638 tests passed / 2 skipped
+- `pnpm test:unit`：42 files / 237 tests PASS
+- `pnpm test:integration`：49 files / 229 tests PASS
+- `pnpm test:contract`：8 files / 68 tests PASS
+- `pnpm test:chaos`：1 file / 3 tests PASS
+- 最终 package manifest：001—018 共 18 个 migration，freeze manifest SHA-256 为 `ed85b253863e362d13f94fa412ee454689df51b071418b88a985fb1c9e63e6d5`
 - 当前交互 shell 为 Node 24.19.0，项目 engine 固定 24.14.0，因此 pnpm 输出 engine warning；数据库与发布包探针实际使用固定的 24.14.0。
 
 ## 8. GitHub CI 事实
@@ -155,6 +160,12 @@ Codex 安装包冒烟未运行，原因是用户明确要求先跳过 Codex 测�
 > The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings
 
 因此结论只能是 `BLOCKED_CI_BILLING`；不能把本地门禁通过写成同 SHA GitHub green。
+
+后续对 docs/evidence-only SHA `c857590a58869b78c9f03c7b5dcfd90ba51a436c` 的复查得到相同结果：
+
+- W11 run `35621701614`，job `106406074777`：`runner_id=0`、`steps=[]`
+- C1 run `35621701588`，job `106406074995`：`runner_id=0`、`steps=[]`
+- 两条 annotation 仍为相同 Billing / spending limit 原文
 
 ## 9. UI 契约增量
 
@@ -181,6 +192,8 @@ Codex 安装包冒烟未运行，原因是用户明确要求先跳过 Codex 测�
 1. **Remote**：在 Tailscale 管理面为本机启用 HTTPS certificate / Serve；获得明确授权后再执行真实 `tailscale serve` 和 HTTPS/WSS 验收。
 2. **CI**：修复 GitHub Billing / spending limit，然后在同一运行时候选 SHA 上重跑 C1 与 W11；若不是同 SHA，必须重新绑定证据。
 3. **Codex**：只有用户明确恢复测试后，才使用可用额度账号补跑真实 cold resume 与 package smoke；仍不得自动使用 reset credit。
+
+Remote 最新只读复查进一步确认：`tailscale serve status --json={}`、`CertDomains=null`，TLS certificate probe 返回 `your Tailscale account does not support getting TLS certs`。独立操作卡见 [V11-EXTERNAL-ACTION-CARD-20260921.md](./V11-EXTERNAL-ACTION-CARD-20260921.md)。
 
 ## 12. 发布边界
 
