@@ -1,20 +1,20 @@
 # AgentRouter V1.1 非 UI 收尾 — F6 Release Engineering 复核
 
 日期：2026-09-21
-固定功能候选：`86ed3eecbeb625b9cb233de6899d1d0ccbf2f922`
+固定功能候选：`82195197c4c994a82147026df23cd83401d9112c`
 状态：`PACKAGE_PASS / LOCAL_GATES_PASS / CI_INFRA_FAILURE`。不是 RC。
 
 ## 1. clean 自动门
 
-在 `sourceDirty=false` 的 `86ed3ee`：
+在 `sourceDirty=false` 的 `8219519`：
 
 - TypeScript `tsc --noEmit`：PASS；
 - repository lint：PASS；
 - C1 generated contract check：PASS；
 - migration manifest + LF EOL guard：PASS；
-- Vitest unit + integration + contract + chaos：99 files / 520 tests PASS。
+- Vitest unit + integration + contract + chaos：112 files PASS / 1 skipped，625 tests PASS / 2 skipped。
 
-在本轮同一运行时代码（`3294855`，之后仅新增打包态测试 runner）：
+数据库权威检查在 `3294855` 执行；之后的数据路径改动仅为 Participant rollback 修复，已由定向 fault tests 与最终 `8219519` 全量门覆盖：
 
 - spec checks：36/36 PASS；
 - SQLite：`3.53.4`；
@@ -55,19 +55,19 @@
 
 目录：
 
-`E:\AgentRouter\.worktrees\v1.1-functional-codex\release\AgentRouter-j3-86ed3eecbeb6-924d42eb-10f2-4f5e-b5c6-6daae3d4131b`
+`E:\AgentRouter\.worktrees\v1.1-functional-codex\release\AgentRouter-j3-82195197c4c9-c86f7fed-162b-4d58-b479-000a4cc69e20`
 
 Manifest：
 
-- `sourceSHA=86ed3eecbeb625b9cb233de6899d1d0ccbf2f922`；
+- `sourceSHA=82195197c4c994a82147026df23cd83401d9112c`；
 - `sourceDirty=false`；
-- `artifactHash=303d6ef90529e2b2418b2b717bedb2dcd0774840659509d69d9c9a5efd5e2e22`；
+- `artifactHash=5a206083b307694db67eaba49a81e69fb9afc34237ef8d81a6a6ec21ad6c1a2e`；
 - Node `v24.14.0`；
 - Electron `44.3.0`；
 - better-sqlite3 `13.0.3`；
 - SQLite `3.53.4`；
 - Management、Participant stdio、Participant HTTP 三个 MCP 入口均存在；
-- 五 Harness driver 均固定为 `source:86ed3ee...`，协议为 Codex/ZCode app-server、Kimi/DSH ACP、Pi RPC；
+- 五 Harness driver 均固定为 `source:8219519...`，协议为 Codex/ZCode app-server、Kimi/DSH ACP、Pi RPC；
 - native Harness runtime 明确为 `EXTERNAL_NOT_BUNDLED`；
 - 18 个 migration 全部列入 manifest；
 - 137 files secret/path scan：0 findings。
@@ -85,11 +85,11 @@ Packaged smoke PASS：
 
 ZIP：
 
-- 路径：`release/AgentRouter-j3-86ed3eecbeb6.zip`；
-- bytes：`200070901`；
-- SHA-256：`5dade1bb909af374a8e1bce834c9fc0fb0c302d4173764808f18249a5c21566f`。
+- 路径：`release/AgentRouter-j3-82195197c4c9.zip`；
+- bytes：`200071473`；
+- SHA-256：`3fc58163bdf13d78b96c8d8a8da9ccfd271719d2f4f6afc78bbc5016414f1aac`。
 
-解包目录：`.local/unpacked-86ed3ee`。
+解包目录：`.local/unpacked-8219519`。
 
 在新解包目录重复执行：
 
@@ -101,16 +101,16 @@ ZIP：
 
 Codex/ZCode 打包态真实 smoke 没有伪造：
 
-- Codex 在源码候选 `3294855` 的一次有界复测于 Bootstrap 前失败，`BOOTSTRAP_NATIVE_FAILED`，没有进入 Core restart；
+- Codex 按用户指示暂停后续 live 测试；最近一次 clean `fca0665` 有界复测由官方 `codexErrorInfo` 证明为 `CODEX_USAGE_LIMIT_EXCEEDED`，没有进入 Core restart；
 - ZCode Existing Account 受 `BLOCKED_BY_UPSTREAM_ACCOUNT_HOST_CONTRACT` 限制；
 - 因而 package Gate 不能扩大为“五 Harness 打包态 PASS”。
 
 ## 6. GitHub CI
 
-`86ed3ee` 的远端运行：
+`8219519` 的远端运行：
 
-- C1：run `35569928565`，`failure`，job `c1`，`steps=[]`；
-- W11：run `35569928614`，`failure`，job `windows`，`steps=[]`。
+- C1：run `35575246417`，`failure`，job `c1`，`steps=[]`；
+- W11：run `35575246447`，`failure`，job `windows`，`steps=[]`。
 
 两者均在工作步骤启动前失败，属于 CI 基础设施/计费启动失败形态；不能写成代码测试失败，也不能写成 GitHub green。当前没有用户书面 CI waiver。
 

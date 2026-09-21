@@ -47,7 +47,22 @@ clean SHA `93b17f255b0f4d2cd4fd7d1c47c10463f74f7c2f`：
 
 - `93b17f2`：Bootstrap 在 ACK 缺失、原生 failed/cancelled、wall timeout 时产生安全原因码，并持久化到 delivery reason；不保存模型正文。
 - `1e683d6`：Role bridge 仅透传 `^[A-Z][A-Z0-9_]{1,95}$` 安全错误码；路径、正文、秘密仍折叠为 `BRIDGE_HANDLER_FAILED`。
-- 当前待提交：app-server 在 lifecycle 终态前提前关闭时产生 `NATIVE_PROCESS_CLOSED` + phase，避免以后再次只剩通用 reason。同一失败场景本轮不再重跑。
+- `fca0665`：从官方 `TurnError.codexErrorInfo` 只提取有界 discriminator，映射为 `CODEX_*` 安全码；不保存 `message`、`additionalDetails` 或未知结构。Native backend 只接受白名单格式，其他值仍折叠为 `BOOTSTRAP_NATIVE_FAILED`。
+- `8219519`：`login-j3-codex-dut.ps1`、identity seal 与 production runner 默认统一到受保护 `.local-protected/codex-dut/dut-fj`，避免登录到旧隔离目录。
+
+## 最新 clean 有界复测
+
+`fca0665` / `.local/j3-production-pi/run-vEDR3m`：
+
+- app-server initialize、账号/模型边界核验和 thread 创建完成，native session ref 已写入 binding store；
+- 官方 `turn/completed` 为 failed，安全 discriminator 为 `usageLimitExceeded`；
+- Bootstrap delivery：`FAILED / CODEX_USAGE_LIMIT_EXCEEDED`；
+- application audit：`NATIVE_CODEX_USAGE_LIMIT_EXCEEDED`；
+- Core 与 Windows Job 全树退出证明成立；
+- 未进入 Core restart，不得把它写成 continuity 失败或 PASS；
+- 未使用 Codex reset credit。
+
+用户随后指示“先跳过 Codex 测试”。等待中的 device-auth 已取消，没有切换账号，也没有再发起模型请求。
 
 ## C4 真实账号 smoke
 
@@ -55,6 +70,6 @@ clean SHA `93b17f255b0f4d2cd4fd7d1c47c10463f74f7c2f`：
 
 ## 下一步
 
-1. 提交并验证 `NATIVE_PROCESS_CLOSED` phase 诊断；保留两个 Core-restart 失败分母，不再无界复现。
-2. 按执行包优先级进入 ZCode F2；Codex G1 仍因 Core restart continuity 未关闭。
-3. 最终固定候选前若出现可解释的 app-server 早退修复，再对 Core restart 只做一次 clean 定向复测。
+1. 保留全部 Core-restart 失败分母，不再无界复现。
+2. Codex live 测试按用户指示暂停；使用有额度账号后只做一次 clean Core-restart 定向复测。
+3. G1 在该复测完成前保持 OPEN，不宣称 Level B 或非 UI RC。

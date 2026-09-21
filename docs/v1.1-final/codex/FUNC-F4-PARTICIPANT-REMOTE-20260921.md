@@ -1,7 +1,7 @@
 # AgentRouter V1.1 非 UI 收尾 — F4 Participant / F5 Remote 复核
 
 日期：2026-09-21
-功能候选：`86ed3eecbeb625b9cb233de6899d1d0ccbf2f922`
+功能候选：`82195197c4c994a82147026df23cd83401d9112c`
 结论：`PARTICIPANT_REAL_WORKFLOW_PASS / REMOTE_HTTPS_WSS_BLOCKED`。本文不是 Windows RC，也不是 `V1.1_NON_UI_FUNCTIONAL_RC_READY`。
 
 ## 1. 网页 ChatGPT Participant 真实闭环
@@ -52,7 +52,7 @@
 
 ## 2. generation / reconnect / replacement 负向边界
 
-clean `86ed3ee` 全量非 UI 测试包含 `tests/integration/participant-grants.test.ts` 7/7 PASS：
+clean `8219519` 全量非 UI 测试包含 `tests/integration/participant-grants.test.ts` 7/7 PASS：
 
 - 同角色新 grant 撤销旧 grant；
 - 旧聊天继续写入得到 `PARTICIPANT_GENERATION_STALE`；
@@ -76,14 +76,14 @@ clean `86ed3ee` 全量非 UI 测试包含 `tests/integration/participant-grants.
 - 若相同内容已有共享 blob，失败回滚只删除本次 workspace 文件，不删除共享 blob；
 - 清理本身失败时显式返回 `PARTICIPANT_ARTIFACT_ROLLBACK_INCOMPLETE`，不静默声称原子性。
 
-定向组合回归：8 files / 49 tests PASS；最终 clean `86ed3ee` 全量：99 files / 520 tests PASS。
+定向组合回归：8 files / 49 tests PASS；最终 clean `8219519` 全量：112 files PASS / 1 skipped，625 tests PASS / 2 skipped。
 
 ## 4. Remote 后端
 
 ### 已证明
 
 - loopback Gateway、pairing、scope、observer/controller、lease、WAITING_INPUT、cancel、幂等、response-drop `UNKNOWN` reconcile、revoke live stream、revoke 后 queued mutation 丢弃、Core restart/reconnect 均在 `tests/integration/v11-remote-gateway.test.ts` 等自动门中通过；
-- `86ed3ee` 全量 520/520 PASS；
+- `8219519` 全量自动门 625 tests PASS / 2 skipped；
 - Tailscale 客户端 `1.102.2` 正常运行，MagicDNS tailnet 可见。
 
 ### 未证明 / 外部阻塞

@@ -1,7 +1,7 @@
 {
   "schema": "agentrouter-test-ownership-ledger/1",
   "batch_id": "non-ui-final-closeout-20260921",
-  "source_sha": "86ed3eecbeb625b9cb233de6899d1d0ccbf2f922",
+  "source_sha": "82195197c4c994a82147026df23cd83401d9112c",
   "created_at": "2026-09-21T11:35:15+08:00",
   "protected_existing_assets": [
     {
@@ -187,6 +187,48 @@
       "created_by_this_batch": true,
       "safe_delete_supported": true,
       "evidence": "sourceDirty=false package, unpacked smoke, secret scan, real packaged Pi/Bailian smoke",
+      "cleanup_status": "SUPERSEDED_RETAIN_UNTIL_DOC_FREEZE"
+    },
+    {
+      "kind": "router_dut_batch",
+      "router_id": "run-vEDR3m",
+      "native_id_alias": "sha256:58c651f9867d86889aa36d89dc8b8445ada8fc197915cb29c3b6846ea2a2f173",
+      "project_id": null,
+      "role_id": "role_55ab3fdc-9893-4e59-a7f2-b28c54a9b422",
+      "work_session_id": "rsess_role_55ab3fdc-9893-4e59-a7f2-b28c54a9b422",
+      "path_alias": ".local/j3-production-pi/run-vEDR3m",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": true,
+      "evidence": "Clean fca0665 Codex core-restart attempt stopped before restart: official CODEX_USAGE_LIMIT_EXCEEDED; native session created; Core exit barrier PASS; no reset credit",
+      "cleanup_status": "RETAIN_FAILURE_DENOMINATOR"
+    },
+    {
+      "kind": "packaged_harness_dut",
+      "router_id": "run-v1aHO9",
+      "native_id_alias": null,
+      "project_id": null,
+      "role_id": null,
+      "work_session_id": null,
+      "path_alias": ".local/j3-production-pi/run-v1aHO9",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": true,
+      "evidence": "Fresh 8219519 ZIP extraction Pi/Bailian qwen3.8-flash Bootstrap DELIVERED, Run SUCCEEDED, 42/PUBLISHED, Core exit PASS",
+      "cleanup_status": "RETAIN_UNTIL_EVIDENCE_FREEZE"
+    },
+    {
+      "kind": "release_candidate",
+      "router_id": null,
+      "native_id_alias": "sha256:3fc58163bdf13d78b96c8d8a8da9ccfd271719d2f4f6afc78bbc5016414f1aac",
+      "project_id": null,
+      "role_id": null,
+      "work_session_id": null,
+      "path_alias": "release/AgentRouter-j3-82195197c4c9.zip",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": true,
+      "evidence": "sourceDirty=false 8219519 package, packaged/unpacked smoke, 137-file secret scan, real unpacked Pi/Bailian smoke",
       "cleanup_status": "RETAIN_CURRENT_CANDIDATE"
     }
   ],
