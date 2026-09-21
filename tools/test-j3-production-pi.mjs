@@ -187,7 +187,9 @@ try {
     allowed_paths: [],
     tool_profiles: process.argv.includes('--artifact')
       ? ['route_context', 'route_finish', 'route_artifact_write', 'route_artifact_read']
-      : ['route_context', 'route_finish'],
+      : process.argv.includes('--wait-input')
+        ? ['route_context', 'route_finish', 'route_wait']
+        : ['route_context', 'route_finish'],
     network_profile: 'none',
   };
   const v = await s.request('rolePlan.validate', { plan });
@@ -291,6 +293,142 @@ try {
   )
     throw Error('TASK_RESULT_NOT_VERIFIED');
   report.checks.push('真实Route工具、指定用户结果、原生终态与全树屏障');
+  if (process.argv.includes('--marker')) {
+    const marker = 'MARKER-' + randomUUID().slice(0, 12);
+    const active = await call('router_role_session_list', { params: { role_id: target.id } });
+    const activeSessionId = active.active_session_id;
+    const markerTask = async (key, summary, body) => {
+      const state = await call('router_status');
+      const created = await call('router_task_dispatch', {
+        request_key: key,
+        expected_revision: state.snapshot.revision,
+        scope,
+        params: {
+          request: {
+            kind: 'task.request',
+            to: { type: 'role', id: target.id },
+            summary,
+            body,
+            inputs: [],
+            expected: ['terminal result'],
+            completion: { mode: 'result', to: { type: 'user' } },
+          },
+        },
+      });
+      for (let i = 0; i < 150; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(created.id);
+        const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(created.id);
+        const session = db.prepare('select state,native_session_ref from role_sessions where id=?').get(activeSessionId);
+        db.close();
+        if (run && ['SUCCEEDED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(run.state)) return { run, result, session };
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      throw Error('MARKER_TASK_TIMEOUT');
+    };
+    const first = await markerTask(
+      'marker-turn-1',
+      '记忆第一轮',
+      `Remember this exact private marker for the next task: ${marker}. Call route_finish with outcome succeeded, summary STORED, body STORED, outputs [].`,
+    );
+    if (first.run.state !== 'SUCCEEDED' || first.result?.publication_state !== 'PUBLISHED' || first.result?.summary !== 'STORED')
+      throw Error('MARKER_TURN1_NOT_PUBLISHED');
+    const second = await markerTask(
+      'marker-turn-2',
+      '记忆第二轮',
+      'What exact private marker did the previous task ask you to remember? Do not guess. Call route_finish with outcome succeeded, summary set to that exact marker, body set to that exact marker, outputs [].',
+    );
+    if (second.run.state !== 'SUCCEEDED' || second.result?.publication_state !== 'PUBLISHED' || second.result?.summary !== marker)
+      throw Error('MARKER_TURN2_MISMATCH');
+    if (first.run.role_session_id !== activeSessionId || second.run.role_session_id !== activeSessionId || first.session?.state !== 'ACTIVE' || second.session?.state !== 'ACTIVE' || !first.session.native_session_ref || first.session.native_session_ref !== second.session.native_session_ref)
+      throw Error('MARKER_WORK_SESSION_IDENTITY_MISMATCH');
+    report.marker = { workSessionId: activeSessionId, sameNativeRef: true, turn1Published: true, turn2Matched: true };
+    report.checks.push('同ACTIVE WorkSession两轮随机marker、第二轮请求不重复marker、native ref不暗换');
+  }
+  if (process.argv.includes('--wait-input')) {
+    const value = 'INPUT-' + randomUUID().slice(0, 12);
+    const status = await call('router_status');
+    const waiting = await call('router_task_dispatch', {
+      request_key: 'wait-input-task',
+      expected_revision: status.snapshot.revision,
+      scope,
+      params: {
+        request: {
+          kind: 'task.request',
+          to: { type: 'role', id: target.id },
+          summary: '正式 TaskInput 往返',
+          body: 'Ask the user for a new verification value by calling route_wait with waiting_for user_input and reason asking for the verification value. Do not call route_finish until that value arrives. In the continuation turn, use the formal task_input value and call route_finish succeeded with summary and body equal to the exact value, outputs [].',
+          inputs: [],
+          expected: ['user supplied value'],
+          completion: { mode: 'result', to: { type: 'user' } },
+        },
+      },
+    });
+    let waitingRun;
+    for (let i = 0; i < 120; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const task = db.prepare('select state,role_session_id from tasks where id=?').get(waiting.id);
+      const run = db.prepare('select id,state from runs where task_id=? order by created_at_ms desc limit 1').get(waiting.id);
+      const session = task ? db.prepare('select state,native_session_ref from role_sessions where id=?').get(task.role_session_id) : null;
+      db.close();
+      if (task?.state === 'WAITING_INPUT' && run && ['SUCCEEDED', 'FAILED', 'UNKNOWN'].includes(run.state)) {
+        waitingRun = { task, run, session };
+        break;
+      }
+      if (task && ['FAILED', 'NEEDS_ATTENTION', 'DELIVERED'].includes(task.state)) throw Error('WAIT_INPUT_NOT_REQUESTED');
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!waitingRun || waitingRun.run.state !== 'SUCCEEDED') throw Error('WAIT_INPUT_NOT_READY');
+    await call('router_control_release', {
+      request_key: 'wait-input-release',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+    const inputTransport = new LocalCoreTransport(path('core'));
+    try {
+      const inputSession = await inputTransport.connect({
+        clientId: 'j3_wait_input', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const before = await inputSession.request('system.snapshot', {});
+      const inputLease = await inputSession.request('control.acquire', {}, {
+        operationId: 'wait-input-acquire', expectedRevision: before.revision, scope: {},
+      });
+      const revision = (await inputSession.request('system.snapshot', {})).revision;
+      await inputSession.request('conversation.sendUserInput', {
+        role_id: target.id, task_id: waiting.id, body: value,
+      }, {
+        operationId: 'wait-input-submit', expectedRevision: revision, scope,
+        leaseId: inputLease.leaseId,
+      });
+      await inputSession.request('control.release', { lease_id: inputLease.leaseId }, {
+        operationId: 'wait-input-release-local',
+        expectedRevision: (await inputSession.request('system.snapshot', {})).revision,
+        scope: {},
+      });
+    } finally {
+      await inputTransport.close();
+    }
+    let completed;
+    for (let i = 0; i < 150; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const task = db.prepare('select state,role_session_id from tasks where id=?').get(waiting.id);
+      const runs = db.prepare('select id,kind,state,role_session_id from runs where task_id=? order by created_at_ms').all(waiting.id);
+      const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(waiting.id);
+      const input = db.prepare('select payload,consumed_by_run_id,role_session_id from task_inputs where task_id=?').get(waiting.id);
+      const session = task ? db.prepare('select state,native_session_ref from role_sessions where id=?').get(task.role_session_id) : null;
+      db.close();
+      if (task?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(task?.state)) {
+        completed = { task, runs, result, input, session };
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!completed || completed.task.state !== 'DELIVERED' || completed.result?.outcome !== 'succeeded' || completed.result.publication_state !== 'PUBLISHED' || completed.result.summary !== value || completed.input?.payload !== value || completed.runs.length !== 2 || completed.runs[1].kind !== 'CONTINUATION' || completed.input.consumed_by_run_id !== completed.runs[1].id || completed.runs.some((run) => run.role_session_id !== waitingRun.task.role_session_id) || waitingRun.session?.state !== 'ACTIVE' || completed.session?.state !== 'ACTIVE' || !waitingRun.session.native_session_ref || waitingRun.session.native_session_ref !== completed.session.native_session_ref)
+      throw Error('WAIT_INPUT_CONTINUATION_NOT_VERIFIED');
+    report.waitInput = { workSessionId: waitingRun.task.role_session_id, runCount: 2, sameNativeRef: true, formalInputConsumedOnce: true, valueMatched: true };
+    report.checks.push('真实route_wait→正式TaskInput→同WS/同native ref CONTINUATION Run消费→Result PUBLISHED');
+  }
   if (process.argv.includes('--artifact')) {
     const artifactMarker = 'AR-' + randomUUID().slice(0, 8);
     const waitTask = async (taskId) => {
