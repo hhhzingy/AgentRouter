@@ -295,7 +295,10 @@ export class NativeProcessBackend implements ExecutionBackend {
       r.cleanup.push(
         r.process.onData((bytes) => lifecycle.accept(bytes)),
         r.process.onClose(() => {
-          if (!r.finishing) void r.finish(true);
+          if (!r.finishing) {
+            frame({ kind: 'diagnostic', code: 'NATIVE_PROCESS_CLOSED', phase });
+            void r.finish(true);
+          }
         }),
       );
       const saveSession = async (session: { id: string; path?: string }) => {

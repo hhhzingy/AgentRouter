@@ -197,6 +197,21 @@ it('parent close and forged stdout stop proof do not settle successful', async (
   expect(f.broken()).toBe(1);
   expect(f.exits[0]).toEqual({ code: null, stop: { kind: 'unknown', epoch: 1 } });
 });
+it('原生进程提前关闭会在停止前产生安全 phase 诊断', async () => {
+  const f = fixture();
+  f.launch();
+  await tick();
+  f.close();
+  await tick();
+  expect(
+    f.frames.some(
+      (event) =>
+        event.kind === 'diagnostic' &&
+        event.code === 'NATIVE_PROCESS_CLOSED' &&
+        typeof event.phase === 'string',
+    ),
+  ).toBe(true);
+});
 it('wrong epoch OS evidence is reduced to unknown', async () => {
   const f = fixture({ kind: 'supervisor-tree-empty', epoch: 2, containmentId: 'wrong' });
   f.launch();
