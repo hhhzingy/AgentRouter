@@ -284,6 +284,11 @@ export const zcodeDriver: HarnessDriver = {
       },
       async open({ config: cfg, process }) {
         if (!process.zcodeModelSelection) throw Error('ZCODE_MODEL_SELECTION_REQUIRED');
+        if (process.zcodeAccountHost)
+          await lifecycle.attachExistingAccountHost(process.zcodeAccountHost, {
+            workspacePath: cfg.workspace,
+            workspaceKey: cfg.workspace,
+          });
         if (process.session?.id) {
           await lifecycle.resume({ sessionId: process.session.id, workspacePath: cfg.workspace,
             workspaceKey: cfg.workspace, mcpServers: process.mcpServers });

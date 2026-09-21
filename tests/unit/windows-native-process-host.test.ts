@@ -45,6 +45,20 @@ windows(
     let saved = false,
       revoked = 0,
       disposed = 0;
+    const zcodeAccountHost = {
+      overlay: {
+        revision: 'test',
+        basedOnZCodeBuiltinRevision: 'test',
+        providers: {},
+        states: {},
+      },
+      probe: () => ({}),
+      resolveRuntimeHeaders: async () => ({
+        headersApplied: true as const,
+        requestAuth: { apiKey: 'test' },
+      }),
+      close: () => {},
+    } as any;
     const host = new WindowsNativeProcessHost({
       isolation: 'LIMITED_ISOLATION',
       managedRoot: root,
@@ -59,6 +73,7 @@ windows(
           disposed++;
         },
         zcodeModelSelection: { providerId: 'account:test', modelId: 'GLM-5.3' },
+        zcodeAccountHost,
         saveSession: async () => {
           saved = true;
         },
@@ -88,6 +103,7 @@ windows(
     const p = await host.start(input);
     try {
       expect(p.zcodeModelSelection).toEqual({ providerId: 'account:test', modelId: 'GLM-5.3' });
+      expect(p.zcodeAccountHost).toBe(zcodeAccountHost);
       const received = new Promise<any>((resolve) =>
         p.onData((b) => resolve(JSON.parse(b.toString()))),
       );

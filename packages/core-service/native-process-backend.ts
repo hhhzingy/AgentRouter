@@ -2,6 +2,7 @@ import { builtInDrivers, HarnessDriverRegistry } from './harness-drivers.ts';
 import { createHash } from 'node:crypto';
 import type { ExecutionBackend, StopEvidence } from './execution-backend.ts';
 import type { NativeBindingConfig } from './native-registry.ts';
+import type { ZcodeExistingAccountHost } from '../platform/zcode-existing-account-broker.ts';
 
 export interface SecureNativeProcess {
   write(bytes: Buffer): Promise<void>;
@@ -18,6 +19,7 @@ export interface SecureNativeProcess {
   verifyCodex?: (request: (method: string, params: unknown) => Promise<any>) => Promise<void>;
   /** Owner-resolved non-secret model selection required by ZCode session/create. */
   zcodeModelSelection?: { providerId: string; modelId: string };
+  zcodeAccountHost?: ZcodeExistingAccountHost;
   /** Storage must conditionally commit binding/epoch and call isCurrent immediately before commit. */
   saveSession(
     session: { id: string; path?: string },

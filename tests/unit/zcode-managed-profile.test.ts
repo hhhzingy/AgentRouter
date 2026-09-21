@@ -91,3 +91,65 @@ it('W05 百炼配置形状:openai-compatible + MaaS compatible-mode/v1 + bailian
   expect(cfg.provider.bailian.kind).toBe('openai-compatible');
   expect(cfg.provider.bailian.options.baseURL).toBe('https://ws-example00000.cn-beijing.maas.aliyuncs.com/compatible-mode/v1');
 });
+
+it('Existing Account writes an official secret-free v2 config with fixed provider paths', () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentrouter-zcode-existing-'));
+  const builtin = join(home, 'zcode-builtin.json');
+  writeFileSync(builtin, JSON.stringify({ schemaVersion: 1, revision: 30, config: {} }));
+  const runtime = {
+    builtinProviderConfigFile: builtin,
+    defaultModelSelection: {
+      providerId: 'account:bigmodel-individual-coding-plan' as const,
+      modelId: 'GLM-5.3-Flash' as const,
+    },
+  };
+  const first = prepareManagedZcodeProfile(home, undefined, runtime);
+  const bytes = readFileSync(first.providerConfigPath!, 'utf8');
+  expect(JSON.parse(bytes)).toEqual({
+    schemaVersion: 1,
+    config: {
+      providerConfigRules: { providerRules: [] },
+      modelConfigRules: { providerModelRules: [], manualProviderModelRules: [] },
+      defaultModelSelection: runtime.defaultModelSelection,
+    },
+  });
+  expect(first.providerEnv).toEqual({
+    ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: builtin,
+    ZCODE_PERSONAL_PROVIDER_CONFIG_FILE: first.providerConfigPath,
+  });
+  expect(bytes).not.toMatch(/api.?key|token|secret/i);
+  expect(prepareManagedZcodeProfile(home, undefined, runtime)).toEqual(first);
+  expect(readFileSync(first.providerConfigPath!, 'utf8')).toBe(bytes);
+});
+
+it('Existing Account rejects v2 config conflicts and non-official model selection', () => {
+  const home = mkdtempSync(join(tmpdir(), 'agentrouter-zcode-existing-conflict-'));
+  const builtin = join(home, 'zcode-builtin.json');
+  writeFileSync(builtin, '{}');
+  const runtime = {
+    builtinProviderConfigFile: builtin,
+    defaultModelSelection: {
+      providerId: 'account:bigmodel-individual-coding-plan' as const,
+      modelId: 'GLM-5.3-Flash' as const,
+    },
+  };
+  const first = prepareManagedZcodeProfile(home, undefined, runtime);
+  writeFileSync(first.providerConfigPath!, JSON.stringify({ secret: 'must-preserve' }));
+  expect(() => prepareManagedZcodeProfile(home, undefined, runtime)).toThrow(
+    'ZCODE_PROVIDER_CONFIG_CONFLICT',
+  );
+  expect(readFileSync(first.providerConfigPath!, 'utf8')).toContain('must-preserve');
+  expect(() =>
+    prepareManagedZcodeProfile(
+      mkdtempSync(join(tmpdir(), 'agentrouter-zcode-existing-wrong-')),
+      undefined,
+      {
+        ...runtime,
+        defaultModelSelection: {
+          ...runtime.defaultModelSelection,
+          modelId: 'GLM-5.3' as never,
+        },
+      },
+    ),
+  ).toThrow('ZCODE_PROVIDER_RUNTIME_CONFIG_INVALID');
+});

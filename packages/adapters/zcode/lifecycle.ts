@@ -1,4 +1,8 @@
 import { JsonLfDecoder } from '../../platform/framing.ts';
+import type {
+  ZcodeExistingAccountHost,
+  ZcodeProviderRuntimeHeadersRequest,
+} from '../../platform/zcode-existing-account-broker.ts';
 import { NativeRpcError } from '../shared/rpc-peer.ts';
 /** ZCode Protocol 生命周期(0.16.9 app-server)。
  * 帧形经真实往返确认:{id, method, params} 换行分帧;方法面自官方发行物提取。
@@ -20,6 +24,16 @@ export class ZcodeLifecycle {
   private eventFloor = 0;
   private deltaFloor = 0;
   private active?: { runId: string; turnId?: string; seq: number };
+  private accountHost?: ZcodeExistingAccountHost;
+  private accountWorkspace?: { workspacePath: string; workspaceKey: string };
+  private runtimeHeaderRequests = new Map<
+    string,
+    {
+      fingerprint: string;
+      controller: AbortController;
+      operation: Promise<{ headersApplied: true; requestAuth: { apiKey: string } }>;
+    }
+  >();
   phase = 'CREATED';
   constructor(private readonly options: ZcodeLifecycleOptions) {}
   /** app-server 无独立 initialize 握手;连接即协议生效。 */
@@ -27,6 +41,33 @@ export class ZcodeLifecycle {
     this.phase = 'INITIALIZE';
     this.notifications.set('v4/telemetry/event', (params) => this.telemetryEvent(params));
     this.notifications.set('session/event', (params) => this.streamDelta(params));
+    this.notifications.set('interaction/providerRuntimeHeadersCancelled', (params) =>
+      this.cancelRuntimeHeaders(params),
+    );
+  }
+  async attachExistingAccountHost(
+    host: ZcodeExistingAccountHost,
+    workspace: { workspacePath: string; workspaceKey: string },
+  ): Promise<void> {
+    if (this.closed || this.sessionId || this.accountHost)
+      throw new NativeRpcError('ZCODE_ACCOUNT_HOST_STATE_INVALID', 'none-proven');
+    this.phase = 'ACCOUNT_PROBE';
+    host.probe();
+    const overlay = host.overlay;
+    this.phase = 'ACCOUNT_OVERLAY';
+    const reply = (await this.request('provider/updateAccountConfig', overlay)) as {
+      receivedRevision?: unknown;
+      providerCount?: unknown;
+      status?: unknown;
+    };
+    if (
+      reply?.receivedRevision !== overlay.revision ||
+      reply?.providerCount !== Object.keys(overlay.providers).length ||
+      !['received', 'unchanged'].includes(String(reply?.status))
+    )
+      throw new NativeRpcError('ZCODE_ACCOUNT_OVERLAY_REJECTED', 'possible');
+    this.accountHost = host;
+    this.accountWorkspace = workspace;
   }
   async open(input: {
     workspacePath: string;
@@ -181,6 +222,10 @@ export class ZcodeLifecycle {
           }
           if (m.id !== undefined) {
             if (process.env.AR_ZCODE_DEBUG) console.error('[zcode-srvreq]', m.method, String((m.params as { toolName?: unknown })?.toolName ?? ''));
+            if (m.method === 'interaction/requestProviderRuntimeHeaders') {
+              this.requestRuntimeHeaders(String(m.id), m.params);
+              continue;
+            }
             let reply;
             if (m.method === 'session/requestRuntimePreferences')
               reply = { id: m.id, result: { nativeSearchEnhancementsEnabled: false, memoryEnabled: false, askUserQuestionAutoResolutionEnabled: false } };
@@ -214,12 +259,104 @@ export class ZcodeLifecycle {
   disconnect(reason = 'ZCODE_DISCONNECTED'): void {
     if (this.closed) return;
     this.closed = true;
+    for (const pending of this.runtimeHeaderRequests.values()) pending.controller.abort();
+    this.runtimeHeaderRequests.clear();
+    this.accountHost?.close();
     for (const entry of this.pending.values()) {
       clearTimeout(entry.timer);
       entry.reject(new NativeRpcError(reason, 'possible'));
     }
     this.pending.clear();
     this.options.onDisconnect(reason);
+  }
+  private requestRuntimeHeaders(protocolId: string, value: unknown): void {
+    const request =
+      value && typeof value === 'object'
+        ? (value as ZcodeProviderRuntimeHeadersRequest)
+        : ({} as ZcodeProviderRuntimeHeadersRequest);
+    const requestId = typeof request.requestId === 'string' ? request.requestId : '';
+    const fingerprint = JSON.stringify(value);
+    const current = requestId ? this.runtimeHeaderRequests.get(requestId) : undefined;
+    if (current && current.fingerprint !== fingerprint) {
+      void this.writeClientReply(protocolId, {
+        headersApplied: false,
+        errorMessage: 'ZCODE_EXISTING_ACCOUNT_REQUEST_MISMATCH',
+      });
+      return;
+    }
+    let pending = current;
+    if (!pending) {
+      const controller = new AbortController();
+      const host = this.accountHost;
+      const workspace = this.accountWorkspace;
+      const sessionId = this.sessionId;
+      const operation =
+        host && workspace && sessionId
+          ? host.resolveRuntimeHeaders(request, {
+              sessionId,
+              workspacePath: workspace.workspacePath,
+              workspaceKey: workspace.workspaceKey,
+              signal: controller.signal,
+            })
+          : Promise.reject(Error('ZCODE_EXISTING_ACCOUNT_HOST_UNAVAILABLE'));
+      pending = { fingerprint, controller, operation };
+      if (requestId) this.runtimeHeaderRequests.set(requestId, pending);
+    }
+    const expected = pending;
+    void pending.operation
+      .then((result) => {
+        if (
+          expected.controller.signal.aborted ||
+          (requestId && this.runtimeHeaderRequests.get(requestId) !== expected)
+        )
+          return;
+        return this.writeClientReply(protocolId, result);
+      })
+      .catch((error: unknown) => {
+        if (
+          expected.controller.signal.aborted ||
+          (requestId && this.runtimeHeaderRequests.get(requestId) !== expected)
+        )
+          return;
+        const code =
+          error instanceof Error && /^ZCODE_[A-Z0-9_]{1,90}$/.test(error.message)
+            ? error.message
+            : 'ZCODE_EXISTING_ACCOUNT_REQUEST_REJECTED';
+        return this.writeClientReply(protocolId, {
+          headersApplied: false,
+          errorMessage: code,
+        });
+      })
+      .finally(() => {
+        if (requestId && this.runtimeHeaderRequests.get(requestId) === expected)
+          this.runtimeHeaderRequests.delete(requestId);
+      });
+  }
+  private cancelRuntimeHeaders(value: unknown): void {
+    if (!value || typeof value !== 'object') return;
+    const input = value as {
+      requestId?: unknown;
+      sessionId?: unknown;
+      workspace?: { workspacePath?: unknown; workspaceKey?: unknown };
+    };
+    if (
+      typeof input.requestId !== 'string' ||
+      input.sessionId !== this.sessionId ||
+      input.workspace?.workspacePath !== this.accountWorkspace?.workspacePath ||
+      input.workspace?.workspaceKey !== this.accountWorkspace?.workspaceKey
+    )
+      return;
+    const pending = this.runtimeHeaderRequests.get(input.requestId);
+    if (!pending) return;
+    this.runtimeHeaderRequests.delete(input.requestId);
+    pending.controller.abort();
+  }
+  private async writeClientReply(protocolId: string, result: unknown): Promise<void> {
+    try {
+      await this.options.write(Buffer.from(JSON.stringify({ id: protocolId, result }) + '\n'));
+    } catch {
+      this.disconnect('ZCODE_TRANSPORT_FAILED');
+    }
   }
   private request(method: string, params: unknown): Promise<unknown> {
     if (this.closed) return Promise.reject(new NativeRpcError('RPC_CLOSED', 'none-proven'));

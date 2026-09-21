@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { zcodeDriver } from '../../packages/core-service/harness-drivers.ts';
 
 const zcodeModelSelection = { providerId: 'account:test', modelId: 'GLM-5.3' };
@@ -10,9 +10,16 @@ function fixture() {
     onEvent: () => {}, write: async bytes => {
       const request = JSON.parse(bytes.toString()); sent.push(request);
       const sessionId = request.params?.sessionId ?? 'new-native';
-      lifecycle.accept(Buffer.from(JSON.stringify({ id: request.id, result: request.method === 'session/send'
+      const result = request.method === 'session/send'
         ? { sessionId, accepted: true, stateRevision: 1 }
-        : { sessionId, eventSeq: 0, events: [] } }) + '\n'));
+        : request.method === 'provider/updateAccountConfig'
+          ? {
+              receivedRevision: request.params.revision,
+              providerCount: Object.keys(request.params.providers).length,
+              status: 'received',
+            }
+          : { sessionId, eventSeq: 0, events: [] };
+      lifecycle.accept(Buffer.from(JSON.stringify({ id: request.id, result }) + '\n'));
     } });
   return { lifecycle, sent };
 }
@@ -36,6 +43,47 @@ it('新会话路径同样传入受信宿主提供的 Role MCP', async () => {
   expect(f.sent[0].params.mcpServers).toEqual(mcpServers);
   expect(f.sent[0].params.model).toEqual(zcodeModelSelection);
   expect(f.sent.map(r => r.method)).toEqual(['session/create', 'session/subscribe']);
+  f.lifecycle.disconnect();
+});
+it('Existing Account overlay is acknowledged before opening a business session', async () => {
+  const f = fixture();
+  const host = {
+    probe: vi.fn(() => ({
+      providerId: 'account:bigmodel-individual-coding-plan',
+      modelId: 'GLM-5.3-Flash',
+      accountIdentityHash: 'a'.repeat(64),
+      credentialAvailable: true as const,
+      credentialFileSha256: 'b'.repeat(64),
+      builtinFileSha256: 'c'.repeat(64),
+      basedOnZCodeBuiltinRevision: 'zcode-builtin:30:test',
+    })),
+    overlay: {
+      revision: 'overlay-revision',
+      basedOnZCodeBuiltinRevision: 'zcode-builtin:30:test',
+      providers: { 'account:bigmodel-individual-coding-plan': {} },
+      states: { 'account:bigmodel-individual-coding-plan': {} },
+    },
+    resolveRuntimeHeaders: vi.fn(),
+    close: vi.fn(),
+  };
+  const opened = await f.lifecycle.open({
+    config: { workspace: 'test-workspace' } as any,
+    process: {
+      zcodeAccountHost: host,
+      zcodeModelSelection: {
+        providerId: 'account:bigmodel-individual-coding-plan',
+        modelId: 'GLM-5.3-Flash',
+      },
+    } as any,
+    instructions: '',
+  });
+  expect(opened.id).toBe('new-native');
+  expect(host.probe).toHaveBeenCalledOnce();
+  expect(f.sent.map((request) => request.method)).toEqual([
+    'provider/updateAccountConfig',
+    'session/create',
+    'session/subscribe',
+  ]);
   f.lifecycle.disconnect();
 });
 it('任务轮 runPrompt 作废 bootstrap ACK 并重申章程(新会话无历史)', async () => {

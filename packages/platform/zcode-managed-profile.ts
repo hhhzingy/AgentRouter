@@ -12,12 +12,23 @@ export interface ZcodeModelProviderConfig {
     name?: string;
   };
 }
+export interface ZcodeExistingAccountProviderRuntime {
+  builtinProviderConfigFile: string;
+  defaultModelSelection: {
+    providerId: 'account:bigmodel-individual-coding-plan';
+    modelId: 'GLM-5.3-Flash';
+  };
+}
 const KEY_RE = /^[A-Za-z0-9._-]{16,256}$/;
 
 /** 只准备已由 owner 校验的持久 HOME;非秘密模型/Provider 设置由 owner 传入。
  * 不读取/复制桌面认证。官方 oauth DUT 登录会向 provider options 写入 apiKey,
  * 或写 modelProviderFamilySelectedKeys——本准备器保留这些认证增量,只校验自己写入的非秘密键。 */
-export function prepareManagedZcodeProfile(sessionHome: string, model?: ZcodeModelProviderConfig) {
+export function prepareManagedZcodeProfile(
+  sessionHome: string,
+  model?: ZcodeModelProviderConfig,
+  providerRuntime?: ZcodeExistingAccountProviderRuntime,
+) {
   if (!isAbsolute(sessionHome)) throw Error('ZCODE_HOME_INVALID');
   const home = realpathSync(sessionHome);
   const inside = (target: string) => {
@@ -25,7 +36,11 @@ export function prepareManagedZcodeProfile(sessionHome: string, model?: ZcodeMod
     if (!rel || rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel))
       throw Error('ZCODE_CONFIG_OUTSIDE_HOME');
   };
-  for (const path of [join(home, '.zcode'), join(home, '.zcode', 'cli')]) {
+  for (const path of [
+    join(home, '.zcode'),
+    join(home, '.zcode', 'cli'),
+    ...(providerRuntime ? [join(home, '.zcode', 'v2')] : []),
+  ]) {
     if (existsSync(path)) inside(path);
     else mkdirSync(path);
   }
@@ -42,6 +57,47 @@ export function prepareManagedZcodeProfile(sessionHome: string, model?: ZcodeMod
           )))
     )
       throw Error('ZCODE_MODEL_CONFIG_INVALID');
+  }
+  let providerConfigPath: string | undefined;
+  let providerEnv: Record<string, string> | undefined;
+  if (providerRuntime) {
+    if (
+      model ||
+      providerRuntime.defaultModelSelection.providerId !==
+        'account:bigmodel-individual-coding-plan' ||
+      providerRuntime.defaultModelSelection.modelId !== 'GLM-5.3-Flash' ||
+      !isAbsolute(providerRuntime.builtinProviderConfigFile) ||
+      !existsSync(providerRuntime.builtinProviderConfigFile)
+    )
+      throw Error('ZCODE_PROVIDER_RUNTIME_CONFIG_INVALID');
+    const builtinProviderConfigFile = realpathSync(providerRuntime.builtinProviderConfigFile);
+    providerConfigPath = join(home, '.zcode', 'v2', 'provider_config.json');
+    const providerConfig = {
+      schemaVersion: 1,
+      config: {
+        providerConfigRules: { providerRules: [] },
+        modelConfigRules: { providerModelRules: [], manualProviderModelRules: [] },
+        defaultModelSelection: providerRuntime.defaultModelSelection,
+      },
+    };
+    const expected = JSON.stringify(providerConfig, null, 2) + '\n';
+    if (existsSync(providerConfigPath)) {
+      inside(providerConfigPath);
+      let current: unknown;
+      try {
+        current = JSON.parse(readFileSync(providerConfigPath, 'utf8'));
+      } catch {
+        throw Error('ZCODE_PROVIDER_CONFIG_UNREADABLE');
+      }
+      if (JSON.stringify(current) !== JSON.stringify(providerConfig))
+        throw Error('ZCODE_PROVIDER_CONFIG_CONFLICT');
+    } else {
+      writeFileSync(providerConfigPath, expected, { flag: 'wx', mode: 0o600 });
+    }
+    providerEnv = {
+      ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: builtinProviderConfigFile,
+      ZCODE_PERSONAL_PROVIDER_CONFIG_FILE: providerConfigPath,
+    };
   }
   const configPath = join(home, '.zcode', 'cli', 'config.json');
   const managed: Record<string, unknown> = {
@@ -69,7 +125,11 @@ export function prepareManagedZcodeProfile(sessionHome: string, model?: ZcodeMod
     const legacyNew = join(home, '.zcode', 'config.json');
     if (!existsSync(legacyNew))
       writeFileSync(legacyNew, readFileSync(configPath), { flag: 'wx', mode: 0o600 });
-    return { configPath, home };
+    return {
+      configPath,
+      home,
+      ...(providerConfigPath ? { providerConfigPath, providerEnv } : {}),
+    };
   }
   inside(configPath);
   // 已有配置:逐键校验受管非秘密键完全一致;认证键(apiKey/selectedKeys 等)容忍并保留。
@@ -107,6 +167,10 @@ export function prepareManagedZcodeProfile(sessionHome: string, model?: ZcodeMod
   const legacyPath = join(home, '.zcode', 'config.json');
   if (!existsSync(legacyPath))
     writeFileSync(legacyPath, readFileSync(configPath), { flag: 'wx', mode: 0o600 });
-  return { configPath, home };
+  return {
+    configPath,
+    home,
+    ...(providerConfigPath ? { providerConfigPath, providerEnv } : {}),
+  };
 }
 export { KEY_RE as zcodeApiKeyPattern };

@@ -20,6 +20,11 @@ import { createPiProviderBroker } from './pi-provider-broker.ts';
 import { prepareManagedKimiProfile, approveManagedKimiRoute } from './kimi-managed-profile.ts';
 import { prepareManagedCodexProfile } from './codex-managed-profile.ts';
 import { prepareManagedZcodeProfile, zcodeApiKeyPattern, type ZcodeModelProviderConfig } from './zcode-managed-profile.ts';
+import {
+  createZcodeExistingAccountHost,
+  ZCODE_EXISTING_ACCOUNT,
+  type ZcodeExistingAccountBrokerConfig,
+} from './zcode-existing-account-broker.ts';
 
 interface Config {
   dshHome?: string;
@@ -31,6 +36,7 @@ interface Config {
   zcodeModelSelection?: { providerId: string; modelId: string };
   /** owner 授权的 ZCode API key 文件;存在即注入 env 认证(apiKey 模式)。缺失时由官方 oauth DUT 登录。 */
   zcodeCredentialFile?: string;
+  zcodeExistingAccount?: ZcodeExistingAccountBrokerConfig;
   isolation: 'LIMITED_ISOLATION';
   managedRoot: string;
   workspaceRoot: string;
@@ -115,8 +121,15 @@ export async function installLocalNativeRuntime(
           p.providerId === 'agentrouter-bailian' &&
           p.modelId === 'bailian/qwen3.8-flash' &&
           p.effort === 'on'));
+    const zcodeOk =
+      p.harness === 'zcode' &&
+      p.effort === 'off' &&
+      (c.zcodeExistingAccount
+        ? p.providerId === ZCODE_EXISTING_ACCOUNT.providerId &&
+          p.modelId === ZCODE_EXISTING_ACCOUNT.modelId
+        : p.providerId === 'agentrouter-zcode' && p.modelId === 'zcode-managed');
     if (
-      !((piOk) || (kimiOk) || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || (p.harness==='zcode' && p.providerId==='agentrouter-zcode' && p.modelId==='zcode-managed' && p.effort==='off') || (dshOk)) ||
+      !((piOk) || (kimiOk) || (p.harness==='codex' && p.providerId==='agentrouter-codex' && p.modelId==='gpt-5.6-luna' && p.effort==='low') || zcodeOk || (dshOk)) ||
       !isAbsolute(p.sessionHome) ||
       !isAbsolute(p.executable) ||
       sha(p.executable) !== p.executableSha256
@@ -191,7 +204,17 @@ export async function installLocalNativeRuntime(
         if (!c.zcodeCli || !isAbsolute(c.zcodeCli)) throw Error('ZCODE_RUNTIME_CONFIG_INVALID');
         if (!c.roleBridge || !isAbsolute(c.roleBridge) || sha(c.roleBridge) !== c.roleBridgeSha256)
           throw Error('ZCODE_ROLE_BRIDGE_INVALID');
-        if (!c.zcodeProvider) throw Error('ZCODE_MODEL_CONFIG_REQUIRED');
+        const existingAccount = c.zcodeExistingAccount;
+        if (!existingAccount && !c.zcodeProvider) throw Error('ZCODE_MODEL_CONFIG_REQUIRED');
+        if (
+          existingAccount &&
+          (input.config.version !== ZCODE_EXISTING_ACCOUNT.upstreamVersion ||
+            c.zcodeCredentialFile ||
+            c.zcodeProvider ||
+            c.zcodeModelSelection?.providerId !== ZCODE_EXISTING_ACCOUNT.providerId ||
+            c.zcodeModelSelection?.modelId !== ZCODE_EXISTING_ACCOUNT.modelId)
+        )
+          throw Error('ZCODE_EXISTING_ACCOUNT_CONFIG_INVALID');
         if (
           !c.zcodeModelSelection ||
           !/^[A-Za-z0-9:_-]{2,100}$/.test(c.zcodeModelSelection.providerId) ||
@@ -200,7 +223,20 @@ export async function installLocalNativeRuntime(
           throw Error('ZCODE_MODEL_SELECTION_REQUIRED');
         // 受管隔离:沙箱HOME+受管env;非秘密 model/provider 由 owner 配置写入受管 config.json。
         // Windows 宿主强制 HOME/USERPROFILE=sessionHome;配置必须写到同一个根。
-        const { home: zhome } = prepareManagedZcodeProfile(home, c.zcodeProvider);
+        const preparedZcode = prepareManagedZcodeProfile(
+          home,
+          c.zcodeProvider,
+          existingAccount
+            ? {
+                builtinProviderConfigFile: existingAccount.builtinProviderConfigFile,
+                defaultModelSelection: {
+                  providerId: ZCODE_EXISTING_ACCOUNT.providerId,
+                  modelId: ZCODE_EXISTING_ACCOUNT.modelId,
+                },
+              }
+            : undefined,
+        );
+        const zhome = preparedZcode.home;
         // apiKey 模式:owner 授权文件仅在此读取,注入 env 后不落日志/配置;缺失则依赖官方 oauth DUT 登录。
         let zcodeKey: string | undefined;
         if (c.zcodeCredentialFile) {
@@ -219,12 +255,17 @@ export async function installLocalNativeRuntime(
             zcodeKey = candidate || undefined;
           }
         }
+        const zcodeAccountHost = existingAccount
+          ? createZcodeExistingAccountHost(existingAccount)
+          : undefined;
         const token = bridge.issue(input.handleTool);
         return {
-          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1',...(zcodeKey?{ZCODE_API_KEY:zcodeKey}:{})},
+          env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR,PATH:join(home,'bin'),USERPROFILE:zhome,HOME:zhome,APPDATA:join(zhome,'AppData','Roaming'),LOCALAPPDATA:join(zhome,'AppData','Local'),AGENTROUTER_MANAGED_ROLE:'1',...preparedZcode.providerEnv,...(zcodeKey?{ZCODE_API_KEY:zcodeKey}:{})},
           revoke:()=>bridge.revoke(token),
+          dispose: async () => zcodeAccountHost?.close(),
           mcpServers:[{name:'agentrouter-role',command:process.execPath,args:[c.roleBridge],env:[{name:'AGENTROUTER_BRIDGE_ENDPOINT',value:bridge.endpoint},{name:'AGENTROUTER_BRIDGE_TOKEN',value:token}]}],
           zcodeModelSelection: c.zcodeModelSelection,
+          zcodeAccountHost,
           session,
           saveSession:async(ref,guard)=>{sessions.save({...scope,key:input.key,isCurrent:guard.isCurrent},ref);},
         };
