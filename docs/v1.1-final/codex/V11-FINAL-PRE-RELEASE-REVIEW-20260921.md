@@ -138,6 +138,7 @@ Codex 安装包冒烟未运行，原因是用户明确要求先跳过 Codex 测�
 - `pnpm spec:check`：36 passed / 0 failed
 - `pnpm contract:check`：PASS
 - `pnpm security:check`：2165 文件 / 0 findings
+- `pnpm security:history`：3292 文件 / 0 findings
 - `pnpm doctor`：PASS，1 个非阻塞 warning（全局 pnpm bin 未进 PATH）
 - `pnpm db:verify`：Node 24.14.0、SQLite 3.53.4、WAL、FK on、integrity ok
 - 完整 Vitest：113 files passed / 1 skipped；638 tests passed / 2 skipped
@@ -186,6 +187,8 @@ Codex 安装包冒烟未运行，原因是用户明确要求先跳过 Codex 测�
 - 旧 `8219519` / `b9eaf97` package 目录与 ZIP
 
 保留当前 `823d8d2` package、ZIP、解包复测目录、当前 Gate 证据与失败分母。没有触碰 `.local-protected`、用户生产 HOME、现有项目、会话或凭据。
+
+逐项机器可读结果见 [LAST-ROUND-TEST-RESULTS-20260922.json](./LAST-ROUND-TEST-RESULTS-20260922.json)；独立清理回执见 [CLEANUP-RECEIPT-20260922.json](./CLEANUP-RECEIPT-20260922.json)。清理后当前 worktree 所属 Node/Core 进程计数为 0。
 
 ## 11. 最小外部动作卡
 
