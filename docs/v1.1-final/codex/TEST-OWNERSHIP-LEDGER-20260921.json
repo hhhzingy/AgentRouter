@@ -1,7 +1,7 @@
 {
   "schema": "agentrouter-test-ownership-ledger/1",
   "batch_id": "non-ui-final-closeout-20260921",
-  "source_sha": "8c50febc6d464ef0fd598bd66a8ba526c99eac1a",
+  "source_sha": "86ed3eecbeb625b9cb233de6899d1d0ccbf2f922",
   "created_at": "2026-09-21T11:35:15+08:00",
   "protected_existing_assets": [
     {
@@ -118,6 +118,76 @@
       "safe_delete_supported": true,
       "evidence": "Second bounded core-restart diagnostic failed in bootstrap before restart",
       "cleanup_status": "RETAIN_FAILURE_DENOMINATOR"
+    },
+    {
+      "kind": "router_dut_batch",
+      "router_id": "run-tpubRm",
+      "native_id_alias": "sha256:abf1d12c92b0031f434cd26a2ba8943db0df32234eca180850951e30fb920261",
+      "project_id": null,
+      "role_id": "role_1e496129-43dc-443c-a794-1ab4d748bb71",
+      "work_session_id": "rsess_role_1e496129-43dc-443c-a794-1ab4d748bb71",
+      "path_alias": ".local/j3-production-pi/run-tpubRm",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": true,
+      "evidence": "Latest clean Codex core-restart attempt failed before restart: BOOTSTRAP_NATIVE_FAILED; native session created; Core exit barrier PASS",
+      "cleanup_status": "RETAIN_FAILURE_DENOMINATOR"
+    },
+    {
+      "kind": "chatgpt_web_participant_batch",
+      "router_id": "task_8552de86-6a1e-4007-ad12-90899d1e5809",
+      "native_id_alias": "chatgpt-conversation-6ab0ca80",
+      "project_id": "project_de51bea3-a584-41c1-a438-88a749e56f2c",
+      "role_id": "role_aa631a77-adc2-4685-9b22-acc3ed7f0af6",
+      "work_session_id": null,
+      "path_alias": ".local/v11-cursor-mcp/core",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": false,
+      "evidence": "Real ChatGPT AgentRouter plugin flow: task DELIVERED, result PUBLISHED, review.md hash/bytes/nonce independently verified",
+      "cleanup_status": "RETAIN_CHATGPT_CONVERSATION_NO_SAFE_DELETE;LOCAL_ROUTER_OBJECTS_RETAIN_UNTIL_GATE_FREEZE"
+    },
+    {
+      "kind": "packaged_harness_dut",
+      "router_id": "run-ouQQ55",
+      "native_id_alias": null,
+      "project_id": null,
+      "role_id": null,
+      "work_session_id": null,
+      "path_alias": ".local/j3-production-pi/run-ouQQ55",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": true,
+      "evidence": "Package directory Pi/Bailian qwen3.8-flash Bootstrap, 42/PUBLISHED and Core exit PASS",
+      "cleanup_status": "RETAIN_UNTIL_EVIDENCE_FREEZE"
+    },
+    {
+      "kind": "packaged_harness_dut",
+      "router_id": "run-nKbCXc",
+      "native_id_alias": null,
+      "project_id": null,
+      "role_id": null,
+      "work_session_id": null,
+      "path_alias": ".local/j3-production-pi/run-nKbCXc",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": true,
+      "evidence": "Fresh ZIP extraction Pi/Bailian qwen3.8-flash Bootstrap, 42/PUBLISHED and Core exit PASS",
+      "cleanup_status": "RETAIN_UNTIL_EVIDENCE_FREEZE"
+    },
+    {
+      "kind": "release_candidate",
+      "router_id": null,
+      "native_id_alias": "sha256:5dade1bb909af374a8e1bce834c9fc0fb0c302d4173764808f18249a5c21566f",
+      "project_id": null,
+      "role_id": null,
+      "work_session_id": null,
+      "path_alias": "release/AgentRouter-j3-86ed3eecbeb6.zip",
+      "created_at": "2026-09-21",
+      "created_by_this_batch": true,
+      "safe_delete_supported": true,
+      "evidence": "sourceDirty=false package, unpacked smoke, secret scan, real packaged Pi/Bailian smoke",
+      "cleanup_status": "RETAIN_CURRENT_CANDIDATE"
     }
   ],
   "created_object_fields": [

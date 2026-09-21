@@ -1,7 +1,7 @@
 {
   "schema": "agentrouter-upstream-pins/1",
-  "agentrouter_source_sha": "8c50febc6d464ef0fd598bd66a8ba526c99eac1a",
-  "captured_at": "2026-09-21T11:35:15+08:00",
+  "agentrouter_source_sha": "86ed3eecbeb625b9cb233de6899d1d0ccbf2f922",
+  "captured_at": "2026-09-21T15:00:29+08:00",
   "entries": [
     {
       "harness": "zcode",
