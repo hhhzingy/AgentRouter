@@ -42,6 +42,12 @@ mkdirSync(dest, { recursive: true });
 // ELECTRON_DIST:worktree 安装常跳过 electron 二进制下载,允许指向既有 dist(内容等价校验由 manifest 哈希承担)。
 const electronDist = process.env.ELECTRON_DIST ?? 'node_modules/electron/dist';
 if (!existsSync(resolve(electronDist))) throw Error('ELECTRON_DIST_MISSING:' + electronDist);
+const electronVersion = readFileSync(resolve(electronDist, 'version'), 'utf8').trim();
+const betterSqlitePackage = JSON.parse(readFileSync(require.resolve('better-sqlite3/package.json'), 'utf8'));
+const Database = require('better-sqlite3');
+const versionDb = new Database(':memory:');
+const sqliteVersion = versionDb.prepare('select sqlite_version() version').get().version;
+versionDb.close();
 cpSync(resolve(electronDist), dest, { recursive: true, dereference: true });
 const app = resolve(dest, 'resources/app'),
   core = resolve(dest, 'resources/w11-core');
@@ -108,7 +114,8 @@ await build({
     js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
   },
 });
-for (const name of readdirSync('packages/storage/migrations').filter((f) => f.endsWith('.sql')).sort())
+const migrationNames = readdirSync('packages/storage/migrations').filter((f) => f.endsWith('.sql')).sort();
+for (const name of migrationNames)
   copyFileSync(resolve('packages/storage/migrations', name), resolve(core, 'migrations', name));
 // WN04b:把两个 MCP 入口打进候选包(操作员不再依赖开发树/绝对路径)。
 await build({ entryPoints: ['apps/management-mcp/main.ts'], outfile: resolve(core, 'management-mcp.mjs'), bundle: true, platform: 'node', format: 'esm', external: ['@modelcontextprotocol/sdk/*', 'better-sqlite3'] });
@@ -137,6 +144,27 @@ writeFileSync(
   '启动 electron.exe。包含新工作台、生产 LOCAL_CORE、Windows Job 监督器、pi 扩展与 RoleBridge。同一 core 支持 REMOTE_CORE opt-in:设 AGENTROUTER_REMOTE_ENABLED=1(可配 AGENTROUTER_REMOTE_HOST/PORT/ALLOWED_HOSTS)启动远程网关,手机浏览器访问其地址使用 Web 控制台;绑定信息写入数据目录 remote-gateway.json。账号与受信任 native-runtime.json 须在独立用户数据目录另行配置，本包不携带账号、密钥或用户数据。当前仅 LIMITED_ISOLATION 开发候选，三家联合与干净环境完整验收尚未完成，不是正式 V1.0 支持认证。\n',
 );
 const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
+const mcpEntrypoints = {
+  management: 'resources/w11-core/management-mcp.mjs',
+  participantStdio: 'resources/w11-core/participant-stdio.mjs',
+  participantHttp: 'resources/w11-core/participant-http.mjs',
+};
+const adapterSourceSha256 = sha256('packages/core-service/harness-drivers.ts');
+const harnessDrivers = [
+  ['codex', 'packages/adapters/codex/lifecycle.ts', 'app-server'],
+  ['kimi_code', 'packages/adapters/kimi/lifecycle.ts', 'acp'],
+  ['pi', 'packages/adapters/pi/lifecycle.ts', 'rpc'],
+  ['zcode', 'packages/adapters/zcode/lifecycle.ts', 'app-server'],
+  ['deepseek_harness', 'packages/adapters/dsh/lifecycle.ts', 'acp'],
+].map(([harness, lifecycle, protocol]) => ({
+  harness,
+  driverVersion: `source:${sourceSHA}`,
+  contractRevision: 'C1R1P1',
+  protocol,
+  adapterSourceSha256,
+  lifecycleSourceSha256: sha256(lifecycle),
+  nativeRuntime: 'EXTERNAL_NOT_BUNDLED',
+}));
 const files = [];
 function index(dir) {
   for (const item of readdirSync(dir)) {
@@ -174,6 +202,25 @@ const manifest = {
   },
   fixtureEnabled: false,
   node: process.version,
+  runtimeVersions: {
+    node: process.version,
+    electron: electronVersion,
+    betterSqlite3: betterSqlitePackage.version,
+    sqlite: sqliteVersion,
+  },
+  nativeAssets: {
+    windowsSupervisorSha256: sha256(resolve(core, 'windows-supervisor.exe')),
+    sqliteWin32X64Sha256: sha256(resolve(sqliteOut, 'prebuilds/win32-x64.node')),
+    roleBridgeSha256: sha256(resolve(core, 'role-bridge.mjs')),
+    roleToolsSha256: sha256(resolve(core, 'role-tools.mjs')),
+  },
+  harnessDrivers,
+  mcpEntrypoints,
+  migrations: {
+    count: migrationNames.length,
+    files: migrationNames,
+    freezeManifestSha256: sha256('docs/api/freeze.migrations.json'),
+  },
   files,
   artifactHash: createHash('sha256').update(JSON.stringify(files)).digest('hex'),
 };

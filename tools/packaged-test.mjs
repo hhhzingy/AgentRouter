@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -21,6 +21,24 @@ assert.equal(
 );
 assert.equal(manifest.fixtureEnabled, false);
 assert.equal(manifest.backendMode, 'LOCAL_CORE');
+assert.equal(manifest.sourceDirty, false);
+assert.equal(manifest.sourceSHA, execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim());
+assert.deepEqual(Object.keys(manifest.mcpEntrypoints).sort(), ['management', 'participantHttp', 'participantStdio']);
+for (const entry of Object.values(manifest.mcpEntrypoints)) assert.ok(existsSync(resolve(dest, entry)));
+assert.equal(manifest.migrations.count, 18);
+assert.equal(manifest.migrations.files.length, 18);
+assert.deepEqual(
+  manifest.harnessDrivers.map((x) => x.harness).sort(),
+  ['codex', 'deepseek_harness', 'kimi_code', 'pi', 'zcode'],
+);
+for (const driver of manifest.harnessDrivers) {
+  assert.equal(driver.driverVersion, 'source:' + manifest.sourceSHA);
+  assert.equal(driver.contractRevision, 'C1R1P1');
+  assert.match(driver.adapterSourceSha256, /^[a-f0-9]{64}$/);
+  assert.match(driver.lifecycleSourceSha256, /^[a-f0-9]{64}$/);
+}
+for (const value of Object.values(manifest.runtimeVersions)) assert.ok(String(value).length > 0);
+for (const value of Object.values(manifest.nativeAssets)) assert.match(value, /^[a-f0-9]{64}$/);
 mkdirSync('.local/packaged-tests', { recursive: true });
 const data = mkdtempSync(resolve('.local/packaged-tests/J3-中文 路径-'));
 writeFileSync(resolve(data, 'fixture-data.marker'), 'AGENTROUTER_ISOLATED_FIXTURE');
@@ -33,10 +51,10 @@ await build({
 });
 const { LocalCoreTransport } = await import(pathToFileURL(resolve(data, 'transport.mjs')).href);
 const transport = new LocalCoreTransport(data);
-const child = spawn(
-  resolve(dest, 'resources/app/core-node.exe'),
-  [resolve(dest, 'resources/w11-core/core.mjs')],
-  {
+const spawnCore = () => spawn(
+    resolve(dest, 'resources/app/core-node.exe'),
+    [resolve(dest, 'resources/w11-core/core.mjs')],
+    {
     cwd: data,
     windowsHide: true,
     env: {
@@ -50,8 +68,9 @@ const child = spawn(
       AGENTROUTER_PROJECT_ROOTS: JSON.stringify([data]),
     },
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-  },
-);
+    },
+  );
+let child = spawnCore();
 let failure = false,
   fixtureReply = false;
 child.on('error', () => {
@@ -63,7 +82,7 @@ child.stderr.on('data', () => {
 child.on('message', (message) => {
   if (message?.id === 'forbidden-fixture') fixtureReply = true;
 });
-const closed = new Promise((r) => child.once('close', r));
+let closed = new Promise((r) => child.once('close', r));
 
 const report = {
   at: new Date().toISOString(),
@@ -109,6 +128,49 @@ try {
     'NATIVE_REGISTRY_BLOCKED_IMPLEMENTATION',
   );
   report.checks.push('环境变量 + marker + IPC 均不能启用 Fixture 控制');
+  const snapshot = await session.request('system.snapshot', {});
+  const lease = await session.request('control.acquire', {}, {
+    operationId: 'packaged-lease', expectedRevision: snapshot.revision, scope: {},
+  });
+  const roots = await session.request('filesystem.listRoots', {});
+  const project = await session.request('project.create', {
+    name: 'PACKAGED-RESTART-READBACK', path_handle: roots.items[0].pathHandle,
+  }, {
+    operationId: 'packaged-project',
+    expectedRevision: (await session.request('system.snapshot', {})).revision,
+    scope: {}, leaseId: lease.leaseId,
+  });
+  await session.request('runtime.shutdownCore', {}, {
+    operationId: 'packaged-shutdown',
+    expectedRevision: (await session.request('system.snapshot', {})).revision,
+    scope: {}, leaseId: lease.leaseId,
+  }).catch(() => {});
+  await closed;
+  await transport.close();
+  child = spawnCore();
+  failure = false;
+  closed = new Promise((r) => child.once('close', r));
+  const restartDeadline = Date.now() + 15000;
+  let restartedEndpoint = null;
+  while (Date.now() < restartDeadline) {
+    if (existsSync(resolve(data, 'endpoint.json'))) {
+      const candidate = JSON.parse(readFileSync(resolve(data, 'endpoint.json'), 'utf8'));
+      if (candidate.pid === child.pid) { restartedEndpoint = candidate; break; }
+    }
+    if (failure || child.exitCode !== null) break;
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  assert.equal(restartedEndpoint?.pid, child.pid);
+  const restartedTransport = new LocalCoreTransport(data);
+  const restartedSession = await restartedTransport.connect({
+    clientId: 'j3-packaged-restart', clientVersion: '1.0.0-dev.0', requestedMode: 'observer', mode: 'LOCAL_CORE',
+  });
+  const projects = await restartedSession.request('project.list', {});
+  assert.ok(projects.items.some((item) => item.id === project.id && item.name === 'PACKAGED-RESTART-READBACK'));
+  const history = await restartedSession.request('conversation.read', { scope: { project_id: project.id }, limit: 100 });
+  assert.ok(Array.isArray(history.items));
+  await restartedTransport.close();
+  report.checks.push('正式 shutdown 后同一数据目录重启，Project 与 history 可读');
   report.status = 'PASS';
 } catch {
   report.error = 'PACKAGED_CHECK_FAILED';
