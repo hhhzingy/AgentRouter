@@ -187,7 +187,7 @@
       "created_by_this_batch": true,
       "safe_delete_supported": true,
       "evidence": "sourceDirty=false package, unpacked smoke, secret scan, real packaged Pi/Bailian smoke",
-      "cleanup_status": "SUPERSEDED_RETAIN_UNTIL_DOC_FREEZE"
+      "cleanup_status": "REMOVED_AFTER_DOC_FREEZE"
     },
     {
       "kind": "router_dut_batch",
