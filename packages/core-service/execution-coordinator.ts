@@ -324,14 +324,18 @@ export class ExecutionCoordinator {
                 '隔离 FixtureHarness 工具请求',
                 event.key + ':call',
               );
-              if (!['send', 'finish', 'wait'].includes(event.tool))
+              if (!['send', 'finish', 'wait', 'artifact_write', 'artifact_read'].includes(event.tool))
                 throw Error('FIXTURE_TOOL_DENIED');
               const reply =
                 event.tool === 'send'
                   ? a.core.send(dispatch.principal, event.operationId, event.payload)
                   : event.tool === 'finish'
                     ? a.core.finish(dispatch.principal, event.operationId, event.payload)
-                    : a.core.wait(dispatch.principal, event.operationId, event.payload);
+                    : event.tool === 'wait'
+                      ? a.core.wait(dispatch.principal, event.operationId, event.payload)
+                      : event.tool === 'artifact_write'
+                        ? a.core.writeArtifact(dispatch.principal, event.operationId, event.payload)
+                        : a.core.readArtifact(dispatch.principal, event.payload);
               this.conversation(
                 dispatch,
                 'TOOL_RESULT',

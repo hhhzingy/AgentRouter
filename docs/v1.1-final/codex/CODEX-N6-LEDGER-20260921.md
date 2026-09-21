@@ -46,6 +46,7 @@
 | DSH | `dd601dd` dirty | `run-IPezFH` | PASS：A→B→C/cancel 子集；不算 clean。 |
 | DSH | `dd601dd` clean | `run-cEtBGc` | PASS：同一子集。 |
 | Codex | `dd601dd` clean | `run-2gNzSN` | FAIL：Bootstrap `NATIVE_RPC_NATIVE_REJECTED`，未进入子集；不推断是额度或代码根因，未使用 reset credit。 |
+| Codex | `15634d5` clean | `run-H4RQKc`、`run-BMklBf` | 两次有界复现均 FAIL：原生 thread id 已建立，但 Bootstrap `FAILED / BOOTSTRAP_EXECUTION_FAILED`，未进入 Run；Codex 普通额度当时可用，未使用 reset credit。无诊断码足以区分 ACK、协议或 Provider 根因，停止刷测。 |
 
 ### 持续会话 marker / 正式 TaskInput 子项
 
@@ -108,7 +109,7 @@
 | Pi | PASS（`b45390d` clean） | PASS_BY_SUBITEMS（A→B→C/cancel、marker、TaskInput、client reconnect、strong cold continuation 均有 clean PASS；早期失败分母保留） | 还需按稳定性章节执行三轮完整组合批次，才能扩大为整体验收。 |
 | Kimi Code | PASS（`b45390d` clean） | PASS_BY_SUBITEMS_WITH_FAILURE_DENOMINATOR（上述 Level B 子项均有 clean PASS；ACK 修复前多次无 Result） | 三轮完整组合批次与稳定性分母；不得抹去修复前失败。 |
 | DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PASS_BY_SUBITEMS（上述 Level B 子项均有 clean PASS） | 首次 Bootstrap 瞬断根因与三轮完整组合批次。 |
-| Codex | PASS_WITH_FAILURE_DENOMINATOR（`28bf80a` clean，1 FAIL/1 PASS） | BLOCKED_BY_BOOTSTRAP_ON_LATEST（`dd601dd` clean） | Level B 全项；不使用 reset credit。 |
+| Codex | PASS_WITH_FAILURE_DENOMINATOR（`28bf80a` clean，1 FAIL/1 PASS） | BLOCKED_BOOTSTRAP_ON_LATEST（`15634d5` clean，两次同类失败） | 当前 Bootstrap 根因诊断不足，Level B 未进入；不使用 reset credit，不继续刷测。 |
 | ZCode | BLOCKED_PROVIDER_BINDING（`28bf80a` clean） | BLOCKED / `native_resume=UNSUPPORTED` | 官方 Bigmodel registry 授权；无官方绑定前不能宣称 Level A、warm 或百炼 fallback。 |
 
 ## 代码修复与自动门禁

@@ -132,20 +132,111 @@ async function round(n) {
     const dupTasks = Number(dbq("select count(*) c from tasks where summary='idem'")[0].c);
     if (dupTasks !== 1) throw Error('LOAD_IDEMPOTENT_REPLAY_CREATED_DUPLICATE');
     report.checks.push('completed=' + succeeded + ' published=' + published + ' idem_single_task=1');
+    // Artifact I/O: fixture 仍走 Core 的正式 Artifact 原子写入与管理面下载接口。
+    const artifactBody = '# stability round ' + n + '\n';
+    child.send({
+      id: 'cfg-artifact-' + n,
+      action: 'configureFixture',
+      roleId: roleIds[0],
+      scenario: {
+        steps: [
+          { tool: 'artifact_write', payload: { workspace_id: ws.items[0].id, name: 'stability-' + n + '.md', content: artifactBody, media_type: 'text/markdown' } },
+          { tool: 'finish', payload: { outcome: 'succeeded', summary: 'artifact-ok', body: 'artifact-ok', outputs: [] } },
+        ],
+      },
+    });
+    await delay(200);
+    await task(roleIds[0], 'artifact-' + n);
+    const artifact = await until(
+      () => Promise.resolve(dbq("select id,sha256,byte_size,state from artifacts where json_extract(source_json,'$.name')=?", 'stability-' + n + '.md')),
+      (x) => x[0]?.state === 'AVAILABLE',
+      20000,
+      'ARTIFACT_AVAILABLE',
+    ).then((x) => x[0]);
+    const downloaded = await s.request('artifact.download', { id: artifact.id, limit_bytes: 65536 });
+    if (Buffer.from(downloaded.content, 'base64').toString() !== artifactBody || downloaded.hasMore)
+      throw Error('LOAD_ARTIFACT_DOWNLOAD_MISMATCH');
+    report.checks.push('artifact_write_download bytes=' + artifact.byte_size);
+
+    // 正式 WAITING_INPUT→TaskInput→CONTINUATION；输入通过产品 P1 API，不直接写 DB。
+    child.send({
+      id: 'cfg-wait-' + n,
+      action: 'configureFixture',
+      roleId: roleIds[0],
+      scenario: {
+        steps: [{ tool: 'wait', payload: { waiting_for: 'user_input', reason: 'stability input' } }],
+        continuationSteps: [{ tool: 'finish', payload: { outcome: 'succeeded', summary: 'input-ok', body: 'input-ok', outputs: [] } }],
+      },
+    });
+    await delay(200);
+    const waitingTask = await task(roleIds[0], 'waiting-input-' + n);
+    await until(
+      () => Promise.resolve(dbq('select state from tasks where id=?', waitingTask.id)),
+      (x) => x[0]?.state === 'WAITING_INPUT',
+      20000,
+      'WAITING_INPUT',
+    );
+    await write('conversation.sendUserInput', { role_id: roleIds[0], task_id: waitingTask.id, body: 'round-input-' + n }, { project_id: project.id, space_id: role(roleIds[0]).spaceId });
+    await until(
+      () => Promise.resolve(dbq('select state from tasks where id=?', waitingTask.id)),
+      (x) => x[0]?.state === 'DELIVERED',
+      20000,
+      'INPUT_DELIVERED',
+    );
+    const waitRuns = dbq('select kind,state from runs where task_id=? order by created_at_ms', waitingTask.id);
+    const taskInput = dbq('select consumed_by_run_id from task_inputs where task_id=?', waitingTask.id)[0];
+    if (waitRuns.length !== 2 || waitRuns[1].kind !== 'CONTINUATION' || waitRuns[1].state !== 'SUCCEEDED' || taskInput?.consumed_by_run_id == null)
+      throw Error('LOAD_TASK_INPUT_CONTINUATION_INVALID');
+    report.checks.push('waiting_input_continuation runs=2');
+
+    // 新建 blank WorkSession：旧 ACTIVE 必须归档，新会话成为唯一 ACTIVE。
+    const sessionsBefore = await s.request('roleSession.list', { role_id: roleIds[0] });
+    const preflight = await s.request('roleSession.preflight', { role_id: roleIds[0] });
+    const sessionRevision = (await s.request('system.snapshot', {})).revision;
+    const createdSession = await s.request('roleSession.create', { role_id: roleIds[0], name: 'stability-' + n, context_mode: 'blank' }, {
+      leaseId: lease.leaseId,
+      requestKey: 'load-session-' + n,
+      operationId: 'load-session-op-' + n,
+      expectedRevision: sessionRevision,
+      preflightHash: preflight.preflight_hash,
+    });
+    const sessionsAfter = await s.request('roleSession.list', { role_id: roleIds[0] });
+    if (!createdSession.session?.id || sessionsAfter.active_session_id !== createdSession.session.id || sessionsAfter.sessions.filter((x) => x.state === 'ACTIVE').length !== 1 || !sessionsAfter.sessions.some((x) => x.id === sessionsBefore.active_session_id && x.state === 'ARCHIVED'))
+      throw Error('LOAD_NEW_WORK_SESSION_INVALID');
+    report.checks.push('new_ws_old_archived');
+
+    // 第二 controller 在首连接租约有效时必须被拒绝，不得静默抢占。
+    const contenderTransport = new LocalCoreTransport(dir);
+    try {
+      const contender = await contenderTransport.connect({ clientId: 'load_contender_' + n, clientVersion: '1.0.0-dev.0', requestedMode: 'controller', mode: 'LOCAL_CORE' });
+      const contenderSnapshot = await contender.request('system.snapshot', {});
+      let rejected = false;
+      try {
+        await contender.request('control.acquire', {}, { operationId: 'contender_' + n, expectedRevision: contenderSnapshot.revision, scope: {} });
+      } catch (error) {
+        rejected = error.message === 'CONTROL_LEASE_BUSY';
+      }
+      if (!rejected) throw Error('LOAD_CONTROLLER_CONTENTION_NOT_REJECTED');
+    } finally {
+      await contenderTransport.close();
+    }
+    report.checks.push('controller_contention_rejected');
+
     // 取消:慢场景角色 + 运行中取消
-    child.send({ id: 'cfg1', action: 'configureFixture', roleId: roleIds[0], scenario: { delayMs: 5000, steps: [] } });
+    // roleIds[0] 已执行固定的五次自动启动；取消负载放到另一角色，避免把产品速率限制误报为取消失败。
+    child.send({ id: 'cfg1', action: 'configureFixture', roleId: roleIds[1], scenario: { delayMs: 5000, steps: [] } });
     await new Promise((r) => setTimeout(r, 200));
-    await task(roleIds[0], 'cancelme');
+    await task(roleIds[1], 'cancelme');
     const runId = await until(
       () => Promise.resolve(dbq("select id,state from runs where task_id=(select id from tasks where summary='cancelme') order by created_at_ms desc limit 1")),
       (x) => x[0] && x[0].state === 'RUNNING',
       15000,
       'RUN_RUNNING',
     ).then((x) => x[0].id);
-    await write('run.cancel', { id: runId }, { project_id: project.id, space_id: spaceOf(role(roleIds[0])).id });
+    await write('run.cancel', { id: runId }, { project_id: project.id, space_id: spaceOf(role(roleIds[1])).id });
     await until(() => Promise.resolve(dbq('select state from runs where id=?', runId)), (x) => x[0]?.state === 'CANCELLED', 15000, 'RUN_CANCELLED');
     report.checks.push('cancel_native_settled'); console.log('R'+n,'phase cancelled');
-    child.send({ id: 'cfg2', action: 'configureFixture', roleId: roleIds[0], scenario: {} });
+    child.send({ id: 'cfg2', action: 'configureFixture', roleId: roleIds[1], scenario: {} });
     // 断线重连:旧连接关闭→新连接同身份;不得复活/复制历史 mutation(任务总数稳定)
     console.log('R'+n,'phase reconnect');
     const tasksBefore = Number(dbq('select count(*) c from tasks')[0].c);
