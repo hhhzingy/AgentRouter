@@ -429,6 +429,89 @@ try {
     report.waitInput = { workSessionId: waitingRun.task.role_session_id, runCount: 2, sameNativeRef: true, formalInputConsumedOnce: true, valueMatched: true };
     report.checks.push('真实route_wait→正式TaskInput→同WS/同native ref CONTINUATION Run消费→Result PUBLISHED');
   }
+  if (process.argv.includes('--client-reconnect')) {
+    const db = new Database(path('core/router.db'), { readonly: true });
+    const before = db.prepare('select id,state,native_session_ref from role_sessions where role_id=? and state=?').get(target.id, 'ACTIVE');
+    db.close();
+    if (!before?.native_session_ref) throw Error('RECONNECT_ACTIVE_NATIVE_REF_MISSING');
+    await call('router_control_release', {
+      request_key: 'reconnect-release-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+    const firstTransport = new LocalCoreTransport(path('core'));
+    try {
+      const firstClient = await firstTransport.connect({
+        clientId: 'j3_reconnect', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const firstSnapshot = await firstClient.request('system.snapshot', {});
+      await firstClient.request('control.acquire', {}, {
+        operationId: 'reconnect-acquire-before', expectedRevision: firstSnapshot.revision, scope: {},
+      });
+    } finally {
+      // Deliberately drop the live controller connection without control.release.
+      await firstTransport.close();
+    }
+    const secondTransport = new LocalCoreTransport(path('core'));
+    let created;
+    try {
+      const secondClient = await secondTransport.connect({
+        clientId: 'j3_reconnect', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      let secondLease;
+      for (let i = 0; i < 50; i++) {
+        try {
+          const secondSnapshot = await secondClient.request('system.snapshot', {});
+          secondLease = await secondClient.request('control.acquire', {}, {
+            operationId: 'reconnect-acquire-after-' + i,
+            expectedRevision: secondSnapshot.revision, scope: {},
+          });
+          break;
+        } catch (error) {
+          if (error.message !== 'CONTROL_LEASE_BUSY') throw error;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
+      if (!secondLease) throw Error('RECONNECT_LEASE_NOT_RELEASED');
+      const revision = (await secondClient.request('system.snapshot', {})).revision;
+      created = await secondClient.request('task.submitFromUser', {
+        request: {
+          ...request,
+          summary: '重连后正式任务',
+          body: 'Calculate 20+22. Call route_context then route_finish with outcome succeeded, summary 42, body 42, outputs []. Do not use any other tools. After tool success, stop.',
+        },
+      }, {
+        operationId: 'reconnect-task', expectedRevision: revision, scope, leaseId: secondLease.leaseId,
+      });
+      await secondClient.request('control.release', { lease_id: secondLease.leaseId }, {
+        operationId: 'reconnect-release-after',
+        expectedRevision: (await secondClient.request('system.snapshot', {})).revision,
+        scope: {},
+      });
+    } finally {
+      await secondTransport.close();
+    }
+    let after;
+    for (let i = 0; i < 150; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const taskRow = db.prepare('select state,role_session_id from tasks where id=?').get(created?.id);
+      const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(created?.id);
+      const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(created?.id);
+      const session = db.prepare('select state,native_session_ref from role_sessions where id=?').get(before.id);
+      db.close();
+      if (taskRow?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(taskRow?.state)) {
+        after = { task: taskRow, run, result, session };
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!after || after.task.state !== 'DELIVERED' || after.run?.state !== 'SUCCEEDED' || after.result?.outcome !== 'succeeded' || after.result.publication_state !== 'PUBLISHED' || after.result.summary !== '42' || after.task.role_session_id !== before.id || after.run.role_session_id !== before.id || after.session?.state !== 'ACTIVE' || after.session.native_session_ref !== before.native_session_ref)
+      throw Error('RECONNECT_CONTINUATION_NOT_VERIFIED');
+    report.clientReconnect = { workSessionId: before.id, sameNativeRef: true, resultPublished: true };
+    report.checks.push('真实controller持租约断连→同clientId重连重新取租约→同WS/native ref任务PUBLISHED');
+  }
   if (process.argv.includes('--artifact')) {
     const artifactMarker = 'AR-' + randomUUID().slice(0, 8);
     const waitTask = async (taskId) => {

@@ -68,13 +68,24 @@
 | marker | DSH | `e731880` clean | `run-uibEsw` | PASS，两轮随机 marker、同 ACTIVE WS/native ref、Core stop。 |
 | TaskInput | DSH | `e731880` clean | `run-5Qgn3e` | PASS，正式 TaskInput、同 WS/native ref、CONTINUATION Run、Result PUBLISHED、Core stop。 |
 
+### 客户端控制端断连重连子项
+
+`--client-reconnect` 先经 Management MCP 释放控制租约，再用本地 P1 controller 取得租约并主动断开连接（不调用 release），以同 `clientId` 新连接重新取租约，正式 `task.submitFromUser` 派发下一轮，核对原 ACTIVE WorkSession、native ref、Task/Run/Result PUBLISHED 与 Core stop。Core 进程在此子项中未重启，故不能写成 cold resume。当前脚本改动未提交，均为 dirty evidence；首次 Pi 立即抢租约遇瞬时 `CONTROL_LEASE_BUSY`，后改为最多 5 秒的有界重取。失败分母保留。
+
+| Harness | source | DUT 别名 | 结果 |
+|---|---|---|---|
+| Pi | `262364f` dirty | `run-wKFsTz` | FAIL：第二连接立即 `control.acquire` 时 `CONTROL_LEASE_BUSY`；原基础 42 已 PUBLISHED。 |
+| Pi | `262364f` dirty | `run-IbvrNP` | PASS：有界重取租约后，同 WS/native ref 下一轮 PUBLISHED；分母 1 FAIL / 1 PASS。 |
+| Kimi Code | `262364f` dirty | `run-j6S1Kx` | PASS：同 `clientId` 重连、重新取租约、同 WS/native ref 下一轮 PUBLISHED。 |
+| DSH | `262364f` dirty | `run-wTXRg2` | PASS：同上。 |
+
 ## 当前分层判定
 
 | Harness | Level A | Level B | 尚缺 |
 |---|---|---|---|
-| Pi | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 均有 clean 子项 PASS） | Core/client reconnect、cold resume 完整证据。 |
-| Kimi Code | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 均有 clean 子项 PASS；dirty 初始 42 失败分母保留） | 波动根因、reconnect/cold resume。 |
-| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PARTIAL（A→B→C/cancel、marker、TaskInput 均有 clean 子项 PASS） | 首次 Bootstrap 瞬断根因、reconnect/cold resume。 |
+| Pi | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 有 clean PASS；client reconnect dirty PASS_WITH_FAILURE_DENOMINATOR） | client reconnect clean、Core restart/cold resume。 |
+| Kimi Code | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 有 clean PASS；client reconnect dirty PASS） | 波动根因、client reconnect clean、Core restart/cold resume。 |
+| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PARTIAL（A→B→C/cancel、marker、TaskInput 有 clean PASS；client reconnect dirty PASS） | 首次 Bootstrap 瞬断根因、client reconnect clean、Core restart/cold resume。 |
 | Codex | PASS_WITH_FAILURE_DENOMINATOR（`28bf80a` clean，1 FAIL/1 PASS） | BLOCKED_BY_BOOTSTRAP_ON_LATEST（`dd601dd` clean） | Level B 全项；不使用 reset credit。 |
 | ZCode | BLOCKED_PROVIDER_BINDING（`28bf80a` clean） | BLOCKED / `native_resume=UNSUPPORTED` | 官方 Bigmodel registry 授权；无官方绑定前不能宣称 Level A、warm 或百炼 fallback。 |
 
@@ -87,7 +98,7 @@
 
 ## 下一步与禁止扩大声明
 
-- 下一步补 Core/client reconnect、cold resume；再按同一候选推进 Codex 与 ZCode 可用边界。记录每次真实失败，不靠反复刷绿。
+- 下一步在 clean SHA 复测 client reconnect，再补 Core restart/cold resume；之后按同一候选推进 Codex 与 ZCode 可用边界。记录每次真实失败，不靠反复刷绿。
 - ZCode 需要官方 provider/entitlement 状态变化；不得复制生产认证、伪造 registry 或把客户端误改为普通 CLI Role。
 - DUT 关键场景完整通过后才按执行包进入对应 Harness 的真实环境新对象测试；本账本不声明任何真实生产环境 PASS。
 - 网页 ChatGPT Participant、Tailscale HTTPS/WSS 手机、Context Transfer 真 receipt、migration/fault/stability、Electron 包、CI 与 UI 合流仍待后续；禁止 Windows RC 声明，未 merge/tag/release。
