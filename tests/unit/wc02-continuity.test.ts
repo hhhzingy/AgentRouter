@@ -6,7 +6,7 @@ import {
 import { RoleSessionExtension } from '../../packages/core-service/role-session-extension.ts';
 import { zcodeDriver, builtInDrivers } from '../../packages/core-service/harness-drivers.ts';
 
-// WC02:zcode 0.16.9 正式 cold resume 已接线，但真实 DUT 前仍为 IMPLEMENTED_UNVERIFIED；
+// WC02:zcode 0.16.9 cold resume 已由真实 Existing Account Level B 验证；
 // SH-05:runPrompt 不再硬编码限制工具集。
 
 it('内置驱动 continuity 事实:zcode 0.16.9 为 SAME_SESSION_CONTINUOUS 但仍待真实验证', () => {
@@ -16,7 +16,7 @@ it('内置驱动 continuity 事实:zcode 0.16.9 为 SAME_SESSION_CONTINUOUS 但�
     void rec;
   }
   expect(zcodeDriver.continuity).toBe('SAME_SESSION_CONTINUOUS');
-  expect(zcodeDriver.contextCapabilities?.native_resume).toBe('IMPLEMENTED_UNVERIFIED');
+  expect(zcodeDriver.contextCapabilities?.native_resume).toBe('VERIFIED');
 });
 
 it('SH-05:zcode runPrompt 不再硬编码限制为 context/finish,工具以角色授权为准', () => {

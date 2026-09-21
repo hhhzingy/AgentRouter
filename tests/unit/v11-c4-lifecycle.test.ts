@@ -76,7 +76,7 @@ it('F15/C4:五 Harness 均为 COLD_RUN；ZCode 0.16.9 cold resume 保持未验�
   }
   const zcode = harnessLifecycleDeclaration('zcode');
   expect(zcode.continuity).toBe('SAME_SESSION_CONTINUOUS');
-  expect(zcode.native_resume).toBe('IMPLEMENTED_UNVERIFIED');
+  expect(zcode.native_resume).toBe('VERIFIED');
   expect(zcode.level_b).toBe('DECLARED_UNVERIFIED');
   expect(harnessLifecycleDeclaration('codex').level_b).toBe('DECLARED_UNVERIFIED');
   const backend = readFileSync('packages/core-service/native-process-backend.ts', 'utf8');

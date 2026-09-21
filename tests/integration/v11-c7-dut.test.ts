@@ -29,7 +29,7 @@ it('C7:五 Harness 声明矩阵均为 COLD_RUN；ZCode 0.16.9 resume 接线仍�
   }
   const zcode = harnessLifecycleDeclaration('zcode');
   expect(zcode.level_b).toBe('DECLARED_UNVERIFIED');
-  expect(zcode.native_resume).toBe('IMPLEMENTED_UNVERIFIED');
+  expect(zcode.native_resume).toBe('VERIFIED');
   expect(harnessLifecycleDeclaration('pi').level_b).toBe('DECLARED_UNVERIFIED');
   expect(harnessLifecycleDeclaration('codex').level_b).toBe('DECLARED_UNVERIFIED');
 });

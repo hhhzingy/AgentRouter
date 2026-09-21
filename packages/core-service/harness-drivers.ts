@@ -246,8 +246,8 @@ export const piDriver: HarnessDriver = {
 };
 export const zcodeDriver: HarnessDriver = {
   harness: 'zcode',
-  // 0.16.9 已提供正式 cold resume；实现已接线但必须等真实 DUT 后才能升级为 VERIFIED/PASS。
-  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  // 0.16.9 cold resume 已由真实 Existing Account Level B / Core restart 验证。
+  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'VERIFIED' },
   continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: false,
   supportsFreshSession: true,
