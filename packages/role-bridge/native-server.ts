@@ -110,9 +110,17 @@ export async function createNativeRoleBridge() {
           return;
         }
         reply(res, 200, { result: result ?? null });
-      } catch {
+      } catch (error) {
         // A handler may have committed before throwing; the transport never retries.
-        reply(res, 500, { error: 'BRIDGE_HANDLER_FAILED', unknownOutcome: true });
+        const candidate =
+          typeof (error as { code?: unknown })?.code === 'string'
+            ? (error as { code: string }).code
+            : (error as { message?: unknown })?.message;
+        const code =
+          typeof candidate === 'string' && /^[A-Z][A-Z0-9_]{1,95}$/.test(candidate)
+            ? candidate
+            : 'BRIDGE_HANDLER_FAILED';
+        reply(res, 500, { error: code, unknownOutcome: true });
       }
     } catch {
       reply(res, 400, { error: 'INPUT_STREAM_FAILED' });

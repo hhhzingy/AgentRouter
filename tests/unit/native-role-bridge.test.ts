@@ -92,6 +92,32 @@ test('处理器失败不泄漏秘密、不重试，保留未知副作用标记',
     await bridge.close();
   }
 });
+test('处理器只透传安全稳定错误码，拒绝正文和路径', async () => {
+  const bridge = await createNativeRoleBridge();
+  const safe = bridge.issue(async () => {
+    throw Error('INACTIVE_RUN');
+  });
+  const unsafe = bridge.issue(async () => {
+    throw Error('failed at C:/Users/private/auth.json');
+  });
+  const call = async (token: string) => {
+    const response = await fetch(bridge.endpoint, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: 'route_context', operation_id: 'stable-key', input: {} }),
+    });
+    return response.json();
+  };
+  try {
+    expect(await call(safe)).toEqual({ error: 'INACTIVE_RUN', unknownOutcome: true });
+    expect(await call(unsafe)).toEqual({
+      error: 'BRIDGE_HANDLER_FAILED',
+      unknownOutcome: true,
+    });
+  } finally {
+    await bridge.close();
+  }
+});
 
 test.each(['2024-11-05','2025-03-26','2025-06-18','2025-11-25'])('STDIO negotiates supported MCP %s without credentials and exposes only Route', (version) => {
   const messages = [{jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:version,capabilities:{},clientInfo:{name:'test',version:'1'}}},{jsonrpc:'2.0',id:2,method:'tools/list'}];
