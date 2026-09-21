@@ -1,5 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, renameSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  renameSync,
+  writeFileSync,
+  existsSync,
+  readFileSync,
+  unlinkSync,
+} from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import {
   validateExternalApiFrame,
@@ -555,8 +562,18 @@ export class ParticipantExtension {
         )?.canonical_path
       : undefined;
     if (!workspace) throw Error('WORKSPACE_SCOPE');
-    const result = this.db
-      .transaction(() => {
+    const createdPaths: string[] = [];
+    let result: {
+      artifact_id: string;
+      sha256: string;
+      byte_size: number;
+      media_type: string;
+      name: string;
+      replayed?: boolean;
+    };
+    try {
+      result = this.db
+        .transaction(() => {
         const dir = resolve(workspace, 'agentrouter-artifacts');
         mkdirSync(dir, { recursive: true });
         const prior = this.db
@@ -588,16 +605,20 @@ export class ParticipantExtension {
         const finalPath = join(dir, name);
         if (existsSync(finalPath)) throw Error('PARTICIPANT_NAME_TAKEN');
         const tempPath = join(dir, '.' + randomUUID() + '.tmp');
+        createdPaths.push(tempPath);
         writeFileSync(tempPath, bytes);
         renameSync(tempPath, finalPath);
+        createdPaths.push(finalPath);
         const sha = createHash('sha256').update(bytes).digest('hex');
         const objectRoot = resolve(dirname(this.db.name), 'artifacts');
         mkdirSync(objectRoot, { recursive: true });
         const blobPath = join(objectRoot, sha);
         if (!existsSync(blobPath)) {
           const blobTemp = join(objectRoot, '.' + randomUUID() + '.tmp');
+          createdPaths.push(blobTemp);
           writeFileSync(blobTemp, bytes);
           renameSync(blobTemp, blobPath);
+          createdPaths.push(blobPath);
         }
         const id = 'artifact_' + randomUUID();
         this.db
@@ -632,8 +653,22 @@ export class ParticipantExtension {
           media_type: mediaType,
           name,
         };
-      })
-      .immediate();
+        })
+        .immediate();
+    } catch (cause) {
+      const cleanupFailures: unknown[] = [];
+      for (const path of createdPaths.reverse()) {
+        if (!existsSync(path)) continue;
+        try {
+          unlinkSync(path);
+        } catch (error) {
+          cleanupFailures.push(error);
+        }
+      }
+      if (cleanupFailures.length)
+        throw new Error('PARTICIPANT_ARTIFACT_ROLLBACK_INCOMPLETE', { cause });
+      throw cause;
+    }
     return extensionReply(frameId, result);
   }
 }

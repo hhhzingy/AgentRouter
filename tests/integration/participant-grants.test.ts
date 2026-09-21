@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
-import { mkdirSync, mkdtempSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { openApplicationStore } from '../../packages/storage/application-store.ts';
 import { ApplicationService } from '../../packages/core-service/application.ts';
@@ -174,6 +174,74 @@ it('PART-01/02/03:签发grant→attach→真实WAITING_INPUT任务 sendUserInput
     // 无 grant attach 被拒(PART-06)
     await expect(part.attach('', '')).rejects.toMatchObject({ message: 'PARTICIPANT_GRANT_REVOKED' });
   } finally { await f.close(); }
+});
+
+it('PART-11: Artifact 文件落盘后 DB 写失败时回滚 workspace 文件/新 blob，但保留共享 blob', async () => {
+  const f = await fixture();
+  const trigger = 'force_artifact_insert_failure';
+  try {
+    const g = await f.issueGrant();
+    const part = await f.makeParticipant('client_artifact_rollback');
+    await part.attach(g.grant_id, g.token);
+    const name = 'rollback-proof.md';
+    const content = '# forced database failure\nunique rollback payload';
+    const sha = createHash('sha256').update(Buffer.from(content, 'utf8')).digest('hex');
+    const workspace = (
+      f.db
+        .prepare(
+          'select w.canonical_path from bindings b join workspaces w on w.id=b.workspace_id where b.role_id=? and b.is_current=1',
+        )
+        .get(f.roleId) as { canonical_path: string }
+    ).canonical_path;
+    const workspacePath = join(workspace, 'agentrouter-artifacts', name);
+    const blobPath = join(dirname(f.db.name), 'artifacts', sha);
+    expect(existsSync(workspacePath)).toBe(false);
+    expect(existsSync(blobPath)).toBe(false);
+    f.db.exec(
+      "create trigger " +
+        trigger +
+        " before insert on artifacts begin select raise(abort,'forced artifact insert failure'); end",
+    );
+    await expect(part.artifact(name, content)).rejects.toThrow('SQLITE_CONSTRAINT_TRIGGER');
+    expect(existsSync(workspacePath)).toBe(false);
+    expect(existsSync(blobPath)).toBe(false);
+    expect(
+      (f.db.prepare('select count(*) count from artifacts where sha256=?').get(sha) as { count: number })
+        .count,
+    ).toBe(0);
+
+    f.db.exec('drop trigger if exists ' + trigger);
+    const sharedContent = '# shared content-addressed blob';
+    const sharedSha = createHash('sha256')
+      .update(Buffer.from(sharedContent, 'utf8'))
+      .digest('hex');
+    await expect(part.artifact('shared-seed.md', sharedContent)).resolves.toMatchObject({
+      name: 'shared-seed.md',
+    });
+    const sharedBlobPath = join(dirname(f.db.name), 'artifacts', sharedSha);
+    expect(existsSync(sharedBlobPath)).toBe(true);
+    f.db.exec(
+      "create trigger " +
+        trigger +
+        " before insert on artifacts begin select raise(abort,'forced artifact insert failure'); end",
+    );
+    await expect(part.artifact('shared-rollback.md', sharedContent)).rejects.toThrow(
+      'SQLITE_CONSTRAINT_TRIGGER',
+    );
+    expect(existsSync(join(workspace, 'agentrouter-artifacts', 'shared-rollback.md'))).toBe(false);
+    expect(existsSync(sharedBlobPath)).toBe(true);
+    expect(
+      (
+        f.db.prepare('select count(*) count from artifacts where sha256=?').get(sharedSha) as {
+          count: number;
+        }
+      ).count,
+    ).toBe(1);
+    await part.t.close();
+  } finally {
+    f.db.exec('drop trigger if exists ' + trigger);
+    await f.close();
+  }
 });
 
 it('PART-04/05/08:同角色新签发撤销旧grant;旧聊天写/重挂接被拒,不能自行重签发', async () => {
