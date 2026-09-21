@@ -44,6 +44,18 @@
 
 增强工具 dirty 门禁：typecheck/lint PASS，unit 217/217，integration 226/226，contract 67/67，chaos 3/3。Fixture 扩展只在 `fixtureMode` 的既有隔离分支生效；生产 native 工具仍走受信 bridge 与有效权限校验。
 
+## Clean 固定候选复测
+
+增强工具提交并推送为 `f69c720b294359ae9c6d2985f25ac9af1c3fedd1` 后，在 clean 工作树重建 Core 并重跑相同三轮：
+
+| Round | source | 结果 | checks | RSS 末值 | DB / stop |
+|---|---|---|---:|---:|---|
+| 1 | `f69c720` clean | PASS | 11/11 | 191452 KiB | 67 tables；integrity ok；active work 0；退出屏障 PASS |
+| 2 | `f69c720` clean | PASS | 11/11 | 189188 KiB | 同上 |
+| 3 | `f69c720` clean | PASS | 11/11 | 190160 KiB | 同上 |
+
+固定稳定性负载子项判定：`FIXTURE_ENHANCED_FIXED_LOAD_3_OF_3_PASS_CLEAN_WITH_FAILURE_DENOMINATOR`。三轮都包含 multi-role、Artifact I/O、WAITING_INPUT/TaskInput continuation、cancel、client reconnect、new WS、idempotent retry、controller contention，以及 DB/resource/stop 观测。此判定只关闭 `docs/10 Stability` 的固定 fixture 负载子项；Migration 逐项证据映射、完整 fault injection 清单、100/1k/10k performance sanity、最终 Windows package 仍未完成，所以 N8 与 Windows RC 均保持未关闭。
+
 ## Migration / Fault / Performance 当前证据边界
 
 - 当前全套 integration `226/226`、contract `67/67`、chaos `3/3` 已通过，覆盖仓库中的 migration、backup、fault 单测/集成场景；尚未逐条把执行包列出的每个 fault injection 映射到当前 SHA 的独立证据，因此不能宣称 N8 全闭环。
