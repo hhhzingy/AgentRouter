@@ -83,7 +83,17 @@ it('C10:100/1k/10k conversation 项、20MiB 分块读取、二次连接 snapshot
     const now = Date.now();
     const sizes = [100, 1000, 10000];
     let seq = 0;
-    const counts: Record<number, { ms: number; n: number }> = {};
+    const conversationBaseline = (db.prepare('select count(*) n from conversation_items where project_id=? and space_id=?').get(project.id, spaceId) as { n: number }).n;
+    const counts: Record<number, {
+      insertAndSnapshotMs: number;
+      n: number;
+      paginationMs: number;
+      pageRequests: number;
+      maxPageBytes: number;
+      snapshotBytes: number;
+      eventCatchupMs: number;
+      eventFrameBytes: number;
+    }> = {};
     for (const n of sizes) {
       const start = Date.now();
       const tx = db.transaction(() => {
@@ -107,12 +117,55 @@ it('C10:100/1k/10k conversation 项、20MiB 分块读取、二次连接 snapshot
       const snap = await s.request('system.snapshot', {});
       latencies.push(Date.now() - tSnap);
       expect(snap.projects[0].id).toBe(project.id);
+      const snapshotBytes = Buffer.byteLength(JSON.stringify(snap));
+      expect(snapshotBytes).toBeLessThan(1024 * 1024);
       const counted = db.prepare('select count(*) n from conversation_items where project_id=?').get(project.id) as {
         n: number;
       };
       expect(counted.n).toBeGreaterThanOrEqual(n);
       expect(seq).toBe(n);
-      counts[n] = { ms: Date.now() - start, n };
+      const pageStart = Date.now();
+      let afterId: string | undefined;
+      let pageRequests = 0;
+      let maxPageBytes = 0;
+      const seen = new Set<string>();
+      do {
+        const page = await s.request('conversation.read', {
+          scope: { project_id: project.id, space_id: spaceId },
+          limit: 100,
+          ...(afterId ? { after_id: afterId } : {}),
+        });
+        pageRequests++;
+        maxPageBytes = Math.max(maxPageBytes, Buffer.byteLength(JSON.stringify(page)));
+        for (const item of page.items) {
+          expect(seen.has(item.id)).toBe(false);
+          seen.add(item.id);
+        }
+        afterId = page.has_more ? (page.next_id ?? undefined) : undefined;
+      } while (afterId);
+      expect([...seen].filter((id) => id.startsWith('c10_')).length).toBe(n);
+      expect(seen.size).toBe(conversationBaseline + n);
+      expect(maxPageBytes).toBeLessThan(1024 * 1024);
+      const eventStart = Date.now();
+      const eventPage = await s.request('events.catchup', {
+        after_cursor: 0,
+        limit: 100,
+        server_instance_id: s.hello.serverInstanceId,
+      });
+      const eventCatchupMs = Date.now() - eventStart;
+      const eventFrameBytes = Buffer.byteLength(JSON.stringify(eventPage));
+      expect(eventCatchupMs).toBeLessThan(5_000);
+      expect(eventFrameBytes).toBeLessThan(1024 * 1024);
+      counts[n] = {
+        insertAndSnapshotMs: Date.now() - start,
+        n,
+        paginationMs: Date.now() - pageStart,
+        pageRequests,
+        maxPageBytes,
+        snapshotBytes,
+        eventCatchupMs,
+        eventFrameBytes,
+      };
     }
 
     writeFileSync(resolve(dir, 'blob.bin'), Buffer.alloc(20 * 1024 * 1024, 7));
@@ -169,7 +222,12 @@ it('C10:100/1k/10k conversation 项、20MiB 分块读取、二次连接 snapshot
     const p95 = [...latencies].sort((a, b) => a - b)[Math.floor(latencies.length * 0.95)] ?? 0;
     expect(p95).toBeLessThan(30_000);
     if (rss0 && rss1) expect(rss1).toBeLessThan(rss0 + 512 * 1024);
-    expect(counts[10000].ms).toBeLessThan(60_000);
+    expect(counts[10000].insertAndSnapshotMs).toBeLessThan(60_000);
+    expect(counts[10000].paginationMs).toBeLessThan(60_000);
+    writeFileSync(
+      resolve('.local/w11-tests/c10-scale-report.json'),
+      JSON.stringify({ counts, requestLatenciesMs: latencies, p95Ms: p95, rssStartKb: rss0, rssEndKb: rss1 }, null, 2) + '\n',
+    );
   } finally {
     db.close();
   }

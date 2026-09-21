@@ -59,5 +59,24 @@
 ## Migration / Fault / Performance 当前证据边界
 
 - 当前全套 integration `226/226`、contract `67/67`、chaos `3/3` 已通过，覆盖仓库中的 migration、backup、fault 单测/集成场景；尚未逐条把执行包列出的每个 fault injection 映射到当前 SHA 的独立证据，因此不能宣称 N8 全闭环。
-- 100/1k/10k 历史记录 performance sanity 尚未在 `15634d5` 重新固定报告。
+- 100/1k/10k 历史记录 performance sanity 的补强与结果见下节；当前仍是 dirty evidence，待提交后 clean 复测。
 - Windows package migration 完整性、upgrade 失败恢复和旧版本拒绝策略仍需按最终 package 候选统一复核。
+
+## Performance sanity 补强（dirty）
+
+原 `v11-c10-scale.test.ts` 会插入 100/1k/10k conversation items、做 snapshot 与 20 MiB Artifact 分块读取，但没有真正把 conversation 分页读完，也未测 frame size 或 event catchup latency。当前 dirty 补强：
+
+- 对每个规模用 `conversation.read` 每页 100 条一直翻到末页，验证新增 `c10_*` id 无重复且数量精确；
+- 记录并限制最大 conversation page、snapshot、event catchup frame 字节数；
+- 记录 event catchup latency、分页耗时、请求 p95 与 RSS；
+- 报告写入可再生成的 `.local/w11-tests/c10-scale-report.json`，不入 Git。
+
+第一次运行 FAIL：100 档实际读到 103 条，因为 Plan/Bootstrap 已在该 Space 生成 3 条真实 conversation；这是测试 baseline 断言错误，不是分页丢失。修正为分别验证 `c10_* == n` 与 `total == baseline+n` 后，针对性测试 2/2 PASS：
+
+| 历史规模 | 完整分页耗时 | 请求数 | 最大页 | snapshot | event catchup | event frame |
+|---:|---:|---:|---:|---:|---:|---:|
+| 100 | 12 ms | 2 | 15167 B | 9901 B | 2 ms | 815 B |
+| 1,000 | 42 ms | 11 | 15167 B | 9901 B | 1 ms | 815 B |
+| 10,000 | 343 ms | 101 | 15552 B | 9901 B | 1 ms | 815 B |
+
+本次请求 latency p95 为 18 ms；RSS 从 114836 KiB 到 358120 KiB，低于该 sanity test 的 +512 MiB 上限。20 MiB Artifact 首/中/末块仍分别验证 65536/65536/4096 bytes 与 `hasMore`。这些数字是单机一次 dirty run，只用于发现明显断线、全量 frame 或无界增长，不是性能承诺。
