@@ -185,7 +185,18 @@ export class NativeSessionStore {
             (scope.activationId !== undefined && liveRun.activation_id !== scope.activationId))
         )
           throw Error('SESSION_ACTIVATION_REVOKED');
-        const ref = this.reference(scope, b.harness, input, !!liveInit);
+        // Pi reports/reserves a session filename during open, before the first prompt creates
+        // the JSONL file. That is also true for the first Run of a newly created WorkSession,
+        // not only for bootstrap. Permit only this current live Run + unbound WorkSession case;
+        // later resume/load still requires the materialized file and cannot invent a path.
+        const freshPiRunPending =
+          b.harness === 'pi' &&
+          Boolean(liveRun) &&
+          Boolean(workSession) &&
+          !workSession.native_session_ref &&
+          typeof input.path === 'string' &&
+          !existsSync(input.path);
+        const ref = this.reference(scope, b.harness, input, Boolean(liveInit) || freshPiRunPending);
         if (!scope.isCurrent()) throw Error('SESSION_SAVE_REVOKED');
         const json = JSON.stringify(ref);
         const hash = createHash('sha256').update(json).digest('hex');

@@ -378,15 +378,11 @@ try {
     const createdB = await call('router_role_session_create', { params: { role_id: target.id, name: 'B方向' }, ...(await abSessionMeta({ role_id: target.id })) });
     const sessionB = createdB.session.id;
     abExpect(await abTask('AB任务一', 'Calculate 8+9. Call route_context then route_finish with outcome succeeded, summary 17, body 17, outputs []. After tool success, stop.', '17', 'ab-task-b'), '17');
-    // W02 新语义:历史 WS 永久只读——切回 A 必须被显式拒绝(负验证),继续走 C 方向新建。
-    let reactivationRejected = '';
-    try {
-      await call('router_role_session_switch', { params: { role_id: target.id, session_id: sessionA }, ...(await abSessionMeta({ role_id: target.id, session_id: sessionA })) });
-      reactivationRejected = 'NOT_REJECTED';
-    } catch (e) {
-      reactivationRejected = String(e.message ?? e);
-    }
-    if (!/REACTIVATION_REMOVED|ROLE_SESSION/.test(reactivationRejected)) throw Error('AB_REACTIVATION_NOT_BLOCKED:' + reactivationRejected);
+    // N5 产品面已彻底移除历史 switch/resume；Management MCP 不广告该工具比“调用后拒绝”更强。
+    const managementTools = await client.listTools();
+    if (managementTools.tools.some((tool) => tool.name === 'router_role_session_switch'))
+      throw Error('AB_REACTIVATION_TOOL_EXPOSED');
+    const reactivationRejected = 'TOOL_NOT_ADVERTISED';
     const createdC = await call('router_role_session_create', { params: { role_id: target.id, name: 'C方向' }, ...(await abSessionMeta({ role_id: target.id })) });
     const sessionC = createdC.session.id;
     abExpect(await abTask('AB任务二', 'Calculate 5+6. Call route_context then route_finish with outcome succeeded, summary 11, body 11, outputs []. After tool success, stop.', '11', 'ab-task-c'), '11');
