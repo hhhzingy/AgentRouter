@@ -70,7 +70,7 @@
 
 ### 客户端控制端断连重连子项
 
-`--client-reconnect` 先经 Management MCP 释放控制租约，再用本地 P1 controller 取得租约并主动断开连接（不调用 release），以同 `clientId` 新连接重新取租约，正式 `task.submitFromUser` 派发下一轮，核对原 ACTIVE WorkSession、native ref、Task/Run/Result PUBLISHED 与 Core stop。Core 进程在此子项中未重启，故不能写成 cold resume。当前脚本改动未提交，均为 dirty evidence；首次 Pi 立即抢租约遇瞬时 `CONTROL_LEASE_BUSY`，后改为最多 5 秒的有界重取。失败分母保留。
+`--client-reconnect` 先经 Management MCP 释放控制租约，再用本地 P1 controller 取得租约并主动断开连接（不调用 release），以同 `clientId` 新连接重新取租约，正式 `task.submitFromUser` 派发下一轮，核对原 ACTIVE WorkSession、native ref、Task/Run/Result PUBLISHED 与 Core stop。Core 进程在此子项中未重启，故不能写成 cold resume。首次 Pi 立即抢租约遇瞬时 `CONTROL_LEASE_BUSY`，后改为最多 5 秒的有界重取；失败分母保留。测试工具提交为 `ebc1ada` 后，三家均在 clean SHA 复测通过。
 
 | Harness | source | DUT 别名 | 结果 |
 |---|---|---|---|
@@ -78,14 +78,33 @@
 | Pi | `262364f` dirty | `run-IbvrNP` | PASS：有界重取租约后，同 WS/native ref 下一轮 PUBLISHED；分母 1 FAIL / 1 PASS。 |
 | Kimi Code | `262364f` dirty | `run-j6S1Kx` | PASS：同 `clientId` 重连、重新取租约、同 WS/native ref 下一轮 PUBLISHED。 |
 | DSH | `262364f` dirty | `run-wTXRg2` | PASS：同上。 |
+| Pi | `ebc1ada` clean | `run-PjCN3d` | PASS：同 `clientId` 重连、重新取租约、同 WS/native ref 下一轮 PUBLISHED。 |
+| Kimi Code | `ebc1ada` clean | `run-MSsBWY` | PASS：同上。 |
+| DSH | `ebc1ada` clean | `run-I2id8b` | PASS：同上。 |
+
+### Core 停机重启 / cold continuation 子项
+
+`--core-restart` 在同一隔离 DUT 数据根中通过正式 `runtime.shutdownCore` 停止旧 Core，强制等待进程退出；随后启动新 Core 并要求 endpoint credential 更新。强证据版本先在重启前让 Harness 存入随机 marker，重启后请求不重复 marker，必须在同一 ACTIVE WorkSession 与完全相同的 native ref 上准确回忆、调用 `route_finish` 并发布 Result；新 Core 最后也必须通过退出屏障。关停 RPC 可能因 pipe 先关闭而返回 `CONNECTION_LOST`，只有随后真实进程退出屏障成立才允许继续，不能把断连本身算作成功。
+
+| Harness | source | DUT 别名 | 结果 |
+|---|---|---|---|
+| Pi | `ebc1ada` dirty | `run-Oo7dtd` | FAIL：旧 Core 已真实退出，但关停 RPC 的 `CONNECTION_LOST` 尚未按“响应丢失+退出屏障”处理，未启动新 Core。 |
+| Pi | `ebc1ada` dirty | `run-PYtk0V` | PASS（弱证据）：Core 真重启、同 WS/native ref 下一轮 42 PUBLISHED，但当时尚未用跨重启 marker 证明模型上下文。 |
+| Kimi Code | `ebc1ada` dirty | `run-VFxcVk` | FAIL：重启前基础 42 Run SUCCEEDED 但无 Result，未进入 cold continuation。 |
+| DSH | `ebc1ada` dirty | `run-hukmYS` | PASS（弱证据）：Core 真重启、同 WS/native ref 下一轮 42 PUBLISHED。 |
+| Kimi Code | `ebc1ada` dirty | `run-4QvdzD` | PASS（弱证据）：Core 真重启、同 WS/native ref 下一轮 42 PUBLISHED；与前次失败一起保留。 |
+| Pi | `ebc1ada` dirty | `run-7tv5Nu` | PASS（强证据）：重启前随机 marker、重启后请求不重复 marker仍准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
+| Kimi Code | `ebc1ada` dirty | `run-UeDkM8` | FAIL：重启前基础任务只分块输出旧 `AGENTROUTER_CHARTER_ACK`，未调用 Route 工具，Run SUCCEEDED、Task NEEDS_ATTENTION、无 Result。定位为任务轮未显式作废 Bootstrap 一次性 ACK。 |
+| Kimi Code | `ebc1ada` dirty（含 ACK 作废修复） | `run-8NrkvL` | PASS（强证据）：随机 marker 跨 Core 重启准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
+| DSH | `ebc1ada` dirty | `run-M5SRnJ` | PASS（强证据）：随机 marker 跨 Core 重启准确回忆；同 WS/native ref，Result PUBLISHED，旧/新 Core 均退出。 |
 
 ## 当前分层判定
 
 | Harness | Level A | Level B | 尚缺 |
 |---|---|---|---|
-| Pi | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 有 clean PASS；client reconnect dirty PASS_WITH_FAILURE_DENOMINATOR） | client reconnect clean、Core restart/cold resume。 |
-| Kimi Code | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput 有 clean PASS；client reconnect dirty PASS） | 波动根因、client reconnect clean、Core restart/cold resume。 |
-| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PARTIAL（A→B→C/cancel、marker、TaskInput 有 clean PASS；client reconnect dirty PASS） | 首次 Bootstrap 瞬断根因、client reconnect clean、Core restart/cold resume。 |
+| Pi | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput、client reconnect 有 clean PASS；strong cold continuation dirty PASS_WITH_FAILURE_DENOMINATOR） | strong cold continuation clean 候选与完整组合批次。 |
+| Kimi Code | PASS（`b45390d` clean） | PARTIAL（A→B→C/cancel、marker、TaskInput、client reconnect 有 clean PASS；strong cold continuation 修复后 dirty PASS_WITH_FAILURE_DENOMINATOR） | ACK 作废修复 clean 候选、稳定性分母、完整组合批次。 |
+| DSH | PASS_WITH_FAILURE_DENOMINATOR（`b45390d` clean，1 FAIL/1 PASS） | PARTIAL（A→B→C/cancel、marker、TaskInput、client reconnect 有 clean PASS；strong cold continuation dirty PASS） | 首次 Bootstrap 瞬断根因、strong cold continuation clean 候选与完整组合批次。 |
 | Codex | PASS_WITH_FAILURE_DENOMINATOR（`28bf80a` clean，1 FAIL/1 PASS） | BLOCKED_BY_BOOTSTRAP_ON_LATEST（`dd601dd` clean） | Level B 全项；不使用 reset credit。 |
 | ZCode | BLOCKED_PROVIDER_BINDING（`28bf80a` clean） | BLOCKED / `native_resume=UNSUPPORTED` | 官方 Bigmodel registry 授权；无官方绑定前不能宣称 Level A、warm 或百炼 fallback。 |
 
@@ -95,10 +114,11 @@
 2. `533557c`：Pi 新 WorkSession 首个 Run 可以持久保留未物化的 session 文件路径，但仅限当前有效 Run、无旧 native ref、受管 HOME 内；后续 load/recovery 仍要求真实文件，防止假连续。
 3. `533557c` 门禁：typecheck/lint PASS，unit 216/216（第一次全套有 supervisor 30 秒超时 1/216；该文件隔离复跑 4/4、完整复跑 216/216），integration 226/226，contract+chaos 70/70，打包态 Remote Core 1/1，staged secret scan 0 findings。
 4. `dd601dd`：Kimi 原生 driver 增加明确 `route_finish` 终态提交提示，避免只输出自然语言导致 Run 成功但 Task 无 Result；typecheck/lint PASS、unit 217/217、integration 226/226、contract+chaos 70/70、secret scan 0 findings。真实 Kimi 仍出现过初始 42 无 Result，故不声称完全稳定。
+5. 当前 dirty 修复：Kimi 任务轮与 DSH 一样显式作废 Bootstrap 一次性 `AGENTROUTER_CHARTER_ACK`，并重申生效章程；失败 DUT 的 conversation/event 证据显示模型此前只复读 ACK 且没有工具调用。修复后 `run-8NrkvL` 的真实强 cold continuation PASS。当前门禁：typecheck/lint PASS，unit 217/217，integration 226/226，contract 67/67，chaos 3/3；尚待提交并在 clean SHA 复测。
 
 ## 下一步与禁止扩大声明
 
-- 下一步在 clean SHA 复测 client reconnect，再补 Core restart/cold resume；之后按同一候选推进 Codex 与 ZCode 可用边界。记录每次真实失败，不靠反复刷绿。
+- 下一步提交 Kimi ACK 作废修复与 strong cold continuation 工具，在 clean SHA 复测 Pi/Kimi/DSH；随后执行三轮固定组合稳定性批次，并按同一候选推进 Codex 与 ZCode 可用边界。记录每次真实失败，不靠反复刷绿。
 - ZCode 需要官方 provider/entitlement 状态变化；不得复制生产认证、伪造 registry 或把客户端误改为普通 CLI Role。
 - DUT 关键场景完整通过后才按执行包进入对应 Harness 的真实环境新对象测试；本账本不声明任何真实生产环境 PASS。
 - 网页 ChatGPT Participant、Tailscale HTTPS/WSS 手机、Context Transfer 真 receipt、migration/fault/stability、Electron 包、CI 与 UI 合流仍待后续；禁止 Windows RC 声明，未 merge/tag/release。

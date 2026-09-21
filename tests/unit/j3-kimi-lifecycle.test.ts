@@ -1,9 +1,13 @@
 import { it, expect } from 'vitest';
 import { KimiLifecycle } from '../../packages/adapters/kimi/lifecycle.ts';
 import { kimiDriver } from '../../packages/core-service/harness-drivers.ts';
-it('Kimi 任务轮须用 route_finish 提交终态而非自然语言结束', () => {
+it('Kimi 任务轮作废一次性 Bootstrap ACK 并用 route_finish 提交终态', () => {
   const request = { kind: 'task.request', body: '17+25' };
-  const prompt = kimiDriver.runPrompt!({ request, charter: {}, charterHash: 'hash' });
+  const charter = { mission: '做算术任务' };
+  const prompt = kimiDriver.runPrompt!({ request, charter, charterHash: 'hash' });
+  expect(prompt).toContain('AGENTROUTER_CHARTER_ACK:hash');
+  expect(prompt).toContain('指令已作废');
+  expect(prompt).toContain(JSON.stringify(charter));
   expect(prompt).toContain(JSON.stringify(request));
   expect(prompt).toContain('必须调用 route_finish 恰好一次');
   expect(prompt).toContain('自然语言回答');

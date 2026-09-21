@@ -93,20 +93,21 @@ await build({
   packages: 'external',
 });
 const { LocalCoreTransport } = await import(pathToFileURL(path('transport.mjs')));
+const coreEnv = {
+  SystemRoot: process.env.SystemRoot,
+  WINDIR: process.env.WINDIR,
+  PATH: '',
+  TEMP: root,
+  TMP: root,
+  AGENTROUTER_DATA: path('core'),
+  AGENTROUTER_PROJECT_ROOTS: JSON.stringify([path('workspace')]),
+  AGENTROUTER_NATIVE_CONFIG: path('runtime.json'),
+  ...(process.env.AR_ZCODE_DEBUG ? { AR_ZCODE_DEBUG: process.env.AR_ZCODE_DEBUG } : {}),
+};
 const core = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
   windowsHide: true,
   stdio: ['ignore', 'ignore', 'pipe'],
-  env: {
-    SystemRoot: process.env.SystemRoot,
-    WINDIR: process.env.WINDIR,
-    PATH: '',
-    TEMP: root,
-    TMP: root,
-    AGENTROUTER_DATA: path('core'),
-    AGENTROUTER_PROJECT_ROOTS: JSON.stringify([path('workspace')]),
-    AGENTROUTER_NATIVE_CONFIG: path('runtime.json'),
-    ...(process.env.AR_ZCODE_DEBUG ? { AR_ZCODE_DEBUG: process.env.AR_ZCODE_DEBUG } : {}),
-  },
+  env: coreEnv,
 });
 // Do not persist raw stderr or any credential-bearing transport body.
 const coreErrChunks = [];
@@ -511,6 +512,156 @@ try {
       throw Error('RECONNECT_CONTINUATION_NOT_VERIFIED');
     report.clientReconnect = { workSessionId: before.id, sameNativeRef: true, resultPublished: true };
     report.checks.push('真实controller持租约断连→同clientId重连重新取租约→同WS/native ref任务PUBLISHED');
+  }
+  if (process.argv.includes('--core-restart')) {
+    const db = new Database(path('core/router.db'), { readonly: true });
+    const before = db.prepare('select id,state,native_session_ref from role_sessions where role_id=? and state=?').get(target.id, 'ACTIVE');
+    db.close();
+    if (!before?.native_session_ref) throw Error('RESTART_ACTIVE_NATIVE_REF_MISSING');
+    const restartMarker = 'RESTART-MARKER-' + randomUUID().slice(0, 12);
+    const markerStatus = await call('router_status');
+    const markerTask = await call('router_task_dispatch', {
+      request_key: 'restart-marker-before',
+      expected_revision: markerStatus.snapshot.revision,
+      scope,
+      params: {
+        request: {
+          ...request,
+          summary: '重启前记忆',
+          body: `Remember this exact private marker after Core restarts: ${restartMarker}. Call route_finish with outcome succeeded, summary STORED, body STORED, outputs [].`,
+          expected: ['STORED'],
+        },
+      },
+    });
+    let stored;
+    for (let i = 0; i < 150; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const taskRow = db.prepare('select state,role_session_id from tasks where id=?').get(markerTask.id);
+      const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(markerTask.id);
+      const result = db.prepare('select publication_state,summary from results where task_id=?').get(markerTask.id);
+      db.close();
+      if (taskRow?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(taskRow?.state)) {
+        stored = { task: taskRow, run, result };
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!stored || stored.task.state !== 'DELIVERED' || stored.run?.state !== 'SUCCEEDED' || stored.result?.publication_state !== 'PUBLISHED' || stored.result.summary !== 'STORED' || stored.task.role_session_id !== before.id || stored.run.role_session_id !== before.id)
+      throw Error('RESTART_MARKER_NOT_STORED');
+    await call('router_control_release', {
+      request_key: 'restart-release-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+    await client.close();
+    client = undefined;
+    const stopTransport = new LocalCoreTransport(path('core'));
+    try {
+      const stopClient = await stopTransport.connect({
+        clientId: 'j3_core_restart', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const stopSnapshot = await stopClient.request('system.snapshot', {});
+      const stopLease = await stopClient.request('control.acquire', {}, {
+        operationId: 'restart-acquire-stop', expectedRevision: stopSnapshot.revision, scope: {},
+      });
+      try {
+        await stopClient.request('runtime.shutdownCore', {}, {
+          operationId: 'restart-shutdown',
+          expectedRevision: (await stopClient.request('system.snapshot', {})).revision,
+          scope: {}, leaseId: stopLease.leaseId,
+        });
+      } catch (error) {
+        // The old Core may close its pipe before the shutdown reply is delivered.
+        // The process-exit barrier below remains mandatory.
+        if (error.message !== 'CONNECTION_LOST') throw error;
+      }
+    } finally {
+      await stopTransport.close();
+    }
+    await Promise.race([closed, new Promise((_, reject) => setTimeout(() => reject(Error('RESTART_OLD_CORE_EXIT_TIMEOUT')), 10000))]);
+    if (!didClose) throw Error('RESTART_OLD_CORE_NOT_EXITED');
+    const oldEndpointCredential = endpoint.credential;
+    const resumedCore = spawn(process.execPath, [resolve('.local/w11-core/core.mjs')], {
+      windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], env: coreEnv,
+    });
+    const resumedErrChunks = [];
+    resumedCore.stderr.on('data', (d) => resumedErrChunks.push(d));
+    let resumedClosed = false;
+    const resumedExit = new Promise((r) => resumedCore.once('close', (code) => {
+      resumedClosed = true;
+      r(code);
+    }));
+    const resumeTransport = new LocalCoreTransport(path('core'));
+    try {
+      let freshEndpoint = false;
+      for (let i = 0; i < 120; i++) {
+        if (resumedCore.exitCode !== null) throw Error('RESTART_NEW_CORE_EXITED_EARLY');
+        try {
+          const currentEndpoint = JSON.parse(readFileSync(path('core/endpoint.json'), 'utf8'));
+          if (currentEndpoint.credential !== oldEndpointCredential) {
+            freshEndpoint = true;
+            break;
+          }
+        } catch {}
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (!freshEndpoint) throw Error('RESTART_NEW_ENDPOINT_TIMEOUT');
+      const resumeClient = await resumeTransport.connect({
+        clientId: 'j3_core_restart', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const resumeSnapshot = await resumeClient.request('system.snapshot', {});
+      const resumeLease = await resumeClient.request('control.acquire', {}, {
+        operationId: 'restart-acquire-resume', expectedRevision: resumeSnapshot.revision, scope: {},
+      });
+      const created = await resumeClient.request('task.submitFromUser', {
+        request: {
+          ...request,
+          summary: 'Core 重启后回忆',
+          body: 'What exact private marker did the previous task ask you to remember before Core restarted? Do not guess. Call route_finish with outcome succeeded, summary set to that exact marker, body set to that exact marker, outputs [].',
+          expected: ['private marker from previous task'],
+        },
+      }, {
+        operationId: 'restart-task',
+        expectedRevision: (await resumeClient.request('system.snapshot', {})).revision,
+        scope, leaseId: resumeLease.leaseId,
+      });
+      let after;
+      for (let i = 0; i < 150; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const taskRow = db.prepare('select state,role_session_id from tasks where id=?').get(created.id);
+        const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(created.id);
+        const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(created.id);
+        const session = db.prepare('select state,native_session_ref from role_sessions where id=?').get(before.id);
+        db.close();
+        if (taskRow?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(taskRow?.state)) {
+          after = { task: taskRow, run, result, session };
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      if (!after || after.task.state !== 'DELIVERED' || after.run?.state !== 'SUCCEEDED' || after.result?.outcome !== 'succeeded' || after.result.publication_state !== 'PUBLISHED' || after.result.summary !== restartMarker || after.task.role_session_id !== before.id || after.run.role_session_id !== before.id || after.session?.state !== 'ACTIVE' || after.session.native_session_ref !== before.native_session_ref)
+        throw Error('RESTART_COLD_CONTINUATION_NOT_VERIFIED');
+      report.coreRestart = { workSessionId: before.id, sameNativeRef: true, markerRecalled: true, resultPublished: true };
+      report.checks.push('真实Core停机重启→第二轮请求不重复随机marker→同ACTIVE WS/native ref冷续轮→Result PUBLISHED');
+      try {
+        await resumeClient.request('runtime.shutdownCore', {}, {
+          operationId: 'restart-final-shutdown',
+          expectedRevision: (await resumeClient.request('system.snapshot', {})).revision,
+          scope: {}, leaseId: resumeLease.leaseId,
+        });
+      } catch (error) {
+        if (error.message !== 'CONNECTION_LOST') throw error;
+      }
+      await Promise.race([resumedExit, new Promise((_, reject) => setTimeout(() => reject(Error('RESTART_FINAL_CORE_EXIT_TIMEOUT')), 10000))]);
+    } finally {
+      await resumeTransport.close();
+      if (!resumedClosed) resumedCore.kill('SIGTERM');
+      await Promise.race([resumedExit, new Promise((r) => setTimeout(r, 10000))]);
+      report.restartedCoreExited = resumedClosed;
+      report.restartedCoreStderrPresent = resumedErrChunks.length > 0;
+    }
   }
   if (process.argv.includes('--artifact')) {
     const artifactMarker = 'AR-' + randomUUID().slice(0, 8);
