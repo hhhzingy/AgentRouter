@@ -135,7 +135,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             <KeyValue k="排队任务" v={tasks.filter((t) => t.state === 'QUEUED').length} />
             <KeyValue k="未解决问题" v={issues.filter((i) => i.state !== 'RESOLVED').length} />
           </div>
-          <section className="workbench-section"><div className="section-heading"><div><span className="eyebrow">TEAM</span><h2>角色</h2></div><Button variant="secondary" onClick={() => (location.hash = `#/roleplan/${projectId}`)}>添加角色</Button></div>
+          <section className="workbench-section"><div className="section-heading"><div><span className="eyebrow">TEAM</span><h2>角色</h2></div><Button variant="secondary" onClick={() => (location.hash = `#/roleplan/${projectId}`)}>编排角色</Button></div>
           {spaces.map((sp) => (
             <SpaceCard key={sp.id} space={sp} onDispatch={setDispatchRole} />
           ))}
