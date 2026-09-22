@@ -1,0 +1,57 @@
+{
+  "schema": "agentrouter-v1.1-resumed-gate-matrix/1",
+  "date": "2026-09-22",
+  "branch": "feat/v1.1-functional-closeout-codex",
+  "runtime_candidate_sha": "8443abc9abdea3a432fdc0736fa61b22c07410bc",
+  "release_decision": "NOT_V1.1_NON_UI_FUNCTIONAL_RC_READY",
+  "all_non_ui_gates_closed": false,
+  "no_codex_reset_credit_used": true,
+  "gates": {
+    "G1": {
+      "status": "PASS",
+      "evidence": [
+        ".local/j3-production-pi/run-OnUQ2S/report.json: DUT login absent, failure retained",
+        ".local/j3-production-pi/run-aLPQOk/report.json: actual Core restart, same Native ref, marker recalled, 42/PUBLISHED",
+        ".local/j3-production-pi/run-Zh3Q9z/report.json: source package Codex 42/PUBLISHED",
+        ".local/j3-production-pi/run-lILVUQ/report.json: fresh-unpacked Codex 42/PUBLISHED"
+      ]
+    },
+    "G2": {
+      "status": "PASS",
+      "evidence": [
+        "previous review: real Bigmodel/GLM-5.3-Flash Level A/B/TaskInput/Artifact/cold resume/Core restart",
+        ".local/j3-production-pi/run-mtzNLv/report.json: source package ZCode 42/PUBLISHED",
+        ".local/j3-production-pi/run-kJjNZG/report.json: fresh-unpacked ZCode 42/PUBLISHED"
+      ]
+    },
+    "G3": { "status": "PASS_WITH_RETRY_DENOMINATOR", "evidence": ["V11-FINAL-PRE-RELEASE-REVIEW-20260921.md: Pi/Kimi/DSH real regression and retained first failures", "no shared Native/Profile runtime changes"] },
+    "G4": { "status": "PASS_BY_UNCHANGED_CODE_EVIDENCE", "evidence": ["FUNC-F4-PARTICIPANT-REMOTE-20260921.md", "no related runtime code changes"] },
+    "G5": {
+      "status": "PARTIAL_REAL_BACKEND",
+      "evidence": [
+        "tests/live/v11-tailscale-serve.test.ts: explicit real Tailnet HTTPS/WSS opt-in PASS",
+        "TLS certificate first-attempt timeout retained; retry PASS",
+        "HTTPS health, WSS Origin/cookie, pairing, controller lease, isolated project mutation, active stream revoke 4001, application/gateway rebuild reconnect, revoked credential rejection",
+        "Tailscale Serve mapping removed after test; status={}"
+      ],
+      "remaining": ["real Tailnet cancel", "real Tailnet response-drop UNKNOWN no replay", "full Core restart event catchup", "physical mobile UI not asserted"]
+    },
+    "G6": {
+      "status": "PASS_AT_RUNTIME_SHA",
+      "artifact_hash": "c9b3ee603843c9fb286cf4a3d68429714b5e051f64b2dfe1f7e0b3ae55e191b9",
+      "zip_sha256": "27736fa0724bb521f3db472682aed87bb6c39b59372daf7a718ca77275b59f7e",
+      "zip_bytes": 200093487,
+      "evidence": ["sourceDirty=false", "18 migrations", "source and fresh-unpacked packaged-test PASS", "source and unpacked secret scan: 137 files each, 0 findings", "Codex and ZCode both source package and unpacked real smoke PASS"]
+    },
+    "G7": {
+      "status": "BLOCKED_CI_BILLING",
+      "evidence": [
+        "C1 https://github.com/hhhzingy/AgentRouter/actions/runs/35674685271: failure, steps=[]",
+        "W11 https://github.com/hhhzingy/AgentRouter/actions/runs/35674685373: failure, steps=[]",
+        "GitHub annotation: recent account payments failed or spending limit needs increase",
+        "no user CI waiver"
+      ]
+    }
+  },
+  "local_regression": { "test_files_passed": 113, "test_files_skipped": 2, "tests_passed": 638, "tests_skipped": 3, "live_tailscale_opt_in": "PASS", "typecheck": "PASS", "lint": "PASS" }
+}
