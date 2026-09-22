@@ -1,4 +1,5 @@
 import {createServer} from 'node:http';
+import {createHash} from 'node:crypto';
 import {existsSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -26,10 +27,15 @@ const shots=[
  {name:'04-results-evidence',route:'#/project/proj_atlas/inbox',scenario:'full',viewport:{width:1440,height:900},scale:1},
  {name:'05-workbench-150dpi',route:'#/project/proj_atlas',scenario:'full',viewport:{width:960,height:600},scale:1.5},
  {name:'06-mobile-intervention',route:'#/project/proj_atlas',scenario:'observer',viewport:{width:390,height:844},scale:1},
+ {name:'07-settings-dark',route:'#/settings',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
+ {name:'08-projects-dark',route:'#/',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
+ {name:'09-mobile-wide',route:'#/project/proj_atlas/inbox',scenario:'observer',viewport:{width:430,height:932},scale:1},
 ];
 const manifest=[];
+const sourceSha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
+const sourceDirty=Boolean(execFileSync('git',['diff','--name-only','HEAD','--','apps','packages','tests'],{cwd:root,encoding:'utf8'}).trim());
 try{
- for(const shot of shots){const page=await browser.newPage({viewport:shot.viewport,deviceScaleFactor:shot.scale});await page.goto(`http://127.0.0.1:${port}/workbench.html?scenario=${shot.scenario}`,{waitUntil:'networkidle'});await page.evaluate(h=>location.hash=h,shot.route);await page.waitForSelector('.page',{timeout:15000});await page.waitForTimeout(350);const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));if(width.scroll>width.client+1)throw Error(`${shot.name}: horizontal overflow ${width.scroll}>${width.client}`);const file=resolve(outDir,shot.name+'.png');await page.screenshot({path:file,fullPage:true});manifest.push({...shot,file:`screenshots/${shot.name}.png`,horizontalOverflow:false});await page.close();}
- writeFileSync(resolve(outDir,'manifest.json'),JSON.stringify({source:'working-tree',generatedAt:new Date().toISOString(),shots:manifest},null,2)+'\n');
+ for(const shot of shots){const page=await browser.newPage({viewport:shot.viewport,deviceScaleFactor:shot.scale});if(shot.theme)await page.addInitScript(theme=>localStorage.setItem('agentrouter.theme',theme),shot.theme);await page.goto(`http://127.0.0.1:${port}/workbench.html?scenario=${shot.scenario}`,{waitUntil:'networkidle'});await page.evaluate(h=>location.hash=h,shot.route);await page.waitForSelector('.page',{timeout:15000});await page.waitForTimeout(350);const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));if(width.scroll>width.client+1)throw Error(`${shot.name}: horizontal overflow ${width.scroll}>${width.client}`);const file=resolve(outDir,shot.name+'.png');await page.screenshot({path:file,fullPage:true});const sha256=createHash('sha256').update(readFileSync(file)).digest('hex');manifest.push({...shot,file:`screenshots/${shot.name}.png`,horizontalOverflow:false,sha256});await page.close();}
+ writeFileSync(resolve(outDir,'manifest.json'),JSON.stringify({sourceSha,sourceDirty,generatedAt:new Date().toISOString(),shots:manifest},null,2)+'\n');
 }finally{await browser.close();server.close();rmSync(bundle,{force:true});}
 console.log(`PASS: ${manifest.length} representative UI screenshots`);
