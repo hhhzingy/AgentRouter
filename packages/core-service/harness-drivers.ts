@@ -113,7 +113,8 @@ export class HarnessDriverRegistry {
 }
 export const codexDriver: HarnessDriver = {
   harness: 'codex',
-  contextCapabilities: { ...unknownDriverContextCapabilities('codex'), native_resume: 'IMPLEMENTED_UNVERIFIED' },
+  // thread/fork + thread/read(includeTurns) + cold thread/resume 已由隔离 DUT 真机验证；不等同跨端导出。
+  contextCapabilities: { ...unknownDriverContextCapabilities('codex'), native_resume: 'VERIFIED', native_fork: 'VERIFIED' },
   continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: false,
   supportsFreshSession: true,
@@ -246,8 +247,8 @@ export const piDriver: HarnessDriver = {
 };
 export const zcodeDriver: HarnessDriver = {
   harness: 'zcode',
-  // 0.16.9 cold resume 已由真实 Existing Account Level B / Core restart 验证。
-  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'VERIFIED' },
+  // 0.16.9 cold resume 与 V4 forkAssistant 已由隔离 Existing Account 真机探针验证。
+  contextCapabilities: { ...unknownDriverContextCapabilities('zcode'), native_resume: 'VERIFIED', native_fork: 'VERIFIED' },
   continuity: 'SAME_SESSION_CONTINUOUS',
   requiresSessionPath: false,
   supportsFreshSession: true,

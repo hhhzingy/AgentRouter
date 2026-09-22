@@ -18,6 +18,20 @@ export type TransferPortContext = {
 };
 
 export interface TransferDriverPort {
+  /** 同一 Harness 的原生会话 fork；不经文本降级，不调用模型。 */
+  nativeForkTarget?(input: TransferPortContext & {
+    sourceNativeSessionRef: string;
+    operationId: string;
+    targetNativeSessionRef?: string | null;
+    recordTargetCreated(nativeSessionRef: string): void;
+  }): Promise<{ nativeSessionRef: string; confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string }>;
+  /** 冷启动后只读核对原生 fork 的父、子可见历史。 */
+  confirmNativeFork?(input: TransferPortContext & {
+    sourceNativeSessionRef: string;
+    nativeSessionRef: string;
+    operationId: string;
+    expectedPayloadHash?: string | null;
+  }): Promise<{ nativeSessionRef: string; confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string }>;
   /** 来源 FULL_VISIBLE 导出;truncated=true 必须如实上报 */
   exportContext(input: TransferPortContext & { nativeSessionRef: string }): Promise<{ text: string; truncated: boolean }>;
   /** 目标新会话初始化:注入 seed;以 operationId 幂等。抛 Error('NOT_STARTED') 表示确定未开始任何副作用。 */
@@ -154,6 +168,10 @@ export class ContextTransferEngine {
     if (!sourceRef) { this.fail(opId, 'CONTEXT_EXPORT_FAILED'); this.deps.onSettled?.(op.role_id); return; }
     const sourceCtx = portContext(meta, 'source', sourceHarness, source);
     const targetCtx = portContext(meta, 'target', targetHarness);
+    if (sourceHarness === targetHarness && sourcePort.nativeForkTarget) {
+      await this.runNativeFork({ op, meta, sourceRef, sourceCtx, targetCtx, port: sourcePort });
+      return;
+    }
     // TARGET_CREATED 已持久化但进程在 INPUT_ACCEPTED 回执前中断：不得再创建目标；只读核对既有目标。
     if (
       op.state === 'EXPORTED' &&
@@ -257,6 +275,74 @@ export class ContextTransferEngine {
     this.deps.db.prepare("update context_transfer_ops set state='SEEDED',error_code=NULL,updated_at_ms=? where id=? and state='EXPORTED'").run(this.clock(), opId);
     await this.settleSeeded(opId);
   }
+  /** 同端原生 fork：保留工具/附件等原生可见历史，且不把该能力外推为跨端 FULL_VISIBLE。 */
+  private async runNativeFork(input: {
+    op: Row;
+    meta: Record<string, any>;
+    sourceRef: string;
+    sourceCtx: TransferPortContext;
+    targetCtx: TransferPortContext;
+    port: TransferDriverPort;
+  }): Promise<void> {
+    const { op, sourceRef, targetCtx, port } = input;
+    const currentMeta = metaOf(this.op(op.id) ?? op);
+    const knownTarget = typeof currentMeta.target_native_ref === 'string' ? currentMeta.target_native_ref : null;
+    try {
+      const result = knownTarget && port.confirmNativeFork
+        ? await port.confirmNativeFork({
+            ...targetCtx,
+            sourceNativeSessionRef: sourceRef,
+            nativeSessionRef: knownTarget,
+            operationId: op.id,
+            expectedPayloadHash: typeof currentMeta.seed_sha256 === 'string' ? currentMeta.seed_sha256 : null,
+          })
+        : await port.nativeForkTarget!({
+            ...targetCtx,
+            sourceNativeSessionRef: sourceRef,
+            operationId: op.id,
+            targetNativeSessionRef: knownTarget,
+            recordTargetCreated: (nativeSessionRef) => {
+              if (!nativeSessionRef) throw Error('CONTEXT_TARGET_REF_EMPTY');
+              this.setMeta(op.id, {
+                transfer_mode: 'NATIVE_FORK',
+                source_native_ref: sourceRef,
+                target_native_ref: nativeSessionRef,
+                target_created: true,
+              });
+            },
+          });
+      const payloadHash = result.acceptedPayloadHash;
+      if (!result.confirmed || !/^[0-9a-f]{64}$/.test(String(payloadHash ?? '')))
+        throw Error('CONTEXT_NATIVE_FORK_UNCONFIRMED');
+      if (knownTarget && result.nativeSessionRef !== knownTarget)
+        throw Error('CONTEXT_TARGET_REF_MISMATCH');
+      this.setMeta(op.id, {
+        transfer_mode: 'NATIVE_FORK',
+        source_native_ref: sourceRef,
+        target_native_ref: result.nativeSessionRef,
+        target_created: true,
+        seed_sha256: payloadHash,
+        accepted_payload_sha256: payloadHash,
+        target_confirmed: true,
+        native_receipt: typeof result.nativeReceipt === 'string' ? result.nativeReceipt : null,
+      });
+      this.deps.db.prepare("update context_transfer_ops set state='SEEDED',error_code=NULL,updated_at_ms=? where id=? and state in ('PREPARING','EXPORTED')")
+        .run(this.clock(), op.id);
+      await this.settleSeeded(op.id);
+    } catch (error) {
+      const afterMeta = metaOf(this.op(op.id) ?? {});
+      const definite = String((error as Error)?.message ?? error).includes('NOT_STARTED');
+      const ambiguousNoRetry = String((error as Error)?.message ?? error).includes('AMBIGUOUS_NO_RETRY');
+      if (definite && typeof afterMeta.target_native_ref !== 'string') this.fail(op.id, 'CONTEXT_TARGET_INIT_FAILED');
+      else if (ambiguousNoRetry && typeof afterMeta.target_native_ref !== 'string') this.markUncertain(op.id, 'CONTEXT_TRANSFER_UNRESOLVED');
+      else if (typeof afterMeta.target_native_ref === 'string') {
+        this.deps.db.prepare("update context_transfer_ops set state='SEEDED',error_code=?,updated_at_ms=? where id=? and state in ('PREPARING','EXPORTED')")
+          .run('CONTEXT_TRANSFER_AMBIGUOUS', this.clock(), op.id);
+        await this.settleSeeded(op.id);
+      } else this.scheduleRetry(op.id);
+      this.deps.onSettled?.(op.role_id);
+    }
+  }
   /** SEEDED → 确认(≤MAX_CONFIRM_ATTEMPTS 次) → 单事务提交;不确定保持 SEEDED。 */
   async settleSeeded(opId: string): Promise<void> {
     const op = this.op(opId);
@@ -266,20 +352,31 @@ export class ContextTransferEngine {
     const port = this.deps.ports.get(targetHarness);
     const ref = typeof meta.target_native_ref === 'string' ? meta.target_native_ref : null;
     const expectedPayloadHash = typeof meta.seed_sha256 === 'string' ? meta.seed_sha256 : null;
-    if (!port || !ref || !expectedPayloadHash) { this.markUncertain(opId, 'CONTEXT_TRANSFER_UNRESOLVED'); return; }
-    let confirmed = meta.target_confirmed === true && meta.accepted_payload_sha256 === expectedPayloadHash;
+    const nativeFork = meta.transfer_mode === 'NATIVE_FORK';
+    if (!port || !ref || (!nativeFork && !expectedPayloadHash)) { this.markUncertain(opId, 'CONTEXT_TRANSFER_UNRESOLVED'); return; }
+    let confirmed = Boolean(expectedPayloadHash) && meta.target_confirmed === true && meta.accepted_payload_sha256 === expectedPayloadHash;
     if (!confirmed) {
       const attempts = Number(meta.confirm_attempts ?? 0) + 1;
       this.setMeta(opId, { confirm_attempts: attempts });
       let receipt: { confirmed: boolean; acceptedPayloadHash?: string; nativeReceipt?: string } | null = null;
       try {
-        receipt = await port.confirmTarget({
-          ...portContext(meta, 'target', targetHarness),
-          nativeSessionRef: ref,
-          operationId: opId,
-          expectedPayloadHash,
-        });
-        confirmed = receipt.confirmed === true && receipt.acceptedPayloadHash === expectedPayloadHash;
+        receipt = nativeFork && port.confirmNativeFork
+          ? await port.confirmNativeFork({
+              ...portContext(meta, 'target', targetHarness),
+              sourceNativeSessionRef: String(meta.source_native_ref ?? ''),
+              nativeSessionRef: ref,
+              operationId: opId,
+              expectedPayloadHash: expectedPayloadHash!,
+            })
+          : await port.confirmTarget({
+              ...portContext(meta, 'target', targetHarness),
+              nativeSessionRef: ref,
+              operationId: opId,
+              expectedPayloadHash: expectedPayloadHash!,
+            });
+        const receivedHash = receipt.acceptedPayloadHash;
+        confirmed = receipt.confirmed === true && /^[0-9a-f]{64}$/.test(String(receivedHash ?? '')) &&
+          (expectedPayloadHash === null || receivedHash === expectedPayloadHash);
       } catch { confirmed = false; }
       if (!confirmed) {
         this.markUncertain(opId, attempts >= MAX_CONFIRM_ATTEMPTS ? 'CONTEXT_TRANSFER_UNRESOLVED' : 'CONTEXT_TRANSFER_AMBIGUOUS');
@@ -288,7 +385,8 @@ export class ContextTransferEngine {
       }
       this.setMeta(opId, {
         target_confirmed: true,
-        accepted_payload_sha256: expectedPayloadHash,
+        seed_sha256: receipt?.acceptedPayloadHash,
+        accepted_payload_sha256: receipt?.acceptedPayloadHash,
         native_receipt: typeof receipt?.nativeReceipt === 'string' ? receipt.nativeReceipt : null,
       });
     }

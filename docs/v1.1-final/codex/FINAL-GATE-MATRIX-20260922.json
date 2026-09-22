@@ -5,7 +5,7 @@
   "runtime_candidate_sha": "7fda36940599c39c39d74f4f79c34ee18c22b3bc",
   "release_decision": "NOT_V1.1_NON_UI_FUNCTIONAL_RC_READY",
   "all_non_ui_gates_closed": false,
-  "ci_execution_paused_by_user": true,
+  "ci_execution_paused_by_user": false,
   "no_codex_reset_credit_used": true,
   "gates": {
     "G1": "PASS",
@@ -42,10 +42,10 @@
       "zcode_unpacked": ".local/j3-production-pi/run-ErSWWu/report.json"
     },
     "G7": {
-      "status": "PAUSED_BY_USER",
+      "status": "LOCAL_PASS_REMOTE_PENDING",
       "green": false,
       "waived": false,
-      "note": "C1 and W11 are intentionally not run; candidate commits use [skip ci]."
+      "note": "C1/W11 local-equivalent gates pass; final non-skip GitHub SHA is pending push and remote green verification."
     }
   },
   "local_regression": {
@@ -55,6 +55,10 @@
     "test_files_skipped": 2,
     "tests_passed": 638,
     "tests_skipped": 3,
-    "live_tailscale_opt_in": "PASS"
+    "live_tailscale_opt_in": "PASS",
+    "c1_equivalent": { "status": "PASS", "test_files": 100, "tests": 539 },
+    "w11_equivalent": { "status": "PASS", "test_files": 111, "tests": 638, "electron_b0_j1_j2": "PASS" },
+    "zcode_native_fork_cold_resume": "PASS",
+    "codex_native_fork_cold_resume": "PASS"
   }
 }

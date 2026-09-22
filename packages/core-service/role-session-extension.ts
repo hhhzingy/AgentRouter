@@ -92,7 +92,7 @@ export class RoleSessionExtension {
     private readonly db: import('better-sqlite3').Database,
     private readonly clock = () => Date.now(),
     /** Harness Context 能力(诚实标注):inherit 门控同时查来源导出与双端通道,不再硬编码拒绝。 */
-    private readonly capabilityLookup?: (harness: string) => { historyExport: string },
+    private readonly capabilityLookup?: (harness: string) => { historyExport: string; nativeFork?: string },
     /** WC01:已接线的受信传输通道(按 harness);存在=该端 export/init 真实可用。 */
     private readonly transferPorts?: ReadonlyMap<string, TransferDriverPort>,
     /** WC02:同 ACTIVE WS 原生连续性事实(由 Driver 能力投影)。 */
@@ -519,9 +519,11 @@ export class RoleSessionExtension {
       if (!current) throw Error('CONTEXT_EXPORT_UNSUPPORTED');
       // SH-01:门控=来源 history_export 能力 + 来源/目标双端真实接线通道;不再硬编码 false。
       const sourceHarness = String(current.harness ?? binding.harness);
-      const sourceCap = this.capabilityLookup?.(sourceHarness) ?? { historyExport: 'UNKNOWN' };
+      const sourceCap = this.capabilityLookup?.(sourceHarness) ?? { historyExport: 'UNKNOWN', nativeFork: 'UNKNOWN' };
       const ports = this.transferPorts;
-      if (
+      const sameHarnessNativeFork = sourceHarness === requestedHarness &&
+        sourceCap.nativeFork === 'VERIFIED' && Boolean(ports?.get(sourceHarness)?.nativeForkTarget);
+      if (!sameHarnessNativeFork &&
         !inheritSupported({
           sourceHistoryExport: sourceCap.historyExport,
           sourceExportChannel: Boolean(ports?.has(sourceHarness)),

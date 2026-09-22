@@ -8,6 +8,8 @@
 
 ## 结论
 
+> 2026-09-22 后续更新：用户已恢复 C1/W11。本轮新增并真实验证 ZCode V4 `forkAssistant` 与 Codex `thread/fork` 同 Harness 原生历史复制；两端父子会话均可 cold resume，源历史不变，且未发送模型 prompt。C1 本地等价门禁 100 files / 539 tests PASS；W11 本地等价门禁 111 files / 638 tests、B0/J1/J2/Electron PASS。最终 GitHub 同 SHA 结果须在推送后回填。在远端结果 green、重新绑定最终 SHA/package 前，仍不得宣称 Windows RC。
+
 本轮已完成此前剩余的真实 Tailscale Serve HTTPS/WSS 后端语义：业务取消、提交后响应丢失的 UNKNOWN/连接丢失、不自动重放、活动流撤销、Core/Application 重建后的游标失效与事件追赶、快照恢复均通过。重新绑定 clean SHA 的源包、ZIP、全新解包、Codex 与 ZCode 真实冒烟也已通过。
 
 **G1—G6 已通过；G7 C1/W11 按用户要求暂停。因此整体仍为 `NOT_V1.1_NON_UI_FUNCTIONAL_RC_READY`，不得宣称 Windows RC。** 没有 CI waiver，也没有 merge、tag 或 release。
@@ -24,7 +26,17 @@
 | G4 Web Participant | PASS_BY_UNCHANGED_CODE_EVIDENCE | 真实网页 Task→Artifact→Result→PUBLISHED 证据有效，相关运行时代码未变。 |
 | G5 Remote | **PASS** | 真实 Tailscale Serve HTTPS/WSS 后端完整覆盖执行包列出的 hello/snapshot、observer/controller lease、无害 mutation、cancel、live revoke、Core restart reconnect/catchup、response-drop UNKNOWN 不重放。 |
 | G6 Data/Package | PASS | clean SHA、18 migrations、源包/ZIP/解包、Core 重启、Codex/ZCode 两侧冒烟、两侧 secret scan 通过。 |
-| G7 GitHub CI | **PAUSED_BY_USER** | 用户明确要求 C1/W11 先暂停。本候选提交使用 `[skip ci]`，不触发或重跑 C1/W11；不能算 green。 |
+| G7 GitHub CI | **LOCAL_PASS_REMOTE_PENDING** | 用户已恢复 C1/W11；本地等价 C1/W11 均 PASS。最终非 skip SHA 推送后等待 GitHub 两条 workflow 实际 green。 |
+
+## Work Session 完整历史迁移后续闭环
+
+- ZCode 0.16.9：使用稳定 V4 `v4/conversation/rowsRange` + `v4/command(forkAssistant)`，保留可见文本、工具与附件/显示语义；源历史摘要不变，子会话摘要一致，父子均 cold resume。正式 `createZcodeContextPort` 已真实回放通过。
+- Codex：使用官方 `thread/read(includeTurns=true)` + `thread/fork`，子 thread 的 `forkedFromId` 绑定源 thread；完整 turns 摘要一致，源 thread 不变，父子均经新 app-server 进程 `thread/resume`。正式 `createCodexContextPort` 已真实回放通过。
+- 两者均作为独立 `native_fork=VERIFIED` 能力，只允许同 Harness 使用；`history_export` 继续保持 `UNKNOWN`，因此跨 Harness 不会被误报为完整迁移。
+- 引擎对 target ref 已落盘但回执丢失的情况只读 cold confirm；Codex 在 fork 请求发出但没有返回 child ref 时保持 `UNRESOLVED` 且不自动重试，避免重复建 child。
+- 测试不发送模型 prompt、不使用 Codex reset credit、不读取或输出凭据。
+
+安全复核见 [公开仓库全历史安全复核](./V11-PUBLIC-HISTORY-SECURITY-REVIEW-20260922.md)。
 
 ## G5 真实 Tailnet 证据
 
@@ -77,7 +89,7 @@ ZIP：`release/AgentRouter-j3-7fda36940599.zip`
 - 真实 Tailnet opt-in：1 file / 1 test PASS
 - 当前交互 Node 24.19.0 与 engine 24.14.0 不同，命令有 warning；发布包内 Node 为 24.14.0。
 
-C1/W11 当前不执行、不重跑、不写为 PASS。恢复 CI 时，应在届时最终 SHA 上运行两条 GitHub Actions，确认都有实际 steps 且 green；若 SHA 变化，需重新绑定发布证据。只有完成 G7 或获得用户书面 CI waiver 后，才可重新评估 `V1.1_NON_UI_FUNCTIONAL_RC_READY`。
+C1/W11 已恢复并完成本地等价运行：C1 为 100 files / 539 tests PASS；W11 为 111 files / 638 tests PASS，B0/J1/J2/Electron 全部通过。GitHub 远端仍必须绑定本轮最终非 skip SHA，确认两条 Actions 有实际 steps 且 green；若 SHA 变化，需重新绑定发布证据。只有远端 G7 完成并重新生成/复核最终 SHA 的发布包后，才可重新评估 `V1.1_NON_UI_FUNCTIONAL_RC_READY`。
 
 ## 发布边界
 
@@ -85,4 +97,4 @@ C1/W11 当前不执行、不重跑、不写为 PASS。恢复 CI 时，应在届�
 - 不 merge main/UI
 - 不 tag
 - 不 release
-- 不把 `PAUSED_BY_USER` 写成 CI green
+- 不把本地 PASS 写成 GitHub CI green

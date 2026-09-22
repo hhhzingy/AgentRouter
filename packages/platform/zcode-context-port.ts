@@ -18,6 +18,8 @@ interface ZcodePortOptions {
   credentialFile?: string;
   /** 单次协议操作预算(毫秒);超时不追杀未知副作用,转入不确定保持。 */
   budgetMs?: number;
+  /** 仅含非秘密 provider 配置文件路径；认证仍留在隔离 HOME。 */
+  providerEnv?: Readonly<Record<string, string>>;
 }
 
 interface SessionSnapshot {
@@ -50,11 +52,11 @@ function visibleText(messages: SessionSnapshot['messages']): { text: string; tru
 class ZcodeSessionClient {
   private child: ChildProcessWithoutNullStreams;
   private seq = 0;
-  private pending = new Map<string, { res: (v: unknown) => void; rej: (e: Error) => void }>();
+  private pending = new Map<string, { method: string; res: (v: unknown) => void; rej: (e: Error) => void }>();
   private buffer = '';
-  constructor(private readonly zcodeCli: string, private readonly sessionHome: string, apiKey: string | null, private readonly budgetMs: number) {
+  constructor(private readonly zcodeCli: string, private readonly sessionHome: string, cwd: string, apiKey: string | null, private readonly budgetMs: number, providerEnv: Readonly<Record<string, string>> = {}) {
     this.child = spawn(process.execPath, [zcodeCli, 'app-server'], {
-      cwd: sessionHome,
+      cwd,
       windowsHide: true,
       env: {
         SystemRoot: process.env.SystemRoot,
@@ -64,6 +66,11 @@ class ZcodeSessionClient {
         HOME: sessionHome,
         APPDATA: join(sessionHome, 'AppData', 'Roaming'),
         LOCALAPPDATA: join(sessionHome, 'AppData', 'Local'),
+        XDG_CONFIG_HOME: join(sessionHome, '.config'),
+        TEMP: join(sessionHome, 'tmp'),
+        TMP: join(sessionHome, 'tmp'),
+        AGENTROUTER_MANAGED_ROLE: '1',
+        ...providerEnv,
         ...(apiKey ? { ZCODE_API_KEY: apiKey } : {}),
       },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -89,10 +96,28 @@ class ZcodeSessionClient {
         this.child.stdin.write(JSON.stringify({ id: msg.id, result: deny?.response ?? { decision: 'deny', reason: 'context port' } }) + '\n');
         continue;
       }
+      // 只读迁移端口不应阻塞在新增的 server request；对未知交互统一拒绝，绝不自动批准。
+      if (typeof msg.method === 'string' && msg.id !== undefined) {
+        this.child.stdin.write(JSON.stringify({ id: msg.id, result: { decision: 'deny', reason: 'context port' } }) + '\n');
+        continue;
+      }
       if (typeof msg.id === 'string' && this.pending.has(msg.id)) {
         const p = this.pending.get(msg.id)!;
         this.pending.delete(msg.id);
-        if (msg.error) p.rej(Error('ZCODE_' + String(msg.error?.data?.code ?? msg.error?.code ?? 'REQUEST_REJECTED')));
+        if (msg.error) {
+          const detail = String(msg.error?.data?.message ?? msg.error?.data ?? msg.error?.message ?? '');
+          const errorClass = /not found/i.test(detail) ? 'NOT_FOUND'
+            : /workspace/i.test(detail) ? 'WORKSPACE'
+              : /revision|epoch/i.test(detail) ? 'REVISION'
+                : /database|sqlite|locked/i.test(detail) ? 'DATABASE'
+                  : /row|conversation/i.test(detail) ? 'CONVERSATION'
+                    : /invalid state/i.test(detail) ? 'INVALID_STATE'
+                      : /cannot read|undefined|null/i.test(detail) ? 'TYPE_ERROR'
+                        : /session/i.test(detail) ? 'SESSION'
+                          : /permission|access/i.test(detail) ? 'PERMISSION'
+                            : 'OTHER';
+          p.rej(Error('ZCODE_' + p.method.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase() + '_' + String(msg.error?.data?.code ?? msg.error?.code ?? 'REQUEST_REJECTED') + '_' + errorClass));
+        }
         else p.res(msg.result);
       }
     }
@@ -102,6 +127,7 @@ class ZcodeSessionClient {
     return new Promise((res, rej) => {
       const timer = setTimeout(() => { this.pending.delete(id); rej(Error('ZCODE_TIMEOUT_AFTER_SEND')); }, this.budgetMs);
       this.pending.set(id, {
+        method,
         res: (v) => { clearTimeout(timer); res(v); },
         rej: (e) => { clearTimeout(timer); rej(e); },
       });
@@ -112,8 +138,8 @@ class ZcodeSessionClient {
   async close() { try { this.child.kill(); } catch {} }
 }
 
-async function withClient<T>(opts: { zcodeCli: string; sessionHome: string; apiKey: string | null; budgetMs: number }, fn: (c: ZcodeSessionClient) => Promise<T>): Promise<T> {
-  const c = new ZcodeSessionClient(opts.zcodeCli, opts.sessionHome, opts.apiKey, opts.budgetMs);
+async function withClient<T>(opts: { zcodeCli: string; sessionHome: string; cwd: string; apiKey: string | null; budgetMs: number; providerEnv?: Readonly<Record<string, string>> }, fn: (c: ZcodeSessionClient) => Promise<T>): Promise<T> {
+  const c = new ZcodeSessionClient(opts.zcodeCli, opts.sessionHome, opts.cwd, opts.apiKey, opts.budgetMs, opts.providerEnv);
   try { return await fn(c); } finally { await c.close(); }
 }
 
@@ -137,6 +163,40 @@ function readCredential(file: string | undefined): { apiKey: string; maxTokens: 
   } catch { return null; }
 }
 
+const VOLATILE_KEYS = new Set(['id', 'createdAt', 'updatedAt', 'timestamp', 'issuedAt', 'revision', 'logEpoch']);
+function stableVisibleValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableVisibleValue);
+  if (!value || typeof value !== 'object') return value;
+  const input = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(input).sort()) {
+    if (VOLATILE_KEYS.has(key) || /id$/i.test(key) || /(timestamp|timeMs|durationMs)$/i.test(key) || input[key] === undefined) continue;
+    out[key] = stableVisibleValue(input[key]);
+  }
+  return out;
+}
+function visibleTranscript(messages: Record<string, any>[]): unknown[] {
+  return messages
+    .filter((message) => message?.info?.visibility !== 'model-only' && message?.info?.semantics?.transcriptVisibility !== 'hidden')
+    .map((message) => ({
+      role: message?.info?.role ?? message?.role,
+      parts: (Array.isArray(message?.parts) ? message.parts : [])
+        .filter((part: any) => part?.timelineType !== 'session_fork')
+        .map(stableVisibleValue),
+    }))
+    .filter((message) => message.parts.length > 0);
+}
+const transcriptHash = (messages: Record<string, any>[]): string =>
+  createHash('sha256').update(JSON.stringify(visibleTranscript(messages))).digest('hex');
+function messagesResult(value: any): Record<string, any>[] {
+  return (Array.isArray(value) ? value : Array.isArray(value?.messages) ? value.messages : []) as Record<string, any>[];
+}
+function nativeSessionId(value: any): string {
+  const id = value?.forkedSessionId ?? value?.session?.sessionId ?? value?.sessionId;
+  if (typeof id !== 'string' || !id) throw Error('ZCODE_SESSION_ID_MISSING');
+  return id;
+}
+
 export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPort {
   const budgetMs = opts.budgetMs ?? 45000;
   const homeOf = (sessionHome: string | null): string => {
@@ -144,18 +204,86 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
     return sessionHome;
   };
   const idempotency = new Map<string, string>(); // operationId → target native session id
+  const clientOpts = (sessionHome: string, apiKey: string | null, multiplier = 1, cwd = sessionHome) => ({
+    zcodeCli: opts.zcodeCli,
+    sessionHome,
+    cwd,
+    apiKey,
+    budgetMs: budgetMs * multiplier,
+    providerEnv: opts.providerEnv?.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE
+      ? {
+          ...opts.providerEnv,
+          ZCODE_PERSONAL_PROVIDER_CONFIG_FILE: join(sessionHome, '.zcode', 'v2', 'provider_config.json'),
+        }
+      : opts.providerEnv,
+  });
   return {
-    async exportContext({ nativeSessionRef, sessionHome }) {
-      const snap = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+    async nativeForkTarget({ sourceNativeSessionRef, sessionHome, workspace, operationId, targetNativeSessionRef, recordTargetCreated }) {
+      const home = homeOf(sessionHome);
+      const known = targetNativeSessionRef ?? idempotency.get(operationId);
+      if (known) return this.confirmNativeFork!({ harness: 'zcode', sessionHome, sourceNativeSessionRef, nativeSessionRef: known, operationId });
+      return withClient(clientOpts(home, null, 1, workspace || home), async (c) => {
+        await c.request('session/resume', { sessionId: sourceNativeSessionRef });
+        const sourceBefore = messagesResult(await c.request('session/messages', { sessionId: sourceNativeSessionRef }));
+        const rowsResult = await c.request('v4/conversation/rowsRange', {
+          sessionId: sourceNativeSessionRef,
+          clientMode: 'desktop-continuous',
+          limit: 200,
+        });
+        const rows = Array.isArray(rowsResult?.rows) ? rowsResult.rows : [];
+        const target = [...rows].reverse().find((row: any) => row?.kind === 'assistantText' && row?.actions?.canFork === true &&
+          Number.isSafeInteger(row?.rowId) && typeof row?.entityId === 'string' && row.entityId);
+        if (!target) throw Error('NOT_STARTED: ZCODE_FORK_TARGET_UNAVAILABLE');
+        const reply = await c.request('v4/command', {
+          commandId: 'agentrouter-native-fork-' + operationId,
+          clientId: 'agentrouter-context-transfer',
+          sessionId: sourceNativeSessionRef,
+          baseRevision: rowsResult.atRevision,
+          baseLogEpoch: rowsResult.atLogEpoch,
+          type: 'forkAssistant',
+          payload: { target: { rowId: target.rowId, entityId: target.entityId } },
+          issuedAt: Date.now(),
+        });
+        const ack = reply?.ack ?? reply;
+        if (!['accepted', 'duplicate'].includes(ack?.status)) throw Error('ZCODE_NATIVE_FORK_REJECTED');
+        const child = nativeSessionId(ack?.result);
+        idempotency.set(operationId, child);
+        recordTargetCreated(child);
+        const sourceAfter = messagesResult(await c.request('session/messages', { sessionId: sourceNativeSessionRef }));
+        const childMessages = messagesResult(await c.request('session/messages', { sessionId: child }));
+        const beforeHash = transcriptHash(sourceBefore);
+        if (transcriptHash(sourceAfter) !== beforeHash) throw Error('ZCODE_NATIVE_FORK_SOURCE_HISTORY_MISMATCH');
+        if (transcriptHash(childMessages) !== beforeHash) throw Error('ZCODE_NATIVE_FORK_CHILD_HISTORY_MISMATCH');
+        return { nativeSessionRef: child, confirmed: true, acceptedPayloadHash: beforeHash, nativeReceipt: 'zcode:v4/forkAssistant:' + operationId };
+      });
+    },
+    async confirmNativeFork({ sourceNativeSessionRef, nativeSessionRef, sessionHome, workspace, operationId, expectedPayloadHash }) {
+      try {
+        return await withClient(clientOpts(homeOf(sessionHome), null, 1, workspace || homeOf(sessionHome)), async (c) => {
+          await c.request('session/resume', { sessionId: sourceNativeSessionRef });
+          await c.request('session/resume', { sessionId: nativeSessionRef });
+          const sourceHash = transcriptHash(messagesResult(await c.request('session/messages', { sessionId: sourceNativeSessionRef })));
+          const childHash = transcriptHash(messagesResult(await c.request('session/messages', { sessionId: nativeSessionRef })));
+          const confirmed = sourceHash === childHash && (!expectedPayloadHash || expectedPayloadHash === sourceHash);
+          return confirmed
+            ? { nativeSessionRef, confirmed: true, acceptedPayloadHash: sourceHash, nativeReceipt: 'zcode:cold-resume:' + operationId }
+            : { nativeSessionRef, confirmed: false };
+        });
+      } catch { return { nativeSessionRef, confirmed: false }; }
+    },
+    async exportContext({ nativeSessionRef, sessionHome, workspace }) {
+      const home = homeOf(sessionHome);
+      const snap = await withClient(clientOpts(home, null, 1, workspace || home), async (c) => {
         return parseSnapshot(await c.request('session/resume', { sessionId: nativeSessionRef }));
       });
       const { text, truncated } = visibleText(snap.messages);
       if (!snap.sessionId) throw Error('ZCODE_RESUME_EMPTY');
       return { text, truncated };
     },
-    async sourceCapacity({ nativeSessionRef, sessionHome }) {
+    async sourceCapacity({ nativeSessionRef, sessionHome, workspace }) {
       try {
-        const snap = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+        const home = homeOf(sessionHome);
+        const snap = await withClient(clientOpts(home, null, 1, workspace || home), async (c) => {
           return parseSnapshot(await c.request('session/resume', { sessionId: nativeSessionRef }));
         });
         return { windowTokens: snap.contextWindow, usageTokens: snap.contextUsed };
@@ -163,7 +291,8 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
     },
     async targetWindowTokens({ sessionHome, workspace, operationId, targetNativeSessionRef, recordTargetCreated }) {
       try {
-        return await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+        const home = homeOf(sessionHome);
+        return await withClient(clientOpts(home, null, 1, workspace || home), async (c) => {
           const existing = targetNativeSessionRef ?? idempotency.get(operationId);
           const snap = existing
             ? parseSnapshot(await c.request('session/resume', { sessionId: existing }))
@@ -184,7 +313,7 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
       }
       const cred = readCredential(opts.credentialFile);
       const home = homeOf(sessionHome);
-      const target = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: home, apiKey: cred?.apiKey ?? null, budgetMs: (opts.budgetMs ?? 45000) * 2 }, async (c) => {
+      const target = await withClient(clientOpts(home, cred?.apiKey ?? null, 2, workspace || home), async (c) => {
         if (!workspace) throw Error('ZCODE_WORKSPACE_UNCONFIGURED');
         const sessionId = known ?? parseSnapshot(await c.request('session/create', { workspace: { workspacePath: workspace, workspaceKey: 'ar-context-' + operationId } })).sessionId;
         if (!sessionId) throw Error('ZCODE_SESSION_CREATE_EMPTY');
@@ -202,9 +331,10 @@ export function createZcodeContextPort(opts: ZcodePortOptions): TransferDriverPo
       // 回执绑定“本次 operation + 特定 seed hash”，不能以 session exists 替代 seed accepted。
       return { nativeSessionRef: target, confirmed: true, acceptedPayloadHash: expectedPayloadHash, nativeReceipt: 'zcode:session/send:ctxinit_' + operationId };
     },
-    async confirmTarget({ nativeSessionRef, sessionHome, operationId, expectedPayloadHash }) {
+    async confirmTarget({ nativeSessionRef, sessionHome, workspace, operationId, expectedPayloadHash }) {
       try {
-        const snap = await withClient({ zcodeCli: opts.zcodeCli, sessionHome: homeOf(sessionHome), apiKey: null, budgetMs }, async (c) => {
+        const home = homeOf(sessionHome);
+        const snap = await withClient(clientOpts(home, null, 1, workspace || home), async (c) => {
           const snap = parseSnapshot(await c.request('session/resume', { sessionId: nativeSessionRef }));
           if (!snap.sessionId) throw Error('no');
           return snap;

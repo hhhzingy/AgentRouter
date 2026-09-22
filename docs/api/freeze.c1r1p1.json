@@ -9,7 +9,7 @@
     "contracts/client-api.c1r1p1.schema.json": "8888f8fb9e1680f1dfb813d4f104b19be62b16a5e7a02d377ce4dda281d789fe",
     "packages/client-contract/c1r1p1/index.ts": "aae2f2479e1ef6c77083b66479034fcc30af025fe14f55f33bf9f94542152f3c",
     "packages/client-contract/c1r1p1/generated.ts": "20ce8c6b4346a6734ec6b9f3786cc7c6481f8631fc55c1126eae7ec86b55620a",
-    "packages/client-transport/p1/types.ts": "74d622392e6aa748171ef1db816886a3f0eff0fd7ce4d107ab5e5b343fe70320",
+    "packages/client-transport/p1/types.ts": "c8000c79289a75edd2f84cd59cd23a6440b31592a8dd689a180cabe23f9088ed",
     "docs/api/c1r1p1/methods.md": "f05290b343064f29da69d63a10e7b5d21486b0ef140dc42bc890f0f8c631c4e8",
     "tools/generate-client-p1.mjs": "9697be36f0f0d75acee51570fe0523c7311eab3820125e78e799049ed57519aa"
   }

@@ -17,6 +17,8 @@ export interface DriverContextCapabilities {
   harness: string;
   driver_version?: string;
   native_resume: DriverCapabilityStatus;
+  /** 同一 Harness 内由原生协议复制完整可见会话，不等同于跨 Harness history_export。 */
+  native_fork: DriverCapabilityStatus;
   history_export: DriverHistoryExport;
   context_capacity: DriverContextCapacity;
   context_usage: DriverContextUsage;
@@ -71,6 +73,7 @@ export function unknownDriverContextCapabilities(
     harness,
     ...(driverVersion ? { driver_version: driverVersion } : {}),
     native_resume: 'UNKNOWN',
+    native_fork: 'UNKNOWN',
     history_export: 'UNKNOWN',
     context_capacity: 'UNKNOWN',
     context_usage: 'UNKNOWN',
@@ -88,6 +91,7 @@ export function validateDriverContextCapabilities(
     !/^[a-z][a-z0-9_]{1,40}$/.test(value.harness) ||
     (value.driver_version !== undefined && typeof value.driver_version !== 'string') ||
     !capabilityStatuses.has(value.native_resume) ||
+    !capabilityStatuses.has(value.native_fork) ||
     !historyStatuses.has(value.history_export) ||
     !capacityStatuses.has(value.context_capacity) ||
     !usageStatuses.has(value.context_usage) ||

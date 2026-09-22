@@ -11,7 +11,7 @@ import seed from '../../fixtures/client-c1r1/two-groups.plan.json' with { type: 
 import type { RolePlanInput, Method, Scope } from '../../packages/client-contract/c1r1p1/index.ts';
 
 // WC01:一次性 Context Transfer 引擎闭环(fixture 端口;真实 harness 端口由 WC02/WC05 live 覆盖)。
-async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capability = 'FULL_VISIBLE') {
+async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capability = 'FULL_VISIBLE', nativeFork = false) {
   mkdirSync('.local/w11-tests', { recursive: true });
   const dir = mkdtempSync(resolve('.local/w11-tests/ctxfer-'));
   const db = openApplicationStore(dir),
@@ -43,7 +43,7 @@ async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capabili
   const extension = new RoleSessionExtension(
     db,
     undefined,
-    () => ({ historyExport: capability }),
+    () => ({ historyExport: capability, nativeFork: nativeFork ? 'VERIFIED' : 'UNKNOWN' }),
     ports,
   );
   server.roleSession = extension;
@@ -120,6 +120,45 @@ async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capabili
   };
   return { db, s, roleId, firstSessionId, port, calls, rsCall, settle, settleUntil, engine, leaseId: (lease as { leaseId: string }).leaseId };
 }
+
+it('同 Harness native_fork=VERIFIED 时不经 export/seed，核对后原子提交', async () => {
+  const payloadHash = createHash('sha256').update('native-visible-history').digest('hex');
+  const f = await fixture({
+    nativeForkTarget: async (input) => {
+      f.calls.nativeFork = (f.calls.nativeFork ?? 0) + 1;
+      input.recordTargetCreated('native-fork-child-1');
+      return { nativeSessionRef: 'native-fork-child-1', confirmed: true, acceptedPayloadHash: payloadHash };
+    },
+    confirmNativeFork: async (input) => ({ nativeSessionRef: input.nativeSessionRef, confirmed: true, acceptedPayloadHash: payloadHash }),
+  }, 'UNKNOWN', true);
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '原生继承', context_mode: 'inherit' })) as any;
+  const st = await f.settle(created.transfer.op_id);
+  expect(st.state).toBe('COMMITTED');
+  expect(f.calls.nativeFork).toBe(1);
+  expect(f.calls.export ?? 0).toBe(0);
+  expect(f.calls.init ?? 0).toBe(0);
+});
+
+it('原生 fork 创建目标后回执丢失，冷核对同一 child 后提交且不重复 fork', async () => {
+  const payloadHash = createHash('sha256').update('native-cold-confirm').digest('hex');
+  let forks = 0;
+  let confirms = 0;
+  const f = await fixture({
+    nativeForkTarget: async (input) => {
+      forks++;
+      input.recordTargetCreated('native-fork-child-timeout');
+      throw Error('ZCODE_TIMEOUT_AFTER_SEND');
+    },
+    confirmNativeFork: async (input) => {
+      confirms++;
+      return { nativeSessionRef: input.nativeSessionRef, confirmed: true, acceptedPayloadHash: payloadHash };
+    },
+  }, 'UNKNOWN', true);
+  const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '原生冷核对', context_mode: 'inherit' })) as any;
+  expect((await f.settle(created.transfer.op_id)).state).toBe('COMMITTED');
+  expect(forks).toBe(1);
+  expect(confirms).toBe(1);
+});
 
 it('SH-02:T≥S 且 A=null 直接迁移;提交后新 WS 携带 native ref,旧 WS 归档', async () => {
   const f = await fixture();

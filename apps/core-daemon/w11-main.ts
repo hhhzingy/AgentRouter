@@ -227,12 +227,27 @@ server.listen(address, async () => {
         transferPorts.set('zcode', createZcodeContextPort({
           zcodeCli: String(nativeCfg.zcodeCli),
           credentialFile: typeof nativeCfg.zcodeCredentialFile === 'string' ? nativeCfg.zcodeCredentialFile : undefined,
+          providerEnv: typeof nativeCfg.zcodeExistingAccount?.builtinProviderConfigFile === 'string'
+            ? {
+                ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: String(nativeCfg.zcodeExistingAccount.builtinProviderConfigFile),
+              }
+            : undefined,
         }));
+      }
+      const codexProfile = Array.isArray(nativeCfg?.profiles)
+        ? nativeCfg.profiles.find((profile: any) => profile?.harness === 'codex' && typeof profile?.executable === 'string')
+        : undefined;
+      if (codexProfile?.executable) {
+        const { createCodexContextPort } = await import('../../packages/platform/codex-context-port.ts');
+        transferPorts.set('codex', createCodexContextPort({ codexBin: String(codexProfile.executable) }));
       }
       const extension = new RoleSessionExtension(
         db,
         undefined,
-        (harness: string) => ({ historyExport: registry.capabilities(harness).capabilities.history_export }),
+        (harness: string) => ({
+          historyExport: registry.capabilities(harness).capabilities.history_export,
+          nativeFork: registry.capabilities(harness).capabilities.native_fork,
+        }),
         transferPorts,
         (harness: string) => (registry.capabilities(harness).capabilities.native_resume === 'UNSUPPORTED' ? 'SESSION_CONTINUATION_UNSUPPORTED' : 'SAME_SESSION_CONTINUOUS'),
         sessionHomeOf,
