@@ -8,7 +8,7 @@
 
 ## 结论
 
-> 2026-09-22 后续更新：用户已恢复 C1/W11。本轮新增并真实验证 ZCode V4 `forkAssistant` 与 Codex `thread/fork` 同 Harness 原生历史复制；两端父子会话均可 cold resume，源历史不变，且未发送模型 prompt。C1 本地等价门禁 100 files / 539 tests PASS；W11 本地等价门禁 111 files / 638 tests、B0/J1/J2/Electron PASS。最终 GitHub 同 SHA 结果须在推送后回填。在远端结果 green、重新绑定最终 SHA/package 前，仍不得宣称 Windows RC。
+> 2026-09-22 后续更新：用户已恢复 C1/W11。本轮新增并真实验证 ZCode V4 `forkAssistant` 与 Codex `thread/fork` 同 Harness 原生历史复制；两端父子会话均可 cold resume，源历史不变，且未发送模型 prompt。C1 本地等价门禁 100 files / 539 tests PASS；W11 本地等价门禁 111 files / 638 tests、B0/J1/J2/Electron PASS。代码 SHA `e97d72ece7734ac9938bc7927b04ed09beb3b7bb` 的 GitHub C1/W11 均 green。现有发布包仍绑定旧 runtime SHA，重新绑定最终 SHA/package 前，仍不得宣称 Windows RC。
 
 本轮已完成此前剩余的真实 Tailscale Serve HTTPS/WSS 后端语义：业务取消、提交后响应丢失的 UNKNOWN/连接丢失、不自动重放、活动流撤销、Core/Application 重建后的游标失效与事件追赶、快照恢复均通过。重新绑定 clean SHA 的源包、ZIP、全新解包、Codex 与 ZCode 真实冒烟也已通过。
 
@@ -26,7 +26,7 @@
 | G4 Web Participant | PASS_BY_UNCHANGED_CODE_EVIDENCE | 真实网页 Task→Artifact→Result→PUBLISHED 证据有效，相关运行时代码未变。 |
 | G5 Remote | **PASS** | 真实 Tailscale Serve HTTPS/WSS 后端完整覆盖执行包列出的 hello/snapshot、observer/controller lease、无害 mutation、cancel、live revoke、Core restart reconnect/catchup、response-drop UNKNOWN 不重放。 |
 | G6 Data/Package | PASS | clean SHA、18 migrations、源包/ZIP/解包、Core 重启、Codex/ZCode 两侧冒烟、两侧 secret scan 通过。 |
-| G7 GitHub CI | **LOCAL_PASS_REMOTE_PENDING** | 用户已恢复 C1/W11；本地等价 C1/W11 均 PASS。最终非 skip SHA 推送后等待 GitHub 两条 workflow 实际 green。 |
+| G7 GitHub CI | **PASS** | `e97d72ece7734ac9938bc7927b04ed09beb3b7bb`：C1 run `35695366916`、W11 run `35695366845`，实际 steps 全部 green。 |
 
 ## Work Session 完整历史迁移后续闭环
 
@@ -89,7 +89,7 @@ ZIP：`release/AgentRouter-j3-7fda36940599.zip`
 - 真实 Tailnet opt-in：1 file / 1 test PASS
 - 当前交互 Node 24.19.0 与 engine 24.14.0 不同，命令有 warning；发布包内 Node 为 24.14.0。
 
-C1/W11 已恢复并完成本地等价运行：C1 为 100 files / 539 tests PASS；W11 为 111 files / 638 tests PASS，B0/J1/J2/Electron 全部通过。GitHub 远端仍必须绑定本轮最终非 skip SHA，确认两条 Actions 有实际 steps 且 green；若 SHA 变化，需重新绑定发布证据。只有远端 G7 完成并重新生成/复核最终 SHA 的发布包后，才可重新评估 `V1.1_NON_UI_FUNCTIONAL_RC_READY`。
+C1/W11 已恢复并完成本地等价运行：C1 为 100 files / 539 tests PASS；W11 为 111 files / 638 tests PASS，B0/J1/J2/Electron 全部通过。GitHub 代码 SHA `e97d72ece7734ac9938bc7927b04ed09beb3b7bb` 的 C1 run `35695366916` 与 W11 run `35695366845` 均有实际 steps 且 green。G7 已关闭；但现有发布包仍绑定 `7fda369...`，只有重新生成/复核最终源码 SHA 的发布包后，才可重新评估 `V1.1_NON_UI_FUNCTIONAL_RC_READY`。
 
 ## 发布边界
 
