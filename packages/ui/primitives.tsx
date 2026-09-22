@@ -53,6 +53,50 @@ export function Card({
   return <Tag className={`card ${className}`}>{children}</Tag>;
 }
 
+export function Section({
+  title,
+  eyebrow,
+  action,
+  children,
+  className = '',
+}: {
+  title: string;
+  eyebrow?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`ui-section ${className}`}>
+      <header className="section-heading">
+        <div>
+          {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+          <h2>{title}</h2>
+        </div>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+export function Banner({
+  tone = 'neutral',
+  title,
+  children,
+}: {
+  tone?: DisplayTone;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`ui-banner tone-${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>
+      {title && <strong>{title}</strong>}
+      <span>{children}</span>
+    </div>
+  );
+}
+
 export function Button({
   variant = 'secondary',
   disabled,
@@ -81,6 +125,59 @@ export function Button({
     >
       {children}
     </button>
+  );
+}
+
+export function IconButton({
+  label,
+  children,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  children: ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      className="icon-btn"
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function SegmentedControl({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="segmented" role="group" aria-label={label}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={option.value === value ? 'active' : ''}
+          aria-pressed={option.value === value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }
 

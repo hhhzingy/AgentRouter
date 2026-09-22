@@ -16,6 +16,7 @@ import { RolePage } from './workbench/pages-role.tsx';
 import { RolePlanPage } from './workbench/pages-roleplan.tsx';
 import { ReconfigurePage } from './workbench/pages-reconfigure.tsx';
 import { RemoteDevicesPage } from './workbench/pages-remote.tsx';
+import { GlobalSettingsPage } from './workbench/pages-settings.tsx';
 
 type RemoteNodeRecord = { id: string; name: string; url: string; deviceId: string; lastSeenMs?: number };
 declare global {
@@ -67,6 +68,7 @@ function Routes() {
   if (parts[0] === 'roleplan' && parts[1]) return <RolePlanPage key={parts[1]} projectId={parts[1]} />;
   if (parts[0] === 'reconfigure' && parts[1]) return <ReconfigurePage projectId={parts[1]} />;
   if (parts[0] === 'remote') return <RemoteDevicesPage />;
+  if (parts[0] === 'settings') return <GlobalSettingsPage />;
   return <HomePage />;
 }
 

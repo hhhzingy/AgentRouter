@@ -19,9 +19,22 @@ export function Shell({ children }: { children: ReactNode }) {
   const remote = s.contextMode === 'REMOTE_CORE';
   const hostLabel = remote ? `Remote Core ${s.hello.serverInstanceId.slice(0, 8)}` : 'This PC';
   const controlLabel = s.connectionState === 'CONNECTED_CONTROLLER' ? 'Controller' : 'Observer';
+  const route = typeof location === 'undefined' ? '' : location.hash;
+  React.useEffect(() => {
+    const saved = localStorage.getItem('agentrouter.theme');
+    const resolved =
+      saved === 'light' || saved === 'dark'
+        ? saved
+        : matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+    document.documentElement.dataset.theme = resolved;
+    document.documentElement.style.colorScheme = resolved;
+  }, []);
 
   return (
     <div className="wb-shell">
+      <a className="skip-link" href="#main-content">跳到主要内容</a>
       <header className="wb-topbar">
         <a className="wb-brand" href="#/">
           <b>AR</b>
@@ -93,18 +106,39 @@ export function Shell({ children }: { children: ReactNode }) {
           连接不稳定，正在重连。展示最后一致快照（{formatAsOf(s.frozenAtMs)}）。
         </div>
       )}
-      <main className="wb-main"><PendingPanel />{children}</main>
-      <footer className="wb-footer">
-        <div className="wb-core-identity" title={s.hello.serverInstanceId}>
-          Host {s.hello.platform} · Core {s.hello.serverInstanceId.slice(0, 12)} ·{' '}
-          {s.hello.contractRevision ?? s.hello.protocol}
+      <div className="wb-body">
+        <aside className="wb-sidebar" aria-label="全局导航">
+          <nav className="global-nav">
+            <a className={!route || route === '#/' ? 'active' : ''} href="#/" aria-current={!route || route === '#/' ? 'page' : undefined}>
+              <span aria-hidden="true">▦</span><b>Projects</b>
+            </a>
+            <a className={route.startsWith('#/remote') ? 'active' : ''} href="#/remote" aria-current={route.startsWith('#/remote') ? 'page' : undefined}>
+              <span aria-hidden="true">⌁</span><b>Connections</b>
+            </a>
+            <a className={route.startsWith('#/settings') ? 'active' : ''} href="#/settings" aria-current={route.startsWith('#/settings') ? 'page' : undefined}>
+              <span aria-hidden="true">⚙</span><b>Settings</b>
+            </a>
+          </nav>
+          <div className="sidebar-identity" title={s.hello.serverInstanceId}>
+            <span className={`status-dot tone-${disconnected ? 'danger' : reconnecting ? 'warning' : 'ok'}`} aria-hidden="true" />
+            <span><b>{remote ? 'Remote Core' : 'Local Core'}</b><small>{controlLabel} · {disconnected ? 'Offline' : reconnecting ? 'Reconnecting' : 'Connected'}</small></span>
+          </div>
+        </aside>
+        <div className="wb-content">
+          <main className="wb-main" id="main-content"><PendingPanel />{children}</main>
+          <footer className="wb-footer">
+            <div className="wb-core-identity" title={s.hello.serverInstanceId}>
+              Host {s.hello.platform} · Core {s.hello.serverInstanceId.slice(0, 12)} ·{' '}
+              {s.hello.contractRevision ?? s.hello.protocol}
+            </div>
+            <details><summary>帮助与连接说明</summary><span>
+              关闭窗口仅退出界面，本地 Core 独立运行；远程状态需重新连接确认。
+              {s.hello.capabilities.mock && ' · 预览数据（Mock）'}
+            </span>
+            </details>
+          </footer>
         </div>
-        <details><summary>帮助与连接说明</summary><span>
-          关闭窗口仅退出界面，本地 Core 独立运行；远程状态需重新连接确认。
-          {s.hello.capabilities.mock && ' · 预览数据（Mock）'}
-        </span>
-        </details>
-      </footer>
+      </div>
     </div>
   );
 }
