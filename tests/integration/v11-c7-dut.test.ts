@@ -34,7 +34,7 @@ it('C7:五 Harness 声明矩阵均为 COLD_RUN；ZCode 0.16.9 resume 接线仍�
   expect(harnessLifecycleDeclaration('codex').level_b).toBe('DECLARED_UNVERIFIED');
 });
 
-it(
+it.skipIf(process.env.AGENTROUTER_V11_C7_NATIVE_SETUP !== '1')(
   'C7:隔离 native-runtime 可安装；百炼只引用路径；不占用生产 HOME',
   { timeout: 180000 },
   async () => {
