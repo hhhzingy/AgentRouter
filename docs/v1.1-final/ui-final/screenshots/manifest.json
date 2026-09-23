@@ -1,6 +1,7 @@
 {
-  "source": "working-tree",
-  "generatedAt": "2026-09-20T22:41:59.494Z",
+  "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
+  "sourceDirty": false,
+  "generatedAt": "2026-09-23T00:17:37.385Z",
   "shots": [
     {
       "name": "01-home",
@@ -12,7 +13,8 @@
       },
       "scale": 1,
       "file": "screenshots/01-home.png",
-      "horizontalOverflow": false
+      "horizontalOverflow": false,
+      "sha256": "7f50f3fe6aa4e865c92dc6bc0236b271594bd600d5da5f3dcad5c89493bf0463"
     },
     {
       "name": "02-workbench",
@@ -24,7 +26,8 @@
       },
       "scale": 1,
       "file": "screenshots/02-workbench.png",
-      "horizontalOverflow": false
+      "horizontalOverflow": false,
+      "sha256": "2e3dc7e3cb0b40d4fc35808edcffb27a83ae0d91ad1c89fee009de87bbed172d"
     },
     {
       "name": "03-role-worksession",
@@ -36,7 +39,8 @@
       },
       "scale": 1,
       "file": "screenshots/03-role-worksession.png",
-      "horizontalOverflow": false
+      "horizontalOverflow": false,
+      "sha256": "43c92c2f91a11c0acb8f78409919eeac3580aee5e93134b7a59fb987b7434e57"
     },
     {
       "name": "04-results-evidence",
@@ -48,7 +52,8 @@
       },
       "scale": 1,
       "file": "screenshots/04-results-evidence.png",
-      "horizontalOverflow": false
+      "horizontalOverflow": false,
+      "sha256": "170a5e7671e745c9ef82c40b8ef24048a9b1598290716f825f4eb8367fa69ce9"
     },
     {
       "name": "05-workbench-150dpi",
@@ -60,7 +65,8 @@
       },
       "scale": 1.5,
       "file": "screenshots/05-workbench-150dpi.png",
-      "horizontalOverflow": false
+      "horizontalOverflow": false,
+      "sha256": "68a37bc2c9fb10112db5be886a00c56f1744cbbbfa7d0df1756d0527da72a735"
     },
     {
       "name": "06-mobile-intervention",
@@ -72,7 +78,49 @@
       },
       "scale": 1,
       "file": "screenshots/06-mobile-intervention.png",
-      "horizontalOverflow": false
+      "horizontalOverflow": false,
+      "sha256": "e8b564135f7c1dd24e65630c0eaed6abc5060a5fc81f42d95c62eb451363e955"
+    },
+    {
+      "name": "07-settings-dark",
+      "route": "#/settings",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "theme": "dark",
+      "file": "screenshots/07-settings-dark.png",
+      "horizontalOverflow": false,
+      "sha256": "77e2589b277362fb2f562756c8c20d50ce7e490f7e8bcee62d366f433faf50a1"
+    },
+    {
+      "name": "08-projects-dark",
+      "route": "#/",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "theme": "dark",
+      "file": "screenshots/08-projects-dark.png",
+      "horizontalOverflow": false,
+      "sha256": "12d7ed9ad763464b1a4e3030862ff52ae0bffa593e5fb2b9afd54a8fce3e4aba"
+    },
+    {
+      "name": "09-mobile-wide",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "observer",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "scale": 1,
+      "file": "screenshots/09-mobile-wide.png",
+      "horizontalOverflow": false,
+      "sha256": "811ad6173b20d8fd80488fc89176b9b8067ba2b352f0fc29f904e0ddee32c9ba"
     }
   ]
 }
