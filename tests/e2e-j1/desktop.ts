@@ -292,6 +292,24 @@ try {
   expect(await page.evaluate(() => typeof (window as any).require)).toBe('undefined');
   expect(errors).toEqual([]);
   pass('J1_RENDERER_NO_NODE_ERRORS');
+  const reviewable = snap.results.find((r: any) => r.acceptance === 'PENDING');
+  expect(reviewable).toBeDefined();
+  if (!reviewable) throw Error('J1_REVIEWABLE_RESULT_MISSING');
+  await page.locator('.project-card').filter({ hasText: '联验项目' }).click();
+  await page.getByRole('button', { name: '申请控制' }).click();
+  await page.locator(`a[href="#/project/${project.id}/inbox"]`).first().click();
+  const resultItem = page.locator('.inbox-item').filter({ hasText: reviewable.summary }).first();
+  await resultItem.getByRole('button', { name: '请求修改' }).click();
+  const feedback = 'J1 请补充可复核证据，并保留原交付历史';
+  await page.getByRole('textbox', { name: '修改意见' }).fill(feedback);
+  await page.getByRole('button', { name: '提交修改请求' }).click();
+  await expect(page.getByRole('status').filter({ hasText: '修改意见已保存' })).toBeVisible();
+  const review = await core.session.request('result.reviewStatus' as never, { id: reviewable.id } as never) as any;
+  expect(review).toMatchObject({ acceptance: 'REJECTED', feedback, published_history_retained: true });
+  expect(review.follow_up_task?.id).toBeTruthy();
+  await expect(resultItem.getByText('已拒绝', { exact: true })).toBeVisible();
+  await page.screenshot({ path: evidencePath('J1/screenshots/06-result-request-changes.png'), fullPage: true });
+  pass('J1_REAL_ELECTRON_RESULT_REQUEST_CHANGES');
 } catch (e) {
   checks.push({
     id: 'J1_DESKTOP',
