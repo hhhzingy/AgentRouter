@@ -37,7 +37,7 @@ export interface WorkbenchStore {
   /** Desktop 实际连接形态；用于显示 Local/Remote 身份，不参与权限判断。 */
   contextMode?: 'LOCAL_CORE' | 'REMOTE_CORE' | 'PREVIEW_MOCK';
   pendingOperations?:PendingRecord[];
-  retryPending?:(id:string)=>Promise<void>;
+  retryPending?:(id:string)=>Promise<unknown>;
   removePending?:(id:string)=>Promise<void>;
   pendingIdentity?:string;
   hello: CoreHelloVM;
@@ -239,13 +239,33 @@ export function StoreProvider({
           return request(method, params, { leaseId: lease.current?.leaseId });
         return request(method, params);
       }
-      if (method.startsWith('remoteDevice.') || method === 'participant.slot.create') {
+      if (method.startsWith('remoteDevice.')) {
         const snapshot = (await request('system.snapshot', {})) as { revision: number };
         return request(method, params, {
           leaseId: lease.current?.leaseId,
           operationId: 'op_' + crypto.randomUUID(),
           expectedRevision: snapshot.revision,
         });
+      }
+      if (method === 'participant.slot.create') {
+        const records = await getPending();
+        const prior = records.list().find(r => r.method === method && r.state === 'uncertain' && (r.params as { role_id?: unknown })?.role_id === params.role_id && JSON.stringify(r.params) !== JSON.stringify(params));
+        if (prior) throw Error('PENDING_SLOT_NEEDS_REVIEW');
+        let command = records.list().find(r => r.method === method && JSON.stringify(r.params) === JSON.stringify(params));
+        if (!command) {
+          const snapshot = (await request('system.snapshot', {})) as { revision: number };
+          command = records.prepare(method, params, Number(snapshot.revision), {});
+        }
+        if (!command.requestKey) throw Error('PENDING_STORAGE_INVALID');
+        setPendingOperations(records.list());
+        try {
+          const result = await request(method, command.params, { leaseId: lease.current?.leaseId, requestKey: command.requestKey, operationId: command.operationId, expectedRevision: command.expectedRevision });
+          records.remove(command.recordId);setPendingOperations(records.list());await refresh();return result;
+        } catch (e) {
+          if (failureState(e) === 'uncertain') records.markUncertain(command.recordId);
+          else records.remove(command.recordId);
+          setPendingOperations(records.list());throw e;
+        }
       }
       if (method === 'result.requestChanges') {
         const records=await getPending();
@@ -303,7 +323,7 @@ export function StoreProvider({
     const state = hello.connectionState;
     return {
       pendingOperations,pendingIdentity,contextMode,
-      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='result.requestChanges')throw Error('CHECK_STATUS_REQUIRED');if(record.method==='roleSession.create'||record.method==='roleSession.switch')await callExtension(record.method,record.params as Record<string,unknown>);else await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
+      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='result.requestChanges')throw Error('CHECK_STATUS_REQUIRED');if(record.method==='roleSession.create'||record.method==='roleSession.switch'||record.method==='participant.slot.create')return callExtension(record.method,record.params as Record<string,unknown>);return call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
       removePending:async(id)=>{const records=await getPending();records.remove(id);setPendingOperations(records.list());},
       hello,
       snapshot,

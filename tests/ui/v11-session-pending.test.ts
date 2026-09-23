@@ -38,3 +38,13 @@ it('请求修改结果未知时保留原 operation ID 与反馈，供 reviewStat
   expect(restored.list()[0]).toMatchObject({method:'result.requestChanges',params,operationId:first.operationId,expectedRevision:12,state:'uncertain'});
   expect(restored.prepare('result.requestChanges',params,99,{}).operationId).toBe(first.operationId);
 });
+
+it('Slot 创建结果未知时保留同一个 request_key 与 revision，避免重复建槽',()=>{
+  const storage=memory(), store=new PendingStore(storage,identity);
+  const params={role_id:'role_a',name:'Web W2',participant_kind:'CHATGPT_WEB'};
+  const first=store.prepare('participant.slot.create',params,18,{});
+  expect(first.requestKey).toBe(first.operationId);
+  store.markUncertain(first.recordId);
+  const restored=new PendingStore(storage,identity);
+  expect(restored.prepare('participant.slot.create',params,99,{})).toMatchObject({operationId:first.operationId,requestKey:first.requestKey,expectedRevision:18,state:'uncertain'});
+});

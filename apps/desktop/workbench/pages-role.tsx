@@ -480,7 +480,8 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
     { id: string; name: string; participant_kind: string; state: string; work_session_id: string | null;short_ref?:string;join_instruction_display?:string|null;binding_summary?:{display_name:string;participant_kind:string;state:string;last_seen_at_ms:number|null;external_session_display:string|null}|null }[] | null
   >(null);
   const [error, setError] = useState('');
-  const [creating,setCreating]=useState(false),[name,setName]=useState(''),[kind,setKind]=useState<'CHATGPT_WEB'|'MANAGED_HARNESS'|'PAIR_CODE'>('CHATGPT_WEB'),[instruction,setInstruction]=useState('');
+  const [creating,setCreating]=useState(false),[name,setName]=useState(''),[kind,setKind]=useState<'CHATGPT_WEB'|'MANAGED_HARNESS'|'PAIR_CODE'>('CHATGPT_WEB'),[instruction,setInstruction]=useState(''),[uncertain,setUncertain]=useState(false);
+  useEffect(()=>{if(!s.pendingOperations?.some(r=>r.method==='participant.slot.create'&&(r.params as {role_id?:unknown})?.role_id===roleId))setUncertain(false);},[s.pendingOperations,roleId]);
   useEffect(()=>{if(createRequest>0){setKind('CHATGPT_WEB');setCreating(true);}},[createRequest]);
   const load=React.useCallback(() => {
     let active = true;
@@ -496,7 +497,7 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
     };
   }, [roleId, s]);
   useEffect(() => load(), [load]);
-  const create=async()=>{try{const result=await s.callExtension('participant.slot.create',{role_id:roleId,name:name.trim()||'Web Participant',participant_kind:kind}) as {slot_id:string;seq:number;claim_code?:string};const text=[`AgentRouter Participant Join`,`role_id: ${roleId}`,`slot_id: ${result.slot_id}`,`participant_kind: ${kind}`,...(result.claim_code?[`claim_code: ${result.claim_code}`]:[])].join('\n');setInstruction(text);setCreating(false);setName('');setError('');load();}catch(e){setError(errorMessage(e));}};
+  const create=async()=>{try{const result=await s.callExtension('participant.slot.create',{role_id:roleId,name:name.trim()||'Web Participant',participant_kind:kind}) as {slot_id:string;seq:number;claim_code?:string};const text=[`AgentRouter Participant Join`,`role_id: ${roleId}`,`slot_id: ${result.slot_id}`,`participant_kind: ${kind}`,...(result.claim_code?[`claim_code: ${result.claim_code}`]:[])].join('\n');setInstruction(text);setCreating(false);setName('');setError('');setUncertain(false);load();}catch(e){setUncertain(failureState(e)==='uncertain');setError(errorMessage(e));}};
   const copy=async(text:string)=>{try{await navigator.clipboard.writeText(text);}catch{setError('无法访问剪贴板，请手动复制 Join Instruction。');}};
   return (
     <Card className="slot-card">
@@ -516,7 +517,7 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
         </ul>
       )}
       {instruction&&<div className="join-instruction"><div><b>Join Instruction</b><span>只显示一次；请交给预期 Participant。</span></div><pre>{instruction}</pre><Button onClick={()=>void copy(instruction)}>复制 Join Instruction</Button></div>}
-      {creating&&<Dialog title="添加 WorkSession Slot" onClose={()=>setCreating(false)} footer={<><Button onClick={()=>setCreating(false)}>取消</Button><Button variant="primary" disabled={!name.trim()} onClick={()=>void create()}>创建 Slot</Button></>}><label className="field"><span>Slot 名称</span><input type="text" value={name} maxLength={80} onChange={e=>setName(e.target.value)} placeholder="例如：W3 Web Review"/></label><label className="field"><span>Participant 类型</span><select aria-label="Participant 类型" value={kind} onChange={e=>setKind(e.target.value as typeof kind)}><option value="CHATGPT_WEB">ChatGPT Web</option><option value="MANAGED_HARNESS">Managed Harness</option><option value="PAIR_CODE">Pair Code Participant</option></select></label><p className="hint">创建 Slot 只准备一个 Join 位置，不代表 Participant 已绑定或正在运行。</p></Dialog>}
+      {creating&&<Dialog title="添加 WorkSession Slot" onClose={()=>setCreating(false)} footer={<><Button onClick={()=>setCreating(false)}>取消</Button><Button variant="primary" disabled={!name.trim()||uncertain} onClick={()=>void create()}>创建 Slot</Button></>}><label className="field"><span>Slot 名称</span><input type="text" value={name} maxLength={80} onChange={e=>setName(e.target.value)} placeholder="例如：W3 Web Review"/></label><label className="field"><span>Participant 类型</span><select aria-label="Participant 类型" value={kind} onChange={e=>setKind(e.target.value as typeof kind)}><option value="CHATGPT_WEB">ChatGPT Web</option><option value="MANAGED_HARNESS">Managed Harness</option><option value="PAIR_CODE">Pair Code Participant</option></select></label><p className="hint">创建 Slot 只准备一个 Join 位置，不代表 Participant 已绑定或正在运行。</p>{uncertain&&<p role="alert" className="hint tone-warning">创建结果未知；请在待核对提交中按原操作重试，勿用新键重复创建。</p>}</Dialog>}
     </Card>
   );
 }

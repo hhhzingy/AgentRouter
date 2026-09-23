@@ -1,6 +1,6 @@
 import type {Method,Scope} from '../../../packages/client-contract/c1r1p1/generated.ts';
 import type {CoreIdentity} from './identity.ts';
-export type PendingMethod = Method | 'roleSession.create' | 'roleSession.switch' | 'result.requestChanges';
+export type PendingMethod = Method | 'roleSession.create' | 'roleSession.switch' | 'result.requestChanges' | 'participant.slot.create';
 export type PendingRecord={recordId:string;identity:CoreIdentity;method:PendingMethod;params:unknown;operationId:string;expectedRevision:number;scope:Scope;createdAt:number;state:'submitting'|'uncertain';requestKey?:string;preflightHash?:string};
 export class PendingStore {
  readonly key:string;
@@ -11,7 +11,8 @@ export class PendingStore {
   const rows=this.list(), old=rows.find(r=>r.method===method&&JSON.stringify(r.params)===JSON.stringify(params)&&JSON.stringify(r.scope)===JSON.stringify(scope));if(old)return old;
   if(method.startsWith('roleSession.') && (!preflightHash || !/^[a-f0-9]{64}$/.test(preflightHash)))throw Error('PREFLIGHT_REQUIRED');
   const record:PendingRecord={recordId:crypto.randomUUID(),identity:this.identity,method,params,operationId:'op_'+crypto.randomUUID(),expectedRevision:revision,scope,createdAt:Date.now(),state:'submitting'};
-  if(method.startsWith('roleSession.')){record.requestKey=record.operationId;record.preflightHash=preflightHash;}
+  if(method.startsWith('roleSession.')||method==='participant.slot.create')record.requestKey=record.operationId;
+  if(method.startsWith('roleSession.'))record.preflightHash=preflightHash;
   this.write([...rows,record]);return record;
  }
  markUncertain(id:string){this.write(this.list().map(r=>r.recordId===id?{...r,state:'uncertain'}:r));}
