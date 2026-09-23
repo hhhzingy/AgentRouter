@@ -439,8 +439,32 @@ it(
         },
       });
       expect(submitted2).toMatchObject({ state: 'DELIVERED', publication_state: 'PUBLISHED' });
+      const changes = (await mutate(
+        'result.requestChanges',
+        { id: submitted2.result_id, feedback: '请补充验收证据，并保留原交付记录' },
+        { project_id: project.id, space_id: spaceId },
+        'wl_request_changes',
+      )) as any;
+      expect(changes).toMatchObject({
+        source_result_id: submitted2.result_id,
+        acceptance: 'REJECTED',
+        published_history_retained: true,
+        follow_up_task: { state: 'QUEUED' },
+      });
+      const review = (await s.request('result.reviewStatus' as never, {
+        id: submitted2.result_id,
+      } as never)) as any;
+      expect(review).toMatchObject({
+        feedback: '请补充验收证据，并保留原交付记录',
+        follow_up_task: { id: changes.follow_up_task.id },
+        published_history_retained: true,
+      });
       {
         const db = new Database(resolve(dir, 'core/router.db'), { readonly: true });
+        expect(db.prepare('select publication_state from results where id=?').get(submitted2.result_id))
+          .toEqual({ publication_state: 'PUBLISHED' });
+        expect(db.prepare('select task_id from result_handlings where result_id=?').get(submitted2.result_id))
+          .toEqual({ task_id: changes.follow_up_task.id });
         expect(
           (db.prepare('select ready from wait_records where task_id=?').get(t2.id) as any).ready,
         ).toBe(0);

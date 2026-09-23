@@ -18,6 +18,7 @@ Core 分支 `feat/v1.1-functional-closeout-codex`，产品源码与测试提交 
 |---|---|
 | 本地 TypeScript / lint / 冻结合同检查 | PASS |
 | 定向集成 | Slot、短引用、容量结论、Result 安全读取/原子修改/回滚/幂等/越权拒绝均 PASS |
+| 真实本地 Core pipe | `participant-workloop` 中由网页 Participant 提交第二个 Result，客户端通过本地 pipe 请求修改；原 Result 仍 `PUBLISHED`，反馈和后续 Task 关联在数据库中可复核，PASS |
 | 本地全套 Unit、Integration、Contract、Chaos、UI | 111 文件，637 PASS、1 SKIP |
 | 提交前 index 敏感内容检查 | 2180 文件，0 findings |
 | 当前可发布分支、标签、远端历史扫描 | 3494 个 blob，0 findings |
