@@ -8,9 +8,8 @@
   "ui_branch": "feat/v1.1-ui-kimi",
   "ui_base_sha": "89a41b5e0ff6af198141ded3c1d5c627fdcf9a52",
   "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
-  "final_ui_sha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
-  "evidence_sha": "3e924b4fd0d1b08aea36ca360d412482634bbf05",
-  "remote_ui_sha": "81adced147a0d9d8b3da1180bd7844d395e490a6",
+  "final_ui_sha": "d3b73c58f498b8d3f5dde74f3e2a5e2308237089",
+  "evidence_sha": "2713d4ccf40096bbf4f536e4f94a3f20ab3be566",
   "source_dirty": false,
   "last_inspected_codex_sha": "3e4df007f6fe2b65acd74792d2eaba0e01a2ad48",
   "last_merged_codex_sha": null,
@@ -18,61 +17,57 @@
   "resolved_gaps": [],
   "unresolved_gaps": [
     "UI-CONTRACT-GAP-001",
-    "UI-CONTRACT-GAP-002"
+    "UI-CONTRACT-GAP-002",
+    "UI-CONTRACT-GAP-003"
   ],
   "blocking_gaps": [
-    "SECURITY-HISTORY-001: full-history secret scan found four legacy .local-protected objects",
+    "UI-VISUAL-CONVERGENCE-001: 11 P0 pages are not fully converged",
+    "UI-CONTRACT-GAP-003: capacity/compression projection absent",
+    "BUILD_ENVIRONMENT: Visual Studio C++ Build Tools and DSH_BIN are unavailable",
+    "REAL_CORE-FINAL-SHA: packaged/local/remote/mobile rerun not performed",
     "A11Y-SCREENREADER-001: real Windows screen-reader spot check not run"
   ],
   "tests": {
-    "typecheck": "PASS",
-    "lint": "PASS",
+    "typecheck": "PASS_DIRECT_TSC",
+    "lint": "PASS_DIRECT_NODE",
     "unit": {"status": "PASS", "files": 41, "tests": 213},
-    "integration": {"status": "PASS", "files": 49, "tests": 212},
+    "integration": {"status": "PARTIAL_ENVIRONMENT_BLOCK", "full_run": "210/212; DUT missing DSH_BIN; web-console intermittent and passed isolated rerun", "without_dut": "209/209 PASS across 48 files"},
     "contract_chaos": {"status": "PASS", "files": 9, "tests": 70},
     "ui": {"status": "PASS", "files": 13, "tests": 108},
     "generation_freeze": "PASS",
-    "j2_desktop": {"status": "PASS", "checks": 19}
+    "j2_desktop": {"status": "NOT_RUN_CURRENT_SHA"}
   },
   "packaged_electron": {
-    "status": "PASS",
-    "package_path": "release/AgentRouter-j3-a809417d33e9-18ee8534-b2af-4f7f-8005-bac471fa7c6a",
-    "artifact_sha256": "56f159d94f55818777fc85d2cea2ad014b7fcebf0edbaedf317338796a6744c7",
-    "source_sha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
-    "source_dirty": false,
-    "desktop_smoke": "PASS",
-    "packaged_smoke": "PASS"
+    "status": "NOT_RUN_CURRENT_SHA",
+    "reason": "better-sqlite3 native build unavailable: Visual Studio C++ Build Tools not found"
   },
   "real_flows": {
-    "local_core_electron": "PASS",
-    "remote_core": "PASS",
-    "mobile_browser": "PASS",
-    "zcode_isolated_list": "NOT_RUN_ENVIRONMENT_SKIPPED",
-    "real_harness_support": 0
+    "local_core_electron": "NOT_RUN_CURRENT_SHA",
+    "remote_core": "NOT_RUN_CURRENT_SHA",
+    "mobile_browser": "NOT_RUN_CURRENT_SHA"
   },
   "viewports": {
-    "desktop_1440x900": "PASS",
-    "desktop_960x600_scale_1_5": "PASS",
-    "electron_zoom_125_150_200": "PASS",
-    "mobile_390x844": "PASS",
-    "mobile_430x932": "PASS",
-    "horizontal_overflow": "PASS"
+    "desktop_1440x900": "PASS_VISUAL_FIXTURE",
+    "desktop_960x600_scale_1_5": "PASS_VISUAL_FIXTURE",
+    "electron_zoom_125_150_200": "NOT_RUN_CURRENT_SHA",
+    "mobile_390x844": "PASS_VISUAL_FIXTURE",
+    "mobile_430x932": "PASS_VISUAL_FIXTURE",
+    "horizontal_overflow": "PASS_13_FIXTURE_SHOTS"
   },
   "accessibility": {
-    "keyboard_focus": "PASS",
-    "text_contrast": "PASS",
-    "accessible_names": "PASS",
+    "keyboard_focus": "NOT_RUN_CURRENT_SHA",
+    "text_contrast": "NOT_RUN_CURRENT_SHA",
+    "accessible_names": "NOT_RUN_CURRENT_SHA",
     "screen_reader_spot_check": "NOT_RUN"
   },
   "screenshots_manifest": "docs/v1.1-final/ui-final/screenshots/manifest.json",
   "secret_scan": {
-    "current_index": "PASS",
-    "full_history": "FAIL",
-    "scanned_history_blobs": 3746,
-    "findings": 4
+    "current_index": "PASS_PRECOMMIT",
+    "full_history": "NOT_RUN_CURRENT_SHA_PRIOR_4_FINDINGS"
   },
   "notes": [
-    "remote_ui_sha records the first complete handoff commit successfully pushed to the protected UI branch; the following metadata-only commit may advance the branch head",
+    "VISUAL_FIXTURE is PREVIEW_MOCK, never REAL_CORE evidence",
+    "Prior green tests and packaged evidence belonged to a809417 and must not be applied to d3b73c5",
     "The lane must not be described as V1.1_WINDOWS_RC_READY"
   ]
 }

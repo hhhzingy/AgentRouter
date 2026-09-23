@@ -1,5 +1,32 @@
 # UI-INTEGRATION-HANDOFF-TO-V11-OWNER
 
+> **2026-09-23 视觉终版重构最新交接（本节优先）**：下方原 20260922 交接保留作历史记录，所列 `a809417` 测试与打包证据不得复用于本轮 UI。当前状态是 `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION`。
+
+## 本轮固定检查点
+
+| 项目 | 值 |
+|---|---|
+| 唯一分支 | `feat/v1.1-ui-kimi`，未创建新分支 |
+| 本轮源码 SHA | `d3b73c58f498b8d3f5dde74f3e2a5e2308237089` |
+| VISUAL_FIXTURE 证据提交 | `2713d4ccf40096bbf4f536e4f94a3f20ab3be566`，13 张图，`sourceDirty=false` |
+| Codex Core 对照 | `3e4df007f6fe2b65acd74792d2eaba0e01a2ad48`；未 merge |
+| lane 状态 | `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION` |
+
+## 已交付与验收边界
+
+`f5614bb` 先完成全部 11 页 P0、10 维 CURRENT↔TARGET 审计，再进入代码。实现包括 Project Shell、Workbench 双栏、Projects 角色预览、Role 双栏、WorkSession transfer operation 查询、Connections 安全降级、Activity/Settings/Result 层级与 Mobile 介入优先顺序。逐页证据在 `visual-diffs/`，本轮没有页面被标为 PASS。
+
+已通过：直接 `tsc --noEmit`、直接 lint、UI 108/108、Unit 213/213、Contract+Chaos 70/70，以及 13 张 `VISUAL_FIXTURE` 截图横向溢出检查。截图来自 `PREVIEW_MOCK`，不是 REAL_CORE。Integration 全量 210/212；DUT 缺 `DSH_BIN`，Web Console 时序失败单独重跑通过；排除 DUT 的 48 文件 209/209 通过。`pnpm typecheck` 的依赖准备因缺 Visual Studio C++ Build Tools 无法编译 `better-sqlite3`；packaged/local/remote/mobile 真实流程、Electron DPI 与屏幕阅读器均未在当前源码 SHA 上重跑。
+
+## 需总负责人协调
+
+1. 将 `UI-CONTRACT-GAP-001/002/003` 分给 Core/合同负责人，尤其 New WorkSession 容量/压缩与 Result Evidence 的 display-safe 投影。
+2. UIAI 继续完成 11 个 P0 的逐页视觉与交互收敛，特别是真实 WorkSession、Web Participant、Task/Result、Activity、State Library、Mobile Reply/Controller。
+3. 恢复本机原生构建依赖后，在新的单一源码 SHA 上重跑 V8 自动化和 V9 packaged/REAL_CORE Local/Remote/Mobile；补 Windows 屏幕阅读器检查。
+4. 合流只能由 V1.1 总负责人在 Windows RC 集成车道决定。UIAI 不自行 merge main、tag 或 release。
+
+## 以下为 20260922 历史交接（不得用于本轮 PASS 判定）
+
 ## Fixed identity
 
 - UI branch: `feat/v1.1-ui-kimi`

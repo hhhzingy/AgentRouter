@@ -10,6 +10,7 @@
 - Core `roleSession.create` 在继承上下文时先返回 transfer operation；UI 现在持久保存 operation ID，并按 Core 的 `roleSession.transferStatus` 展示 PREPARING/EXPORTED/SEEDED/COMMITTED/FAILED。未确认或 UNRESOLVED 时禁止第二次创建，允许显式“检查状态”。容量/压缩策略仍无 display-safe 合同，不猜测数值或阶段。
 - 对照 Core 当前 preflight 补齐 `NEEDS_NEW_WORKSESSION`、历史只读和原生连续性不支持的文案；Result Detail 将交付/验收分开展示为人类可读状态，Run ID 放入技术详情。直接 `tsc --noEmit`、`node tools/lint.mjs`、UI 108/108 PASS。
 - 已记录 `UI-CONTRACT-GAP-003`：New WorkSession 缺容量/压缩策略和用户级迁移阶段投影。Mobile 项目首屏顺序调整为 Attention → Running → Recent Results → Roles，优先支持介入场景。
+- 固定 `d3b73c5` 后，Unit 213/213、Contract+Chaos 70/70、UI 108/108 PASS；Integration 全量 210/212（DUT 缺 `DSH_BIN`，Web Console 单次时序失败且独立重跑通过），排除 DUT 后 209/209 PASS。13 张 `VISUAL_FIXTURE` 固定该 SHA 且 `sourceDirty=false`。所有 P0 逐页对照暂标 BLOCKED。
 - `node node_modules/typescript/bin/tsc --noEmit` PASS；9 张 `VISUAL_FIXTURE` 代表截图与无横向溢出检查 PASS。manifest 记录 `PREVIEW_MOCK`，不作为真实 Core 验收。
 - 本机 `pnpm typecheck` 的依赖准备因缺少 Visual Studio C++ Build Tools、`better-sqlite3` 无法重编译而中止；TypeScript 本体检查已直接通过。此环境问题与先前 `.git` 沙盒 ACL 初始化失败分开记录。
 - 当前仅 V2/V3 的一部分；Role/New WorkSession/Task/Result/Connections/Activity/Settings/Mobile、a11y 与真实 Core 终版证据尚未收敛。状态保持 `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION`。
