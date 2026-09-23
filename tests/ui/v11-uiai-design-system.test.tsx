@@ -33,7 +33,9 @@ describe('V1.1 UIAI Design System 与信息架构', () => {
     const source = readFileSync('packages/remote/console.html', 'utf8');
     for (const label of ['Home', 'Activity', 'Results', 'More']) expect(source).toContain(`>${label}<`);
     expect(source).toContain("send('result.accept'");
-    expect(source).toContain("send('result.reject'");
+    expect(source).toContain("send('result.requestChanges',{id,feedback:body}");
+    expect(source).toContain("send('result.reviewStatus',{id}");
+    expect(source).not.toContain("send('result.reject'");
     expect(source).toContain('Published 与 Accepted 是不同事实');
   });
 });
