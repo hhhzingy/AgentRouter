@@ -39,7 +39,8 @@ P1
 
 ## Codex response
 
-- status: OPEN
-- commit:
-- UI-CONTRACT-CHANGE:
+- status: PARTIAL_CORE_IMPLEMENTED_UI_CONSUMED
+- commit: `eccf799`
+- UI-CONTRACT-CHANGE: `UI-CONTRACT-CHANGE-20260923`
 
+Core `result.evidence` 只读投影已提供持久 Result/Run/Artifact 事实和真实哈希状态，UI 显示 `NOT_RECORDED` 为“未记录，不能视为通过”。source SHA、结构化测试与限制清单仍缺真实持久数据；最终 Core+UI 真实链路尚未合流验证。

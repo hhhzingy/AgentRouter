@@ -26,6 +26,8 @@ V1.1 Core / Result 负责人；UIAI 等待合同后消费。
 
 ## Codex response
 
-- status: OPEN
-- commit:
-- UI-CONTRACT-CHANGE:
+- status: CORE_IMPLEMENTED_UI_CONSUMED_E2E_UNVERIFIED
+- commit: `eccf799`
+- UI-CONTRACT-CHANGE: `UI-CONTRACT-CHANGE-20260923`
+
+UI 已使用 `result.requestChanges` 与 `result.reviewStatus`，结果未知时保留原操作记录并仅查询，不用旧 `result.reject` 冒充修改请求。当前 UI 分支尚未合入 Core 提交，联合真实 Core/Remote/Mobile 路径没有通过端到端验收，不能标为 CLOSED。

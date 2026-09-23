@@ -8,13 +8,13 @@
   "ui_branch": "feat/v1.1-ui-kimi",
   "ui_base_sha": "89a41b5e0ff6af198141ded3c1d5c627fdcf9a52",
   "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
-  "final_ui_sha": "7779c15f8cf9365d6f18bc31de7e3b8f57026d1c",
-  "evidence_sha": "7cbed06a6598e094d058e944a5ae0ffea87885c9",
-  "evidence_source_sha": "7779c15f8cf9365d6f18bc31de7e3b8f57026d1c",
+  "final_ui_sha": "3749685a8c850d0ee366b38caa9d8a4044e5d49e",
+  "evidence_sha": "102a401f14fc0d356b2c8af3e58a6880508eef19",
+  "evidence_source_sha": "3749685a8c850d0ee366b38caa9d8a4044e5d49e",
   "source_dirty": false,
-  "last_inspected_codex_sha": "9794cdfc4ddf51de431f9e6ae069f3a4fec2d341",
+  "last_inspected_codex_sha": "c0c3b39",
   "last_merged_codex_sha": null,
-  "ui_contract_changes": [],
+  "ui_contract_changes": ["UI-CONTRACT-CHANGE-20260923"],
   "resolved_gaps": [],
   "unresolved_gaps": [
     "UI-CONTRACT-GAP-001",
@@ -24,7 +24,8 @@
   ],
   "blocking_gaps": [
     "UI-VISUAL-CONVERGENCE-001: 11 P0 pages are not fully converged",
-    "UI-CONTRACT-GAP-003: capacity/compression projection absent",
+    "UI-CONTRACT-GAP-003: pre-create capacity projection remains UNKNOWN",
+    "UI-CONTRACT-GAP-004: combined Core+UI REAL_CORE requestChanges not verified",
     "BUILD_ENVIRONMENT: clean dependency rebuild and DSH_BIN are unavailable",
     "REAL_CORE-FINAL-SHA: WorkSession/remote/mobile rerun not performed",
     "A11Y-SCREENREADER-001: real Windows screen-reader spot check not run"
@@ -35,15 +36,15 @@
     "unit": {"status": "PASS", "files": 41, "tests": 213},
     "integration": {"status": "PARTIAL_ENVIRONMENT_BLOCK", "full_run": "210/212; DUT missing DSH_BIN; web-console intermittent and passed isolated rerun", "without_dut": "209/209 PASS across 48 files"},
     "contract_chaos": {"status": "PASS", "files": 9, "tests": 70},
-    "ui": {"status": "PASS", "files": 13, "tests": 108},
+    "ui": {"status": "PASS", "files": 13, "tests": 109},
     "generation_freeze": "PASS",
     "j2_desktop": {"status": "NOT_RUN_CURRENT_SHA"}
   },
   "packaged_electron": {
     "status": "PASS_SMOKE_CURRENT_SHA",
-    "artifact_hash": "b764b58afaf78da7a3ea7b3881e8d36e8f90ff10c3add44d7989ce4d00391bbc",
+    "artifact_hash": "f7b1064019807f5b7c17e1f316632e7ca3b6859f62e9bbc6f9b3b38736c443ef",
     "source_dirty": false,
-    "scope": "packaged Core/SQLite/pipe and Electron local project/control/navigation; not full J2/remote/mobile"
+    "scope": "packaged old Core/SQLite/pipe and Electron local project/control/navigation; eccf799 extension flow not integrated"
   },
   "real_flows": {
     "local_core_electron": "PASS_PACKAGED_SMOKE_CURRENT_SHA",
@@ -56,7 +57,7 @@
     "electron_zoom_125_150_200": "NOT_RUN_CURRENT_SHA",
     "mobile_390x844": "PASS_VISUAL_FIXTURE",
     "mobile_430x932": "PASS_VISUAL_FIXTURE",
-    "horizontal_overflow": "PASS_16_FIXTURE_SHOTS"
+    "horizontal_overflow": "PASS_17_FIXTURE_SHOTS"
   },
   "accessibility": {
     "keyboard_focus": "NOT_RUN_CURRENT_SHA",
@@ -67,12 +68,12 @@
   "screenshots_manifest": "docs/v1.1-final/ui-final/screenshots/manifest.json",
   "secret_scan": {
     "current_index": "PASS_PRECOMMIT",
-    "publish_refs_history": "CORE_REPORTED_PASS_3470_BLOBS_0_FINDINGS",
+    "publish_refs_history": "CORE_REPORTED_PASS_3494_BLOBS_0_FINDINGS",
     "all_local_refs_history": "FAIL_3988_BLOBS_4_FINDINGS_IN_LOCAL_CODEX_CHECKPOINT_REFS"
   },
   "notes": [
     "VISUAL_FIXTURE is PREVIEW_MOCK, never REAL_CORE evidence",
-    "Prior green tests and packaged evidence belonged to a809417 and must not be applied to 7779c15",
+    "Current UI branch does not contain eccf799 Core implementation; combined REAL_CORE extension flow is unverified",
     "The lane must not be described as V1.1_WINDOWS_RC_READY"
   ]
 }

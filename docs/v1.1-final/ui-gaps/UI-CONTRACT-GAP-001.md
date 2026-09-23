@@ -40,8 +40,8 @@ P1
 
 ## Codex response
 
-- status: IN_PROGRESS_UNCOMMITTED
-- commit:
-- UI-CONTRACT-CHANGE:
+- status: PARTIAL_CORE_IMPLEMENTED_UI_CONSUMED
+- commit: `eccf799`
+- UI-CONTRACT-CHANGE: `UI-CONTRACT-CHANGE-20260923`
 
-2026-09-23 Core 预告：`participant.slot.list` 将补 `short_ref`、OPEN 时 `join_instruction_display`、`binding_summary`，并修正 Wn 短引用认领。`last_seen_at_ms` 与 `external_session_display` 没有真实数据时为 null。提交与字段固定前 UI 不消费；`BOUND` 永远不作为在线证明。
+Core 已提供 `short_ref`、OPEN `join_instruction_display` 和 ACTIVE `binding_summary`，UI 已按真实字段显示；最近在线和外部会话仍无可信来源，返回 `null`，不能标为完整关闭。最终 Core+UI 真实链路尚未合流验证。

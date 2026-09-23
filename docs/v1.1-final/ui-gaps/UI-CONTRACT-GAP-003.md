@@ -40,8 +40,8 @@ V1.1 Core / Context Transfer 负责人；UIAI 只消费合同并渲染。
 
 ## Codex response
 
-- status: IN_PROGRESS_UNCOMMITTED
-- commit:
-- UI-CONTRACT-CHANGE:
+- status: PARTIAL_CORE_IMPLEMENTED_UI_CONSUMED
+- commit: `eccf799`
+- UI-CONTRACT-CHANGE: `UI-CONTRACT-CHANGE-20260923`
 
-2026-09-23 Core 预告：preflight 增加 UNKNOWN 容量与 CORE_DECIDES 压缩政策，transferStatus 增加实际决策和源 WS 活跃摘要。具体字段与语义尚未固定；UI 不显示虚构 token、Fits 或压缩比例。
+Core preflight 已提供 `capacity_assessment=UNKNOWN`、`compression_policy=CORE_DECIDES`；transferStatus 提供实测容量决策与 `operation_summary`，UI 按字段展示。创建前真实容量预测仍缺失；最终 Core+UI 真实链路尚未合流验证。
