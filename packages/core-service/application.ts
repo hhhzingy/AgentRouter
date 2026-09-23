@@ -133,6 +133,8 @@ export class ApplicationService extends Plans {
   remoteDevices?: import('../remote/device-extension.ts').RemoteDeviceExtension;
   /** C1R1P2:已注册 Harness 列表(由宿主注入 DriverRegistry 视图)。 */
   registeredHarnesses?: () => string[];
+  /** 受信宿主已安装且校验过 profile，并且驱动可创建全新 Native Session 的 Harness。 */
+  creatableHarnesses?: () => string[];
   nativeAuthorization?: (bindingId: string) => boolean;
   nativeCancelAvailable?: (bindingId?:string)=>boolean;
   nativeToolAuthorization?: (bindingId:string,epoch:number,tool:string)=>boolean;
@@ -462,6 +464,7 @@ export class ApplicationService extends Plans {
     return c;
   }
   private capabilities(c: Connection) {
+    const creatable = new Set(this.fixtureMode ? [] : this.creatableHarnesses?.() ?? []);
     return {
       methods: methods.filter(
         (m) =>
@@ -478,9 +481,9 @@ export class ApplicationService extends Plans {
       reference_types: { artifact: true, external: true, git: false, live: false },
       output_types: ['artifact'],
       harnesses: {
-        codex: { status: 'PROBED', create_session: false, cancel: false },
-        kimi_code: { status: 'PROBED', create_session: false, cancel: false },
-        pi: { status: 'PROBED', create_session: false, cancel: false },
+        codex: { status: 'PROBED', create_session: creatable.has('codex'), cancel: false },
+        kimi_code: { status: 'PROBED', create_session: creatable.has('kimi_code'), cancel: false },
+        pi: { status: 'PROBED', create_session: creatable.has('pi'), cancel: false },
       },
       mock: false,
       role_plans: true,
@@ -612,6 +615,8 @@ export class ApplicationService extends Plans {
       const reply = this.roleSession.handle(raw, {
         transitionBinding: this.roleSessionTransition,
         principal: c.principal,
+        registeredHarnesses: () => this.registeredHarnesses?.() ?? [],
+        creatableHarnesses: () => this.fixtureMode ? [] : this.creatableHarnesses?.() ?? [],
         assertRoleAccess: (roleId, clientId) => {
           if (mutation && clientId !== c.clientId) throw Error('CONTROL_LEASE_REQUIRED');
           const role = this.one('select r.id,r.space_id,s.project_id from roles r join spaces s on s.id=r.space_id where r.id=?', roleId);

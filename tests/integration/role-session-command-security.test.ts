@@ -96,6 +96,23 @@ it('提交故障整体回滚 WorkSession、activation、revision 与命令账本
   expect(f.app.revision).toBe(revision + 1);
 });
 
+it('Harness 只读清单受 Role 授权约束，并区分已注册驱动与可新建会话的受信 profile', async () => {
+  const f = await fixture();
+  f.app.registeredHarnesses = () => ['zcode','pi','deepseek_harness','pi'];
+  f.app.creatableHarnesses = () => ['zcode','pi'];
+  const list = await f.app.handle(f.connection, {
+    v: 1, id: 'harnesses', method: 'roleSession.harnesses', params: { role_id: f.role.role },
+  }) as any;
+  expect(list.result.harnesses).toEqual([
+    { id: 'deepseek_harness', status: 'PROBED', create_session: false },
+    { id: 'pi', status: 'PROBED', create_session: true },
+    { id: 'zcode', status: 'PROBED', create_session: true },
+  ]);
+  expect(await f.app.handle(f.connection, {
+    v: 1, id: 'wrong', method: 'roleSession.harnesses', params: { role_id: 'role_missing' },
+  })).toMatchObject({ error: { code: 'ROLE_NOT_FOUND' } });
+});
+
 it('缓存命中前检查租约、连接授权、client 与 project 范围', async () => {
   const f = await fixture();
   expect(await f.app.handle(f.connection, f.command)).toHaveProperty('result');

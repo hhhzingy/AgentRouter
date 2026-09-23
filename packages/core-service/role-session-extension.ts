@@ -20,6 +20,8 @@ export interface RoleSessionDispatchContext {
   principal: string;
   clientId?: string;
   mode?: string;
+  registeredHarnesses?: () => string[];
+  creatableHarnesses?: () => string[];
   assertRoleAccess?: (roleId: string, clientId?: string) => void;
   assertControllerLease: (leaseId: string) => void;
   assertRevision?: (expectedRevision: number) => void;
@@ -168,6 +170,14 @@ export class RoleSessionExtension {
         if (method === 'roleSession.list') {
           if (!listParams(p)) throw Error('INVALID_PARAMS');
           result = this.list(String(p.role_id));
+        } else if (method === 'roleSession.harnesses') {
+          if (!listParams(p)) throw Error('INVALID_PARAMS');
+          this.assertRole(String(p.role_id));
+          const creatable = new Set(context.creatableHarnesses?.() ?? []);
+          result = { harnesses: [...new Set(context.registeredHarnesses?.() ?? [])]
+            .filter(id => /^[a-z][a-z0-9_]{1,40}$/.test(id))
+            .sort()
+            .map(id => ({ id, status: 'PROBED', create_session: creatable.has(id) })) };
         } else if (method === 'roleSession.preflight') {
           if (!preflightParams(p)) throw Error('INVALID_PARAMS');
           result = this.preflight(

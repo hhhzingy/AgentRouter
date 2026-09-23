@@ -77,6 +77,12 @@ it.skipIf(process.env.AGENTROUTER_V11_C7_NATIVE_SETUP !== '1')(
         'pi',
         'zcode',
       ]);
+      expect(app.creatableHarnesses?.().sort()).toEqual([
+        'deepseek_harness',
+        'kimi_code',
+        'pi',
+        'zcode',
+      ]);
       await runtime.close();
     } finally {
       db.close();

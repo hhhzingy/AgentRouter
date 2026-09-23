@@ -173,3 +173,20 @@ it('contract.upgrade 允许 observer 升级读取;未知 revision 拒绝', async
     await f.close();
   }
 });
+
+it('New WorkSession 能力仅由受信宿主已配置的可新建 Native Harness 开放', async () => {
+  const f = await fixture();
+  try {
+    const before = await f.s.request('harness.list' as never, {} as never) as { harnesses: Record<string,{create_session:boolean}> };
+    expect(before.harnesses.codex.create_session).toBe(false);
+    expect(before.harnesses.kimi_code.create_session).toBe(false);
+    expect(before.harnesses.pi.create_session).toBe(false);
+    f.server.creatableHarnesses = () => ['pi', 'codex'];
+    const after = await f.s.request('harness.list' as never, {} as never) as typeof before;
+    expect(after.harnesses.codex.create_session).toBe(true);
+    expect(after.harnesses.pi.create_session).toBe(true);
+    expect(after.harnesses.kimi_code.create_session).toBe(false);
+  } finally {
+    await f.close();
+  }
+});

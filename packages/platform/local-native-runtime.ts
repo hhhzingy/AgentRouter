@@ -492,6 +492,8 @@ export async function installLocalNativeRuntime(
   const drivers = builtInDrivers({ zcodeCli: c.zcodeCli, dshBin: c.dshBin });
   const backend = new NativeProcessBackend(host, 120000, 10000, drivers);
   app.registeredHarnesses = () => drivers.list();
+  app.creatableHarnesses = () => [...new Set(c.profiles.map(p => p.harness))]
+    .filter(harness => drivers.has(harness) && drivers.require(harness).supportsFreshSession === true);
   setAllowedHarnesses(drivers.list());
   for (const harness of new Set(c.profiles.map(p=>p.harness))) registry.attach(harness, {
     backend,
