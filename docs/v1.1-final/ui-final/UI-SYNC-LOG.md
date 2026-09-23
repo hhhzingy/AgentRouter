@@ -2,6 +2,9 @@
 
 ## 2026-09-23 — 视觉终版重构 V0–V3 进行中
 
+- V1.1 总负责人已接收阻断状态交接，并将最新 Core 固定基线更新为 `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`。本地 Git 对象已核验；从旧对照 `3e4df007` 至新基线，`apps/desktop`、`packages/ui`、`packages/client-contract` 无变更；UI-facing 仅 `packages/client-transport/p1/{types,memory}` 与 `remote/websocket.ts` 增加主体类别与 extension mutation metadata 透传。UI 当前 `store.tsx` 已传入 request key / operation ID / expected revision / preflight hash，接口消费路径不需修改。没有可消费的 `UI-CONTRACT-CHANGE`，本轮不 merge Core 分支。`UI-CONTRACT-GAP-001/002/003` 保持 OPEN。
+- 在已推送 UI HEAD `2c5ced7` 上重新验证：typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 13 张 `VISUAL_FIXTURE` 无横向溢出均 PASS。manifest `sourceSha=2c5ced7`、`sourceDirty=false`；真实 Core/packaged/a11y 未重跑，lane 仍 BLOCKED。
+
 - 按 20260922 `00_START_HERE.md` → 20260923 Master Prompt 顺序启动；确认 `feat/v1.1-ui-kimi` 在 `cd6fc553` 与远端一致，Core 对照仍为 `3e4df007`。只在既有分支工作。
 - P0 主参考 11 张和 CURRENT 7 张均实际查看；`f5614bb` 先提交 `UI-VISUAL-BASELINE.md` 与 11 页、10 维 CURRENT↔TARGET 差异矩阵。`UI-VISUAL-CONVERGENCE-001` 继续 OPEN。
 - `0edb0d5` 完成第一批 Project Shell、Workbench 双栏、Projects 角色预览及截图脚本修复；未修改 Core、合同或迁移。截图脚本现在寻找可用 Chromium，并处理随机端口进入浏览器不安全端口列表的问题。

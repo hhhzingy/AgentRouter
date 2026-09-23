@@ -6,8 +6,8 @@
 
 - 分支：`feat/v1.1-ui-kimi`；未新建分支，未 merge main/tag/release。
 - 本轮源码 SHA：`d3b73c58f498b8d3f5dde74f3e2a5e2308237089`。
-- VISUAL_FIXTURE 证据提交：`2713d4ccf40096bbf4f536e4f94a3f20ab3be566`，13 张截图，manifest 标记 `PREVIEW_MOCK`、`sourceDirty=false`。
-- 对照 Core：`3e4df007f6fe2b65acd74792d2eaba0e01a2ad48`；本轮未 merge Core 分支。
+- VISUAL_FIXTURE 证据提交：`621ee075992283e9b6fe42caccd83aa5eacb16e4`，13 张截图，manifest `sourceSha=2c5ced7`、`PREVIEW_MOCK`、`sourceDirty=false`。
+- 对照 Core：总负责人更新的最新固定 SHA `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`；相对旧对照 `3e4df007` 的 UI-facing 差异仅是 client transport 主体类别和 extension mutation metadata 透传，没有 Renderer/生成合同变化。本轮未 merge Core 分支。
 
 ## 阅读与 P0 审计
 
@@ -28,6 +28,8 @@
 合同缺口：`UI-CONTRACT-GAP-001` Slot/Binding display-safe 投影；`002` structured Result Evidence；`003` New WorkSession 容量/压缩与迁移阶段。UI 只做安全降级，未改 Core 状态机、协议或 DB。
 
 ## 本轮验证边界
+
+负责人接收交接后，已在 UI HEAD `2c5ced7` 重跑直接 typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 13 张 FIXTURE 截图（`sourceDirty=false`）。`d3b73c5` 到 `2c5ced7` 无产品源码差异。
 
 - 直接 `tsc --noEmit` PASS；`node tools/lint.mjs` PASS；`tests/ui` 108/108 PASS。
 - 13 张 `VISUAL_FIXTURE` 截图通过无横向溢出检查，覆盖 1440×900、960×600 @150%、390×844、430×932、Light/Dark 的代表场景。

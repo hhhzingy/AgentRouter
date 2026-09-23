@@ -8,11 +8,13 @@
 |---|---|
 | 唯一分支 | `feat/v1.1-ui-kimi`，未创建新分支 |
 | 本轮源码 SHA | `d3b73c58f498b8d3f5dde74f3e2a5e2308237089` |
-| VISUAL_FIXTURE 证据提交 | `2713d4ccf40096bbf4f536e4f94a3f20ab3be566`，13 张图，`sourceDirty=false` |
-| Codex Core 对照 | `3e4df007f6fe2b65acd74792d2eaba0e01a2ad48`；未 merge |
+| VISUAL_FIXTURE 证据提交 | `621ee075992283e9b6fe42caccd83aa5eacb16e4`，13 张图，manifest `sourceSha=2c5ced7`、`sourceDirty=false`；图像与前次一致 |
+| Codex Core 对照 | `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`；仅审计 UI-facing 差异，未 merge |
 | lane 状态 | `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION` |
 
 ## 已交付与验收边界
+
+2026-09-23 再核验：基于已推送 UI HEAD `2c5ced7`，直接 typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 13 张 FIXTURE 的无横向溢出检查均通过。产品代码自 `d3b73c5` 至该 HEAD 没有 `apps/`、`packages/`、`tests/` 差异。截图仍仅为 `PREVIEW_MOCK`。
 
 `f5614bb` 先完成全部 11 页 P0、10 维 CURRENT↔TARGET 审计，再进入代码。实现包括 Project Shell、Workbench 双栏、Projects 角色预览、Role 双栏、WorkSession transfer operation 查询、Connections 安全降级、Activity/Settings/Result 层级与 Mobile 介入优先顺序。逐页证据在 `visual-diffs/`，本轮没有页面被标为 PASS。
 
