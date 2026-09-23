@@ -1,7 +1,9 @@
 {
-  "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
+  "evidenceClass": "VISUAL_FIXTURE",
+  "transport": "PREVIEW_MOCK",
+  "sourceSha": "1cd28f19199141b76ee80c56ee767a09340844c2",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T00:17:37.385Z",
+  "generatedAt": "2026-09-23T02:00:28.075Z",
   "shots": [
     {
       "name": "01-home",
@@ -14,7 +16,7 @@
       "scale": 1,
       "file": "screenshots/01-home.png",
       "horizontalOverflow": false,
-      "sha256": "7f50f3fe6aa4e865c92dc6bc0236b271594bd600d5da5f3dcad5c89493bf0463"
+      "sha256": "80d4c7bdf960b4d130535b9390b7e884035948df37951ce1a4211779c5e06d79"
     },
     {
       "name": "02-workbench",
@@ -27,7 +29,7 @@
       "scale": 1,
       "file": "screenshots/02-workbench.png",
       "horizontalOverflow": false,
-      "sha256": "2e3dc7e3cb0b40d4fc35808edcffb27a83ae0d91ad1c89fee009de87bbed172d"
+      "sha256": "25cb7554ac2fd1946bf4c6bfd63d77e6bf73b1c6c99f6ca88f85ad3ccd3c62c3"
     },
     {
       "name": "03-role-worksession",
@@ -40,7 +42,7 @@
       "scale": 1,
       "file": "screenshots/03-role-worksession.png",
       "horizontalOverflow": false,
-      "sha256": "43c92c2f91a11c0acb8f78409919eeac3580aee5e93134b7a59fb987b7434e57"
+      "sha256": "721720f4b6b19f7a43c4d7f9c76134212373b71c666ee1bb57bd1753efb9faa3"
     },
     {
       "name": "04-results-evidence",
@@ -53,7 +55,7 @@
       "scale": 1,
       "file": "screenshots/04-results-evidence.png",
       "horizontalOverflow": false,
-      "sha256": "170a5e7671e745c9ef82c40b8ef24048a9b1598290716f825f4eb8367fa69ce9"
+      "sha256": "f3ed4af1b57144524dd0aef782b976fbb027b5763176c2886a98786b695e65a7"
     },
     {
       "name": "05-workbench-150dpi",
@@ -66,7 +68,7 @@
       "scale": 1.5,
       "file": "screenshots/05-workbench-150dpi.png",
       "horizontalOverflow": false,
-      "sha256": "68a37bc2c9fb10112db5be886a00c56f1744cbbbfa7d0df1756d0527da72a735"
+      "sha256": "bc0d4d7c4f901e57c526b20cb8313d411c8ddcf3cf518047bb7fca0909e4c197"
     },
     {
       "name": "06-mobile-intervention",
@@ -79,7 +81,7 @@
       "scale": 1,
       "file": "screenshots/06-mobile-intervention.png",
       "horizontalOverflow": false,
-      "sha256": "e8b564135f7c1dd24e65630c0eaed6abc5060a5fc81f42d95c62eb451363e955"
+      "sha256": "ca801a607d8d591d27b43cd847509404d2e69e9628d2ef501e472d7774c25ba5"
     },
     {
       "name": "07-settings-dark",
@@ -93,7 +95,7 @@
       "theme": "dark",
       "file": "screenshots/07-settings-dark.png",
       "horizontalOverflow": false,
-      "sha256": "77e2589b277362fb2f562756c8c20d50ce7e490f7e8bcee62d366f433faf50a1"
+      "sha256": "3099fd107e26487be7c873cad575f201f6625edd0a36b589405166b0e37a13f2"
     },
     {
       "name": "08-projects-dark",
@@ -107,7 +109,7 @@
       "theme": "dark",
       "file": "screenshots/08-projects-dark.png",
       "horizontalOverflow": false,
-      "sha256": "12d7ed9ad763464b1a4e3030862ff52ae0bffa593e5fb2b9afd54a8fce3e4aba"
+      "sha256": "22f90bd8fa11dd832b5298687be12bab1260c5fac1e6ab5098c8c219fb4fcc12"
     },
     {
       "name": "09-mobile-wide",
@@ -120,7 +122,60 @@
       "scale": 1,
       "file": "screenshots/09-mobile-wide.png",
       "horizontalOverflow": false,
-      "sha256": "811ad6173b20d8fd80488fc89176b9b8067ba2b352f0fc29f904e0ddee32c9ba"
+      "sha256": "b5758b80632694cbed905b9c731b35c095f2268025e2f605aa7ec3bb656604e6"
+    },
+    {
+      "name": "10-connections",
+      "route": "#/remote",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/10-connections.png",
+      "horizontalOverflow": false,
+      "sha256": "9dc65f3d11eb724e81891841c1e3beb9efb5568e1735e086a1f77fb1c513e361"
+    },
+    {
+      "name": "11-activity",
+      "route": "#/project/proj_atlas/timeline",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/11-activity.png",
+      "horizontalOverflow": false,
+      "sha256": "f02b77a0573b78968d0dd7fd218bb3cf9d055555870bac88e16a218babd55e51"
+    },
+    {
+      "name": "12-project-settings",
+      "route": "#/project/proj_atlas/settings",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/12-project-settings.png",
+      "horizontalOverflow": false,
+      "sha256": "8869e33e7dfa95f06e2d0d7ccc8d2ef1fa32daaf53ef8a44465ddeb3d253c266"
+    },
+    {
+      "name": "13-results-dark",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "theme": "dark",
+      "file": "screenshots/13-results-dark.png",
+      "horizontalOverflow": false,
+      "sha256": "87b29d99ee9b53053cd48d732e11cd323f03eb3ee177981f00d6f5cc2c805521"
     }
   ]
 }
