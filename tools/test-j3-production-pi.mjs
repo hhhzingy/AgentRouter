@@ -282,6 +282,12 @@ try {
     'apply',
   );
   report.checks.push('真实产品入口Plan应用并注册Native配置');
+  const appliedRole = (await snapshot()).roles.find(r => r.name === role.display_name);
+  if (!appliedRole) throw Error('APPLIED_ROLE_NOT_FOUND');
+  const harnessChoices = await s.request('roleSession.harnesses', { role_id: appliedRole.id });
+  const enabled = harnessChoices.harnesses.filter(item => item.create_session).map(item => item.id);
+  if (enabled.length !== 1 || enabled[0] !== harness) throw Error('TRUSTED_HARNESS_CAPABILITY_MISMATCH');
+  report.checks.push('受信Native profile仅开放对应Harness的新WorkSession能力');
   for (let i = 0; i < 180; i++) {
     const db = new Database(path('core/router.db'), { readonly: true });
     const init = db
