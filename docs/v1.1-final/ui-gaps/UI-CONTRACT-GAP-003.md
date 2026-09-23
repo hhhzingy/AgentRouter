@@ -45,3 +45,5 @@ V1.1 Core / Context Transfer 负责人；UIAI 只消费合同并渲染。
 - UI-CONTRACT-CHANGE: `UI-CONTRACT-CHANGE-20260923`
 
 Core preflight 已提供 `capacity_assessment=UNKNOWN`、`compression_policy=CORE_DECIDES`；transferStatus 提供实测容量决策与 `operation_summary`，UI 按字段展示。创建前真实容量预测仍缺失；最终 Core+UI 真实链路尚未合流验证。
+
+2026-09-23 后继：`5298638` 使 New WorkSession 向导随目标 Harness 重新读取 Core preflight，未就绪时不前进，提交前 hash 变化要求重新审阅；`28f19f4` 的 W11 真实 Electron Fixture Core 页面证明无 Native 创建能力时安全禁用，不伪造可用 Harness 或容量。`ccf6099`/`8cd4972` 让受信本机宿主仅对已注册驱动、已配置 profile 且支持 fresh session 的 Harness 报告可新建，并通过 `roleSession.harnesses` 只读扩展列出 ZCode/DSH，不修改冻结 C1/C1R1 Schema。真实 Codex 与 ZCode 同源包分别核验“只有当前已配置 profile 可创建”，Level A `42/PUBLISHED`；`8cd4972` 的 C1/W11 双绿。`5298638` 的 W11 先因 J1 Core 重连 5 秒等待窗口过短红灯；`2b52c4c` 修正等待后 J2 又因 Fixture 中不存在可用的第二 Harness 选项红灯；`28f19f4` 改按 Fixture 真实能力验安全门控后独立跑绿，失败分母均保留。创建前容量仍 `UNKNOWN`，具备真实 profile 的 Electron New WorkSession 创建/迁移页面尚未实测，GAP-003 保持 PARTIAL，不宣称完整 Context 决策闭环。
