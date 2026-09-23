@@ -2,7 +2,7 @@
 
 ## 结论与源码边界
 
-**当前仍为 `NOT_V1.1_WINDOWS_RC_READY`。** 这是独立集成候选分支，不是 `main`，没有 merge main、tag 或 release。Core/UI 合流后的 C1/W11、真实 Codex/ZCode、其他三家 Harness 短回归、打包/ZIP 解包与 Tailnet HTTPS/WSS 后端已有证据；但网页 Participant 的变更后真实复测、实体手机、完整 Electron 可访问性和 11 个 P0 页面逐页验收尚未闭环。这些门禁不能因非 UI 测试通过而自动转为 Windows RC。
+**当前仍为 `NOT_V1.1_WINDOWS_RC_READY`。** 这是独立集成候选分支，不是 `main`，没有 merge main、tag 或 release。Core/UI 合流后的 C1/W11、真实 Codex/ZCode、其他三家 Harness 短回归、打包/ZIP 解包、Tailnet HTTPS/WSS 后端及新 SHA 的网页 Participant 业务环已有证据；但实体手机、完整 Electron 可访问性和 11 个 P0 页面逐页验收尚未闭环。这些门禁不能因非 UI 测试通过而自动转为 Windows RC。
 
 | 来源 | 固定值 |
 |---|---|
@@ -31,6 +31,7 @@
 | 刷新后的未知回执核对 | `82ed6cc` 修复 `REJECTED` Result 在丢回执后失去 Review 入口的问题：只要浏览器保留待核对操作，Home 与 Results 都保留「核对提交状态」。真实 Chrome 测试在 Core 已提交后注入客户端未知记录，整页刷新，再只读调用 `result.reviewStatus`；确认原操作、清除待核对记录，Task 数不增加，未重放 mutation。`pnpm typecheck`、`pnpm lint`、目标浏览器/UI 5/5 PASS。这是丢回执等价态注入，不是网络层真实丢包、实体手机或完整 G3 验收。 |
 | 新 SHA GitHub C1/W11 | 公开 GitHub Actions 页面确认产品源码 `62ee811` 的 [C1](https://github.com/hhhzingy/AgentRouter/actions/runs/35835825784) 与 [W11](https://github.com/hhhzingy/AgentRouter/actions/runs/35835825854) completed/success；`9737f8c` 的 [C1](https://github.com/hhhzingy/AgentRouter/actions/runs/35835488564) 与 [W11](https://github.com/hhhzingy/AgentRouter/actions/runs/35835488651) 亦 success。`67a8f5b` 的 [C1](https://github.com/hhhzingy/AgentRouter/actions/runs/35834936053) success、[W11](https://github.com/hhhzingy/AgentRouter/actions/runs/35834936031) failure，符合本地旧断言红灯；失败分母保留。查看时 `c7938a1` 的文档后继提交仍在运行，不冒称其已绿。 |
 | 新 SHA 打包与 Tailnet | `62ee811` 干净源码重建目录包 `release/AgentRouter-j3-62ee81184c0a-ae206962-4885-45b7-8777-fdbc1a36396b`，manifest `sourceDirty=false`、`artifactHash=b06faef6b817c03725474b3632e44911e6360d8b8dba98d61313e42b721baab9`；`pnpm test:packaged` PASS，包内 `console.html` 与源码 SHA-256 相同，目录安全扫描 137 文件、0 findings。真实 Tailnet-only Serve `443 → 127.0.0.1:44568` 上，`tests/live/v11-tailscale-serve.test.ts` 1/1 PASS；结束后 Serve 状态复查为 `{}`。目录包不是签名安装器，Tailnet 后端测试不等于实体手机 UI 测试，也未在新包上重跑五家 Harness。 |
+| 新 SHA 网页 Participant 真实复测 | 在干净 `1259738` 工作树重建 Core 与 Participant HTTP，隔离数据根 `.local/v11-cursor-mcp/core`，仅监听 `127.0.0.1:8790`；官方 Secure MCP Tunnel 原账号 profile 自检及控制面轮询 `ready/ok`。同一已配置 ChatGPT `AgentRouter` 插件真实调用 `participant_read_inbox → claim_task → read_artifact → register_artifact → submit_result`，新 Task `task_51190622-55ab-4151-b931-34cf54be6ef1`、输入 `artifact_f3301d0c-c779-4364-b863-fd02c9f15504`，输出 `artifact_4fa46bad-4654-4546-be99-cb99d2b5d890`，Result `result_13e4bf52-98af-473a-9f17-a671f847b7dc`。独立只读 DB：`DELIVERED / succeeded / PUBLISHED / PENDING`，outputs 精确引用输出 Artifact；实际文件 170 bytes、SHA-256 `500f00139a50673f40e3f1ea82fdba3ebf9d3aba4eeb4fafc942821ff081094d` 与登记值一致且含从输入读取的随机标记。独立正式 ClientSession `task.get / artifact.get / artifact.download` 再验同一状态、字节和哈希，非聊天文本自证。四个 Participant 集成文件 10/10 PASS。Tunnel/HTTP/Core 测后关闭，端口 8790/8088 无监听。此业务环没有调用 `participant.join`，所以不声称 Slot/Binding 展示路径被网页实测覆盖。 |
 | GitHub 最终测试 SHA | `8be447b` 的 [C1](https://github.com/hhhzingy/AgentRouter/actions/runs/35832297759) 与 [W11](https://github.com/hhhzingy/AgentRouter/actions/runs/35832297779) 均 completed/success；W11 保留 J1 请求修改与 J2 断线状态检查。 |
 | 真实 Harness 同 SHA | `8be447b` 干净包：Codex CLI `0.155.0-alpha.16` 使用既有批准隔离 DUT，`run-4DhoRz` 的 Level A、同 native ref 随机 marker 与 Core restart 冷续 PASS，`run-eEd09A` 的 Artifact 读写/下载哈希 PASS；ZCode 安装客户端 `0.16.9` 的 embedded app-server + Existing Account Broker（Bigmodel / `GLM-5.3-Flash`），`run-rmQ8pC` 的 Level A、marker、正式 TaskInput、客户端重连、Core restart 冷续 PASS，`run-1TRzwG` 的 Artifact 读写/下载哈希 PASS。报告在 `.local/j3-production-pi/` 下，均为隔离项目；没有使用 Codex reset credit。 |
 | 其他三家短回归 | 同产品代码的 `1a6cd2d` 包：Kimi `run-KShOIe` 与 pi `run-ziW6E4` 一次 `42/PUBLISHED`；DSH `run-KRzPvb` 首次 `NATIVE_DISCONNECTED`，独立重试 `run-yEJHCz` `42/PUBLISHED`。随后到 `8be447b` 仅改测试脚本/断言，未改 Native/Profile 产品代码；状态为 `PASS_WITH_RETRY_DENOMINATOR`，不谎称三家在 `8be447b` 包上重跑。 |
@@ -44,8 +45,8 @@
 1. UI 原交接状态仍为 `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION`：11 个 P0 页面未逐页获得最终合流 SHA 的真实状态 PASS；17 张预览图为 `PREVIEW_MOCK`，不可充当 `REAL_CORE` 截图。
 2. GAP-001 仅有 Slot/Binding 安全摘要，缺可信 `last_seen` 与外部会话显示；GAP-002 源码 SHA、结构化测试记录、已知限制没有成为 Core 持久事实；GAP-003 创建前容量预测仍 `UNKNOWN`。UI 安全降级已消费这些事实，但不能宣称完整契约闭环。
 3. GAP-004 已新增 Windows CI 中 Electron UI→真实本地 Core pipe→Result/Task 状态的隔离端到端证据；还缺最终安装包、非 Fixture 数据和未知回执状态复核，不能扩写为发布门禁全过。
-4. 旧网页 ChatGPT Participant 的真实 `Task→Artifact→Result→PUBLISHED` 证据仍可证明旧 SHA；合流后 `packages/core-service/participant-join.ts` 的 Slot 摘要和短引用解析已变，不能再宣称「相关代码未变」。当前自动/本地管道测试覆盖相关路径，但新的真实网页插件账号与当前合流 SHA 尚未重绑复测，G4 保持 `PARTIAL_REAL_WEB_RETEST_REQUIRED`。
+4. 网页 ChatGPT Participant 的新 SHA `Task→Artifact→Result→PUBLISHED` 业务环已独立实测，旧 `PASS_BY_UNCHANGED_CODE_EVIDENCE` 结论由上述新证据替代。但该插件桥启动时预签发 grant/attach，网页工具面没有 `participant.join`；合流后 `packages/core-service/participant-join.ts` 的 Slot 摘要和短引用解析仍只由自动/本地管道覆盖，不得把本次五步网页业务环扩大为 Slot/Binding UI 真实验收。G4 网页业务子项 PASS，完整 G4/发布门禁仍 PARTIAL。
 5. `62ee811` 的真实 Tailnet 后端已通过，但实体手机浏览器控制/观察者、屏幕阅读器与 DPI 逐页验收未完成；本机 Chrome 手机尺寸和旧 SHA 的 Windows CI Electron J1/J2 不能替代。此前同 Harness 历史完整迁移证据也尚未在最新 Core/UI 合流包逐项复跑。
-6. 当前候选为可运行目录包与 ZIP，尚不是签名安装器；没有 `main` merge、tag 或 release。G1/G2/G5/G6/G7 的通过不等于 UI 11 页和网页 Participant 门禁通过，不能宣称 Windows RC。
+6. 当前候选为可运行目录包与旧 SHA 的 ZIP，尚不是签名安装器；没有 `main` merge、tag 或 release。G1/G2/G4 网页业务/G5/G6/G7 的通过不等于 UI 11 页、Slot/Binding 和实体设备门禁通过，不能宣称 Windows RC。
 
 因此不宣称 Windows RC，不提交到 `main`，不创建标签或发布。没有使用 Codex reset credit。
