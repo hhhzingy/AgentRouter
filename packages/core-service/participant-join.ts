@@ -93,10 +93,38 @@ export class ParticipantJoinExtension {
 
   listSlots(roleId: string) {
     if (!this.one('select id from roles where id=?', roleId)) throw Error('ROLE_NOT_FOUND');
+    const slots = this.db
+      .prepare('select id,role_id,seq,name,participant_kind,state,work_session_id,binding_generation,created_at_ms from work_session_slots where role_id=? order by seq')
+      .all(roleId) as Record<string, unknown>[];
+    const bindings = this.db
+      .prepare("select slot_id,participant_kind,state from participant_bindings where role_id=? and state='ACTIVE'")
+      .all(roleId) as { slot_id: string; participant_kind: ParticipantKind; state: string }[];
+    const bySlot = new Map(bindings.map((binding) => [binding.slot_id, binding]));
     return {
-      slots: this.db
-        .prepare('select id,role_id,seq,name,participant_kind,state,work_session_id,binding_generation,created_at_ms from work_session_slots where role_id=? order by seq')
-        .all(roleId),
+      slots: slots.map((slot) => {
+        const binding = bySlot.get(String(slot.id));
+        const shortRef = `W${slot.seq}`;
+        return {
+          ...slot,
+          short_ref: shortRef,
+          join_instruction_display: slot.state === 'OPEN'
+            ? `Role ${roleId}, Slot ${shortRef}. 授权的 Participant 可使用此引用认领；仍需有效授权。`
+            : null,
+          binding_summary: binding
+            ? {
+                display_name: {
+                  CHATGPT_WEB: 'ChatGPT 网页 Participant',
+                  MANAGED_HARNESS: 'Managed Harness',
+                  PAIR_CODE: '配对 Participant',
+                }[binding.participant_kind],
+                participant_kind: binding.participant_kind,
+                state: binding.state,
+                last_seen_at_ms: null,
+                external_session_display: null,
+              }
+            : null,
+        };
+      }),
     };
   }
 
@@ -390,7 +418,8 @@ export class ParticipantJoinExtension {
     }
     if (shortRef) {
       const parts = String(shortRef).split(':');
-      const seq = Number(parts[parts.length - 1]);
+      const seqText = /^W([1-9][0-9]*)$/i.exec(parts[parts.length - 1] ?? '');
+      const seq = seqText ? Number(seqText[1]) : NaN;
       const bySeq = Number.isInteger(seq)
         ? this.one('select * from work_session_slots where role_id=? and seq=?', roleId, seq)
         : undefined;

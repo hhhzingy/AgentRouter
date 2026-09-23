@@ -255,8 +255,8 @@ export class Projection {
           r.task_id,
         )?.state ?? (r.publication_state === 'STAGED' ? 'HELD' : 'DELIVERED'),
       artifactIds: JSON.parse(r.outputs_json)
-        .filter((o: any) => o.type === 'artifact')
-        .map((o: any) => o.id),
+        .filter((o: any) => o.type === 'artifact' || o.kind === 'artifact')
+        .map((o: any) => o.id ?? o.artifact_id),
       revision: this.rev(r.id),
     }));
     const projects = this.all('select * from projects order by created_at_ms,id').map((p) => {

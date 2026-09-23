@@ -94,13 +94,20 @@ it('C5-A: Slot 无 WS 时 join 原子创建新 WS，同 request_key 不建第二
       name: 'W1',
       participant_kind: 'CHATGPT_WEB',
     })) as { slot_id: string };
+    const before = (await f.ext('participant.slot.list', { role_id: f.roleId })) as {
+      slots: { id: string; short_ref: string; join_instruction_display: string | null; binding_summary: unknown }[];
+    };
+    const openSlot = before.slots.find((x) => x.id === slot.slot_id)!;
+    expect(openSlot.short_ref).toMatch(/^W[1-9][0-9]*$/);
+    expect(openSlot.join_instruction_display).toContain(openSlot.short_ref);
+    expect(openSlot.binding_summary).toBeNull();
     const grant = (await f.ext('participant.grant.issue', { role_id: f.roleId })) as { grant_id: string; token: string };
     const web = new P1MemoryTransport(f.server, 'human_web');
     const w = await web.connect({ clientId: 'client_web_a', clientVersion: '1.0.0-dev.0', requestedMode: 'controller' });
     await w.request('participant.attach' as never, { role_id: f.roleId, grant_id: grant.grant_id, grant_token: grant.token } as never);
     const joined = (await w.request('participant.join' as never, {
       role_id: f.roleId,
-      slot_id: slot.slot_id,
+      short_ref: openSlot.short_ref,
       participant_kind: 'CHATGPT_WEB',
       request_key: 'join-a-1',
     } as never)) as {
@@ -118,6 +125,22 @@ it('C5-A: Slot 无 WS 时 join 原子创建新 WS，同 request_key 不建第二
     expect(joined.identity.role_id).toBe(f.roleId);
     expect(joined.identity.short_ref).toContain('W');
     expect(joined.identity.project_display_name).toBe('Join项目');
+    const after = (await f.ext('participant.slot.list', { role_id: f.roleId })) as {
+      slots: { id: string; join_instruction_display: string | null; binding_summary: {
+        display_name: string; participant_kind: string; state: string;
+        last_seen_at_ms: number | null; external_session_display: string | null;
+      } | null }[];
+    };
+    const bound = after.slots.find((x) => x.id === slot.slot_id)!;
+    expect(bound.join_instruction_display).toBeNull();
+    expect(bound.binding_summary).toEqual({
+      display_name: 'ChatGPT 网页 Participant',
+      participant_kind: 'CHATGPT_WEB',
+      state: 'ACTIVE',
+      last_seen_at_ms: null,
+      external_session_display: null,
+    });
+    expect(JSON.stringify(bound)).not.toMatch(/human_web|join-a-1|grant_token|claim_code/);
     expect(joined.identity).toMatchObject({
       slot_state: 'BOUND',
       work_session_state: 'ACTIVE',

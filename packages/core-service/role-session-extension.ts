@@ -462,6 +462,13 @@ export class RoleSessionExtension {
       new_session_available: true,
       migration_fidelity: fidelity,
       reason_code: continuityUnsupported ? 'SESSION_CONTINUATION_UNSUPPORTED' : canResume ? 'NATIVE_SESSION_RESUMABLE' : reason,
+      capacity_assessment: {
+        status: 'UNKNOWN' as const,
+        source: 'NOT_MEASURED' as const,
+        observed_at_ms: null,
+        reason_code: 'SOURCE_AND_TARGET_CAPACITY_NOT_PROBED',
+      },
+      compression_policy: 'CORE_DECIDES' as const,
     };
     const hashInput = {
       role_id: roleId,
@@ -705,11 +712,31 @@ export class RoleSessionExtension {
     const toSession = op.to_session_id
       ? this.one('select * from role_sessions where id=?', String(op.to_session_id))
       : undefined;
+    const source = this.one('select state from role_sessions where id=? and role_id=?', op.from_session_id, roleId);
+    let meta: Record<string, unknown> = {};
+    try { meta = JSON.parse(String(op.capacity_json ?? '{}')) as Record<string, unknown>; } catch { /* legacy/corrupt metadata is never a capacity fact */ }
+    const decision = meta.decision as { action?: string; reason?: string } | undefined;
+    const capacityStatus = decision?.action === 'DIRECT' ? 'FITS'
+      : decision?.action === 'COMPRESS' ? 'COMPRESSION_REQUIRED'
+      : 'UNKNOWN';
     return {
       op_id: op.id,
       role_id: op.role_id,
       state: op.state,
       error_code: op.error_code ?? null,
+      capacity_assessment: {
+        status: capacityStatus,
+        source: decision ? 'DRIVER_PROBE' : 'NOT_MEASURED',
+        observed_at_ms: decision && Number.isSafeInteger(meta.capacity_observed_at_ms)
+          ? meta.capacity_observed_at_ms : null,
+        reason_code: decision?.reason ?? (meta.transfer_mode === 'NATIVE_FORK' ? 'NATIVE_FORK_NOT_TOKEN_BASED' : 'CAPACITY_NOT_YET_ASSESSED'),
+      },
+      operation_summary: {
+        phase: op.state,
+        can_cancel: false,
+        needs_status_check: op.state === 'PREPARING' || op.state === 'EXPORTED' || op.state === 'SEEDED',
+        source_work_session_active: source?.state === 'ACTIVE',
+      },
       ...(toSession ? { session: this.vm(toSession) } : {}),
     };
   }

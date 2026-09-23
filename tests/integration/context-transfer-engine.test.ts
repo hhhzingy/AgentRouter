@@ -101,7 +101,13 @@ async function fixture(portOverrides: Partial<TransferDriverPort> = {}, capabili
       preflightHash: intent.preflightHash,
     } as never) as unknown as Promise<Record<string, any>>;
   };
-  const settleRaw = async (opId: string) => (await s.request('roleSession.transferStatus' as never, { role_id: roleId, op_id: opId } as never)) as unknown as { state: string; error_code?: string | null; session?: any };
+  const settleRaw = async (opId: string) => (await s.request('roleSession.transferStatus' as never, { role_id: roleId, op_id: opId } as never)) as unknown as {
+    state: string;
+    error_code?: string | null;
+    session?: any;
+    capacity_assessment: { status: string; source: string; reason_code: string; observed_at_ms: number | null };
+    operation_summary: { phase: string; can_cancel: boolean; needs_status_check: boolean; source_work_session_active: boolean };
+  };
   const settle = async (opId: string, tries = 400) => {
     for (let i = 0; i < tries; i++) {
       const st = await settleRaw(opId);
@@ -162,10 +168,18 @@ it('原生 fork 创建目标后回执丢失，冷核对同一 child 后提交且
 
 it('SH-02:T≥S 且 A=null 直接迁移;提交后新 WS 携带 native ref,旧 WS 归档', async () => {
   const f = await fixture();
+  const preflight = (await f.s.request('roleSession.preflight' as never, { role_id: f.roleId } as never)) as unknown as {
+    capacity_assessment: { status: string; source: string; observed_at_ms: number | null };
+    compression_policy: string;
+  };
+  expect(preflight.capacity_assessment).toMatchObject({ status: 'UNKNOWN', source: 'NOT_MEASURED', observed_at_ms: null });
+  expect(preflight.compression_policy).toBe('CORE_DECIDES');
   const created = (await f.rsCall('roleSession.create', { role_id: f.roleId, name: '继承会话', context_mode: 'inherit' })) as any;
   expect(created.transfer?.op_id).toBeTruthy();
   const st = await f.settle(created.transfer.op_id);
   expect(st.state).toBe('COMMITTED');
+  expect(st.capacity_assessment).toMatchObject({ status: 'FITS', source: 'DRIVER_PROBE' });
+  expect(st.operation_summary).toMatchObject({ phase: 'COMMITTED', can_cancel: false, needs_status_check: false, source_work_session_active: false });
   expect(st.session?.hasNativeSession).toBe(true);
   const listing = (await f.s.request('roleSession.list' as never, { role_id: f.roleId } as never)) as unknown as { sessions: any[]; active_session_id: string };
   const actives = listing.sessions.filter((x) => x.state === 'ACTIVE');
@@ -306,10 +320,16 @@ it('N4: session exists 或错误 payload hash 不能替代 seed accepted，保�
 it('T<S 且 A 未知 → ASK_USER 显式失败;COMPRESS 无通道 → 显式失败', async () => {
   const ask = await fixture({ targetWindowTokens: async () => 500 });
   const c1 = (await ask.rsCall('roleSession.create', { role_id: ask.roleId, name: 'ask', context_mode: 'inherit' })) as any;
-  expect((await ask.settle(c1.transfer.op_id)).error_code).toBe('CONTEXT_CAPACITY_ASK_USER');
+  const askStatus = await ask.settle(c1.transfer.op_id);
+  expect(askStatus.error_code).toBe('CONTEXT_CAPACITY_ASK_USER');
+  expect(askStatus.capacity_assessment).toMatchObject({ status: 'UNKNOWN', reason_code: 'CAPACITY_UNKNOWN' });
+  expect(askStatus.operation_summary.source_work_session_active).toBe(true);
   const comp = await fixture({ targetWindowTokens: async () => 100, sourceCapacity: async () => ({ windowTokens: 800, usageTokens: 900 }) });
   const c2 = (await comp.rsCall('roleSession.create', { role_id: comp.roleId, name: 'comp', context_mode: 'inherit' })) as any;
-  expect((await comp.settle(c2.transfer.op_id)).error_code).toBe('CONTEXT_SOURCE_COMPRESSION_UNAVAILABLE');
+  const compStatus = await comp.settle(c2.transfer.op_id);
+  expect(compStatus.error_code).toBe('CONTEXT_SOURCE_COMPRESSION_UNAVAILABLE');
+  expect(compStatus.capacity_assessment).toMatchObject({ status: 'COMPRESSION_REQUIRED', reason_code: 'USAGE_OVER_TARGET' });
+  expect(compStatus.operation_summary.source_work_session_active).toBe(true);
 });
 
 it('SH-01:来源能力非 FULL_VISIBLE → create 即显式拒绝(不再硬编码放行/拒绝)', async () => {

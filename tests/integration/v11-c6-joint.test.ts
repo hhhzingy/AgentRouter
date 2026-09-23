@@ -146,12 +146,84 @@ it('C6 Gate: Management 派任务，Participant join/claim/artifact/result，下
     expect(verified.state).toBe('AVAILABLE');
     const row = f.db.prepare('select sha256 from artifacts where id=?').get(art.artifact_id) as { sha256: string };
     expect(row.sha256).toBe(art.sha256);
-    const result = f.db.prepare('select publication_state,outputs_json from results where task_id=?').get(task.id) as {
+    const result = f.db.prepare('select id,publication_state,outputs_json from results where task_id=?').get(task.id) as {
+      id: string;
       publication_state: string;
       outputs_json: string;
     };
     expect(result.publication_state).toBe('PUBLISHED');
     expect(JSON.parse(result.outputs_json)).toEqual([{ kind: 'artifact', artifact_id: art.artifact_id }]);
+    const evidence = (await f.s.request('result.evidence' as never, { id: result.id } as never)) as unknown as {
+      evidence_layer: string; source_revision: string | null; tests: unknown[];
+      test_records_status: string; run_id: string | null;
+      artifacts: { id: string; sha256: string; state: string }[];
+    };
+    expect(evidence).toMatchObject({
+      evidence_layer: 'CORE_PERSISTED_RECORD', source_revision: null,
+      test_records_status: 'NOT_RECORDED', run_id: null,
+      artifacts: [{ id: art.artifact_id, sha256: art.sha256, state: 'AVAILABLE' }],
+    });
+    expect(evidence.tests).toEqual([]);
+    const visibleResult = (await f.s.request('system.snapshot', {})).results.find((x) => x.id === result.id);
+    expect(visibleResult?.artifactIds).toContain(art.artifact_id);
+
+    const reviewOptions = {
+      leaseId: f.leaseId,
+      requestKey: 'review-c6',
+      operationId: 'review-c6',
+      expectedRevision: (await f.s.request('system.snapshot', {})).revision,
+    };
+    const observerTransport = new P1MemoryTransport(f.server, 'human_observer');
+    const observer = await observerTransport.connect({
+      clientId: 'review_observer', clientVersion: '1.0.0-dev.0', requestedMode: 'observer',
+    });
+    await expect(observer.request('result.requestChanges' as never, {
+      id: result.id, feedback: '越权修改',
+    } as never, reviewOptions as never)).rejects.toThrow('CONTROL_LEASE_REQUIRED');
+    await observerTransport.close();
+    f.server.defaultConnectionScope = new Set();
+    const scopedTransport = new P1MemoryTransport(f.server, 'human_scoped_observer');
+    const scopedObserver = await scopedTransport.connect({
+      clientId: 'review_scoped_observer', clientVersion: '1.0.0-dev.0', requestedMode: 'observer',
+    });
+    await expect(scopedObserver.request('result.evidence' as never, { id: result.id } as never))
+      .rejects.toThrow('SCOPE_DENIED');
+    await scopedTransport.close();
+    f.server.defaultConnectionScope = undefined;
+    f.server.failNextCommit = true;
+    await expect(f.s.request('result.requestChanges' as never, {
+      id: result.id, feedback: '提交前回滚',
+    } as never, { ...reviewOptions, operationId: 'review-rollback' } as never)).rejects.toThrow('INTERNAL_ERROR');
+    expect(f.db.prepare('select acceptance from tasks where id=?').get(task.id))
+      .toEqual({ acceptance: 'PENDING' });
+    expect((f.db.prepare("select count(*) as n from tasks where json_extract(request_json,'$.project_data.source_result_id')=?")
+      .get(result.id) as { n: number }).n).toBe(0);
+    const changes = (await f.s.request('result.requestChanges' as never, {
+      id: result.id, feedback: '请补充复核说明',
+    } as never, reviewOptions as never)) as unknown as {
+      acceptance: string; follow_up_task: { id: string; state: string };
+      published_history_retained: boolean;
+    };
+    expect(changes).toMatchObject({ acceptance: 'REJECTED', published_history_retained: true,
+      follow_up_task: { state: 'QUEUED' } });
+    expect(await f.s.request('result.requestChanges' as never, {
+      id: result.id, feedback: '请补充复核说明',
+    } as never, reviewOptions as never)).toEqual(changes);
+    await expect(f.s.request('result.requestChanges' as never, {
+      id: result.id, feedback: '不同意见',
+    } as never, reviewOptions as never)).rejects.toThrow('OPERATION_CONFLICT');
+    const review = (await f.s.request('result.reviewStatus' as never, { id: result.id } as never)) as unknown as {
+      feedback: string; follow_up_task: { id: string }; published_history_retained: boolean;
+    };
+    expect(review).toMatchObject({ feedback: '请补充复核说明',
+      follow_up_task: { id: changes.follow_up_task.id }, published_history_retained: true });
+    expect(f.db.prepare('select publication_state from results where id=?').get(result.id))
+      .toEqual({ publication_state: 'PUBLISHED' });
+    expect((f.db.prepare("select count(*) as n from tasks where json_extract(request_json,'$.project_data.source_result_id')=?")
+      .get(result.id) as { n: number }).n).toBe(1);
+    await expect(f.write('result.accept', { id: result.id },
+      { project_id: f.project.id, space_id: f.spaceId }, 'accept-after-changes'))
+      .rejects.toThrow('PLAN_STATE_CONFLICT');
 
     const charter = f.db.prepare('select spec_json,permissions_json from role_charters where role_id=? order by revision desc limit 1').get(f.roleId) as {
       spec_json: string;

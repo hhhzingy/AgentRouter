@@ -209,7 +209,7 @@ export class ContextTransferEngine {
       sourceUsage = sc ? sc.usageTokens : null;
     } catch { /* 容量未知按 null 参与决策 */ }
     const decision: TransferDecision = decideTransfer({ targetWindowTokens: targetWindow, sourceWindowTokens: sourceWindow, sourceUsageTokens: sourceUsage });
-    this.setMeta(opId, { decision });
+    this.setMeta(opId, { decision, capacity_observed_at_ms: this.clock() });
     if (decision.action === 'ASK_USER') { this.fail(opId, 'CONTEXT_CAPACITY_ASK_USER'); this.deps.onSettled?.(op.role_id); return; }
     let seedText = exported.text;
     if (decision.action === 'COMPRESS') {

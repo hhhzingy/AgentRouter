@@ -560,6 +560,33 @@ export class ApplicationService extends Plans {
   async handle(id: string, raw: unknown): Promise<unknown> {
     const c = this.connection(id);
     if (
+      typeof (raw as { method?: unknown })?.method === 'string' &&
+      ['result.evidence', 'result.reviewStatus', 'result.requestChanges'].includes(
+        String((raw as { method?: unknown }).method),
+      )
+    ) {
+      const frameId = String((raw as { id?: unknown }).id ?? '');
+      try {
+        if (!c.initialized || !c.authenticated)
+          throw Error(!c.initialized ? 'NOT_INITIALIZED' : 'SCOPE_DENIED');
+        const frame = validateExternalApiFrame(raw);
+        const method = String(frame.method);
+        const params = (frame.params ?? {}) as Record<string, unknown>;
+        const allowed = method === 'result.requestChanges' ? ['id', 'feedback'] : ['id'];
+        if (
+          Object.keys(params).some((key) => !allowed.includes(key)) ||
+          typeof params.id !== 'string' ||
+          !/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(params.id)
+        ) throw Error('INVALID_PARAMS');
+        const result = method === 'result.requestChanges'
+          ? this.requestResultChanges(id, c, frame, String(params.id), params.feedback)
+          : this.resultReviewRead(c, method, String(params.id));
+        return { v: 1, id: frame.id, result };
+      } catch (error) {
+        return extensionErrorReply(frameId, error);
+      }
+    }
+    if (
       this.externalApi &&
       typeof (raw as { method?: unknown })?.method === 'string' &&
       String((raw as { method?: unknown }).method).startsWith('externalApi.')
@@ -896,6 +923,145 @@ export class ApplicationService extends Plans {
       }
       return { v: 1, id: request.id, error: wire };
     }
+  }
+  private resultReviewRow(c: Connection, resultId: string) {
+    const row = this.one(
+      "select r.*,t.space_id,t.assignee_role_id,t.acceptance,t.summary task_summary,s.project_id from results r join tasks t on t.id=r.task_id join spaces s on s.id=t.space_id where r.id=? and exists(select 1 from messages m join outbox o on o.message_id=m.id where m.task_id=r.task_id and m.kind='task.result' and m.to_kind='user' and o.state in ('QUEUED','DELIVERED'))",
+      resultId,
+    );
+    if (!row || row.publication_state !== 'PUBLISHED') throw Error('NOT_FOUND');
+    this.authorize(c, { project_id: row.project_id, space_id: row.space_id });
+    return row;
+  }
+  private resultReviewRead(c: Connection, method: string, resultId: string) {
+    const result = this.resultReviewRow(c, resultId);
+    if (method === 'result.evidence') {
+      const output = JSON.parse(String(result.outputs_json)) as { type?: string; id?: string; kind?: string; artifact_id?: string }[];
+      const artifacts = output.filter((item) => item.type === 'artifact' || item.kind === 'artifact')
+        .map((item) => {
+          const artifactId = item.id ?? item.artifact_id;
+          if (typeof artifactId !== 'string') return null;
+          const row = this.one('select * from artifacts where id=? and project_id=?', artifactId, result.project_id);
+          if (!row) return { id: artifactId, sha256: null, byte_size: null, media_type: null, state: 'MISSING_RECORD' };
+          const view = inspectArtifact(this.db.name, row, this.rev(row.id)).view;
+          return { id: view.id, sha256: view.sha256, byte_size: view.byteSize, media_type: view.mediaType, state: view.state };
+        }).filter(Boolean);
+      const run = result.run_id
+        ? this.one('select r.id,b.harness,b.model_json from runs r join bindings b on b.id=r.binding_id where r.id=?', result.run_id)
+        : null;
+      let model: { provider_profile_id?: string; model_id?: string } = {};
+      try { if (run) model = JSON.parse(String(run.model_json)); } catch { /* no inferred provenance */ }
+      return {
+        result_id: result.id,
+        evidence_layer: 'CORE_PERSISTED_RECORD',
+        source_revision: null,
+        run_id: run?.id ?? null,
+        harness: run?.harness ?? null,
+        provider_profile_id: typeof model.provider_profile_id === 'string' ? model.provider_profile_id : null,
+        model_id: typeof model.model_id === 'string' ? model.model_id : null,
+        artifacts,
+        tests: [],
+        test_records_status: 'NOT_RECORDED',
+        known_limitations: null,
+      };
+    }
+    const followUp = this.one(
+      'select t.id,t.state,t.body from result_handlings h join tasks t on t.id=h.task_id where h.result_id=?',
+      result.id,
+    );
+    const run = followUp
+      ? this.one('select id from runs where task_id=? order by created_at_ms desc,id desc limit 1', followUp.id)
+      : null;
+    return {
+      source_result_id: result.id,
+      acceptance: result.acceptance,
+      feedback: followUp?.body ?? null,
+      follow_up_task: followUp ? { id: followUp.id, state: followUp.state } : null,
+      follow_up_run_id: run?.id ?? null,
+      published_history_retained: true,
+    };
+  }
+  private requestResultChanges(
+    connectionId: string,
+    c: Connection,
+    frame: import('../client-contract/external-api-1.ts').ExternalApiFrame,
+    resultId: string,
+    feedbackValue: unknown,
+  ) {
+    if (
+      !c.mayAcquireController || c.mode !== 'controller' ||
+      !frame.client_id || frame.client_id !== c.clientId ||
+      !frame.lease_id || !frame.operation_id || !Number.isSafeInteger(frame.expected_revision)
+    ) throw Error('CONTROL_LEASE_REQUIRED');
+    this.checkLease(connectionId, frame.lease_id);
+    if (typeof feedbackValue !== 'string' || !feedbackValue.trim() || feedbackValue.length > 4000)
+      throw Error('INVALID_PARAMS');
+    const feedback = feedbackValue.trim();
+    const source = this.resultReviewRow(c, resultId);
+    const hash = digest({ method: 'result.requestChanges', result_id: resultId, feedback });
+    let replay = false;
+    const response = this.db.transaction(() => {
+      const old = this.one(
+        'select request_hash,response_json from command_ledger where principal=? and client_id=? and operation_id=?',
+        c.principal, c.clientId, frame.operation_id,
+      );
+      if (old) {
+        if (old.request_hash !== hash) throw Error('OPERATION_CONFLICT');
+        replay = true;
+        return JSON.parse(String(old.response_json));
+      }
+      if (frame.expected_revision !== this.revision) throw Error('REVISION_CONFLICT');
+      if (source.acceptance !== 'PENDING') throw Error('PLAN_STATE_CONFLICT');
+      if (this.one('select result_id from result_handlings where result_id=?', resultId))
+        throw Error('PLAN_STATE_CONFLICT');
+      this.next();
+      const request = {
+        kind: 'task.request',
+        to: { type: 'role', id: source.assignee_role_id },
+        summary: `修改：${String(source.task_summary).slice(0, 140)}`,
+        body: feedback,
+        inputs: [],
+        expected: ['依据修改意见提交新的 Result；保留原 Result 历史'],
+        completion: { mode: 'result', to: { type: 'user' } },
+        project_data: { source_result_id: resultId },
+      };
+      const operation = this.db.prepare(
+        'insert into operations(scope_key,operation_id,request_hash,response_json,committed_at_ms) values(?,?,?,?,?)',
+      ).run(`human:${c.principal}:${c.clientId}`, frame.operation_id, digest(request), '{}', this.clock());
+      const taskId = this.core.submitFromUser(
+        { projectId: source.project_id, spaceId: source.space_id }, request, Number(operation.lastInsertRowid),
+      );
+      this.db.prepare('insert into result_handlings(result_id,task_id) values(?,?)').run(resultId, taskId);
+      this.db.prepare("update tasks set acceptance='REJECTED' where id=? and acceptance='PENDING'")
+        .run(source.task_id);
+      this.syncConversation();
+      const result = {
+        source_result_id: resultId,
+        acceptance: 'REJECTED',
+        feedback,
+        follow_up_task: { id: taskId, state: 'QUEUED' },
+        follow_up_run_id: null,
+        published_history_retained: true,
+      };
+      if (this.failNextCommit) {
+        this.failNextCommit = false;
+        throw Error('INTERNAL_ERROR');
+      }
+      this.db.prepare('insert into command_ledger values(?,?,?,?,?,?)')
+        .run(c.principal, c.clientId, frame.operation_id, hash, JSON.stringify(result), this.clock());
+      this.db.prepare(
+        'insert into entity_revisions values(?,?,?) on conflict(entity_id) do update set revision=excluded.revision,updated_at_ms=excluded.updated_at_ms',
+      ).run(resultId, this.revision, this.clock());
+      this.db.prepare(
+        'insert into entity_revisions values(?,?,?) on conflict(entity_id) do update set revision=excluded.revision,updated_at_ms=excluded.updated_at_ms',
+      ).run(taskId, this.revision, this.clock());
+      this.db.prepare('insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(?,?,?,?,?)')
+        .run(source.project_id, c.principal, 'result.requestChanges', JSON.stringify({ client_id: c.clientId, operation_id: frame.operation_id }), this.clock());
+      this.event(source.project_id, 'result.requestChanges', resultId);
+      return result;
+    }).immediate();
+    if (!replay) this.notify();
+    return response;
   }
   private mutate(id: string, c: Connection, r: any): unknown {
     if (
@@ -1706,11 +1872,12 @@ export class ApplicationService extends Plans {
     }
     if (m === 'result.accept' || m === 'result.reject') {
       const result = this.one(
-        'select r.*,t.space_id from results r join tasks t on t.id=r.task_id where r.id=?',
+        'select r.*,t.space_id,t.acceptance from results r join tasks t on t.id=r.task_id where r.id=?',
         p.id,
       );
       if (!result || result.space_id !== scope.space_id) throw new C1R1Error('SCOPE_DENIED');
       if (result.publication_state !== 'PUBLISHED') throw new C1R1Error('PLAN_STATE_CONFLICT');
+      if (result.acceptance !== 'PENDING') throw new C1R1Error('PLAN_STATE_CONFLICT');
       this.db
         .prepare('update tasks set acceptance=? where id=?')
         .run(m === 'result.accept' ? 'ACCEPTED' : 'REJECTED', result.task_id);

@@ -14,6 +14,9 @@ export function isExtensionMethod(method: unknown): boolean {
     (typeof method === 'string' &&
       (method.startsWith('roleSession.') ||
         method.startsWith('participant.') ||
+        method === 'result.evidence' ||
+        method === 'result.reviewStatus' ||
+        method === 'result.requestChanges' ||
         method.startsWith('contract.') ||
         method.startsWith('remoteDevice.')))
   );
