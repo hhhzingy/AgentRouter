@@ -18,6 +18,11 @@ ipcRenderer.on('p1:event', (_e, envelope: { generation: number; event: Event }) 
   if (envelope.generation !== generation) return;
   for (const h of handlers) h(envelope.event);
 });
+ipcRenderer.on('p1:connection-state', (_e, envelope: { generation: number; state: ConnectionState }) => {
+  if (envelope.generation !== generation) return;
+  state = envelope.state;
+  if (state === 'DISCONNECTED') expires = 0;
+});
 const client: ClientTransport = {
   async connect(options) {
     handlers.clear();

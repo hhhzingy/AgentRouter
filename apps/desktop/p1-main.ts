@@ -29,9 +29,12 @@ let win: BrowserWindow,
   transport: ClientTransport | undefined,
   session: ClientSession | undefined,
   generation = 0,
-  unsubscribe: (() => void) | undefined;
+  unsubscribe: (() => void) | undefined,
+  connectionStateTimer: ReturnType<typeof setInterval> | undefined;
 const mock = mode === 'PREVIEW_MOCK' ? new MockP1Server() : undefined;
 async function close() {
+  if (connectionStateTimer) clearInterval(connectionStateTimer);
+  connectionStateTimer = undefined;
   unsubscribe?.();
   unsubscribe = undefined;
   const previous = transport;
@@ -142,6 +145,17 @@ app.whenReady().then(async () => {
     unsubscribe = session.subscribe((event) => {
       if (!e.sender.isDestroyed()) e.sender.send('p1:event', { generation: g, event });
     });
+    const connectedSession = session;
+    let lastConnectionState = connectedSession.connectionState();
+    connectionStateTimer = setInterval(() => {
+      if (session !== connectedSession || generation !== g) return;
+      const nextState = connectedSession.connectionState();
+      if (nextState === lastConnectionState) return;
+      lastConnectionState = nextState;
+      if (!e.sender.isDestroyed())
+        e.sender.send('p1:connection-state', { generation: g, state: nextState });
+    }, 500);
+    connectionStateTimer.unref();
     return session.hello;
   });
   ipcMain.handle(
