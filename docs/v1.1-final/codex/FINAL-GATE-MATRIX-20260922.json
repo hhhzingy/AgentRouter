@@ -3,7 +3,7 @@
   "date": "2026-09-22",
   "branch": "feat/v1.1-functional-closeout-codex",
   "runtime_candidate_sha": "7fda36940599c39c39d74f4f79c34ee18c22b3bc",
-  "verified_source_sha": "e97d72ece7734ac9938bc7927b04ed09beb3b7bb",
+  "verified_source_sha": "eccf799575ef4a1a4d761a9add11435874e98aab",
   "release_decision": "NOT_V1.1_NON_UI_FUNCTIONAL_RC_READY",
   "all_non_ui_gates_closed": false,
   "ci_execution_paused_by_user": false,
@@ -46,9 +46,9 @@
       "status": "PASS",
       "green": true,
       "waived": false,
-      "c1_run": "https://github.com/hhhzingy/AgentRouter/actions/runs/35695366916",
-      "w11_run": "https://github.com/hhhzingy/AgentRouter/actions/runs/35695366845",
-      "note": "Both workflows completed successfully on verified_source_sha. Release package remains bound to runtime_candidate_sha and must be rebuilt before RC reassessment."
+      "c1_run": "https://github.com/hhhzingy/AgentRouter/actions/runs/35815427852",
+      "w11_run": "https://github.com/hhhzingy/AgentRouter/actions/runs/35815427813",
+      "note": "Both workflows completed successfully on verified_source_sha. C1 was confirmed by gh; W11 was confirmed from its public completed/success run page because anonymous gh API was rate-limited. Release package remains bound to runtime_candidate_sha and must be rebuilt before RC reassessment."
     }
   },
   "local_regression": {
