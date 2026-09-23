@@ -664,6 +664,7 @@ nav[aria-label] {display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
   .nav-context { display: none; }
   .page-project .role-rows { grid-template-columns: minmax(0, 1fr); }
   .page-project .overview-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page-project .tab-body[data-tab='overview'] { grid-template-areas: 'attention' 'running' 'results' 'roles' 'counts'; }
   .btn, textarea, select, input[type='text'], input[type='search'], input[type='number'], input[type='url'] { min-height: 44px; }
   .sidebar-identity { display: none; }
 }
