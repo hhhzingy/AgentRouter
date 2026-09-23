@@ -105,6 +105,21 @@ it(
       expect(review).toMatchObject({ acceptance: 'REJECTED', feedback, published_history_retained: true });
       expect(review.follow_up_task.id).toBeTruthy();
       expect(db.prepare('select publication_state from results where id=?').get(resultId)).toEqual({ publication_state: 'PUBLISHED' });
+      // 丢回执等价态：服务端已提交，但浏览器仍保留未知操作。刷新后的 REJECTED Result 必须仍有核对入口，且不得重放 mutation。
+      const taskCountBeforeCheck = (await ls.request('system.snapshot', {}) as { tasks: unknown[] }).tasks.length;
+      await page.click('#sheet-x');
+      await page.evaluate((id: string) => {
+        localStorage.setItem('ar_result_review_pending:' + id, JSON.stringify({ operationId: 'lost-receipt-07', feedback: '模拟未知回执' }));
+        localStorage.setItem('ar_result_feedback:' + id, '模拟未知回执');
+      }, resultId!);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('#nav button[data-v="home"].on', { timeout: 15000 });
+      await page.getByRole('button', { name: '核对提交状态' }).click();
+      expect(await page.isDisabled('#result-request-changes')).toBe(true);
+      await page.click('#result-check-status');
+      await page.waitForFunction(() => document.querySelector('#result-review-status')?.textContent?.includes('已确认修改请求'), undefined, { timeout: 10000 });
+      expect(await page.evaluate((id: string) => localStorage.getItem('ar_result_review_pending:' + id), resultId!)).toBeNull();
+      expect((await ls.request('system.snapshot', {}) as { tasks: unknown[] }).tasks.length).toBe(taskCountBeforeCheck);
       // K04:服务器单方面断链→冻结横幅→指数退避自动重连(同一 cookie 再认证)
       const sockets = (gateway as unknown as { liveSockets: Map<string, Set<any>> }).liveSockets;
       for (const set of sockets.values()) for (const ws of set) ws.terminate();
