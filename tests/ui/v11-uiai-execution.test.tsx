@@ -17,8 +17,8 @@ describe('V1.1 UIAI 执行包语义门禁',()=>{
 
  it('Results 把 Delivery、Acceptance 与 Artifact Evidence 分开展示',()=>{
   const html=render(makeStore({}),<ProjectPage projectId="proj_atlas" tab="inbox"/>);
-  expect(html).toContain('Delivery');
-  expect(html).toContain('Acceptance');
+  expect(html).toContain('交付');
+  expect(html).toContain('验收');
   expect(html).toContain('Artifacts / Evidence');
   expect(html).toContain('Artifact 可读、测试通过与用户接受是不同事实');
  });
@@ -43,4 +43,3 @@ describe('V1.1 UIAI 执行包语义门禁',()=>{
   expect(source).toContain('UNKNOWN · 请核对，勿盲目重试');
  });
 });
-

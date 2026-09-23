@@ -360,7 +360,8 @@ function ResultDetail({result}:{result:ReturnType<typeof useStore>['snapshot']['
  const role=task?s.snapshot.roles.find(r=>r.id===task.assigneeRoleId):undefined;
  const run=task?s.snapshot.runs.filter(r=>r.taskId===task.id).at(-1):undefined;
  return <Card className="result-detail"><span className="eyebrow">RESULT DETAIL</span><h2>{result.summary}</h2>
-  <div className="result-state-grid"><KeyValue k="Task" v={task?.summary??result.taskId}/><KeyValue k="Role" v={role?.name??'Core 未提供'}/><KeyValue k="Run" v={run?`${run.id} · ${RUN_STATE_LABEL[run.state]}`:'未关联'}/><KeyValue k="Delivery" v={<Badge tone={result.delivery==='DELIVERED'?'ok':result.delivery==='UNKNOWN'||result.delivery==='UNDELIVERABLE'?'danger':'neutral'}>{result.delivery}</Badge>}/><KeyValue k="Acceptance" v={<Badge tone={result.acceptance==='ACCEPTED'?'ok':result.acceptance==='PENDING'?'warning':'neutral'}>{result.acceptance}</Badge>}/></div>
+  <div className="result-state-grid"><KeyValue k="Task" v={task?.summary??result.taskId}/><KeyValue k="Role" v={role?.name??'Core 未提供'}/><KeyValue k="Run" v={run?RUN_STATE_LABEL[run.state]:'未关联'}/><KeyValue k="交付" v={<Badge tone={result.delivery==='DELIVERED'?'ok':result.delivery==='UNDELIVERABLE'?'danger':result.delivery==='UNKNOWN'?'warning':'neutral'}>{{DELIVERED:'已交付',UNKNOWN:'交付状态未知',UNDELIVERABLE:'无法交付',DISPATCHING:'交付中',HELD:'暂缓交付',QUEUED:'排队交付'}[result.delivery]}</Badge>}/><KeyValue k="验收" v={<Badge tone={result.acceptance==='ACCEPTED'?'ok':result.acceptance==='PENDING'?'warning':'neutral'}>{{ACCEPTED:'已接受',PENDING:'待验收',REJECTED:'已拒绝',NOT_REQUIRED:'无需验收'}[result.acceptance]}</Badge>}/></div>
+  {run&&<details><summary>运行技术标识</summary><KeyValue k="Run ID" v={run.id}/></details>}
   <h3>Artifacts / Evidence</h3><p className="muted">Artifact 可读、测试通过与用户接受是不同事实。以下只显示 Core 可验证的产物元数据。</p>
   {result.artifactIds.length?<ArtifactList ids={result.artifactIds}/>:<p className="muted">该 Result 没有声明 Artifact。</p>}
  </Card>;

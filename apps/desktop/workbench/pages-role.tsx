@@ -285,7 +285,7 @@ type RoleSessionRow = {
 
 type RoleSessionPreflight = {
   target_harness?: string;
-  recommended_action?: 'CONTINUE_EXISTING' | 'CREATE_NEW_INHERIT';
+  recommended_action?: 'CONTINUE_EXISTING' | 'CREATE_NEW_INHERIT' | 'NEEDS_NEW_WORKSESSION';
   resume_candidate?: { id: string; name?: string; seq?: number } | null;
   new_session_available?: boolean;
   migration_fidelity?: string;
@@ -305,7 +305,7 @@ function migrationFidelityLabel(value?: string) {
 }
 
 function recommendationLabel(value?: string) {
-  return value === 'CONTINUE_EXISTING' ? '继续已有' : '新建并继承上下文';
+  return value === 'CONTINUE_EXISTING' ? '继续当前原生会话' : value === 'NEEDS_NEW_WORKSESSION' ? '需要新建工作会话' : '可新建并评估迁移';
 }
 
 function preflightReasonLabel(value?: string) {
@@ -317,6 +317,8 @@ function preflightReasonLabel(value?: string) {
       WORKSPACE_AFFINITY_MISMATCH: '工作区不兼容，建议新建工作会话。',
       TARGET_HARNESS_REQUIRES_BINDING: '目标 Harness 与当前角色绑定不一致，请先更新运行配置。',
       ROLE_SESSION_NOT_FOUND: '指定工作会话不存在。',
+      SESSION_ARCHIVED_READ_ONLY: '历史 WorkSession 永久只读，不能恢复为当前会话。',
+      SESSION_CONTINUATION_UNSUPPORTED: '当前 Harness 不支持继续原生会话，请新建 WorkSession。',
     }[value ?? ''] ?? 'Core 尚未给出可继续的原生会话。'
   );
 }
