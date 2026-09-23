@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "status": "UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION",
+  "allowed_final_statuses": [
+    "UI_LANE_READY_FOR_WINDOWS_RC_INTEGRATION",
+    "UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION"
+  ],
+  "ui_branch": "feat/v1.1-ui-kimi",
+  "ui_base_sha": "89a41b5e0ff6af198141ded3c1d5c627fdcf9a52",
+  "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
+  "final_ui_sha": "ab7922b88ef1bb6181dcf104b8d0366b72550bea",
+  "evidence_sha": "8678452866802ad4fdac0feeae6da9c69aeebc96",
+  "evidence_source_sha": "ab7922b88ef1bb6181dcf104b8d0366b72550bea",
+  "source_dirty": false,
+  "last_inspected_codex_sha": "c0c3b39",
+  "last_merged_codex_sha": null,
+  "ui_contract_changes": ["UI-CONTRACT-CHANGE-20260923"],
+  "resolved_gaps": [],
+  "unresolved_gaps": [
+    "UI-CONTRACT-GAP-001",
+    "UI-CONTRACT-GAP-002",
+    "UI-CONTRACT-GAP-003",
+    "UI-CONTRACT-GAP-004"
+  ],
+  "blocking_gaps": [
+    "UI-VISUAL-CONVERGENCE-001: 11 P0 pages are not fully converged",
+    "UI-CONTRACT-GAP-003: pre-create capacity projection remains UNKNOWN",
+    "UI-CONTRACT-GAP-004: combined Core+UI REAL_CORE requestChanges not verified",
+    "BUILD_ENVIRONMENT: clean dependency rebuild and DSH_BIN are unavailable",
+    "REAL_CORE-FINAL-SHA: WorkSession/remote/mobile rerun not performed",
+    "A11Y-SCREENREADER-001: real Windows screen-reader spot check not run"
+  ],
+  "tests": {
+    "typecheck": "PASS_DIRECT_TSC",
+    "lint": "PASS_DIRECT_NODE",
+    "unit": {"status": "PASS", "files": 41, "tests": 213},
+    "integration": {"status": "PARTIAL_ENVIRONMENT_BLOCK", "full_run": "210/212; DUT missing DSH_BIN; web-console intermittent and passed isolated rerun", "without_dut": "209/209 PASS across 48 files"},
+    "contract_chaos": {"status": "PASS", "files": 9, "tests": 70},
+    "ui": {"status": "PASS", "files": 13, "tests": 109},
+    "generation_freeze": "PASS",
+    "j2_desktop": {"status": "NOT_RUN_CURRENT_SHA"}
+  },
+  "packaged_electron": {
+    "status": "PASS_SMOKE_CURRENT_SHA",
+    "artifact_hash": "c172bd791773cd0d1b4200ad4d988ff28dace39772cc00b81d89694c5c270ad7",
+    "package_source_sha": "8678452866802ad4fdac0feeae6da9c69aeebc96",
+    "source_dirty": false,
+    "scope": "packaged old Core/SQLite/pipe and Electron local project/control/navigation; eccf799 extension flow not integrated"
+  },
+  "real_flows": {
+    "local_core_electron": "PASS_PACKAGED_SMOKE_CURRENT_SHA",
+    "remote_core": "NOT_RUN_CURRENT_SHA",
+    "mobile_browser": "NOT_RUN_CURRENT_SHA"
+  },
+  "viewports": {
+    "desktop_1440x900": "PASS_VISUAL_FIXTURE",
+    "desktop_960x600_scale_1_5": "PASS_VISUAL_FIXTURE",
+    "electron_zoom_125_150_200": "NOT_RUN_CURRENT_SHA",
+    "mobile_390x844": "PASS_VISUAL_FIXTURE",
+    "mobile_430x932": "PASS_VISUAL_FIXTURE",
+    "horizontal_overflow": "PASS_17_FIXTURE_SHOTS"
+  },
+  "accessibility": {
+    "keyboard_focus": "NOT_RUN_CURRENT_SHA",
+    "text_contrast": "NOT_RUN_CURRENT_SHA",
+    "accessible_names": "NOT_RUN_CURRENT_SHA",
+    "screen_reader_spot_check": "NOT_RUN"
+  },
+  "screenshots_manifest": "docs/v1.1-final/ui-final/screenshots/manifest.json",
+  "secret_scan": {
+    "current_index": "PASS_PRECOMMIT",
+    "publish_refs_history": "CORE_REPORTED_PASS_3494_BLOBS_0_FINDINGS",
+    "all_local_refs_history": "FAIL_3988_BLOBS_4_FINDINGS_IN_LOCAL_CODEX_CHECKPOINT_REFS"
+  },
+  "notes": [
+    "VISUAL_FIXTURE is PREVIEW_MOCK, never REAL_CORE evidence",
+    "Current UI branch does not contain eccf799 Core implementation; combined REAL_CORE extension flow is unverified",
+    "The lane must not be described as V1.1_WINDOWS_RC_READY"
+  ]
+}

@@ -34,6 +34,8 @@ import type {
 } from '../../../packages/client-contract/c1r1p1/generated.ts';
 
 export interface WorkbenchStore {
+  /** Desktop 实际连接形态；用于显示 Local/Remote 身份，不参与权限判断。 */
+  contextMode?: 'LOCAL_CORE' | 'REMOTE_CORE' | 'PREVIEW_MOCK';
   pendingOperations?:PendingRecord[];
   retryPending?:(id:string)=>Promise<void>;
   removePending?:(id:string)=>Promise<void>;
@@ -101,11 +103,13 @@ export function StoreProvider({
   const [problem, setProblem] = useState<string | null>(null);
   const [pendingOperations,setPendingOperations]=useState<PendingRecord[]>([]);
   const [pendingIdentity,setPendingIdentity]=useState<string>();
+  const [contextMode,setContextMode]=useState<'LOCAL_CORE'|'REMOTE_CORE'|'PREVIEW_MOCK'>('PREVIEW_MOCK');
   const pending=useRef<Promise<PendingStore>|undefined>(undefined);
   function getPending(){
     return pending.current??= (async()=>{
       const context=window.agentrouterDesktop ? await window.agentrouterDesktop.getContext() : {mode:'PREVIEW_MOCK' as const,dataId:session.hello.serverInstanceId,serverInstanceId:session.hello.serverInstanceId,clientId:'workbench'};
       if(context.serverInstanceId!==session.hello.serverInstanceId)throw Error('CORE_IDENTITY_MISMATCH');
+      setContextMode(context.mode);
       const identity={mode:context.mode,dataId:context.dataId,clientId:context.clientId};
       const store=new PendingStore(localStorage,identity);store.migrateLegacy();setPendingIdentity(JSON.stringify(identity));setPendingOperations(store.list());return store;
     })();
@@ -208,11 +212,13 @@ export function StoreProvider({
   );
   const callExtension = useCallback(
     async (method: string, params: Record<string, unknown>): Promise<unknown> => {
-      if (!method.startsWith('roleSession.') && !method.startsWith('remoteDevice.'))
+      if (!method.startsWith('roleSession.') && !method.startsWith('participant.slot.') && !method.startsWith('remoteDevice.') && !['result.evidence','result.reviewStatus','result.requestChanges'].includes(method))
         throw Error('UNSUPPORTED_METHOD');
       const mutation =
         method === 'roleSession.create' ||
         method === 'roleSession.switch' ||
+        method === 'participant.slot.create' ||
+        method === 'result.requestChanges' ||
         method === 'remoteDevice.createPairing' ||
         method === 'remoteDevice.revoke';
       if (mutation && !lease.current && session.connectionState() !== 'CONNECTED_CONTROLLER')
@@ -228,14 +234,28 @@ export function StoreProvider({
           preflightHash?: string;
         },
       ) => Promise<any>;
-      if (!mutation) return request(method, params);
-      if (method.startsWith('remoteDevice.')) {
+      if (!mutation) {
+        if (method === 'participant.slot.list')
+          return request(method, params, { leaseId: lease.current?.leaseId });
+        return request(method, params);
+      }
+      if (method.startsWith('remoteDevice.') || method === 'participant.slot.create') {
         const snapshot = (await request('system.snapshot', {})) as { revision: number };
         return request(method, params, {
           leaseId: lease.current?.leaseId,
           operationId: 'op_' + crypto.randomUUID(),
           expectedRevision: snapshot.revision,
         });
+      }
+      if (method === 'result.requestChanges') {
+        const records=await getPending();
+        if(records.list().some(r=>r.method===method&&r.state==='uncertain'&&(r.params as {id?:unknown})?.id===params.id))throw Error('CHECK_STATUS_REQUIRED');
+        let command=records.list().find(r=>r.method===method&&JSON.stringify(r.params)===JSON.stringify(params));
+        if(command?.state==='uncertain')throw Error('CHECK_STATUS_REQUIRED');
+        if(!command){const snapshot=(await request('system.snapshot',{})) as {revision:number};command=records.prepare(method,params,Number(snapshot.revision),{});}
+        setPendingOperations(records.list());
+        try{const result=await request(method,command.params,{leaseId:lease.current?.leaseId,operationId:command.operationId,expectedRevision:command.expectedRevision});records.remove(command.recordId);setPendingOperations(records.list());await refresh();return result;}
+        catch(e){if(failureState(e)==='uncertain')records.markUncertain(command.recordId);else records.remove(command.recordId);setPendingOperations(records.list());throw e;}
       }
       const records = await getPending();
       let command = records.list().find(r => r.method === method && JSON.stringify(r.params) === JSON.stringify(params));
@@ -282,8 +302,8 @@ export function StoreProvider({
     if (!snapshot) return null;
     const state = hello.connectionState;
     return {
-      pendingOperations,pendingIdentity,
-      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='roleSession.create'||record.method==='roleSession.switch')await callExtension(record.method,record.params as Record<string,unknown>);else await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
+      pendingOperations,pendingIdentity,contextMode,
+      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='result.requestChanges')throw Error('CHECK_STATUS_REQUIRED');if(record.method==='roleSession.create'||record.method==='roleSession.switch')await callExtension(record.method,record.params as Record<string,unknown>);else await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
       removePending:async(id)=>{const records=await getPending();records.remove(id);setPendingOperations(records.list());},
       hello,
       snapshot,
@@ -308,7 +328,7 @@ export function StoreProvider({
       releaseControl: () => control('control.release'),
     };
   }, [
-    pendingOperations,pendingIdentity,
+    pendingOperations,pendingIdentity,contextMode,
     hello,
     snapshot,
     timeline,

@@ -26,9 +26,10 @@ describe('首页', () => {
     expect(html.match(/class="project-card[ "]/g)?.length).toBeGreaterThanOrEqual(2);
     expect(html).toContain('创建新项目');
   });
-  it('卡组行含角色头像与组名', () => {
+  it('卡组行含角色姓名、状态与组名', () => {
     expect(html).toContain('核心链路组');
-    expect(html).toContain('avatar');
+    expect(html).toContain('group-roles');
+    expect(html).toContain('周实现');
   });
   it('SSH 项目带远程标识，路径来自 Core', () => {
     expect(html).toContain('SSH · core-prod-01');
@@ -43,9 +44,9 @@ describe('首页', () => {
 
 describe('单项目页', () => {
   const html = page(controller, <ProjectPage projectId="proj_atlas" />);
-  it('四个主入口与持续待处理入口齐全', () => {
-    for (const t of ['工作台', '动态', '成果', '设置', '待处理'])
-      expect(html).toContain(t);
+  it('项目主动作与持续待处理入口齐全', () => {
+    expect(html).toContain('新建角色');
+    expect(html).toContain('待处理');
   });
   it('组卡展示 purpose、规则 revision 与工作区徽标（组≠worktree）', () => {
     expect(html).toContain('支付核心链路的规划、实现与复核');
@@ -162,9 +163,10 @@ describe('生命周期与壳', () => {
 
 describe('可访问性与缩放', () => {
   const html = page(controller, <ProjectPage projectId="proj_atlas" />);
-  it('tablist/tab 语义与 aria-selected', () => {
-    expect(html).toContain('role="tablist"');
-    expect(html).toContain('aria-selected="true"');
+  it('项目主内容保留明确分区且不重复渲染顶级页签', () => {
+    expect(html).toContain('data-tab="overview"');
+    expect(html).toContain('需要关注');
+    expect(html).not.toContain('role="tablist"');
   });
   it('状态点带 aria-label（不只用颜色传达）', () => {
     const home = page(controller, <HomePage />);
@@ -196,7 +198,7 @@ describe('工作会话切换(R4)', () => {
     const html = page(withSessions, <RolePage roleId="role_zhou" />);
     expect(html).toContain('工作会话');
     expect(html).toContain('迁移保真度');
-    expect(html).toContain('新建并继承上下文');
+    expect(html).toContain('新建 WorkSession');
     expect(html).not.toContain('G1');
   });
   it('观察者只读:不出现新建与会话切换控件', () => {
@@ -207,7 +209,7 @@ describe('工作会话切换(R4)', () => {
     } as typeof controller;
     const html = page(observerStore, <RolePage roleId="role_zhou" />);
     expect(html).toContain('工作会话');
-    expect(html).not.toContain('>新建并继承上下文<');
+    expect(html).not.toContain('>新建 WorkSession<');
     expect(html).not.toContain('>继续已有<');
   });
 });

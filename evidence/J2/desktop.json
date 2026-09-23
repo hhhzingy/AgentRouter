@@ -1,5 +1,5 @@
 {
-  "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+  "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
   "sourceDirty": false,
   "mode": "REAL_ELECTRON_LOCAL_CORE",
   "realHarnessSupport": 0,
@@ -88,12 +88,12 @@
   ],
   "screenshots": [
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-empty-home.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-empty-home.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -104,12 +104,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-manual-editor.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-manual-editor.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -120,12 +120,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-review.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -136,12 +136,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-two-groups.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-two-groups.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -152,12 +152,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-role-conversation.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -168,12 +168,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-settling-held.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -184,12 +184,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-150.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-history-150.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -200,12 +200,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-history-read-error.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -216,12 +216,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-role-settings.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -232,12 +232,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-project-activity.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -248,12 +248,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-runtime-settings.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -264,12 +264,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-uncertain-edited-draft.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-uncertain-edited-draft.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -280,12 +280,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1280x720-125-workbench-zoom.png",
       "pixelSize": {
         "width": 1280,
         "height": 720
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -296,12 +296,12 @@
       "zoom": 1.25
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1280x720-150-workbench-zoom.png",
       "pixelSize": {
         "width": 1280,
         "height": 720
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -312,12 +312,12 @@
       "zoom": 1.5
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1280x720-200-workbench-zoom.png",
       "pixelSize": {
         "width": 1280,
         "height": 720
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -328,12 +328,12 @@
       "zoom": 2
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-failed-keeps-input.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-failed-keeps-input.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {
@@ -344,12 +344,12 @@
       "zoom": 1
     },
     {
-      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-disconnected-readonly.png",
+      "path": "E:\\AgentRouter\\.worktrees\\v1.1-ui-kimi\\evidence\\J2\\screenshots\\LOCAL_CORE-1440x900-100-disconnected-readonly.png",
       "pixelSize": {
         "width": 1440,
         "height": 900
       },
-      "sourceSha": "1ee22dadc9fb890c44f7e95ff015288306d7a913",
+      "sourceSha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
       "sourceDirty": false,
       "mode": "LOCAL_CORE",
       "viewport": {

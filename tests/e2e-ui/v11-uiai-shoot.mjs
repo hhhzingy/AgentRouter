@@ -1,0 +1,57 @@
+import {createServer} from 'node:http';
+import {createHash} from 'node:crypto';
+import {existsSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {dirname,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
+import {createRequire} from 'node:module';
+
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
+const outDir=resolve(root,'docs/v1.1-final/ui-final/screenshots');
+const bundle=resolve(root,'apps/desktop/workbench.js');
+mkdirSync(outDir,{recursive:true});
+const require=createRequire(import.meta.url);
+const {chromium}=require(resolve(root,'node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/index.js'));
+const esbuild=resolve(root,'node_modules/.pnpm/@esbuild+win32-x64@0.28.2/node_modules/@esbuild/win32-x64/esbuild.exe');
+execFileSync(esbuild,['apps/desktop/workbench.tsx','--bundle','--platform=browser','--format=iife','--outfile=apps/desktop/workbench.js','--jsx=automatic'],{cwd:root,stdio:'inherit'});
+
+const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css'};
+const server=createServer((req,res)=>{const url=new URL(req.url,'http://x');const path=url.pathname==='/'?'/workbench.html':url.pathname;const file=resolve(root,'apps/desktop','.'+path);if(!file.startsWith(resolve(root,'apps/desktop'))||!existsSync(file)){res.writeHead(404);res.end('not found');return;}res.writeHead(200,{'content-type':mime[file.slice(file.lastIndexOf('.'))]??'text/plain'});res.end(readFileSync(file));});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const port=server.address().port;
+const browserCandidates=[
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
+  `${process.env.LOCALAPPDATA}/ms-playwright/chromium-1243/chrome-win64/chrome.exe`,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+];
+const browserExecutable=browserCandidates.find(path=>path&&existsSync(path));
+if(!browserExecutable)throw Error('No Chromium executable found; set PLAYWRIGHT_CHROMIUM_EXECUTABLE');
+const browser=await chromium.launch({executablePath:browserExecutable,args:[`--explicitly-allowed-ports=${port}`]});
+const shots=[
+ {name:'01-home',route:'#/',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'02-workbench',route:'#/project/proj_atlas',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'03-role-worksession',route:'#/role/role_zhou',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'04-results-evidence',route:'#/project/proj_atlas/inbox',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'05-workbench-150dpi',route:'#/project/proj_atlas',scenario:'full',viewport:{width:960,height:600},scale:1.5},
+ {name:'06-mobile-intervention',route:'#/project/proj_atlas',scenario:'observer',viewport:{width:390,height:844},scale:1},
+ {name:'07-settings-dark',route:'#/settings',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
+ {name:'08-projects-dark',route:'#/',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
+ {name:'09-mobile-wide',route:'#/project/proj_atlas/inbox',scenario:'observer',viewport:{width:430,height:932},scale:1},
+ {name:'10-connections',route:'#/remote',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'11-activity',route:'#/project/proj_atlas/timeline',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'12-project-settings',route:'#/project/proj_atlas/settings',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'13-results-dark',route:'#/project/proj_atlas/inbox',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
+ {name:'14-worksession-setup',route:'#/role/role_zhou',scenario:'full',viewport:{width:1440,height:900},scale:1,action:'managed-setup'},
+ {name:'15-web-participant-setup',route:'#/role/role_zhou',scenario:'full',viewport:{width:1440,height:900},scale:1,action:'web-setup'},
+ {name:'16-mobile-reply',route:'#/project/proj_atlas',scenario:'waiting-input',viewport:{width:390,height:844},scale:1,action:'reply'},
+ {name:'17-result-request-changes',route:'#/project/proj_atlas/inbox',scenario:'full',viewport:{width:1440,height:900},scale:1,action:'request-changes'},
+];
+const manifest=[];
+const sourceSha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
+const sourceDirty=Boolean(execFileSync('git',['diff','--name-only','HEAD','--','apps','packages','tests'],{cwd:root,encoding:'utf8'}).trim());
+try{
+ for(const shot of shots){const page=await browser.newPage({viewport:shot.viewport,deviceScaleFactor:shot.scale});if(shot.theme)await page.addInitScript(theme=>localStorage.setItem('agentrouter.theme',theme),shot.theme);await page.goto(`http://127.0.0.1:${port}/workbench.html?scenario=${shot.scenario}`,{waitUntil:'networkidle'});await page.evaluate(h=>location.hash=h,shot.route);await page.waitForSelector('.page',{timeout:15000});await page.waitForTimeout(350);if(shot.action==='managed-setup')await page.getByRole('button',{name:'新建 WorkSession'}).click();if(shot.action==='web-setup'){await page.getByRole('button',{name:'新建 WorkSession'}).click();await page.getByRole('radio',{name:/Web Participant/}).check();await page.getByRole('button',{name:'继续创建 Web Participant Slot'}).click();}if(shot.action==='reply')await page.getByRole('button',{name:'回复',exact:true}).first().click();if(shot.action==='request-changes')await page.getByRole('button',{name:'请求修改',exact:true}).first().click();await page.waitForTimeout(200);const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));if(width.scroll>width.client+1)throw Error(`${shot.name}: horizontal overflow ${width.scroll}>${width.client}`);const file=resolve(outDir,shot.name+'.png');await page.screenshot({path:file,fullPage:true});const sha256=createHash('sha256').update(readFileSync(file)).digest('hex');manifest.push({...shot,file:`screenshots/${shot.name}.png`,horizontalOverflow:false,sha256});await page.close();}
+ writeFileSync(resolve(outDir,'manifest.json'),JSON.stringify({evidenceClass:'VISUAL_FIXTURE',transport:'PREVIEW_MOCK',sourceSha,sourceDirty,generatedAt:new Date().toISOString(),shots:manifest},null,2)+'\n');
+}finally{await browser.close();server.close();rmSync(bundle,{force:true});}
+console.log(`PASS: ${manifest.length} representative UI screenshots`);

@@ -1,6 +1,7 @@
 /** W09:远程 Windows GUI——本机远程网关状态、手机/二机配对码生成与设备撤销。 */
 import React, { useCallback, useEffect, useState } from 'react';
 import { useStore } from './store.tsx';
+import {Badge,Button,CapabilityGate,formatDateTime} from '../../../packages/ui/index.ts';
 
 type Device = {
   deviceId: string;
@@ -19,6 +20,7 @@ export function RemoteDevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [pair, setPair] = useState<{ challenge: string; expiresAtMs: number; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deviceCapabilityUnavailable, setDeviceCapabilityUnavailable] = useState(false);
   useEffect(() => {
     void (window.agentrouterDesktop as { hostInfo?: () => Promise<HostInfo> })?.hostInfo?.().then(
       setInfo,
@@ -31,9 +33,11 @@ export function RemoteDevicesPage() {
         devices: Device[];
       };
       setDevices(r.devices);
+      setDeviceCapabilityUnavailable(false);
       setError(null);
     } catch (e) {
-      setError(String((e as Error).message));
+      if ((e as Error).message === 'CAPABILITY_UNAVAILABLE') { setDeviceCapabilityUnavailable(true); setError(null); }
+      else setError(String((e as Error).message));
     }
   }, [s]);
   useEffect(() => void refresh(), [refresh]);
@@ -41,6 +45,7 @@ export function RemoteDevicesPage() {
   const [pairKind, setPairKind] = useState<'MOBILE' | 'DESKTOP'>('MOBILE');
   const [pairController, setPairController] = useState(false);
   const [pairScope, setPairScope] = useState<string[]>([]);
+  const pairingAvailable = info.enabled && !deviceCapabilityUnavailable;
   const create = async () => {
     setError(null);
     const kind = pairKind;
@@ -69,17 +74,22 @@ export function RemoteDevicesPage() {
     <div className="page" data-page="remote">
       <header className="page-head">
         <div>
-          <h1>远程设备</h1>
+          <h1>连接</h1>
           <p>
             {info.enabled && info.port
               ? `本机远程控制台已启用:手机浏览器访问 http://${info.host}:${info.port}/ 并输入下方配对码(5 分钟有效)。生产环境经 Tailscale 地址访问。`
-              : '本机远程网关未启用(启动 core 时设 AGENTROUTER_REMOTE_ENABLED=1)。'}
+              : '本机远程网关尚未启用。当前只能查看连接与控制权状态。'}
           </p>
         </div>
       </header>
+      <section className="remote-identity" aria-label="远程连接身份">
+        <div><span className="eyebrow">CURRENT CORE</span><b>{s.contextMode==='REMOTE_CORE'?'Remote Core':'This PC'}</b><small>{s.contextMode==='REMOTE_CORE'?'Remote':'Local'} · {s.connectionState.startsWith('CONNECTED')?'Connected':'Disconnected'} · {s.connectionState==='CONNECTED_CONTROLLER'?'Controller':'Observer'}</small></div>
+        <div><Badge tone={s.connectionState==='CONNECTED_CONTROLLER'?'ok':'queue'}>{s.connectionState==='CONNECTED_CONTROLLER'?'可执行受权 mutation':'只读观察'}</Badge><Badge tone="warning">Transport security 未验证</Badge></div>
+      </section>
       {error && <p role="alert">操作失败:{error}</p>}
-      <section className="card">
+      <div className="connections-grid"><section className="card">
         <h2>生成配对</h2>
+        {!pairingAvailable&&<p className="hint tone-warning">{deviceCapabilityUnavailable?'当前 Core 未提供设备配对能力。':'远程网关启用后才能生成配对码。'}</p>}
         <div style={{ display: 'grid', gap: 8 }}>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             设备类型
@@ -107,28 +117,29 @@ export function RemoteDevicesPage() {
               </label>
             ))}
           </fieldset>
-          <button onClick={() => void create()}>生成配对码(5 分钟有效)</button>
+          <CapabilityGate available={!s.readOnly&&pairingAvailable} unavailableReason={!pairingAvailable?'当前 Core 未启用设备配对':s.readOnlyReason}><Button variant="primary" onClick={() => void create()}>生成配对码（5 分钟有效）</Button></CapabilityGate>
         </div>
       </section>
+      <section className="card"><h2>管理客户端</h2><p className="muted">Cursor / Codex 等管理客户端只管理 Core，不属于项目 Role。当前连接未提供可安全显示的客户端列表。</p><h2>参与者</h2><p className="muted">Web Participant 只在绑定具体 Role / WorkSession 后显示；绑定详情在 Role 页面查看。</p></section></div>
       {pair && (
         <section className="card" aria-label="配对码">
           <h2>{pair.name} 配对码(仅显示一次)</h2>
           <p style={{ fontSize: 22, wordBreak: 'break-all', fontFamily: 'monospace' }}>{pair.challenge}</p>
-          <p>有效期至 {new Date(pair.expiresAtMs).toLocaleTimeString()}</p>
+          <p>有效期至 {formatDateTime(pair.expiresAtMs)}</p>
         </section>
       )}
       <section className="card">
         <h2>已登记设备</h2>
-        {devices.length === 0 && <p>尚无设备。生成配对码后,对方完成配对即出现在此。</p>}
+        {deviceCapabilityUnavailable?<p>当前 Core 未提供设备列表。</p>:devices.length === 0 && <p>尚无设备。生成配对码后,对方完成配对即出现在此。</p>}
         <ul>
           {devices.map((d) => (
             <li key={d.deviceId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
               <span>
                 {d.displayName} · {d.kind} · {d.state}
                 {d.canRequestController ? ' · 可控制' : ''}
-                {d.lastSeenMs ? ` · 最近在线 ${new Date(d.lastSeenMs).toLocaleString()}` : ''}
+                {d.lastSeenMs ? ` · 最近在线 ${formatDateTime(d.lastSeenMs)}` : ' · Last seen 未提供'}
               </span>
-              {d.state === 'ACTIVE' && <button onClick={() => void revoke(d.deviceId)}>撤销</button>}
+              {d.state === 'ACTIVE' && <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}><Button variant="danger" onClick={() => void revoke(d.deviceId)}>撤销设备</Button></CapabilityGate>}
             </li>
           ))}
         </ul>

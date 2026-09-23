@@ -28,9 +28,9 @@ describe('28 场景等价覆盖', () => {
     expect(html).toContain('官网改版');
     expect(html).toContain('创建新项目');
   });
-  it('sc-03 Local 单组项目：Local 徽标与单组', () => {
+  it('sc-03 Local 单组项目：Core 身份位于顶栏且显示单组', () => {
     const html = page(<ProjectPage projectId="proj_nova" />);
-    expect(html).toContain('Local · 本机');
+    expect(html).toContain('Local · Connected · Controller');
     expect(html).toContain('站点组');
   });
   it('sc-04 SSH 项目：⌁ 标识与远程路径', () => {

@@ -1,6 +1,6 @@
 import type {Method,Scope} from '../../../packages/client-contract/c1r1p1/generated.ts';
 import type {CoreIdentity} from './identity.ts';
-export type PendingMethod = Method | 'roleSession.create' | 'roleSession.switch';
+export type PendingMethod = Method | 'roleSession.create' | 'roleSession.switch' | 'result.requestChanges';
 export type PendingRecord={recordId:string;identity:CoreIdentity;method:PendingMethod;params:unknown;operationId:string;expectedRevision:number;scope:Scope;createdAt:number;state:'submitting'|'uncertain';requestKey?:string;preflightHash?:string};
 export class PendingStore {
  readonly key:string;

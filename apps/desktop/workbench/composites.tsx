@@ -40,6 +40,9 @@ export function ProjectCard({ project }: { project: ProjectVM }) {
     (sp) => sp.projectId === project.id && sp.status === 'ACTIVE',
   );
   const roles = s.snapshot.roles.filter((r) => spaces.some((sp) => sp.id === r.spaceId));
+  const projectTasks=s.snapshot.tasks.filter(t=>spaces.some(sp=>sp.id===t.spaceId));
+  const latestTask=[...projectTasks].sort((a,b)=>b.updatedAtMs-a.updatedAtMs)[0];
+  const needsAttention=projectTasks.filter(t=>t.state==='WAITING_INPUT'||t.state==='NEEDS_ATTENTION'||Boolean(t.blockedReason)).length;
   const needsSetup=roles.filter(r=>r.interventionState==='BOOTSTRAP_REQUIRED'||r.interventionState==='MODEL_UNVERIFIED').length;
   const unknown=s.snapshot.runs.filter(r=>roles.some(x=>x.id===r.roleId)&&(r.state==='UNKNOWN'||r.reconciliationRequired)).length;
   const tone = unknown ? {key:'unknown',label:`${unknown} 个状态未知`,tone:'danger' as const,priority:1} : needsSetup && !project.activeRunsCount && !project.issuesCount ? {key:'setup',label:`${needsSetup} 个角色待设置`,tone:'neutral' as const,priority:15} : summaryTone({issues:project.issuesCount,activeRuns:project.activeRunsCount,approvals:roles.reduce((n,r)=>n+r.pendingApprovalsCount,0)});
@@ -61,22 +64,24 @@ export function ProjectCard({ project }: { project: ProjectVM }) {
         <ToneBadge state={tone} />
       </header>
       <p className="project-card-root">{project.displayRoot}</p>
+      <div className="project-card-pulse"><span>{roles.filter(r=>s.snapshot.runs.some(run=>run.roleId===r.id&&['CREATED','STARTING','RUNNING','WAITING_APPROVAL','SETTLING'].includes(run.state))).length} 个 Role 正在工作</span><span className={needsAttention?'has-attention':''}>{needsAttention} 项需要关注</span></div>
       <div className="project-card-groups">
         {spaces.slice(0,3).map((sp) => {
           const members = roles.filter((r) => r.spaceId === sp.id);
           return (
             <div className="project-card-group" key={sp.id}>
               <span className="group-name">{sp.name}</span>
-              <span className="group-avatars">
+              <span className="group-roles">
                 {members.slice(0, 5).map((r) => (
-                  <a key={r.id} href={`#/role/${r.id}`} aria-label={`${r.name} · ${roleDisplayStates(roleCtx(s.snapshot,r)).map(x=>x.label).join('、')}`}><Avatar name={r.name} tone="neutral"/><StatusDot tone={roleDisplayStates(roleCtx(s.snapshot,r))[0].tone} label={roleDisplayStates(roleCtx(s.snapshot,r))[0].label}/></a>
+                  <a key={r.id} href={`#/role/${r.id}`} aria-label={`${r.name} · ${roleDisplayStates(roleCtx(s.snapshot,r)).map(x=>x.label).join('、')}`}><span>{r.name}</span><small>{roleDisplayStates(roleCtx(s.snapshot,r))[0].label}</small></a>
                 ))}
-                {members.length > 5 && <span className="avatar-more">+{members.length - 5}</span>}
+                {members.length > 5 && <span className="avatar-more">另有 {members.length - 5} 位</span>}
               </span>
             </div>
           );
         })}
       {spaces.length>3&&<a href={`#/project/${project.id}`}>另有 {spaces.length-3} 个小组</a>}</div>
+      {latestTask&&<p className="project-card-activity" title={latestTask.summary}>最近：{latestTask.summary}</p>}
       <footer>
         <span>
           {project.activeRunsCount > 0 ? `▶${project.activeRunsCount} 运行 ` : ''}
@@ -257,6 +262,8 @@ export function TaskRow({ task }: { task: TaskVM }) {
           tone={
             task.state === 'NEEDS_ATTENTION'
               ? 'danger'
+              : task.state === 'WAITING_INPUT'
+                ? 'warning'
               : task.state === 'QUEUED'
                 ? 'queue'
                 : 'neutral'
@@ -370,6 +377,7 @@ export function ReconcilePanel({ run }: { run: RunVM }) {
       </p>
       <KeyValue k="开始于" v={run.startedAtMs ? formatDateTime(run.startedAtMs) : '未知'} />
       <KeyValue k="失联原因" v={run.exitReason ?? '未提供'} />
+      <Button variant="secondary" onClick={()=>void navigator.clipboard.writeText([`Core: ${s.hello.serverInstanceId}`,`Role: ${run.roleId}`,`Task: ${run.taskId??'unknown'}`,`Run: ${run.id}`,`Harness: ${run.harness}`,`Connection: ${s.connectionState}`,`State: ${run.state}`,`Error: ${run.exitReason??'not provided'}`].join('\n')).then(()=>setDone('诊断摘要已复制。'),()=>setDone('无法访问剪贴板，请手动复制 Advanced 字段。'))}>复制诊断摘要</Button>
       <div className="reconcile-actions">
         {actions.map(([action, label]) => (
           <CapabilityGate

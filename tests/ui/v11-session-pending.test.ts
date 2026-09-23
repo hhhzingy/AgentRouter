@@ -28,3 +28,13 @@ it('存储失败时不返回可发送命令；缺少 preflight 时不创建会�
   storage.setItem = () => { throw Error('QUOTA_EXCEEDED'); };
   expect(() => store.prepare('roleSession.switch', { role_id: 'r', session_id: 's' }, 1, {}, 'a'.repeat(64))).toThrow('QUOTA_EXCEEDED');
 });
+
+it('请求修改结果未知时保留原 operation ID 与反馈，供 reviewStatus 核对',()=>{
+  const storage=memory(), store=new PendingStore(storage,identity);
+  const params={id:'result_a',feedback:'请补充验收证据'};
+  const first=store.prepare('result.requestChanges',params,12,{});
+  store.markUncertain(first.recordId);
+  const restored=new PendingStore(storage,identity);
+  expect(restored.list()[0]).toMatchObject({method:'result.requestChanges',params,operationId:first.operationId,expectedRevision:12,state:'uncertain'});
+  expect(restored.prepare('result.requestChanges',params,99,{}).operationId).toBe(first.operationId);
+});

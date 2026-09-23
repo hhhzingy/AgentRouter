@@ -29,6 +29,7 @@ export interface PreviewScenario {
 export const SCENARIOS: PreviewScenario[] = [
   { id: 'full', label: '完整世界（Controller）' },
   { id: 'observer', label: 'Observer 只读', requestedMode: 'observer' },
+  { id: 'waiting-input', label: '等待用户补充（Controller）' },
   {
     id: 'ssh-disconnected',
     label: 'SSH 断线冻结',
@@ -225,7 +226,11 @@ export class PreviewClient implements ClientSession {
       projects: D.projects,
       spaces: D.spaces,
       roles: D.roles,
-      tasks: D.tasks,
+      tasks: this.scenario.id === 'waiting-input'
+        ? D.tasks.map(task => task.id === 'task_refund'
+          ? {...task,state:'WAITING_INPUT' as const,blockedReason:'WAITING_FOR_USER_INPUT'}
+          : task)
+        : D.tasks,
       runs: D.runs,
       issues: D.issues,
       approvals: D.approvals,
