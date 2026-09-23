@@ -2,7 +2,7 @@
 
 日期：2026-09-23。状态：`UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION`。这是一份阻断状态报告，不是视觉终版 PASS。
 
-> 最新接口消费检查点：UI 源码 `3749685a8c850d0ee366b38caa9d8a4044e5d49e`，证据 `102a401f14fc0d356b2c8af3e58a6880508eef19`。已按 Core `eccf799` / 文档 `UI-CONTRACT-CHANGE-20260923` 实现 Slot、WorkSession、Result Evidence、Request Changes 的 UI 消费；17 张 PREVIEW_MOCK，392/392 自动化与非 DUT Integration 209/209 PASS。当前 UI 分支尚未包含 Core 增量，联合 REAL_CORE 扩展流程未验收；下方原检查点数字为此前阶段记录。
+> 最新接口消费检查点：UI 源码 `ab7922b88ef1bb6181dcf104b8d0366b72550bea`，证据 `8678452866802ad4fdac0feeae6da9c69aeebc96`。已按 Core `eccf799` / 文档 `UI-CONTRACT-CHANGE-20260923` 实现 Slot、WorkSession、Result Evidence、Request Changes 的 UI 消费，Mobile 底栏为 Home/Activity/Results/More；17 张 PREVIEW_MOCK，392/392 自动化与非 DUT Integration 209/209 PASS。当前 UI 分支尚未包含 Core 增量，联合 REAL_CORE 扩展流程未验收；下方原检查点数字为此前阶段记录。
 
 ## 固定身份
 

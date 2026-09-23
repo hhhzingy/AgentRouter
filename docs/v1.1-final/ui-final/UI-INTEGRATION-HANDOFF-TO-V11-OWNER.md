@@ -2,7 +2,7 @@
 
 > **2026-09-23 视觉终版重构最新交接（本节优先）**：下方原 20260922 交接保留作历史记录，所列 `a809417` 测试与打包证据不得复用于本轮 UI。当前状态是 `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION`。
 
-> **接口消费更新（以本段与 `UI-FINAL-CHECKPOINT.json` 为准）**：UI 产品/测试 SHA `3749685a8c850d0ee366b38caa9d8a4044e5d49e`，17 张 PREVIEW_MOCK 证据提交 `102a401f14fc0d356b2c8af3e58a6880508eef19`，`sourceDirty=false`。已审计 Core `c0c3b39`（产品源码 `eccf799`）和 `UI-CONTRACT-CHANGE-20260923`；UI 已接入 Slot 安全摘要、WorkSession 容量/阶段、Result Evidence、原子 Request Changes 与未知结果查询。当前 UI 分支没有 Core 产品提交，故新扩展的联合 REAL_CORE 端到端仍未验证。当前 UI SHA typecheck/lint、Unit+Contract+Chaos+UI 392/392、非 DUT Integration 209/209、17 张预览无溢出；打包旧 Core 本地 smoke PASS，artifact hash `f7b1064019807f5b7c17e1f316632e7ca3b6859f62e9bbc6f9b3b38736c443ef`。四个 GAP 按局部边界继续开放，lane 仍 BLOCKED；安全可发布 refs 以 Core 最新 3494 blobs、0 findings 为准。
+> **接口消费更新（以本段与 `UI-FINAL-CHECKPOINT.json` 为准）**：UI 产品/测试 SHA `ab7922b88ef1bb6181dcf104b8d0366b72550bea`，17 张 PREVIEW_MOCK 证据提交 `8678452866802ad4fdac0feeae6da9c69aeebc96`，`sourceDirty=false`。已审计 Core `c0c3b39`（产品源码 `eccf799`）和 `UI-CONTRACT-CHANGE-20260923`；UI 已接入 Slot 安全摘要、WorkSession 容量/阶段、Result Evidence、原子 Request Changes 与未知结果查询。Mobile 底栏与执行包 Home/Activity/Results/More 对齐。当前 UI 分支没有 Core 产品提交，故新扩展的联合 REAL_CORE 端到端仍未验证。当前 UI SHA typecheck/lint、Unit+Contract+Chaos+UI 392/392、非 DUT Integration 209/209、17 张预览无溢出；打包旧 Core 本地 smoke PASS，package source SHA `8678452`、artifact hash `c172bd791773cd0d1b4200ad4d988ff28dace39772cc00b81d89694c5c270ad7`。四个 GAP 按局部边界继续开放，lane 仍 BLOCKED；安全可发布 refs 以 Core 最新 3494 blobs、0 findings 为准。
 
 ## 本轮固定检查点
 

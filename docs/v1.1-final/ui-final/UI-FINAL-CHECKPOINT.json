@@ -8,9 +8,9 @@
   "ui_branch": "feat/v1.1-ui-kimi",
   "ui_base_sha": "89a41b5e0ff6af198141ded3c1d5c627fdcf9a52",
   "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
-  "final_ui_sha": "3749685a8c850d0ee366b38caa9d8a4044e5d49e",
-  "evidence_sha": "102a401f14fc0d356b2c8af3e58a6880508eef19",
-  "evidence_source_sha": "3749685a8c850d0ee366b38caa9d8a4044e5d49e",
+  "final_ui_sha": "ab7922b88ef1bb6181dcf104b8d0366b72550bea",
+  "evidence_sha": "8678452866802ad4fdac0feeae6da9c69aeebc96",
+  "evidence_source_sha": "ab7922b88ef1bb6181dcf104b8d0366b72550bea",
   "source_dirty": false,
   "last_inspected_codex_sha": "c0c3b39",
   "last_merged_codex_sha": null,
@@ -42,7 +42,8 @@
   },
   "packaged_electron": {
     "status": "PASS_SMOKE_CURRENT_SHA",
-    "artifact_hash": "f7b1064019807f5b7c17e1f316632e7ca3b6859f62e9bbc6f9b3b38736c443ef",
+    "artifact_hash": "c172bd791773cd0d1b4200ad4d988ff28dace39772cc00b81d89694c5c270ad7",
+    "package_source_sha": "8678452866802ad4fdac0feeae6da9c69aeebc96",
     "source_dirty": false,
     "scope": "packaged old Core/SQLite/pipe and Electron local project/control/navigation; eccf799 extension flow not integrated"
   },

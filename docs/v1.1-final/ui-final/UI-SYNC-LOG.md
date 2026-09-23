@@ -2,6 +2,7 @@
 
 ## 2026-09-23 — 视觉终版重构 V0–V3 进行中
 
+- `ab7922b` 将项目 Mobile 底栏改为 Home/Activity/Results/More；17 张预览截图 sourceSha=`ab7922b`、sourceDirty=false。当前源码 Unit+Contract+Chaos+UI 392/392、非 DUT Integration 209/209、typecheck/lint PASS。干净打包提交 `8678452` 的旧 Core 本地 smoke PASS，artifact hash `c172bd791773cd0d1b4200ad4d988ff28dace39772cc00b81d89694c5c270ad7`；联合 Core `eccf799` 扩展 E2E 尚未跑。
 - Core 产品 `eccf799`、docs HEAD `c0c3b39` 的 `UI-CONTRACT-CHANGE-20260923` 已审计。UI `3749685` 接入 GAP-001 Slot short_ref/Join/ACTIVE Binding 摘要、GAP-002 `result.evidence`、GAP-003 UNKNOWN/CORE_DECIDES 与 transferStatus 操作摘要、GAP-004 `result.requestChanges`/`result.reviewStatus`。结果未知时 PendingStore 保留原 operation ID，UI 只查询不自动重发；旧 `result.reject` 不作为请求修改。17 张 PREVIEW_MOCK、typecheck/lint、Unit+Contract+Chaos+UI 392/392、非 DUT Integration 209/209 PASS。当前 UI 分支没有 Core 提交，打包旧 Core 的 Local smoke 只证明安全降级；新扩展联合 REAL_CORE 尚未验证。Core 可发布 refs 历史扫描新口径 3494 blobs、0 findings。
 - V1.1 owner 只读 merge-tree 预检指出唯一文本冲突在 `tools/check-sensitive.mjs` 的 `maxBuffer: HISTORY_BUFFER_BYTES` 行；集成时由 owner 保留 Core 的大历史缓冲与可发布 refs 范围，同时保留 UI 所需其他安全规则。UIAI 不处理 owner-owned Core/安全合流。
 - `7779c15` Slot BOUND 使用中性“已绑定 · 在线未知”；当前源码 typecheck/lint PASS、Unit+Contract+Chaos+UI 391/391、排除 DUT 的 Integration 209/209、16 张 PREVIEW_MOCK 无溢出。manifest sourceSha=`7779c15`、sourceDirty=false。干净候选包 artifact hash `b764b58afaf78da7a3ea7b3881e8d36e8f90ff10c3add44d7989ce4d00391bbc`，packaged Core 与 Electron Local smoke PASS。GAP-001/003 等 Core 加法字段待提交后再消费。
