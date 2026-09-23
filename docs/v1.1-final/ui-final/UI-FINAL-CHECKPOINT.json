@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "status": "UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION",
+  "allowed_final_statuses": [
+    "UI_LANE_READY_FOR_WINDOWS_RC_INTEGRATION",
+    "UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION"
+  ],
+  "ui_branch": "feat/v1.1-ui-kimi",
+  "ui_base_sha": "89a41b5e0ff6af198141ded3c1d5c627fdcf9a52",
+  "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
+  "final_ui_sha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
+  "evidence_sha": "3e924b4fd0d1b08aea36ca360d412482634bbf05",
+  "remote_ui_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
+  "source_dirty": false,
+  "last_inspected_codex_sha": "3e4df007f6fe2b65acd74792d2eaba0e01a2ad48",
+  "last_merged_codex_sha": null,
+  "ui_contract_changes": [],
+  "resolved_gaps": [],
+  "unresolved_gaps": [
+    "UI-CONTRACT-GAP-001",
+    "UI-CONTRACT-GAP-002"
+  ],
+  "blocking_gaps": [
+    "SECURITY-HISTORY-001: full-history secret scan found four legacy .local-protected objects",
+    "A11Y-SCREENREADER-001: real Windows screen-reader spot check not run"
+  ],
+  "tests": {
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "unit": {"status": "PASS", "files": 41, "tests": 213},
+    "integration": {"status": "PASS", "files": 49, "tests": 212},
+    "contract_chaos": {"status": "PASS", "files": 9, "tests": 70},
+    "ui": {"status": "PASS", "files": 13, "tests": 108},
+    "generation_freeze": "PASS",
+    "j2_desktop": {"status": "PASS", "checks": 19}
+  },
+  "packaged_electron": {
+    "status": "PASS",
+    "package_path": "release/AgentRouter-j3-a809417d33e9-18ee8534-b2af-4f7f-8005-bac471fa7c6a",
+    "artifact_sha256": "56f159d94f55818777fc85d2cea2ad014b7fcebf0edbaedf317338796a6744c7",
+    "source_sha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
+    "source_dirty": false,
+    "desktop_smoke": "PASS",
+    "packaged_smoke": "PASS"
+  },
+  "real_flows": {
+    "local_core_electron": "PASS",
+    "remote_core": "PASS",
+    "mobile_browser": "PASS",
+    "zcode_isolated_list": "NOT_RUN_ENVIRONMENT_SKIPPED",
+    "real_harness_support": 0
+  },
+  "viewports": {
+    "desktop_1440x900": "PASS",
+    "desktop_960x600_scale_1_5": "PASS",
+    "electron_zoom_125_150_200": "PASS",
+    "mobile_390x844": "PASS",
+    "mobile_430x932": "PASS",
+    "horizontal_overflow": "PASS"
+  },
+  "accessibility": {
+    "keyboard_focus": "PASS",
+    "text_contrast": "PASS",
+    "accessible_names": "PASS",
+    "screen_reader_spot_check": "NOT_RUN"
+  },
+  "screenshots_manifest": "docs/v1.1-final/ui-final/screenshots/manifest.json",
+  "secret_scan": {
+    "current_index": "PASS",
+    "full_history": "FAIL",
+    "scanned_history_blobs": 3746,
+    "findings": 4
+  },
+  "notes": [
+    "remote_ui_sha records the protected remote state before final delivery push and must be refreshed by the integration owner after fetch",
+    "The lane must not be described as V1.1_WINDOWS_RC_READY"
+  ]
+}
