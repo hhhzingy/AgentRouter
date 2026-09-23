@@ -1,9 +1,9 @@
 {
   "evidenceClass": "VISUAL_FIXTURE",
   "transport": "PREVIEW_MOCK",
-  "sourceSha": "7779c15f8cf9365d6f18bc31de7e3b8f57026d1c",
+  "sourceSha": "3749685a8c850d0ee366b38caa9d8a4044e5d49e",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T03:36:21.568Z",
+  "generatedAt": "2026-09-23T03:50:46.445Z",
   "shots": [
     {
       "name": "01-home",
@@ -42,7 +42,7 @@
       "scale": 1,
       "file": "screenshots/03-role-worksession.png",
       "horizontalOverflow": false,
-      "sha256": "bfb0874d46e4c7fb31d084268fb81eba9958399f2aba1f770e94574bdc769c01"
+      "sha256": "721720f4b6b19f7a43c4d7f9c76134212373b71c666ee1bb57bd1753efb9faa3"
     },
     {
       "name": "04-results-evidence",
@@ -55,7 +55,7 @@
       "scale": 1,
       "file": "screenshots/04-results-evidence.png",
       "horizontalOverflow": false,
-      "sha256": "3df3997da4ccdd33d6649253cc4e6f697fe31cb13d6766a6d67496af337b268b"
+      "sha256": "be998716822ab046970301403b59425bf4c097210783ef1e89622ec42e214755"
     },
     {
       "name": "05-workbench-150dpi",
@@ -122,7 +122,7 @@
       "scale": 1,
       "file": "screenshots/09-mobile-wide.png",
       "horizontalOverflow": false,
-      "sha256": "77bc421748d459d02195f8f466db835b2fbe064e77571f572eef668822c0f477"
+      "sha256": "e9e3fd076fbfa4e8d5be46ba7b323d58271f9cc8d6572ebca5513da84844161d"
     },
     {
       "name": "10-connections",
@@ -175,7 +175,7 @@
       "theme": "dark",
       "file": "screenshots/13-results-dark.png",
       "horizontalOverflow": false,
-      "sha256": "ca510566005b8619cb3add011d41883c8f7d629940f91191f03b8b97aa4201c8"
+      "sha256": "28d35d70e2eb2cb11d7743c6656ee6ac6f8e02cf8173a81704fc88bfffbabac3"
     },
     {
       "name": "14-worksession-setup",
@@ -218,6 +218,20 @@
       "file": "screenshots/16-mobile-reply.png",
       "horizontalOverflow": false,
       "sha256": "67f1bd4e7c55e506bd06cff8cebbb554908e070c3950987b9548ce4ab9fb8d00"
+    },
+    {
+      "name": "17-result-request-changes",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "action": "request-changes",
+      "file": "screenshots/17-result-request-changes.png",
+      "horizontalOverflow": false,
+      "sha256": "07c80b4999d18e9c10e5484d87ca3b153654d7813602c6990bc11a68bb5a2318"
     }
   ]
 }
