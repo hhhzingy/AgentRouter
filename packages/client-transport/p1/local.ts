@@ -81,7 +81,11 @@ export class LocalCoreTransport implements ClientTransport {
     this.proxy = proxy;
     this.transport = new P1MemoryTransport(proxy);
     socket.resume();
-    return this.transport.connect(options);
+    const session = await this.transport.connect(options);
+    return {
+      ...session,
+      connectionState: () => socket.destroyed ? 'DISCONNECTED' : session.connectionState(),
+    };
   }
   async close() {
     await this.transport?.close();

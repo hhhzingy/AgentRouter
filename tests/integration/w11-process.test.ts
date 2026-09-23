@@ -2,6 +2,7 @@ import { beforeAll, it, expect } from 'vitest';
 import { spawnSync, fork } from 'node:child_process';
 import { resolve } from 'node:path';
 import { startCore, createProjectAndPlan, until, delay } from '../w11-process-support.ts';
+import { LocalCoreTransport } from '../../packages/client-transport/p1/local.ts';
 beforeAll(() => {
   const r = spawnSync(process.execPath, ['tools/build-w11-core.mjs'], {
     encoding: 'utf8',
@@ -9,6 +10,24 @@ beforeAll(() => {
   });
   expect(r.status).toBe(0);
 });
+it('真实 Core 退出后本地管道会话立即报告 DISCONNECTED，而不是保持虚假的在线状态', async () => {
+  const core = await startCore();
+  const client = new LocalCoreTransport(core.dir);
+  try {
+    const session = await client.connect({
+      clientId: 'w11_disconnect_observer',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'observer',
+      mode: 'LOCAL_CORE',
+    });
+    expect(session.connectionState()).toBe('CONNECTED_OBSERVER');
+    await core.stop();
+    await until(async () => session.connectionState(), (state) => state === 'DISCONNECTED');
+  } finally {
+    await client.close();
+    await core.stop();
+  }
+}, 30000);
 it('真实 Core 进程保存配置，独立 Bootstrap 交付不覆盖用户 PAUSED，重启保留章程', async () => {
   let f = await startCore();
   const { project, roles } = await createProjectAndPlan(f);
