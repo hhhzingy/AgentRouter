@@ -39,7 +39,7 @@ try {
   page = await app.firstWindow();
   stage = 'project-page';
   await page.getByText('项目', { exact: true }).first().waitFor();
-  await page.getByText('Core 正常', { exact: true }).waitFor();
+  await page.getByTestId('core-identity').getByText('Connected').waitFor();
   await page.getByRole('button', { name: '申请控制', exact: true }).click();
   await page.getByRole('button', { name: '转为只读', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
@@ -50,7 +50,7 @@ try {
   stage = 'project-created';
   await page.getByRole('heading', { name: /^源项目/ }).waitFor();
   const before = await page.evaluate(() => window.agentrouterDesktop.getContext());
-  await page.getByRole('button', { name: '添加角色', exact: true }).click();
+  await page.getByRole('button', { name: /新建角色/ }).click();
   stage = 'role-plan-page';
   await page.getByRole('heading', { name: '添加角色（Role Plan）', exact: true }).waitFor();
   await page.getByRole('link', { name: '源项目', exact: true }).click();
@@ -67,7 +67,7 @@ try {
     directoryDialog: 'stubbed with isolated fixture',
   });
   stage = 'footer-identity';
-  await page.getByText(/Host win32 · Core dataset_/).waitFor();
+  await page.getByTestId('core-identity').getByText('Connected').waitFor();
   await page.screenshot({ path: 'evidence/M00/desktop.png', fullPage: true });
   Object.assign(report, {
     status: 'PASS',
