@@ -13,7 +13,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require(
   resolve('node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/index.js'),
 );
-const CHROME = `${process.env.LOCALAPPDATA}/ms-playwright/chromium-1243/chrome-win64/chrome.exe`;
+const CHROME = process.env.AGENTROUTER_TEST_CHROME ??
+  `${process.env.LOCALAPPDATA}/ms-playwright/chromium-1243/chrome-win64/chrome.exe`;
 
 it(
   'W07 手机控制台真实浏览器:配对→cookie WSS→快照→controller→K04 断线自动重连',
