@@ -353,7 +353,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
 function ResultDetail({result}:{result:ReturnType<typeof useStore>['snapshot']['results'][number]|undefined}){
  const s=useStore();
- const [evidence,setEvidence]=useState<{evidence_layer:string;source_revision:string|null;run_id:string|null;harness:string|null;model_id:string|null;artifacts:Array<{id:string;sha256:string|null;state:string}>;test_records_status:string;known_limitations:string|null}|null>(null);
+ const [evidence,setEvidence]=useState<{evidence_layer:string;execution_layer:'REAL_NATIVE'|'FIXTURE'|'UNKNOWN';source_revision:string|null;run_id:string|null;harness:string|null;model_id:string|null;artifacts:Array<{id:string;sha256:string|null;state:string}>;test_records_status:string;known_limitations:string|null}|null>(null);
  const [evidenceError,setEvidenceError]=useState('');
  React.useEffect(()=>{if(!result)return;let active=true;setEvidence(null);setEvidenceError('');void s.callExtension('result.evidence',{id:result.id}).then(v=>{if(active)setEvidence(v as typeof evidence);},e=>{if(active)setEvidenceError(errorMessage(e));});return()=>{active=false;};},[result?.id,s]);
  if(!result)return null;
@@ -364,7 +364,7 @@ function ResultDetail({result}:{result:ReturnType<typeof useStore>['snapshot']['
   <div className="result-state-grid"><KeyValue k="Task" v={task?.summary??result.taskId}/><KeyValue k="Role" v={role?.name??'Core 未提供'}/><KeyValue k="Run" v={run?RUN_STATE_LABEL[run.state]:'未关联'}/><KeyValue k="交付" v={<Badge tone={result.delivery==='DELIVERED'?'ok':result.delivery==='UNDELIVERABLE'?'danger':result.delivery==='UNKNOWN'?'warning':'neutral'}>{{DELIVERED:'已交付',UNKNOWN:'交付状态未知',UNDELIVERABLE:'无法交付',DISPATCHING:'交付中',HELD:'暂缓交付',QUEUED:'排队交付'}[result.delivery]}</Badge>}/><KeyValue k="验收" v={<Badge tone={result.acceptance==='ACCEPTED'?'ok':result.acceptance==='PENDING'?'warning':'neutral'}>{{ACCEPTED:'已接受',PENDING:'待验收',REJECTED:'已拒绝',NOT_REQUIRED:'无需验收'}[result.acceptance]}</Badge>}/></div>
   {run&&<details><summary>运行技术标识</summary><KeyValue k="Run ID" v={run.id}/></details>}
   <h3>Artifacts / Evidence</h3><p className="muted">Artifact 可读、测试通过与用户接受是不同事实。以下只显示 Core 可验证的产物元数据。</p>
-  {evidence?<div className="result-evidence"><KeyValue k="证据来源" v="Core 持久记录"/><KeyValue k="源码修订" v={evidence.source_revision??'未记录，不能推断'}/><KeyValue k="结构化测试记录" v={evidence.test_records_status==='NOT_RECORDED'?'未记录，不能视为通过':evidence.test_records_status}/><KeyValue k="已核验产物" v={evidence.artifacts.length}/>{evidence.artifacts.map(a=><p key={a.id}>{a.id} · {a.state} · SHA-256 {a.sha256??'未提供'}</p>)}</div>:<p className="muted">{evidenceError?`Evidence 暂不可用：${evidenceError}`:'正在读取 Core Evidence…'}</p>}
+  {evidence?<div className="result-evidence"><KeyValue k="证据来源" v="Core 持久记录"/><KeyValue k="执行层" v={evidence.execution_layer==='REAL_NATIVE'?'真实 Native Run（不等于测试通过）':evidence.execution_layer==='FIXTURE'?'隔离 Fixture Run':'未知，不能推断为真实执行'}/><KeyValue k="源码修订" v={evidence.source_revision??'未记录，不能推断'}/><KeyValue k="结构化测试记录" v={evidence.test_records_status==='NOT_RECORDED'?'未记录，不能视为通过':evidence.test_records_status}/><KeyValue k="已核验产物" v={evidence.artifacts.length}/>{evidence.artifacts.map(a=><p key={a.id}>{a.id} · {a.state} · SHA-256 {a.sha256??'未提供'}</p>)}</div>:<p className="muted">{evidenceError?`Evidence 暂不可用：${evidenceError}`:'正在读取 Core Evidence…'}</p>}
   {result.artifactIds.length?<ArtifactList ids={result.artifactIds}/>:<p className="muted">该 Result 没有声明 Artifact。</p>}
  </Card>;
 }

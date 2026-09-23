@@ -444,6 +444,7 @@ export class ExecutionCoordinator {
                 .run(
                   JSON.stringify({
                     harness: b.harness,
+                    execution_layer: a.fixtureMode ? 'FIXTURE' : 'REAL_NATIVE',
                     model: safeModel(b.model_json),
                     outcome: terminal ?? 'unknown',
                     diagnostic: lastDiagnostic || null,

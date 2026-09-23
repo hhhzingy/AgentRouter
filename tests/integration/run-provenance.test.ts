@@ -106,6 +106,7 @@ it('run 终态写入执行溯源;显式降级配置命中诊断时标记 FALLBAC
         const p = JSON.parse(run.execution_provenance);
         expect(run.state).toBe('FAILED');
         expect(p.harness).toBe('kimi_code');
+        expect(p.execution_layer).toBe('FIXTURE');
         expect(p.outcome).toBe('failed');
         expect(p.diagnostic).toBe('KIMI_QUOTA_EXHAUSTED');
         expect(p.fallback).toMatchObject({ to: 'deepseek_harness', matched_code: 'QUOTA', dispatched: false });
@@ -163,6 +164,7 @@ it('无降级配置时失败 run 仍记录 provenance,但不标记降级也不�
       if (run?.execution_provenance) {
         const p = JSON.parse(run.execution_provenance);
         expect(p.harness).toBe('pi');
+        expect(p.execution_layer).toBe('FIXTURE');
         expect(p.fallback).toBeNull();
         break;
       }

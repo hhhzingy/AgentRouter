@@ -299,6 +299,11 @@ try {
   await page.getByRole('button', { name: '申请控制' }).click();
   await page.locator(`a[href="#/project/${project.id}/inbox"]`).first().click();
   const resultItem = page.locator('.inbox-item').filter({ hasText: reviewable.summary }).first();
+  const provenance = await core.session.request('result.evidence' as never, { id: reviewable.id } as never) as { execution_layer: string };
+  expect(provenance.execution_layer).toBe('FIXTURE');
+  await resultItem.getByRole('button', { name: '详情' }).click();
+  await expect(page.locator('.result-detail')).toContainText('隔离 Fixture Run');
+  pass('J1_RESULT_FIXTURE_PROVENANCE_UI');
   await resultItem.getByRole('button', { name: '请求修改' }).click();
   const feedback = 'J1 请补充可复核证据，并保留原交付历史';
   await page.getByRole('textbox', { name: '修改意见' }).fill(feedback);

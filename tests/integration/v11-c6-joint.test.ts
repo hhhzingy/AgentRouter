@@ -154,16 +154,26 @@ it('C6 Gate: Management 派任务，Participant join/claim/artifact/result，下
     expect(result.publication_state).toBe('PUBLISHED');
     expect(JSON.parse(result.outputs_json)).toEqual([{ kind: 'artifact', artifact_id: art.artifact_id }]);
     const evidence = (await f.s.request('result.evidence' as never, { id: result.id } as never)) as unknown as {
-      evidence_layer: string; source_revision: string | null; tests: unknown[];
+      evidence_layer: string; execution_layer: string; source_revision: string | null; tests: unknown[];
       test_records_status: string; run_id: string | null;
       artifacts: { id: string; sha256: string; state: string }[];
     };
     expect(evidence).toMatchObject({
-      evidence_layer: 'CORE_PERSISTED_RECORD', source_revision: null,
+      evidence_layer: 'CORE_PERSISTED_RECORD', execution_layer: 'UNKNOWN', source_revision: null,
       test_records_status: 'NOT_RECORDED', run_id: null,
       artifacts: [{ id: art.artifact_id, sha256: art.sha256, state: 'AVAILABLE' }],
     });
     expect(evidence.tests).toEqual([]);
+    const binding = f.db.prepare('select id,epoch from bindings where role_id=? and is_current=1').get(f.roleId) as { id: string; epoch: number };
+    f.db.prepare("insert into runs(id,role_id,binding_id,task_id,kind,binding_epoch,request_snapshot_json,state,created_at_ms,execution_provenance) values(?,?,?,?,?,?,?,'SUCCEEDED',?,?)")
+      .run('run_c6_fixture_evidence', f.roleId, binding.id, task.id, 'TASK', binding.epoch, '{}', Date.now(), JSON.stringify({execution_layer:'FIXTURE'}));
+    f.db.prepare('update results set run_id=? where id=?').run('run_c6_fixture_evidence', result.id);
+    const fixtureEvidence = await f.s.request('result.evidence' as never, { id: result.id } as never) as { execution_layer: string };
+    expect(fixtureEvidence.execution_layer).toBe('FIXTURE');
+    f.db.prepare('update runs set execution_provenance=? where id=?').run('{"legacy":true}', 'run_c6_fixture_evidence');
+    const legacyEvidence = await f.s.request('result.evidence' as never, { id: result.id } as never) as { execution_layer: string };
+    expect(legacyEvidence.execution_layer).toBe('UNKNOWN');
+    f.db.prepare('update results set run_id=NULL where id=?').run(result.id);
     const visibleResult = (await f.s.request('system.snapshot', {})).results.find((x) => x.id === result.id);
     expect(visibleResult?.artifactIds).toContain(art.artifact_id);
 

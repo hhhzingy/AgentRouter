@@ -948,13 +948,22 @@ export class ApplicationService extends Plans {
           return { id: view.id, sha256: view.sha256, byte_size: view.byteSize, media_type: view.mediaType, state: view.state };
         }).filter(Boolean);
       const run = result.run_id
-        ? this.one('select r.id,b.harness,b.model_json from runs r join bindings b on b.id=r.binding_id where r.id=?', result.run_id)
+        ? this.one('select r.id,r.execution_provenance,b.harness,b.model_json from runs r join bindings b on b.id=r.binding_id where r.id=?', result.run_id)
         : null;
       let model: { provider_profile_id?: string; model_id?: string } = {};
       try { if (run) model = JSON.parse(String(run.model_json)); } catch { /* no inferred provenance */ }
+      let executionLayer: 'REAL_NATIVE' | 'FIXTURE' | 'UNKNOWN' = 'UNKNOWN';
+      try {
+        if (run?.execution_provenance) {
+          const provenance = JSON.parse(String(run.execution_provenance)) as { execution_layer?: unknown };
+          if (provenance.execution_layer === 'REAL_NATIVE' || provenance.execution_layer === 'FIXTURE')
+            executionLayer = provenance.execution_layer;
+        }
+      } catch { /* legacy or corrupt provenance is not real-execution evidence */ }
       return {
         result_id: result.id,
         evidence_layer: 'CORE_PERSISTED_RECORD',
+        execution_layer: executionLayer,
         source_revision: null,
         run_id: run?.id ?? null,
         harness: run?.harness ?? null,
