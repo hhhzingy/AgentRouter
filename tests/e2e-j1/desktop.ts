@@ -197,7 +197,7 @@ try {
   await page.getByRole('button', { name: '转为只读' }).click();
   await expect(page.getByRole('button', { name: '保存产物…' })).toBeDisabled();
   await page.getByRole('button', { name: '申请控制' }).click();
-  await page.getByRole('tab', { name: '工作台', exact: true }).click();
+  await page.locator(`a[href="#/project/${project.id}"]`).first().click();
   await core.control('configureFixture', { roleId: c.id, scenario: { delayMs: 1000 } });
   for (const title of ['J1 FIFO 1', 'J1 FIFO 2']) {
     await page
