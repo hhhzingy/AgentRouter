@@ -89,8 +89,11 @@ it('login、identity seal 与生产 DUT runner 使用同一受保护 dut-fj 根'
   const login = readFileSync('tools/login-j3-codex-dut.ps1', 'utf8').replaceAll('\\', '/');
   const seal = readFileSync('tools/v11-seal-codex-dut-identity.mjs', 'utf8');
   const runner = readFileSync('tools/test-j3-production-pi.mjs', 'utf8');
-  for (const source of [login, seal, runner])
+  for (const source of [login, seal])
     expect(source).toContain('.local-protected/codex-dut/dut-fj');
+  expect(runner).toContain("AGENTROUTER_TEST_CODEX_DUT_ROOT ?? '.local-protected/codex-dut'");
+  expect(runner).toContain("resolve(codexDutRoot,'dut-fj/home')");
+  expect(runner).toContain("resolve(codexDutRoot,'dut-fj/approved-identity.json')");
   expect(login).not.toContain('.local-protected/codex-dut/home');
   expect(seal).not.toContain('.local-protected/codex-dut/home');
 });
