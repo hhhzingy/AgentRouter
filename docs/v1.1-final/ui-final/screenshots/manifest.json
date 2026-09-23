@@ -1,9 +1,9 @@
 {
   "evidenceClass": "VISUAL_FIXTURE",
   "transport": "PREVIEW_MOCK",
-  "sourceSha": "2c5ced7b6b669ed99f23ebcdb9521178f4408a13",
+  "sourceSha": "869fcf7ac5924382a68fa7f803dccb36d8c49b47",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T02:28:16.104Z",
+  "generatedAt": "2026-09-23T03:02:23.623Z",
   "shots": [
     {
       "name": "01-home",
@@ -55,7 +55,7 @@
       "scale": 1,
       "file": "screenshots/04-results-evidence.png",
       "horizontalOverflow": false,
-      "sha256": "f3ed4af1b57144524dd0aef782b976fbb027b5763176c2886a98786b695e65a7"
+      "sha256": "3df3997da4ccdd33d6649253cc4e6f697fe31cb13d6766a6d67496af337b268b"
     },
     {
       "name": "05-workbench-150dpi",
@@ -122,7 +122,7 @@
       "scale": 1,
       "file": "screenshots/09-mobile-wide.png",
       "horizontalOverflow": false,
-      "sha256": "b5758b80632694cbed905b9c731b35c095f2268025e2f605aa7ec3bb656604e6"
+      "sha256": "77bc421748d459d02195f8f466db835b2fbe064e77571f572eef668822c0f477"
     },
     {
       "name": "10-connections",
@@ -148,7 +148,7 @@
       "scale": 1,
       "file": "screenshots/11-activity.png",
       "horizontalOverflow": false,
-      "sha256": "f02b77a0573b78968d0dd7fd218bb3cf9d055555870bac88e16a218babd55e51"
+      "sha256": "acada090d15cdaf1d1916e59c9025ef836d8a8890fa6ee382b8afafe032d13d3"
     },
     {
       "name": "12-project-settings",
@@ -175,7 +175,49 @@
       "theme": "dark",
       "file": "screenshots/13-results-dark.png",
       "horizontalOverflow": false,
-      "sha256": "87b29d99ee9b53053cd48d732e11cd323f03eb3ee177981f00d6f5cc2c805521"
+      "sha256": "ca510566005b8619cb3add011d41883c8f7d629940f91191f03b8b97aa4201c8"
+    },
+    {
+      "name": "14-worksession-setup",
+      "route": "#/role/role_zhou",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "action": "managed-setup",
+      "file": "screenshots/14-worksession-setup.png",
+      "horizontalOverflow": false,
+      "sha256": "b4d39e33e18a6c90fd3307b1ceacea44e8719f754b791a351b7b7fbbf146e923"
+    },
+    {
+      "name": "15-web-participant-setup",
+      "route": "#/role/role_zhou",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "action": "web-setup",
+      "file": "screenshots/15-web-participant-setup.png",
+      "horizontalOverflow": false,
+      "sha256": "b960f5d94ab24341b4f67bcb378184373c1e7992a2f4fcbc9e504dace0b97ca0"
+    },
+    {
+      "name": "16-mobile-reply",
+      "route": "#/project/proj_atlas",
+      "scenario": "waiting-input",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scale": 1,
+      "action": "reply",
+      "file": "screenshots/16-mobile-reply.png",
+      "horizontalOverflow": false,
+      "sha256": "388649cb2f11f710d79c80e0a8a6195f6bba45c08c7f5185cbe700a9cf5c0547"
     }
   ]
 }
