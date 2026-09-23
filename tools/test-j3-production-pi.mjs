@@ -40,7 +40,9 @@ const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':zcode?'zcode
 const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):zcodeExisting?'account:bigmodel-individual-coding-plan':zcode?'agentrouter-zcode':dshBailian?'agentrouter-dashscope':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
 const modelId=codex?'gpt-5.6-luna':kimi?(kimiBailian?'bailian/qwen3.8-flash':'kimi-code/kimi-for-coding'):zcodeExisting?'GLM-5.3-Flash':zcode?'zcode-managed':(bailian||dshBailian)?'qwen3.8-flash':'deepseek-v4-flash';
 const effort=codex?'low':kimi?'on':'off';
-const executable=codex?'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/247581e40ee272fb/codex.exe':kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
+const codexDutRoot=resolve(process.env.AGENTROUTER_TEST_CODEX_DUT_ROOT ?? '.local-protected/codex-dut');
+const executable=codex?(process.env.AGENTROUTER_TEST_CODEX_EXECUTABLE ?? 'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/247581e40ee272fb/codex.exe'):kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
+const codexVersion=codex?execFileSync(executable,['--version'],{encoding:'utf8',windowsHide:true}).trim().replace(/^codex-cli\s+/,''):undefined;
 const dshBin='C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js';
 const zcodeCli='E:/software/ZCode/resources/glm/zcode.cjs';
 const zcodeSelection = zcode && !zcodeExisting
@@ -73,7 +75,7 @@ if (packageRoot) {
     { windowsHide: true, stdio: 'pipe' },
   );
 }
-const entry = piEntry();
+const entry = harness === 'pi' ? piEntry() : undefined;
 const coreNode = packageRoot
   ? resolve(packageRoot, 'resources/app/core-node.exe')
   : process.execPath;
@@ -93,7 +95,7 @@ writeFileSync(
   path('runtime.json'),
   JSON.stringify({
     isolation: 'LIMITED_ISOLATION',
-    managedRoot: codex?resolve('.local-protected/codex-dut'):kimi?resolve('.local/j3-kimi'):zcodeExisting?path('managed/zcode'):zcode?resolve('.local-protected/zcode-dut'):path('managed'),
+    managedRoot: codex?codexDutRoot:kimi?resolve('.local/j3-kimi'):zcodeExisting?path('managed/zcode'):zcode?resolve('.local-protected/zcode-dut'):path('managed'),
     // 端点从受控凭据文件运行时解析,绝不写进 Git 可见的常量。
     ...(zcodeExisting?{
       zcodeCli,
@@ -117,22 +119,24 @@ writeFileSync(
     workspaceRoot: path('workspace'),
     supervisorExecutable: supervisor,
     supervisorSha256: sha(supervisor),
-    piEntry: entry,
-    piEntrySha256: sha(entry),
-    piExtension: extension,
-    piExtensionSha256: sha(extension),
+    ...(entry ? {
+      piEntry: entry,
+      piEntrySha256: sha(entry),
+      piExtension: extension,
+      piExtensionSha256: sha(extension),
+    } : {}),
     credentialFile: bailian?'E:/AgentRouter/账号信息/通用API/百炼.txt':'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
     ...((bailian||dshBailian)?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},...(bailian?{piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),dshCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
     ...(kimiBailian?{kimiBailianCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json'}),
-    codexApprovedIdentityFile:resolve('.local-protected/codex-dut/dut-fj/approved-identity.json'),
+    codexApprovedIdentityFile:resolve(codexDutRoot,'dut-fj/approved-identity.json'),
     roleBridge, roleBridgeSha256:sha(roleBridge),
     profiles: [
       {
         id: 'production_'+harness,
         harness, executable, executableSha256:sha(executable),
-        version: codex?'0.155.0-alpha.9.2':kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.9':'0.85.1',
+        version: codex?codexVersion:kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.9':'0.85.1',
         providerId, modelId, effort,
-        sessionHome: codex?resolve('.local-protected/codex-dut/dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcodeExisting?path('managed/zcode/home'):zcode?resolve('.local-protected/zcode-dut/home'):dsh?path('managed/dsh'):path('managed/pi'),
+        sessionHome: codex?resolve(codexDutRoot,'dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcodeExisting?path('managed/zcode/home'):zcode?resolve('.local-protected/zcode-dut/home'):dsh?path('managed/dsh'):path('managed/pi'),
       },
     ],
   }),
@@ -247,7 +251,9 @@ try {
   plan.groups[0].workspace_ref = ws.items[0].id;
   const role = plan.roles[0];
   role.workspace_ref = ws.items[0].id;
-  role.mission = '只完成最小算术任务；业务任务使用获授权的 Route 工具提交结果。';
+  role.mission = process.argv.includes('--marker') || process.argv.includes('--core-restart')
+    ? '仅完成隔离测试中的最小算术与无敏感随机标记连续性验证；业务任务使用获授权的 Route 工具提交结果。'
+    : '只完成最小算术任务；业务任务使用获授权的 Route 工具提交结果。';
   role.runtime = {
     harness, provider_profile_id:providerId, model_id:modelId, reasoning_effort:effort,
     selection_source: 'runtime',
@@ -498,6 +504,11 @@ try {
       throw Error('WAIT_INPUT_CONTINUATION_NOT_VERIFIED');
     report.waitInput = { workSessionId: waitingRun.task.role_session_id, runCount: 2, sameNativeRef: true, formalInputConsumedOnce: true, valueMatched: true };
     report.checks.push('真实route_wait→正式TaskInput→同WS/同native ref CONTINUATION Run消费→Result PUBLISHED');
+    await call('router_control_acquire', {
+      request_key: 'wait-input-reacquire-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
   }
   if (process.argv.includes('--client-reconnect')) {
     const db = new Database(path('core/router.db'), { readonly: true });
@@ -581,6 +592,11 @@ try {
       throw Error('RECONNECT_CONTINUATION_NOT_VERIFIED');
     report.clientReconnect = { workSessionId: before.id, sameNativeRef: true, resultPublished: true };
     report.checks.push('真实controller持租约断连→同clientId重连重新取租约→同WS/native ref任务PUBLISHED');
+    await call('router_control_acquire', {
+      request_key: 'reconnect-reacquire-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
   }
   if (process.argv.includes('--core-restart')) {
     const db = new Database(path('core/router.db'), { readonly: true });
