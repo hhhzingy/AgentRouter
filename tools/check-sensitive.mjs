@@ -35,7 +35,9 @@ if (process.argv.includes('--history')) {
     ['-c', `safe.directory=${process.cwd().replaceAll('\\', '/')}`, 'cat-file', '--batch'],
     {
       input: ids.join('\n') + '\n',
-      maxBuffer: 128 * 1024 * 1024,
+      // Full history is emitted uncompressed by cat-file and can exceed the
+      // repository's on-disk object size by several times.
+      maxBuffer: 512 * 1024 * 1024,
       windowsHide: true,
     },
   );
