@@ -7,11 +7,11 @@ import { ProjectPage } from '../../apps/desktop/workbench/pages-project.tsx';
 import { RolePage } from '../../apps/desktop/workbench/pages-role.tsx';
 import { RemoteDevicesPage } from '../../apps/desktop/workbench/pages-remote.tsx';
 
-it('C9:页脚展示 Host/Core 身份，避免操作打到错误 Core', () => {
+it('C9:顶栏唯一 Core 身份清楚可见，原始标识不占默认界面', () => {
   const html = render(makeStore({}), <Shell><HomePage /></Shell>);
   expect(html).toContain('data-testid="core-identity"');
-  expect(html).toContain('Host win32');
-  expect(html).toContain('Core test');
+  expect(html).toContain('This PC');
+  expect(html).toContain('Local · Connected · Controller');
 });
 
 it('C9:项目页把需要关注与受阻原因单独列出', () => {

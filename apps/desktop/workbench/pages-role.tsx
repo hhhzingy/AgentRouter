@@ -1,4 +1,4 @@
-import {errorMessage} from './action-state.ts';
+import {errorMessage, failureState} from './action-state.ts';
 import {HistoryPanel} from './history.tsx';
 import {exactWorkspace} from './identity.ts';
 /** 角色详情：Charter / 当前任务与 Run / 完整对话 / 权限与工作区 / UNKNOWN 对账。 */
@@ -366,13 +366,14 @@ function SessionWorkflow({ role }: { role:RoleVM }) {
       setError('');
     } catch (e) {
       setError(errorMessage(e));
+      throw e;
     } finally {
       setBusy(false);
     }
   };
   return (
     <Card className="session-card">
-      <div className="section-heading"><div><span className="eyebrow">WORKSESSION</span><h2>当前 WorkSession（工作会话）</h2></div>{!s.readOnly&&<Button variant="primary" onClick={()=>setWizardOpen(true)}>新建并继承上下文</Button>}</div>
+      <div className="section-heading"><div><span className="eyebrow">WORKSESSION</span><h2>当前 WorkSession（工作会话）</h2></div>{!s.readOnly&&<Button variant="primary" onClick={()=>setWizardOpen(true)}>新建 WorkSession</Button>}</div>
       <p className="muted">
         每个 WorkSession 固定绑定一个 Harness/Driver 与 Native Session。创建新 WorkSession 时可以从当前上下文迁移，迁移保真度由 Core 报告；历史 WorkSession 只读且永久归档。
       </p>
@@ -411,16 +412,16 @@ function SessionWorkflow({ role }: { role:RoleVM }) {
 
 function CreateWorkSessionWizard({role,preflight,busy,onClose,onCreate}:{role:RoleVM;preflight:RoleSessionPreflight|null;busy:boolean;onClose:()=>void;onCreate:(params:Record<string,unknown>)=>Promise<void>}){
  const s=useStore();
- const [step,setStep]=useState(0),[name,setName]=useState(''),[harness,setHarness]=useState(role.harness),[contextMode,setContextMode]=useState<'blank'|'inherit'>('blank'),[error,setError]=useState('');
+ const [step,setStep]=useState(0),[name,setName]=useState(''),[harness,setHarness]=useState(role.harness),[contextMode,setContextMode]=useState<'blank'|'inherit'>('blank'),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false);
  const harnesses=Object.entries(s.capabilities.harnesses);
  const blocked=contextMode==='inherit'&&preflight?.migration_fidelity==='BLOCKED';
- const submit=async()=>{setError('');try{await onCreate({role_id:role.id,name:name.trim(),target_harness:harness,context_mode:contextMode});}catch(e){setError(errorMessage(e));}};
- return <Dialog title="新建 WorkSession" onClose={onClose} footer={<><Button onClick={onClose}>取消</Button>{step>0&&<Button onClick={()=>setStep(step-1)}>上一步</Button>}{step<2?<Button variant="primary" disabled={step===0&&!name.trim()||blocked} onClick={()=>setStep(step+1)}>下一步</Button>:<Button variant="primary" disabled={busy||blocked||!name.trim()} onClick={()=>void submit()}>{busy?'正在创建…':'创建 WorkSession'}</Button>}</>}>
+ const submit=async()=>{setError('');try{await onCreate({role_id:role.id,name:name.trim(),target_harness:harness,context_mode:contextMode});}catch(e){setUncertain(failureState(e)==='uncertain');setError(errorMessage(e));}};
+ return <Dialog title="新建 WorkSession" onClose={onClose} footer={<><Button onClick={onClose}>{uncertain?'关闭并保留待核对操作':'取消'}</Button>{step>0&&!uncertain&&<Button onClick={()=>setStep(step-1)}>上一步</Button>}{step<2?<Button variant="primary" disabled={step===0&&!name.trim()||blocked||uncertain} onClick={()=>setStep(step+1)}>下一步</Button>:!uncertain&&<Button variant="primary" disabled={busy||blocked||!name.trim()} onClick={()=>void submit()}>{busy?'正在创建…':'创建 WorkSession'}</Button>}</>}>
   <ol className="wizard-steps" aria-label="创建 WorkSession 步骤"><li className={step===0?'active':''}>1 Who / Where</li><li className={step===1?'active':''}>2 Context</li><li className={step===2?'active':''}>3 Review</li></ol>
   {step===0&&<div className="wizard-panel"><h3>谁来承担这段上下文</h3><KeyValue k="Role" v={role.name}/><label className="field"><span>WorkSession 名称</span><input type="text" maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder="例如：实现方向 B"/></label><label className="field"><span>Managed Harness</span><select value={harness} onChange={e=>setHarness(e.target.value as RoleVM['harness'])}>{harnesses.map(([id,cap])=><option key={id} value={id} disabled={!cap.create_session}>{id} · {cap.status}{cap.create_session?'':' · 不支持创建'}</option>)}</select></label><p className="hint">Harness、workspace 与 native session 在 WorkSession 建立后不能静默更换。</p></div>}
   {step===1&&<div className="wizard-panel"><h3>选择 Context 策略</h3><label className={`context-option ${contextMode==='blank'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='blank'} onChange={()=>setContextMode('blank')}/><span><b>Start blank</b><small>创建全新上下文，不复制当前 WorkSession。</small></span></label><label className={`context-option ${contextMode==='inherit'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='inherit'} onChange={()=>setContextMode('inherit')}/><span><b>Transfer from current WorkSession</b><small>Core 决定可迁移内容与保真度；UI 不估算百分比。</small></span></label>{contextMode==='inherit'&&<div className={`hint ${blocked?'tone-warning':''}`}>Capability: {preflight?.migration_fidelity??'UNKNOWN'} · {preflightReasonLabel(preflight?.reason_code)}{blocked&&' 当前迁移被 Core 阻止，请改用 Start blank。'}</div>}</div>}
   {step===2&&<div className="wizard-panel"><h3>确认创建</h3><KeyValue k="Role" v={role.name}/><KeyValue k="Harness" v={harness}/><KeyValue k="Context" v={contextMode==='blank'?'Start blank':'Transfer from current WorkSession'}/><KeyValue k="当前任务影响" v="只有 Core 成功激活后才切换；失败时当前 WorkSession 保持安全。"/><p className="hint tone-warning">旧 WorkSession 在成功切换后进入 Historical · Read-only，不能恢复。</p></div>}
-  {error&&<div className="hint tone-danger" role="alert"><b>New WorkSession was not activated.</b><br/>当前 WorkSession 仍保持原状态。{error}<details><summary>技术详情</summary>{error}</details></div>}
+  {error&&<div className={`hint ${uncertain?'tone-warning':'tone-danger'}`} role="alert"><b>{uncertain?'创建结果尚未确认，请先核对当前 WorkSession 与待处理操作。':'创建未完成，请检查当前 WorkSession 状态。'}</b><br/>{error}{uncertain&&<p>这次请求可能已经生效。请勿再次点击创建；关闭后在待处理操作中核对。</p>}<details><summary>技术详情</summary>{error}</details></div>}
  </Dialog>;
 }
 
