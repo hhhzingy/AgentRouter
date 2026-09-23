@@ -90,7 +90,7 @@ try {
   const project = (await core.session.request('system.snapshot', {})).projects[0];
   expect(project.displayRoot).toBe(projectPath);
   pass('J1_NATIVE_PICKER_CORE_GRANT_PROJECT');
-  await page.getByRole('button', { name: /添加角色/ }).click();
+  await page.getByRole('button', { name: /新建角色/ }).click();
   const ws = (await core.session.request('workspace.list', { project_id: project.id })).items[0];
   const plan = structuredClone(seed);
   plan.project_id = project.id;
