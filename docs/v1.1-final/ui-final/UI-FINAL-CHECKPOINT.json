@@ -10,7 +10,7 @@
   "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
   "final_ui_sha": "a809417d33e900598a90ac49f3a74aee56bb34c8",
   "evidence_sha": "3e924b4fd0d1b08aea36ca360d412482634bbf05",
-  "remote_ui_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
+  "remote_ui_sha": "81adced147a0d9d8b3da1180bd7844d395e490a6",
   "source_dirty": false,
   "last_inspected_codex_sha": "3e4df007f6fe2b65acd74792d2eaba0e01a2ad48",
   "last_merged_codex_sha": null,
@@ -72,7 +72,7 @@
     "findings": 4
   },
   "notes": [
-    "remote_ui_sha records the protected remote state before final delivery push and must be refreshed by the integration owner after fetch",
+    "remote_ui_sha records the first complete handoff commit successfully pushed to the protected UI branch; the following metadata-only commit may advance the branch head",
     "The lane must not be described as V1.1_WINDOWS_RC_READY"
   ]
 }
