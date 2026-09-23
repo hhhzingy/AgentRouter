@@ -1,9 +1,9 @@
 {
   "evidenceClass": "VISUAL_FIXTURE",
   "transport": "PREVIEW_MOCK",
-  "sourceSha": "85d8513e685b7ff888da2cc8f6809ed5a5e21e97",
+  "sourceSha": "7779c15f8cf9365d6f18bc31de7e3b8f57026d1c",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T03:16:18.318Z",
+  "generatedAt": "2026-09-23T03:36:21.568Z",
   "shots": [
     {
       "name": "01-home",
@@ -42,7 +42,7 @@
       "scale": 1,
       "file": "screenshots/03-role-worksession.png",
       "horizontalOverflow": false,
-      "sha256": "721720f4b6b19f7a43c4d7f9c76134212373b71c666ee1bb57bd1753efb9faa3"
+      "sha256": "bfb0874d46e4c7fb31d084268fb81eba9958399f2aba1f770e94574bdc769c01"
     },
     {
       "name": "04-results-evidence",
