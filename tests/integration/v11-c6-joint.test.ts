@@ -178,6 +178,11 @@ it('C6 Gate: Management 派任务，Participant join/claim/artifact/result，下
       tests: [{ name: 'isolated integration', outcome: 'PASS', evidence_artifact_id: art.artifact_id }],
       known_limitations: ['仅隔离环境复核'],
     };
+    f.server.failNextCommit = true;
+    await expect(f.s.request('result.evidence.record' as never, declaration as never, {
+      ...evidenceOptions, operationId: 'evidence-rollback',
+    } as never)).rejects.toThrow('INTERNAL_ERROR');
+    expect(f.db.prepare('select result_id from result_evidence_attestations where result_id=?').get(result.id)).toBeUndefined();
     const recorded = await f.s.request('result.evidence.record' as never, declaration as never, evidenceOptions as never) as { source: string };
     expect(recorded.source).toBe('CONTROLLER_ATTESTED');
     expect(await f.s.request('result.evidence.record' as never, declaration as never, evidenceOptions as never)).toEqual(recorded);
@@ -218,6 +223,9 @@ it('C6 Gate: Management 派任务，Participant join/claim/artifact/result，下
     const observer = await observerTransport.connect({
       clientId: 'review_observer', clientVersion: '1.0.0-dev.0', requestedMode: 'observer',
     });
+    await expect(observer.request('result.evidence.record' as never, declaration as never, {
+      ...evidenceOptions, operationId: 'evidence-observer',
+    } as never)).rejects.toThrow('CONTROL_LEASE_REQUIRED');
     await expect(observer.request('result.requestChanges' as never, {
       id: result.id, feedback: '越权修改',
     } as never, reviewOptions as never)).rejects.toThrow('CONTROL_LEASE_REQUIRED');
