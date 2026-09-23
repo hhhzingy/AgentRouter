@@ -181,7 +181,8 @@ try {
   pass('J1_PIPELINE_HELD_NATIVE_BARRIER');
   const artifact = await core.control('createFixtureArtifact');
   await page.locator(`a[href="#/project/${project.id}"]`).first().click();
-  await page.getByRole('tab', { name: /^成果/ }).click();await page.getByRole('button', { name: '文件与报告', exact: true }).click();
+  await page.locator(`a[href="#/project/${project.id}/inbox"]`).first().click();
+  await page.getByRole('button', { name: '文件与报告', exact: true }).click();
   await expect(page.getByText('j1-result.txt', { exact: true })).toBeVisible();
   const saved = resolve(gui, 'saved-artifact.txt');
   await app.evaluate(({ dialog }: any, path: string) => {
