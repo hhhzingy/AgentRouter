@@ -7,24 +7,26 @@
 | 项目 | 值 |
 |---|---|
 | 唯一分支 | `feat/v1.1-ui-kimi`，未创建新分支 |
-| 本轮源码 SHA | `d3b73c58f498b8d3f5dde74f3e2a5e2308237089` |
-| VISUAL_FIXTURE 证据提交 | `621ee075992283e9b6fe42caccd83aa5eacb16e4`，13 张图，manifest `sourceSha=2c5ced7`、`sourceDirty=false`；图像与前次一致 |
+| 本轮源码/测试 SHA | `85d8513e685b7ff888da2cc8f6809ed5a5e21e97` |
+| VISUAL_FIXTURE 与本地 Core 证据提交 | `2fafe42`，16 张图，manifest `sourceSha=85d8513`、`sourceDirty=false`；新增 Managed/Web 向导和 Mobile Reply |
 | Codex Core 对照 | `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`；仅审计 UI-facing 差异，未 merge |
 | lane 状态 | `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION` |
 
 ## 已交付与验收边界
 
-2026-09-23 再核验：基于已推送 UI HEAD `2c5ced7`，直接 typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 13 张 FIXTURE 的无横向溢出检查均通过。产品代码自 `d3b73c5` 至该 HEAD 没有 `apps/`、`packages/`、`tests/` 差异。截图仍仅为 `PREVIEW_MOCK`。
+2026-09-23 再核验：基于 UI 源码/测试 SHA `85d8513`，直接 typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 16 张 FIXTURE 的无横向溢出检查均通过。16 张截图仅为 `PREVIEW_MOCK`；`evidence/M00/desktop.png` 与 `M07/roles.png` 来自真实打包 Electron。
 
 `f5614bb` 先完成全部 11 页 P0、10 维 CURRENT↔TARGET 审计，再进入代码。实现包括 Project Shell、Workbench 双栏、Projects 角色预览、Role 双栏、WorkSession transfer operation 查询、Connections 安全降级、Activity/Settings/Result 层级与 Mobile 介入优先顺序。逐页证据在 `visual-diffs/`，本轮没有页面被标为 PASS。
 
-已通过：直接 `tsc --noEmit`、直接 lint、UI 108/108、Unit 213/213、Contract+Chaos 70/70，以及 13 张 `VISUAL_FIXTURE` 截图横向溢出检查。截图来自 `PREVIEW_MOCK`，不是 REAL_CORE。Integration 全量 210/212；DUT 缺 `DSH_BIN`，Web Console 时序失败单独重跑通过；排除 DUT 的 48 文件 209/209 通过。`pnpm typecheck` 的依赖准备因缺 Visual Studio C++ Build Tools 无法编译 `better-sqlite3`；packaged/local/remote/mobile 真实流程、Electron DPI 与屏幕阅读器均未在当前源码 SHA 上重跑。
+新增：Activity 业务事件默认优先、Results 全部/待验收筛选、Managed/Web WorkSession 入口分离、WAITING_INPUT 不确定提交防重发；Project Workbench 顶部移除重复 Core 徽标和原始路径。当前 SHA 的 packaged Core smoke 与打包 Electron 本地窗口 smoke 已通过：产物 hash `c68b9495393bfe978057de131818b2ce6b6c833d83c264e66f74510d00968ebf`，`sourceDirty=false`，覆盖真实本地 Core 连接、项目创建和控制租约。此测试不是完整 WorkSession/Remote/Mobile 验收。
+
+历史 `pnpm typecheck` 依赖准备曾因 Visual Studio C++ Build Tools 缺失失败；本轮现有 `better-sqlite3` 可加载并完成打包，但没有重建依赖。DUT 仍缺 `DSH_BIN`；真实 WorkSession、Remote/Mobile、Electron DPI 与屏幕阅读器未在当前 SHA 重跑。
 
 ## 需总负责人协调
 
-1. 将 `UI-CONTRACT-GAP-001/002/003` 分给 Core/合同负责人，尤其 New WorkSession 容量/压缩与 Result Evidence 的 display-safe 投影。
+1. 将 `UI-CONTRACT-GAP-001/002/003/004` 分给 Core/合同负责人，尤其 New WorkSession 容量/压缩、Result Evidence 与 Request Changes 反馈闭环。
 2. UIAI 继续完成 11 个 P0 的逐页视觉与交互收敛，特别是真实 WorkSession、Web Participant、Task/Result、Activity、State Library、Mobile Reply/Controller。
-3. 恢复本机原生构建依赖后，在新的单一源码 SHA 上重跑 V8 自动化和 V9 packaged/REAL_CORE Local/Remote/Mobile；补 Windows 屏幕阅读器检查。
+3. 基于当前或更新后的单一源码 SHA 补 V8/V9 的真实 WorkSession、Remote/Mobile、DPI 和 Windows 屏幕阅读器检查；当前打包与本地 Core smoke 可作已完成证据。
 4. 合流只能由 V1.1 总负责人在 Windows RC 集成车道决定。UIAI 不自行 merge main、tag 或 release。
 
 ## 以下为 20260922 历史交接（不得用于本轮 PASS 判定）

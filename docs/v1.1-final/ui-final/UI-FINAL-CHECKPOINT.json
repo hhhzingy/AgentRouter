@@ -8,9 +8,9 @@
   "ui_branch": "feat/v1.1-ui-kimi",
   "ui_base_sha": "89a41b5e0ff6af198141ded3c1d5c627fdcf9a52",
   "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
-  "final_ui_sha": "d3b73c58f498b8d3f5dde74f3e2a5e2308237089",
-  "evidence_sha": "621ee075992283e9b6fe42caccd83aa5eacb16e4",
-  "evidence_source_sha": "2c5ced7b6b669ed99f23ebcdb9521178f4408a13",
+  "final_ui_sha": "85d8513e685b7ff888da2cc8f6809ed5a5e21e97",
+  "evidence_sha": "2fafe4230462db37e44b2a66487586c38e907dc9",
+  "evidence_source_sha": "85d8513e685b7ff888da2cc8f6809ed5a5e21e97",
   "source_dirty": false,
   "last_inspected_codex_sha": "9794cdfc4ddf51de431f9e6ae069f3a4fec2d341",
   "last_merged_codex_sha": null,
@@ -19,13 +19,14 @@
   "unresolved_gaps": [
     "UI-CONTRACT-GAP-001",
     "UI-CONTRACT-GAP-002",
-    "UI-CONTRACT-GAP-003"
+    "UI-CONTRACT-GAP-003",
+    "UI-CONTRACT-GAP-004"
   ],
   "blocking_gaps": [
     "UI-VISUAL-CONVERGENCE-001: 11 P0 pages are not fully converged",
     "UI-CONTRACT-GAP-003: capacity/compression projection absent",
-    "BUILD_ENVIRONMENT: Visual Studio C++ Build Tools and DSH_BIN are unavailable",
-    "REAL_CORE-FINAL-SHA: packaged/local/remote/mobile rerun not performed",
+    "BUILD_ENVIRONMENT: clean dependency rebuild and DSH_BIN are unavailable",
+    "REAL_CORE-FINAL-SHA: WorkSession/remote/mobile rerun not performed",
     "A11Y-SCREENREADER-001: real Windows screen-reader spot check not run"
   ],
   "tests": {
@@ -39,11 +40,13 @@
     "j2_desktop": {"status": "NOT_RUN_CURRENT_SHA"}
   },
   "packaged_electron": {
-    "status": "NOT_RUN_CURRENT_SHA",
-    "reason": "better-sqlite3 native build unavailable: Visual Studio C++ Build Tools not found"
+    "status": "PASS_SMOKE_CURRENT_SHA",
+    "artifact_hash": "c68b9495393bfe978057de131818b2ce6b6c833d83c264e66f74510d00968ebf",
+    "source_dirty": false,
+    "scope": "packaged Core/SQLite/pipe and Electron local project/control/navigation; not full J2/remote/mobile"
   },
   "real_flows": {
-    "local_core_electron": "NOT_RUN_CURRENT_SHA",
+    "local_core_electron": "PASS_PACKAGED_SMOKE_CURRENT_SHA",
     "remote_core": "NOT_RUN_CURRENT_SHA",
     "mobile_browser": "NOT_RUN_CURRENT_SHA"
   },
@@ -53,7 +56,7 @@
     "electron_zoom_125_150_200": "NOT_RUN_CURRENT_SHA",
     "mobile_390x844": "PASS_VISUAL_FIXTURE",
     "mobile_430x932": "PASS_VISUAL_FIXTURE",
-    "horizontal_overflow": "PASS_13_FIXTURE_SHOTS"
+    "horizontal_overflow": "PASS_16_FIXTURE_SHOTS"
   },
   "accessibility": {
     "keyboard_focus": "NOT_RUN_CURRENT_SHA",
@@ -68,7 +71,7 @@
   },
   "notes": [
     "VISUAL_FIXTURE is PREVIEW_MOCK, never REAL_CORE evidence",
-    "Prior green tests and packaged evidence belonged to a809417 and must not be applied to d3b73c5",
+    "Prior green tests and packaged evidence belonged to a809417 and must not be applied to 85d8513",
     "The lane must not be described as V1.1_WINDOWS_RC_READY"
   ]
 }

@@ -2,6 +2,9 @@
 
 ## 2026-09-23 — 视觉终版重构 V0–V3 进行中
 
+- `1041bd8` 完成 Activity 业务事件优先、Results 全部/待验收筛选、Managed/Web WorkSession 入口与 WAITING_INPUT 结果不明时的表单防重发。`869fcf7` 更新打包 Electron smoke 的旧 UI 选择器。当前 16 张 PREVIEW_MOCK 截图 sourceSha=`85d8513`、sourceDirty=false，其中包含真实打开的 Managed/Web 向导和 390×844 Reply 抽屉；无横向溢出。
+- `85d8513` 又移除 Project Workbench 顶部重复 Core 徽标与原始路径（技术路径仍在 Settings）；当前该 SHA 的直接 typecheck/lint PASS，Unit+Contract+Chaos+UI 391/391，排除 DUT 的 Integration 209/209。当前 SHA 打包候选 artifact hash `c68b9495393bfe978057de131818b2ce6b6c833d83c264e66f74510d00968ebf`，packaged Core/SQLite/命名管道和打包 Electron 本地 Core/项目创建/控制租约 smoke PASS。首轮沙盒启动超时，提权后启动成功；改版后旧 selector 已修复。真实 WorkSession、Remote/Mobile、DPI/屏幕阅读器仍缺。
+- 新增 `UI-CONTRACT-GAP-004`：Core `result.reject` 只更改验收状态，未携带修改意见，也未创建 follow-up Task/Run；UI 不能把它宣称为完整 Request Changes。四个 gap 均 OPEN，lane 仍 BLOCKED。
 - V1.1 总负责人已接收阻断状态交接，并将最新 Core 固定基线更新为 `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`。本地 Git 对象已核验；从旧对照 `3e4df007` 至新基线，`apps/desktop`、`packages/ui`、`packages/client-contract` 无变更；UI-facing 仅 `packages/client-transport/p1/{types,memory}` 与 `remote/websocket.ts` 增加主体类别与 extension mutation metadata 透传。UI 当前 `store.tsx` 已传入 request key / operation ID / expected revision / preflight hash，接口消费路径不需修改。没有可消费的 `UI-CONTRACT-CHANGE`，本轮不 merge Core 分支。`UI-CONTRACT-GAP-001/002/003` 保持 OPEN。
 - 在已推送 UI HEAD `2c5ced7` 上重新验证：typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 13 张 `VISUAL_FIXTURE` 无横向溢出均 PASS。manifest `sourceSha=2c5ced7`、`sourceDirty=false`；真实 Core/packaged/a11y 未重跑，lane 仍 BLOCKED。
 
