@@ -33,6 +33,7 @@ import { useStore } from './store.tsx';
 export function RolePage({ roleId }: { roleId: string }) {
   const s = useStore();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [slotRequest,setSlotRequest]=useState(0);
   const role = s.snapshot.roles.find((r) => r.id === roleId);
   const [charter, setCharter] = useState<RoleCharterVM | null>(null);
   const [charterUnavailable, setCharterUnavailable] = useState(false);
@@ -91,7 +92,7 @@ export function RolePage({ roleId }: { roleId: string }) {
             {charterUnavailable?<p className="hint tone-warning">当前 Core 未提供 Role Charter；以下只展示 Role 主投影。</p>:!charter?<p className="muted">正在读取职责与有效权限…</p>:<div className="charter-summary"><div><h4>负责</h4><ul className="spec-list">{charter.spec.responsibilities.map((x,i)=><li key={i}>{x}</li>)}</ul></div><div><h4>不负责</h4><ul className="spec-list">{charter.spec.out_of_scope.map((x,i)=><li key={i}>{x}</li>)}</ul></div><div><h4>默认结果交给</h4><p>{charter.spec.default_completion_target.type==='user'?'用户':charter.spec.default_completion_target.role_key}</p></div></div>}
           </Card>
 
-          <SessionWorkflow role={role} />
+          <SessionWorkflow role={role} onWebParticipant={()=>setSlotRequest(n=>n+1)} />
 
           <Card className="current-work">
             <div className="section-heading"><div><span className="eyebrow">CURRENT WORK</span><h2>当前工作</h2></div><Badge tone={activeRun?'active':'neutral'}>{activeRun?RUN_STATE_LABEL[activeRun.state]:'暂无运行'}</Badge></div>
@@ -143,7 +144,7 @@ export function RolePage({ roleId }: { roleId: string }) {
             <HistoryPanel scope={{project_id:project?.id,space_id:role.spaceId}} roleId={role.id}/>
           </Card></details>
 
-          <SlotBindingPanel roleId={role.id} />
+          <SlotBindingPanel roleId={role.id} createRequest={slotRequest} />
         </div>
 
         {settingsOpen&&<Drawer title="角色设置" onClose={()=>setSettingsOpen(false)}><div className="role-col-side">
@@ -328,7 +329,7 @@ function migrationNeedsAttention(value?: string) {
 }
 
 /** 工作会话连续性：每个 WorkSession 固定绑定 Harness/Driver 与 Native Session。 */
-function SessionWorkflow({ role }: { role:RoleVM }) {
+function SessionWorkflow({ role,onWebParticipant }: { role:RoleVM;onWebParticipant:()=>void }) {
   const s = useStore();
   const roleId=role.id;
   const [data, setData] = useState<{ sessions: RoleSessionRow[]; active_session_id: string } | null>(null);
@@ -429,6 +430,7 @@ function SessionWorkflow({ role }: { role:RoleVM }) {
         </div>
       )}
       {preflightError && <p className="hint tone-warning">恢复建议暂不可用：{preflightError}</p>}
+      {s.snapshot.tasks.filter(t=>t.assigneeRoleId===roleId&&t.state==='WAITING_INPUT').map(task=><div className="session-preflight" key={task.id}><b>当前任务等待回复：{task.summary}</b><p>新建 WorkSession 或 Slot 不会替这项任务提交回复，也不会自动移动任务。</p><a className="btn" href={`#/project/${s.snapshot.spaces.find(sp=>sp.id===role.spaceId)?.projectId??''}`}>查看项目任务</a></div>)}
       {data && (
         <div data-testid="session-list">
           {data.sessions.filter(w=>w.id===data.active_session_id).map(w=><article className="current-session" key={w.id}><div><span className="session-seq">W{w.seq}</span><div><b>{w.name}</b><p>{w.harness??role.harness} · {role.modelLabel??role.modelSelection?.model_id??'模型未上报'}</p></div></div><div className="session-facts"><Badge tone="active">ACTIVE</Badge><span>Native Session: {w.hasNativeSession?'已关联':'未上报'}</span><span>Context fidelity: {migrationFidelityLabel(w.migration_fidelity)}</span>{w.activated_at_ms&&<span>Started {formatDateTime(w.activated_at_ms)}</span>}</div></article>)}
@@ -436,21 +438,21 @@ function SessionWorkflow({ role }: { role:RoleVM }) {
         </div>
       )}
       {error && <p role="alert">{error}</p>}
-      {wizardOpen&&<CreateWorkSessionWizard role={role} preflight={preflight} busy={busy} onClose={()=>setWizardOpen(false)} onCreate={async params=>{await act('roleSession.create',params);setWizardOpen(false);}}/>}
+      {wizardOpen&&<CreateWorkSessionWizard role={role} preflight={preflight} busy={busy} onClose={()=>setWizardOpen(false)} onWebParticipant={()=>{setWizardOpen(false);onWebParticipant();}} onCreate={async params=>{await act('roleSession.create',params);setWizardOpen(false);}}/>}
     </Card>
   );
 }
 
-function CreateWorkSessionWizard({role,preflight,busy,onClose,onCreate}:{role:RoleVM;preflight:RoleSessionPreflight|null;busy:boolean;onClose:()=>void;onCreate:(params:Record<string,unknown>)=>Promise<void>}){
+function CreateWorkSessionWizard({role,preflight,busy,onClose,onWebParticipant,onCreate}:{role:RoleVM;preflight:RoleSessionPreflight|null;busy:boolean;onClose:()=>void;onWebParticipant:()=>void;onCreate:(params:Record<string,unknown>)=>Promise<void>}){
  const s=useStore();
- const [step,setStep]=useState(0),[name,setName]=useState(''),[harness,setHarness]=useState(role.harness),[contextMode,setContextMode]=useState<'blank'|'inherit'>('blank'),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false);
+ const [step,setStep]=useState(0),[name,setName]=useState(''),[sessionType,setSessionType]=useState<'managed'|'web'>('managed'),[harness,setHarness]=useState(role.harness),[contextMode,setContextMode]=useState<'blank'|'inherit'>('blank'),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false);
  const harnesses=Object.entries(s.capabilities.harnesses);
  const selectedHarnessAvailable=Boolean(s.capabilities.harnesses[harness]?.create_session);
  const blocked=contextMode==='inherit'&&preflight?.migration_fidelity==='BLOCKED';
- const submit=async()=>{setError('');try{await onCreate({role_id:role.id,name:name.trim(),target_harness:harness,context_mode:contextMode});}catch(e){setUncertain(failureState(e)==='uncertain');setError(errorMessage(e));}};
- return <Dialog title="新建 WorkSession" onClose={onClose} footer={<><Button onClick={onClose}>{uncertain?'关闭并保留待核对操作':'取消'}</Button>{step>0&&!uncertain&&<Button onClick={()=>setStep(step-1)}>上一步</Button>}{step<2?<Button variant="primary" disabled={step===0&&!name.trim()||blocked||uncertain||!selectedHarnessAvailable} onClick={()=>setStep(step+1)}>下一步</Button>:!uncertain&&<Button variant="primary" disabled={busy||blocked||!name.trim()||!selectedHarnessAvailable} onClick={()=>void submit()}>{busy?'正在创建…':'创建 WorkSession'}</Button>}</>}>
+ const submit=async()=>{setError('');try{await onCreate({role_id:role.id,name:name.trim()||`工作会话 · ${role.name}`,target_harness:harness,context_mode:contextMode});}catch(e){setUncertain(failureState(e)==='uncertain');setError(errorMessage(e));}};
+ return <Dialog title="新建 WorkSession" onClose={onClose} footer={<><Button onClick={onClose}>{uncertain?'关闭并保留待核对操作':'取消'}</Button>{step>0&&!uncertain&&<Button onClick={()=>setStep(step-1)}>上一步</Button>}{sessionType==='web'?<Button variant="primary" onClick={onWebParticipant}>继续创建 Web Participant Slot</Button>:step<2?<Button variant="primary" disabled={blocked||uncertain||!selectedHarnessAvailable} onClick={()=>setStep(step+1)}>下一步</Button>:!uncertain&&<Button variant="primary" disabled={busy||blocked||!selectedHarnessAvailable} onClick={()=>void submit()}>{busy?'正在创建…':'创建 WorkSession'}</Button>}</>}>
   <ol className="wizard-steps" aria-label="创建 WorkSession 步骤"><li className={step===0?'active':''}>1 Who / Where</li><li className={step===1?'active':''}>2 Context</li><li className={step===2?'active':''}>3 Review</li></ol>
-  {step===0&&<div className="wizard-panel"><h3>谁来承担这段上下文</h3><KeyValue k="Role" v={role.name}/><label className="field"><span>WorkSession 名称</span><input type="text" maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder="例如：实现方向 B"/></label><label className="field"><span>Managed Harness</span><select value={harness} onChange={e=>setHarness(e.target.value as RoleVM['harness'])}>{harnesses.map(([id,cap])=><option key={id} value={id} disabled={!cap.create_session}>{id} · {cap.status}{cap.create_session?'':' · 不支持创建'}</option>)}</select></label>{!selectedHarnessAvailable&&<p className="hint tone-warning">当前 Harness 未声明可创建 WorkSession。</p>}<p className="hint">Harness、workspace 与 native session 在 WorkSession 建立后不能静默更换。</p></div>}
+  {step===0&&<div className="wizard-panel"><h3>谁来承担这段上下文</h3><KeyValue k="Role" v={role.name}/><label className={`context-option ${sessionType==='managed'?'selected':''}`}><input type="radio" name="session-type" checked={sessionType==='managed'} onChange={()=>setSessionType('managed')}/><span><b>Managed Harness</b><small>由 Core 创建和管理原生会话。</small></span></label><label className={`context-option ${sessionType==='web'?'selected':''}`}><input type="radio" name="session-type" checked={sessionType==='web'} onChange={()=>setSessionType('web')}/><span><b>Web Participant</b><small>先创建 Slot，再用 Join Instruction 邀请参与者；绑定状态由 Core 确认。</small></span></label>{sessionType==='managed'?<><details><summary>可选：命名 WorkSession</summary><label className="field"><span>名称</span><input type="text" maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder={`工作会话 · ${role.name}`}/></label></details><label className="field"><span>Managed Harness</span><select value={harness} onChange={e=>setHarness(e.target.value as RoleVM['harness'])}>{harnesses.map(([id,cap])=><option key={id} value={id} disabled={!cap.create_session}>{id} · {cap.status}{cap.create_session?'':' · 不支持创建'}</option>)}</select></label>{!selectedHarnessAvailable&&<p className="hint tone-warning">当前 Harness 未声明可创建 WorkSession。</p>}<p className="hint">Harness、workspace 与 native session 在 WorkSession 建立后不能静默更换。</p></>:<p className="hint">下一步只会准备一个 Participant 槽位。参与者加入并由 Core 确认前，不会显示为活跃 WorkSession。</p>}</div>}
   {step===1&&<div className="wizard-panel"><h3>选择 Context 策略</h3><label className={`context-option ${contextMode==='blank'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='blank'} onChange={()=>setContextMode('blank')}/><span><b>Start blank</b><small>创建全新上下文，不复制当前 WorkSession。</small></span></label><label className={`context-option ${contextMode==='inherit'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='inherit'} onChange={()=>setContextMode('inherit')}/><span><b>Transfer from current WorkSession</b><small>Core 决定可迁移内容与保真度；UI 不估算百分比。</small></span></label>{contextMode==='inherit'&&<div className={`hint ${blocked?'tone-warning':''}`}>Capability: {preflight?.migration_fidelity??'UNKNOWN'} · {preflightReasonLabel(preflight?.reason_code)}{blocked&&' 当前迁移被 Core 阻止，请改用 Start blank。'}</div>}</div>}
   {step===2&&<div className="wizard-panel"><h3>确认创建</h3><KeyValue k="Role" v={role.name}/><KeyValue k="Harness" v={harness}/><KeyValue k="Context" v={contextMode==='blank'?'Start blank':'Transfer from current WorkSession'}/><KeyValue k="当前任务影响" v="只有 Core 成功激活后才切换；失败时当前 WorkSession 保持安全。"/><p className="hint tone-warning">旧 WorkSession 在成功切换后进入 Historical · Read-only，不能恢复。</p></div>}
   {error&&<div className={`hint ${uncertain?'tone-warning':'tone-danger'}`} role="alert"><b>{uncertain?'创建结果尚未确认，请先核对当前 WorkSession 与待处理操作。':'创建未完成，请检查当前 WorkSession 状态。'}</b><br/>{error}{uncertain&&<p>这次请求可能已经生效。请勿再次点击创建；关闭后在待处理操作中核对。</p>}<details><summary>技术详情</summary>{error}</details></div>}
@@ -458,13 +460,14 @@ function CreateWorkSessionWizard({role,preflight,busy,onClose,onCreate}:{role:Ro
 }
 
 /** 规划槽位 / 参与者绑定：与执行槽（role_slots.active_run）分离。 */
-function SlotBindingPanel({ roleId }: { roleId: string }) {
+function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createRequest:number }) {
   const s = useStore();
   const [slots, setSlots] = useState<
     { id: string; name: string; participant_kind: string; state: string; work_session_id: string | null }[] | null
   >(null);
   const [error, setError] = useState('');
   const [creating,setCreating]=useState(false),[name,setName]=useState(''),[kind,setKind]=useState<'CHATGPT_WEB'|'MANAGED_HARNESS'|'PAIR_CODE'>('CHATGPT_WEB'),[instruction,setInstruction]=useState('');
+  useEffect(()=>{if(createRequest>0){setKind('CHATGPT_WEB');setCreating(true);}},[createRequest]);
   const load=React.useCallback(() => {
     let active = true;
     s.callExtension('participant.slot.list', { role_id: roleId })

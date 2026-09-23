@@ -32,6 +32,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
   const [dispatchRole, setDispatchRole] = useState<RoleVM | null>(null);
   const [waitingTaskId,setWaitingTaskId]=useState<string|null>(null);
   const [selectedResultId,setSelectedResultId]=useState<string|null>(null);
+  const [resultFilter,setResultFilter]=useState<'all'|'pending'>('all');
   if (!project) return <EmptyState title="项目不存在" body="可能已归档或连接的是另一个 Core。" />;
 
   const spaces = s.snapshot.spaces.filter(
@@ -44,6 +45,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
   const issues = s.snapshot.issues.filter((i) => i.projectId === projectId);
   const approvals = s.snapshot.approvals.filter((a) => runs.some((r) => r.id === a.runId));
   const results = s.snapshot.results.filter((r) => tasks.some((t) => t.id === r.taskId));
+  const visibleResults=resultFilter==='pending'?results.filter(r=>r.acceptance==='PENDING'):results;
   const artifacts = results
     .flatMap((r) => r.artifactIds)
     .map((id) => ({ id }))
@@ -175,20 +177,21 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
       {activeTab === 'timeline' && (
         <div className="tab-body" data-tab="timeline">
-          <label className="field">筛选小组<select aria-label="动态小组" value={historyGroup} onChange={e=>{setHistoryGroup(e.target.value);setHistoryRole('');}}><option value="">整个项目</option>{spaces.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label><label className="field">筛选角色<select aria-label="动态角色" value={historyRole} onChange={e=>setHistoryRole(e.target.value)}><option value="">范围内全部角色</option>{roles.filter(r=>!historyGroup||r.spaceId===historyGroup).map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><HistoryPanel scope={{project_id:projectId,...(historyGroup?{space_id:historyGroup}:{})}} roleId={historyRole||undefined}/>
+          <label className="field">筛选小组<select aria-label="动态小组" value={historyGroup} onChange={e=>{setHistoryGroup(e.target.value);setHistoryRole('');}}><option value="">整个项目</option>{spaces.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label><label className="field">筛选角色<select aria-label="动态角色" value={historyRole} onChange={e=>setHistoryRole(e.target.value)}><option value="">范围内全部角色</option>{roles.filter(r=>!historyGroup||r.spaceId===historyGroup).map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><HistoryPanel scope={{project_id:projectId,...(historyGroup?{space_id:historyGroup}:{})}} roleId={historyRole||undefined} businessFirst/>
         </div>
       )}
 
       {activeTab === 'inbox' && (
         <div className="tab-body" data-tab="inbox">
-          {results.length === 0 ? (
+          <div className="segmented" role="group" aria-label="成果筛选"><button className={resultFilter==='all'?'active':''} aria-pressed={resultFilter==='all'} onClick={()=>setResultFilter('all')}>全部成果（{results.length}）</button><button className={resultFilter==='pending'?'active':''} aria-pressed={resultFilter==='pending'} onClick={()=>setResultFilter('pending')}>待我验收（{results.filter(r=>r.acceptance==='PENDING').length}）</button></div>
+          {visibleResults.length === 0 ? (
             <EmptyState
-              title="收件箱为空"
+              title={resultFilter==='pending'?'没有待验收成果':'收件箱为空'}
               body="只有显式发给你的结果会出现在这里；成功发信不产生回执，通知不唤醒角色。"
             />
           ) : (
             <div className="results-layout"><ul className="inbox-list result-list">
-              {results.map((r) => (
+              {visibleResults.map((r) => (
                 <li key={r.id} className={`inbox-item ${selectedResultId===r.id?'selected':''}`}>
                   <div>
                     <Badge tone={r.acceptance === 'PENDING' ? 'warning' : 'neutral'}>
@@ -201,7 +204,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                             : '无需验收'}
                     </Badge>{' '}
                     <b>{r.summary}</b>
-                    <div className="muted">Task {r.taskId} · Delivery {r.delivery} · 产物 {r.artifactIds.length} 个</div>
+                    <div className="muted">{tasks.find(t=>t.id===r.taskId)?.summary??'任务详情未上报'} · {r.delivery==='DELIVERED'?'已交付':r.delivery==='UNKNOWN'?'交付状态未知':r.delivery==='UNDELIVERABLE'?'无法交付':'交付处理中'} · {r.artifactIds.length} 个产物</div>
                   </div>
                   <Button variant="ghost" onClick={()=>setSelectedResultId(r.id)}>详情</Button>
                   {r.acceptance === 'PENDING' && (
@@ -214,7 +217,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                   )}
                 </li>
               ))}
-            </ul><ResultDetail result={results.find(r=>r.id===(selectedResultId??results[0]?.id))} /></div>
+            </ul><ResultDetail result={visibleResults.find(r=>r.id===selectedResultId)??visibleResults[0]} /></div>
           )}
         </div>
       )}
