@@ -12,6 +12,10 @@
 | Codex Core 对照 | `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`；仅审计 UI-facing 差异，未 merge |
 | lane 状态 | `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION` |
 
+## 安全扫描范围更新
+
+Core 安全复核报告：普通分支、标签和远端 refs 的敏感扫描为 3470 blobs、0 findings，属于可发布引用范围；旧的“4 findings”不能用作该范围的结论。UIAI 在本机当前 worktree 执行 `node tools/check-sensitive.mjs --history`，该脚本使用 `git rev-list --objects --all`，包含仅本机的 `refs/codex/turn-diffs/checkpoints/*`；本次得到 3988 blobs、4 findings。两者扫描范围不同，交接中不再以旧 4 项阻断普通可发布引用；本地 checkpoint refs 例外仍按 Core 安全复核文档单独处理，UIAI 不重写历史。
+
 ## 已交付与验收边界
 
 2026-09-23 再核验：基于 UI 源码/测试 SHA `85d8513`，直接 typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 16 张 FIXTURE 的无横向溢出检查均通过。16 张截图仅为 `PREVIEW_MOCK`；`evidence/M00/desktop.png` 与 `M07/roles.png` 来自真实打包 Electron。
@@ -30,6 +34,8 @@
 4. 合流只能由 V1.1 总负责人在 Windows RC 集成车道决定。UIAI 不自行 merge main、tag 或 release。
 
 ## 以下为 20260922 历史交接（不得用于本轮 PASS 判定）
+
+以下关于“全历史 4 项”的旧表述基于当时含本机 Codex checkpoint refs 的扫描范围；当前普通可发布引用范围以本文件上方“安全扫描范围更新”为准。
 
 ## Fixed identity
 

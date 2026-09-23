@@ -2,6 +2,8 @@
 
 ## 2026-09-23 — 视觉终版重构 V0–V3 进行中
 
+- Core 预告加法投影：GAP-001 的 `participant.slot.list` 将增加 `short_ref`、OPEN 时 `join_instruction_display` 和 `binding_summary`；绑定摘要的 last seen 与外部会话在没有真实数据时为 null，BOUND 不等于在线。GAP-003 的 preflight 将增加 UNKNOWN 容量和 CORE_DECIDES 压缩政策，transferStatus 将增加实际决策与源 WS 活跃摘要。Core 尚未提交/固定接口，UI 当前只修正 BOUND 的中性“在线未知”文案，不预消费未固定字段、不编造 token 或压缩数。
+- 安全扫描范围更正：Core 报告普通分支/标签/远端 refs 3470 blobs、0 findings；本地 `--history` 脚本用 `--all` 包含 `refs/codex/turn-diffs/checkpoints/*`，UIAI 实测 3988 blobs、4 findings。旧“4 findings”不是可发布引用范围的结论。
 - `1041bd8` 完成 Activity 业务事件优先、Results 全部/待验收筛选、Managed/Web WorkSession 入口与 WAITING_INPUT 结果不明时的表单防重发。`869fcf7` 更新打包 Electron smoke 的旧 UI 选择器。当前 16 张 PREVIEW_MOCK 截图 sourceSha=`85d8513`、sourceDirty=false，其中包含真实打开的 Managed/Web 向导和 390×844 Reply 抽屉；无横向溢出。
 - `85d8513` 又移除 Project Workbench 顶部重复 Core 徽标与原始路径（技术路径仍在 Settings）；当前该 SHA 的直接 typecheck/lint PASS，Unit+Contract+Chaos+UI 391/391，排除 DUT 的 Integration 209/209。当前 SHA 打包候选 artifact hash `c68b9495393bfe978057de131818b2ce6b6c833d83c264e66f74510d00968ebf`，packaged Core/SQLite/命名管道和打包 Electron 本地 Core/项目创建/控制租约 smoke PASS。首轮沙盒启动超时，提权后启动成功；改版后旧 selector 已修复。真实 WorkSession、Remote/Mobile、DPI/屏幕阅读器仍缺。
 - 新增 `UI-CONTRACT-GAP-004`：Core `result.reject` 只更改验收状态，未携带修改意见，也未创建 follow-up Task/Run；UI 不能把它宣称为完整 Request Changes。四个 gap 均 OPEN，lane 仍 BLOCKED。

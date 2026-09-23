@@ -496,7 +496,7 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
         <ul className="slot-list" data-testid="slot-list">
           {slots.map((slot) => (
             <li key={slot.id}>
-              <div><b>{slot.name}</b><span>{slot.participant_kind}</span></div><div><Badge tone={slot.state==='BOUND'?'ok':slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'Bound':slot.state==='OPEN'?'Waiting participant':'Closed / Revoked'}</Badge><span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span></div>
+              <div><b>{slot.name}</b><span>{slot.participant_kind}</span></div><div><Badge tone={slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'已绑定 · 在线未知':slot.state==='OPEN'?'等待参与者':'已关闭 / 已撤销'}</Badge><span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span></div>
             </li>
           ))}
         </ul>

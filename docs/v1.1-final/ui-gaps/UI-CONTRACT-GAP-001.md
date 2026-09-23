@@ -40,7 +40,8 @@ P1
 
 ## Codex response
 
-- status: OPEN
+- status: IN_PROGRESS_UNCOMMITTED
 - commit:
 - UI-CONTRACT-CHANGE:
 
+2026-09-23 Core 预告：`participant.slot.list` 将补 `short_ref`、OPEN 时 `join_instruction_display`、`binding_summary`，并修正 Wn 短引用认领。`last_seen_at_ms` 与 `external_session_display` 没有真实数据时为 null。提交与字段固定前 UI 不消费；`BOUND` 永远不作为在线证明。

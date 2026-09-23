@@ -67,7 +67,8 @@
   "screenshots_manifest": "docs/v1.1-final/ui-final/screenshots/manifest.json",
   "secret_scan": {
     "current_index": "PASS_PRECOMMIT",
-    "full_history": "NOT_RUN_CURRENT_SHA_PRIOR_4_FINDINGS"
+    "publish_refs_history": "CORE_REPORTED_PASS_3470_BLOBS_0_FINDINGS",
+    "all_local_refs_history": "FAIL_3988_BLOBS_4_FINDINGS_IN_LOCAL_CODEX_CHECKPOINT_REFS"
   },
   "notes": [
     "VISUAL_FIXTURE is PREVIEW_MOCK, never REAL_CORE evidence",

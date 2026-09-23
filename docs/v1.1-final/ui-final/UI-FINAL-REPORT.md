@@ -1,5 +1,7 @@
 # UI-FINAL-REPORT
 
+> 2026-09-23 安全范围勘误：下文“全历史 4 项”是含本机 Codex checkpoint refs 的旧扫描结果，不代表普通可发布引用范围。Core 当前复核报告普通分支、标签、远端 refs 为 3470 blobs、0 findings；最新 UI 交接以 `UI-INTEGRATION-HANDOFF-TO-V11-OWNER.md` 为准。
+
 ## Identity
 
 - branch: `feat/v1.1-ui-kimi`

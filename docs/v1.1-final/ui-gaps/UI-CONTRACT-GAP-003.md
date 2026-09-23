@@ -40,6 +40,8 @@ V1.1 Core / Context Transfer 负责人；UIAI 只消费合同并渲染。
 
 ## Codex response
 
-- status: OPEN
+- status: IN_PROGRESS_UNCOMMITTED
 - commit:
 - UI-CONTRACT-CHANGE:
+
+2026-09-23 Core 预告：preflight 增加 UNKNOWN 容量与 CORE_DECIDES 压缩政策，transferStatus 增加实际决策和源 WS 活跃摘要。具体字段与语义尚未固定；UI 不显示虚构 token、Fits 或压缩比例。
