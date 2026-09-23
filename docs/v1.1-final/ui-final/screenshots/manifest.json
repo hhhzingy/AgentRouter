@@ -1,9 +1,9 @@
 {
   "evidenceClass": "VISUAL_FIXTURE",
   "transport": "PREVIEW_MOCK",
-  "sourceSha": "3749685a8c850d0ee366b38caa9d8a4044e5d49e",
+  "sourceSha": "ab7922b88ef1bb6181dcf104b8d0366b72550bea",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T03:50:46.445Z",
+  "generatedAt": "2026-09-23T03:57:32.214Z",
   "shots": [
     {
       "name": "01-home",
@@ -81,7 +81,7 @@
       "scale": 1,
       "file": "screenshots/06-mobile-intervention.png",
       "horizontalOverflow": false,
-      "sha256": "b9369c5c896d1d8e074eef0c758b11782f03367e2cb90051c0438e138be99b7f"
+      "sha256": "9e528282ac689179058f8069abadd3cc08eadc9f1b7aa481cafee1732e297cf9"
     },
     {
       "name": "07-settings-dark",
@@ -122,7 +122,7 @@
       "scale": 1,
       "file": "screenshots/09-mobile-wide.png",
       "horizontalOverflow": false,
-      "sha256": "e9e3fd076fbfa4e8d5be46ba7b323d58271f9cc8d6572ebca5513da84844161d"
+      "sha256": "0214bffddfb06e5a6176ea9082a8edc5db4d6e71817ba196fabd838d2e1c4544"
     },
     {
       "name": "10-connections",
@@ -217,7 +217,7 @@
       "action": "reply",
       "file": "screenshots/16-mobile-reply.png",
       "horizontalOverflow": false,
-      "sha256": "67f1bd4e7c55e506bd06cff8cebbb554908e070c3950987b9548ce4ab9fb8d00"
+      "sha256": "d30a159294589873c2e8305e4bcad8e173c998b3eacd0987e689b0a69369772e"
     },
     {
       "name": "17-result-request-changes",
