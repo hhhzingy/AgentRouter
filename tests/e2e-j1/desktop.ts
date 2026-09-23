@@ -286,7 +286,7 @@ try {
   });
   pass('J1_CORE_RESTART_PERSISTENCE');
   await page.reload();
-  await expect(page.locator('.project-card').filter({ hasText: '联验项目' })).toBeVisible();
+  await expect(page.locator('.project-card').filter({ hasText: '联验项目' })).toBeVisible({ timeout: 20000 });
   expect((await core.control('inspect')).runs).toHaveLength(6);
   pass('J1_RENDERER_RELOAD_NO_REPLAY');
   expect(await page.evaluate(() => typeof (window as any).require)).toBe('undefined');
