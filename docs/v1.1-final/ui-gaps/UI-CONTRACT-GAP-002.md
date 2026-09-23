@@ -44,3 +44,5 @@ P1
 - UI-CONTRACT-CHANGE: `UI-CONTRACT-CHANGE-20260923`
 
 Core `result.evidence` 只读投影已提供持久 Result/Run/Artifact 事实和真实哈希状态，UI 显示 `NOT_RECORDED` 为“未记录，不能视为通过”。source SHA、结构化测试与限制清单仍缺真实持久数据；最终 Core+UI 真实链路尚未合流验证。
+
+2026-09-23 后继 `772b5a7`：Core 在新 Run 的持久 `execution_provenance` 中记录 `FIXTURE` 或 `REAL_NATIVE`，`result.evidence.execution_layer` 仅投影该权威值；无 Run、旧记录或损坏 provenance 返回 `UNKNOWN`，不能反推为真实执行。UI 明确显示“真实 Native Run 不等于测试通过”或“隔离 Fixture Run”。同 SHA 干净包的真实 Codex Run 数据库确有 `REAL_NATIVE`；Windows W11 真实 Electron Fixture Result 页标记 `J1_RESULT_FIXTURE_PROVENANCE_UI` PASS。源码 SHA、结构化测试记录、已知限制仍未成为 Result 的可信持久事实，故 GAP 总状态保持 PARTIAL，不宣称完整 Evidence 闭环。
