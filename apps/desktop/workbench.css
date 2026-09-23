@@ -317,6 +317,7 @@ textarea, input[type='text'] {
 .workbench-section { display: flex; flex-direction: column; gap: var(--sp-3); }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
 .section-heading h2 { font-size: 20px; }
+.identity-name { display: block; margin-top: 4px; font-size: 20px; line-height: 1.25; }
 .needs-attention-section {
   background: linear-gradient(135deg, #fff9ee 0%, #fff 72%);
   border: 1px solid #ead7aa; border-radius: var(--radius-lg); padding: var(--sp-4);

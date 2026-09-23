@@ -86,7 +86,7 @@ export function RolePage({ roleId }: { roleId: string }) {
       <div className="role-grid">
         <div className="role-col-main">
           <Card className="role-identity-card">
-            <div className="section-heading"><div><span className="eyebrow">ROLE IDENTITY</span><h2>{charter?.displayName??role.name}</h2></div><Badge tone="neutral">Charter r{charter?.revision??role.charterRevision??'—'}</Badge></div>
+            <div className="section-heading"><div><span className="eyebrow">ROLE IDENTITY</span><strong className="identity-name">{charter?.displayName??role.name}</strong></div><Badge tone="neutral">Charter r{charter?.revision??role.charterRevision??'—'}</Badge></div>
             <p className="role-mission">{charter?.spec.mission||role.description}</p>
             {charterUnavailable?<p className="hint tone-warning">当前 Core 未提供 Role Charter；以下只展示 Role 主投影。</p>:!charter?<p className="muted">正在读取职责与有效权限…</p>:<div className="charter-summary"><div><h4>负责</h4><ul className="spec-list">{charter.spec.responsibilities.map((x,i)=><li key={i}>{x}</li>)}</ul></div><div><h4>不负责</h4><ul className="spec-list">{charter.spec.out_of_scope.map((x,i)=><li key={i}>{x}</li>)}</ul></div><div><h4>默认结果交给</h4><p>{charter.spec.default_completion_target.type==='user'?'用户':charter.spec.default_completion_target.role_key}</p></div></div>}
           </Card>
@@ -138,7 +138,7 @@ export function RolePage({ roleId }: { roleId: string }) {
             <Composer role={role} spaceId={role.spaceId} />
           </Card>
 
-          <details className="conversation-secondary"><summary>Conversation · 业务记录与技术事件</summary><Card>
+          <details className="conversation-secondary" open><summary>Conversation · 业务记录与技术事件</summary><Card>
             <p className="muted">Conversation 是辅助时间线。Task、Run、Result 与 Artifact 仍以各自状态为准。</p>
             <HistoryPanel scope={{project_id:project?.id,space_id:role.spaceId}} roleId={role.id}/>
           </Card></details>
