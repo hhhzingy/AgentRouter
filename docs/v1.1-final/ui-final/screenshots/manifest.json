@@ -1,9 +1,9 @@
 {
   "evidenceClass": "VISUAL_FIXTURE",
   "transport": "PREVIEW_MOCK",
-  "sourceSha": "1cd28f19199141b76ee80c56ee767a09340844c2",
+  "sourceSha": "d3b73c58f498b8d3f5dde74f3e2a5e2308237089",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T02:00:28.075Z",
+  "generatedAt": "2026-09-23T02:13:19.067Z",
   "shots": [
     {
       "name": "01-home",
@@ -81,7 +81,7 @@
       "scale": 1,
       "file": "screenshots/06-mobile-intervention.png",
       "horizontalOverflow": false,
-      "sha256": "ca801a607d8d591d27b43cd847509404d2e69e9628d2ef501e472d7774c25ba5"
+      "sha256": "54f36ccbbee1a9c072cafaa2878426e17391fd8a7f4401a7785655c796cadcc2"
     },
     {
       "name": "07-settings-dark",
