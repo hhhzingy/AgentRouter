@@ -1,9 +1,9 @@
 {
   "evidenceClass": "VISUAL_FIXTURE",
   "transport": "PREVIEW_MOCK",
-  "sourceSha": "869fcf7ac5924382a68fa7f803dccb36d8c49b47",
+  "sourceSha": "85d8513e685b7ff888da2cc8f6809ed5a5e21e97",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T03:02:23.623Z",
+  "generatedAt": "2026-09-23T03:16:18.318Z",
   "shots": [
     {
       "name": "01-home",
@@ -29,7 +29,7 @@
       "scale": 1,
       "file": "screenshots/02-workbench.png",
       "horizontalOverflow": false,
-      "sha256": "25cb7554ac2fd1946bf4c6bfd63d77e6bf73b1c6c99f6ca88f85ad3ccd3c62c3"
+      "sha256": "d9de5a1ff4a906f6ce27dae682016892eafacff089c955f3dadce7065b5ace12"
     },
     {
       "name": "03-role-worksession",
@@ -68,7 +68,7 @@
       "scale": 1.5,
       "file": "screenshots/05-workbench-150dpi.png",
       "horizontalOverflow": false,
-      "sha256": "bc0d4d7c4f901e57c526b20cb8313d411c8ddcf3cf518047bb7fca0909e4c197"
+      "sha256": "a5ec1b6856f71ecbde53ffd850e3612f5bd90125f95fc7c1506c66719c612c61"
     },
     {
       "name": "06-mobile-intervention",
@@ -81,7 +81,7 @@
       "scale": 1,
       "file": "screenshots/06-mobile-intervention.png",
       "horizontalOverflow": false,
-      "sha256": "54f36ccbbee1a9c072cafaa2878426e17391fd8a7f4401a7785655c796cadcc2"
+      "sha256": "b9369c5c896d1d8e074eef0c758b11782f03367e2cb90051c0438e138be99b7f"
     },
     {
       "name": "07-settings-dark",
@@ -217,7 +217,7 @@
       "action": "reply",
       "file": "screenshots/16-mobile-reply.png",
       "horizontalOverflow": false,
-      "sha256": "388649cb2f11f710d79c80e0a8a6195f6bba45c08c7f5185cbe700a9cf5c0547"
+      "sha256": "67f1bd4e7c55e506bd06cff8cebbb554908e070c3950987b9548ce4ab9fb8d00"
     }
   ]
 }
