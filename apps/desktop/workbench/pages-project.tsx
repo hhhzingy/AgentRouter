@@ -11,7 +11,6 @@ import {
   Card,
   EmptyState,
   KeyValue,
-  Tabs,
   ToneBadge,
   formatBytes,
   formatDateTime,
@@ -22,8 +21,6 @@ import type { RoleVM } from '../../../packages/client-contract/c1r1p1/generated.
 import { ConversationView, DispatchDrawer, SpaceCard, TaskRow } from './composites.tsx';
 import {WaitingInputSheet} from './task-editor.tsx';
 import { useStore } from './store.tsx';
-
-const TABS = [{key:'overview',label:'工作台'},{key:'timeline',label:'动态'},{key:'inbox',label:'成果'},{key:'settings',label:'设置'}];
 
 export function ProjectPage({ projectId, tab }: { projectId: string; tab?: string }) {
   const s = useStore();
@@ -89,19 +86,13 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
               s.capabilities.role_plans === false ? '当前 Core 不支持 Role Plan' : '观察者只读'
             }
           >
-            <Button variant="secondary" onClick={() => (location.hash = `#/roleplan/${projectId}`)}>
-              添加角色
+            <Button variant="primary" onClick={() => (location.hash = `#/roleplan/${projectId}`)}>
+              ＋ 新建角色
             </Button>
           </CapabilityGate>
           <button className="btn" onClick={()=>setActiveTab('issues')}>待处理（{tabBadges.issues??0}）</button>
         </div>
       </header>
-      <Tabs
-        tabs={TABS.map((t) => ({ ...t, badge: tabBadges[t.key] }))}
-        active={primaryTab}
-        onChange={setActiveTab}
-      />
-
       {primaryTab==='inbox'&&<nav aria-label="成果分类"><button className="btn" aria-pressed={activeTab==='inbox'} onClick={()=>setActiveTab('inbox')}>交付给我</button><button className="btn" aria-pressed={activeTab==='artifacts'} onClick={()=>setActiveTab('artifacts')}>文件与报告</button></nav>}
       {primaryTab==='settings'&&<nav aria-label="设置分类"><button className="btn" onClick={()=>setActiveTab('settings')}>项目设置</button><button className="btn" onClick={()=>setActiveTab('models')}>运行环境</button></nav>}
       {activeTab === 'overview' && (

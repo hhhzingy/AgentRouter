@@ -71,11 +71,11 @@ export function ProjectCard({ project }: { project: ProjectVM }) {
           return (
             <div className="project-card-group" key={sp.id}>
               <span className="group-name">{sp.name}</span>
-              <span className="group-avatars">
+              <span className="group-roles">
                 {members.slice(0, 5).map((r) => (
-                  <a key={r.id} href={`#/role/${r.id}`} aria-label={`${r.name} · ${roleDisplayStates(roleCtx(s.snapshot,r)).map(x=>x.label).join('、')}`}><Avatar name={r.name} tone="neutral"/><StatusDot tone={roleDisplayStates(roleCtx(s.snapshot,r))[0].tone} label={roleDisplayStates(roleCtx(s.snapshot,r))[0].label}/></a>
+                  <a key={r.id} href={`#/role/${r.id}`}><span>{r.name}</span><small>{roleDisplayStates(roleCtx(s.snapshot,r))[0].label}</small></a>
                 ))}
-                {members.length > 5 && <span className="avatar-more">+{members.length - 5}</span>}
+                {members.length > 5 && <span className="avatar-more">另有 {members.length - 5} 位</span>}
               </span>
             </div>
           );

@@ -1,7 +1,7 @@
 import {PendingPanel} from './pending-panel.tsx';
 /** 全局壳：连接/角色（Controller/Observer）/Core 健康/全局计数/断线冻结横幅。 */
 import React, { type ReactNode } from 'react';
-import { Badge, CONNECTION_LABEL } from '../../../packages/ui/index.ts';
+import { Badge } from '../../../packages/ui/index.ts';
 import { formatAsOf } from '../../../packages/ui/format.ts';
 import { useStore } from './store.tsx';
 
@@ -19,7 +19,20 @@ export function Shell({ children }: { children: ReactNode }) {
   const remote = s.contextMode === 'REMOTE_CORE';
   const hostLabel = remote ? `Remote Core ${s.hello.serverInstanceId.slice(0, 8)}` : 'This PC';
   const controlLabel = s.connectionState === 'CONNECTED_CONTROLLER' ? 'Controller' : 'Observer';
-  const route = typeof location === 'undefined' ? '' : location.hash;
+  const [route, setRoute] = React.useState(() => typeof location === 'undefined' ? '#/' : location.hash || '#/');
+  React.useEffect(() => {
+    const onHashChange = () => setRoute(location.hash || '#/');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const routeParts = route.replace(/^#\//, '').split('/');
+  const role = routeParts[0] === 'role' ? snap.roles.find((item) => item.id === routeParts[1]) : undefined;
+  const space = role ? snap.spaces.find((item) => item.id === role.spaceId) : undefined;
+  const projectId = routeParts[0] === 'project' || routeParts[0] === 'roleplan' || routeParts[0] === 'reconfigure'
+    ? routeParts[1]
+    : space?.projectId;
+  const project = projectId ? snap.projects.find((item) => item.id === projectId) : undefined;
+  const projectRoute = project ? `#/project/${project.id}` : '';
   React.useEffect(() => {
     const saved = localStorage.getItem('agentrouter.theme');
     const resolved =
@@ -51,10 +64,6 @@ export function Shell({ children }: { children: ReactNode }) {
           {snap.runs.some((r) => r.nativeSessionDisplay === 'SIMULATED') && (
             <Badge tone="warning">模拟执行器 · 真实 Harness 支持 0</Badge>
           )}
-          <Badge tone={disconnected||reconnecting?'warning':s.hello.health === 'OK' ? 'ok' : 'warning'} title="Core 健康状态">
-            Core{' '}
-            {disconnected||reconnecting?'当前健康未知':s.hello.health === 'OK' ? '正常' : s.hello.health === 'DEGRADED' ? '降级' : '仅诊断'}
-          </Badge>
           {activeRuns>0&&<Badge tone="active" title="活跃 Run（不含 UNKNOWN）">
             ▶ {activeRuns} 运行
           </Badge>}
@@ -66,11 +75,6 @@ export function Shell({ children }: { children: ReactNode }) {
           </Badge>}
         </div>
         <div className="wb-topbar-conn">
-          <Badge
-            tone={disconnected ? 'danger' : reconnecting ? 'warning' : observer ? 'queue' : 'ok'}
-          >
-            {CONNECTION_LABEL[s.connectionState] ?? s.connectionState}
-          </Badge>
           {observer && (
             <button
               className="btn btn-secondary btn-sm"
@@ -107,8 +111,16 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       )}
       <div className="wb-body">
-        <aside className="wb-sidebar" aria-label="全局导航">
+        <aside className="wb-sidebar" aria-label={project ? '项目导航' : '全局导航'}>
           <nav className="global-nav">
+            {project ? <>
+              <a href="#/" className="back-projects"><span aria-hidden="true">←</span><b>Projects</b></a>
+              <div className="nav-context" title={project.name}>{project.name}</div>
+              <a className={route === projectRoute || route === `${projectRoute}/overview` || route.startsWith('#/role/') ? 'active' : ''} href={projectRoute} aria-current={route === projectRoute || route === `${projectRoute}/overview` || route.startsWith('#/role/') ? 'page' : undefined}><span aria-hidden="true">▦</span><b>Workbench</b></a>
+              <a className={route === `${projectRoute}/timeline` ? 'active' : ''} href={`${projectRoute}/timeline`} aria-current={route === `${projectRoute}/timeline` ? 'page' : undefined}><span aria-hidden="true">◷</span><b>Activity</b></a>
+              <a className={route === `${projectRoute}/inbox` ? 'active' : ''} href={`${projectRoute}/inbox`} aria-current={route === `${projectRoute}/inbox` ? 'page' : undefined}><span aria-hidden="true">▤</span><b>Results</b></a>
+              <a className={route === `${projectRoute}/settings` ? 'active' : ''} href={`${projectRoute}/settings`} aria-current={route === `${projectRoute}/settings` ? 'page' : undefined}><span aria-hidden="true">⚙</span><b>Settings</b></a>
+            </> : <>
             <a className={!route || route === '#/' ? 'active' : ''} href="#/" aria-current={!route || route === '#/' ? 'page' : undefined}>
               <span aria-hidden="true">▦</span><b>Projects</b>
             </a>
@@ -118,19 +130,12 @@ export function Shell({ children }: { children: ReactNode }) {
             <a className={route.startsWith('#/settings') ? 'active' : ''} href="#/settings" aria-current={route.startsWith('#/settings') ? 'page' : undefined}>
               <span aria-hidden="true">⚙</span><b>Settings</b>
             </a>
+            </>}
           </nav>
-          <div className="sidebar-identity" title={s.hello.serverInstanceId}>
-            <span className={`status-dot tone-${disconnected ? 'danger' : reconnecting ? 'warning' : 'ok'}`} aria-hidden="true" />
-            <span><b>{remote ? 'Remote Core' : 'Local Core'}</b><small>{controlLabel} · {disconnected ? 'Offline' : reconnecting ? 'Reconnecting' : 'Connected'}</small></span>
-          </div>
         </aside>
         <div className="wb-content">
           <main className="wb-main" id="main-content"><PendingPanel />{children}</main>
           <footer className="wb-footer">
-            <div className="wb-core-identity" title={s.hello.serverInstanceId}>
-              Host {s.hello.platform} · Core {s.hello.serverInstanceId.slice(0, 12)} ·{' '}
-              {s.hello.contractRevision ?? s.hello.protocol}
-            </div>
             <details><summary>帮助与连接说明</summary><span>
               关闭窗口仅退出界面，本地 Core 独立运行；远程状态需重新连接确认。
               {s.hello.capabilities.mock && ' · 预览数据（Mock）'}

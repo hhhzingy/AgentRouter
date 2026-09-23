@@ -19,7 +19,15 @@ const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css'};
 const server=createServer((req,res)=>{const url=new URL(req.url,'http://x');const path=url.pathname==='/'?'/workbench.html':url.pathname;const file=resolve(root,'apps/desktop','.'+path);if(!file.startsWith(resolve(root,'apps/desktop'))||!existsSync(file)){res.writeHead(404);res.end('not found');return;}res.writeHead(200,{'content-type':mime[file.slice(file.lastIndexOf('.'))]??'text/plain'});res.end(readFileSync(file));});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const port=server.address().port;
-const browser=await chromium.launch({executablePath:`${process.env.LOCALAPPDATA}/ms-playwright/chromium-1243/chrome-win64/chrome.exe`});
+const browserCandidates=[
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
+  `${process.env.LOCALAPPDATA}/ms-playwright/chromium-1243/chrome-win64/chrome.exe`,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+];
+const browserExecutable=browserCandidates.find(path=>path&&existsSync(path));
+if(!browserExecutable)throw Error('No Chromium executable found; set PLAYWRIGHT_CHROMIUM_EXECUTABLE');
+const browser=await chromium.launch({executablePath:browserExecutable,args:[`--explicitly-allowed-ports=${port}`]});
 const shots=[
  {name:'01-home',route:'#/',scenario:'full',viewport:{width:1440,height:900},scale:1},
  {name:'02-workbench',route:'#/project/proj_atlas',scenario:'full',viewport:{width:1440,height:900},scale:1},
@@ -36,6 +44,6 @@ const sourceSha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8
 const sourceDirty=Boolean(execFileSync('git',['diff','--name-only','HEAD','--','apps','packages','tests'],{cwd:root,encoding:'utf8'}).trim());
 try{
  for(const shot of shots){const page=await browser.newPage({viewport:shot.viewport,deviceScaleFactor:shot.scale});if(shot.theme)await page.addInitScript(theme=>localStorage.setItem('agentrouter.theme',theme),shot.theme);await page.goto(`http://127.0.0.1:${port}/workbench.html?scenario=${shot.scenario}`,{waitUntil:'networkidle'});await page.evaluate(h=>location.hash=h,shot.route);await page.waitForSelector('.page',{timeout:15000});await page.waitForTimeout(350);const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));if(width.scroll>width.client+1)throw Error(`${shot.name}: horizontal overflow ${width.scroll}>${width.client}`);const file=resolve(outDir,shot.name+'.png');await page.screenshot({path:file,fullPage:true});const sha256=createHash('sha256').update(readFileSync(file)).digest('hex');manifest.push({...shot,file:`screenshots/${shot.name}.png`,horizontalOverflow:false,sha256});await page.close();}
- writeFileSync(resolve(outDir,'manifest.json'),JSON.stringify({sourceSha,sourceDirty,generatedAt:new Date().toISOString(),shots:manifest},null,2)+'\n');
+ writeFileSync(resolve(outDir,'manifest.json'),JSON.stringify({evidenceClass:'VISUAL_FIXTURE',transport:'PREVIEW_MOCK',sourceSha,sourceDirty,generatedAt:new Date().toISOString(),shots:manifest},null,2)+'\n');
 }finally{await browser.close();server.close();rmSync(bundle,{force:true});}
 console.log(`PASS: ${manifest.length} representative UI screenshots`);
