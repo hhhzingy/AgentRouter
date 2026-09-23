@@ -50,6 +50,14 @@
 
 失败分母保留：ZCode 初测在沙箱虚拟用户名 `CodexSandboxOffline` 下因官方凭据密钥派生不符得到 `ZCODE_EXISTING_ACCOUNT_CREDENTIAL_LOCKED`；以原 Windows 用户上下文重测通过，生产 ZCode credential 文件修改时间在本轮前后均为 `2026-09-20T03:06:49.7227767Z`。测试脚本还先后暴露非 pi 仍强制检查 pi、未构建 Management MCP、组合场景租约未重新获取、角色使命误限“只做算术”等编排问题；均保留原失败，修正后独立/组合测试通过。本地独立打包 Electron 窗口冒烟曾因该开发机 GPU 子进程反复以 `-1073741515` 退出而超时，不能计 PASS。Windows CI 的 J1/J2 提供更强桌面自动化证据，但不能代替实体手机或屏幕阅读器验收。
 
+## 2026-09-23 后继固定候选 `84b1ef2`
+
+`84b1ef2b0021bd48c5ac7d0e3f5a42dad7f595be` 仅在 `82b8a28` 的产品实现上补充事务回滚、观察者越权测试和本文档；产品实现未再改。最终干净目录包为 `release/AgentRouter-j3-84b1ef2b0021-afac6996-d59d-4cc4-96fc-b7e38669cce3`，`sourceDirty=false`、`artifactHash=728e4f850fd829f4ad5254ae9eb5fd6762d26b9db45716f03cd15f3aa1720325`；生产 Core/本地命名管道/同数据目录重启 PASS，139 文件敏感扫描 0 findings。该 SHA 的 [C1](https://github.com/hhhzingy/AgentRouter/actions/runs/35872593081) 与 [W11](https://github.com/hhhzingy/AgentRouter/actions/runs/35872592880) 都有实际步骤且 `completed/success`，不是仅以先前 SHA 的 CI 代替。
+
+同一目录包的真实隔离 Harness 最小任务：Codex `run-HKE0s2`、ZCode Bigmodel / `GLM-5.3-Flash` `run-v4XgCO`、pi `run-bW0xpf`、DSH `run-8Kmbn6` 均首跑 `DELIVERED / SUCCEEDED / 42 / PUBLISHED`、Core 正常退出。Kimi `run-3EpSWZ` 首跑 Bootstrap 已交付但 Task Run `UNKNOWN`、无 Result；全新隔离运行 `run-lLpGOT` 复测得 `DELIVERED / SUCCEEDED / 42 / PUBLISHED`，状态为 `PASS_WITH_RETRY_DENOMINATOR`。这些是 Level A 短回归，不等于五家 Level B、Artifact、完整历史迁移在此 SHA 重跑；不使用 Codex reset credit。
+
+`result.evidence.record` 的集成测试覆盖非法 Artifact 引用、事务回滚后无记录、同键重放、不同载荷冲突、第二次声明拒绝、Observer 越权拒绝；v19→v20 升级前备份和存量数据保持测试 PASS。前述完整回归分母 114 文件、653 PASS、2 SKIP，新增断言放在既有测试文件内，并对改动文件再次定向通过。证据投影对源码 SHA、测试结果、已知限制仅给出 `CONTROLLER_ATTESTED`，不是 Core 独立验证；目前还没有真实用户 Result 的声明采集或 Electron 声明页面验收。其余门禁与下节仍未闭环，**仍为 `NOT_V1.1_WINDOWS_RC_READY`**。
+
 ## 仍未闭环的发布门禁
 
 1. UI 原交接状态仍为 `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION`：11 个 P0 页面未逐页获得最终合流 SHA 的真实状态 PASS；17 张预览图为 `PREVIEW_MOCK`，不可充当 `REAL_CORE` 截图。
