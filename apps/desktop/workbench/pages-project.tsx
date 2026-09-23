@@ -50,7 +50,6 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
     .flatMap((r) => r.artifactIds)
     .map((id) => ({ id }))
     .filter((v, i, a) => a.findIndex((x) => x.id === v.id) === i);
-  const ssh = project.hostLabel.startsWith('SSH');
   const waitingTask=tasks.find(t=>t.id===waitingTaskId);
   const waitingRole=waitingTask?s.snapshot.roles.find(r=>r.id===waitingTask.assigneeRoleId):undefined;
   const attentionTasks=tasks.filter(t=>t.state==='WAITING_INPUT'||t.state==='NEEDS_ATTENTION'||Boolean(t.blockedReason));
@@ -72,14 +71,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
           <div className="eyebrow">
             <a href="#/">项目</a> / {project.name}
           </div>
-          <h1>
-            {primaryTab==='inbox'?'成果':primaryTab==='timeline'?'动态':primaryTab==='settings'?'项目设置':project.name}
-            {primaryTab==='overview'&&<span className="project-host-badge" title={ssh ? '远程 Core（SSH）' : '本地 Core'}>
-              {ssh ? '⌁ ' : ''}
-              {project.hostLabel}
-            </span>}
-          </h1>
-          {primaryTab==='overview'&&<p className="project-root">{project.displayRoot}</p>}
+          <h1>{primaryTab==='inbox'?'成果':primaryTab==='timeline'?'动态':primaryTab==='settings'?'项目设置':project.name}</h1>
         </div>
         <div className="project-head-actions">
           {activeTab === 'overview' && <CapabilityGate
