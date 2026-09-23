@@ -1,9 +1,9 @@
 {
   "evidenceClass": "VISUAL_FIXTURE",
   "transport": "PREVIEW_MOCK",
-  "sourceSha": "d3b73c58f498b8d3f5dde74f3e2a5e2308237089",
+  "sourceSha": "2c5ced7b6b669ed99f23ebcdb9521178f4408a13",
   "sourceDirty": false,
-  "generatedAt": "2026-09-23T02:13:19.067Z",
+  "generatedAt": "2026-09-23T02:28:16.104Z",
   "shots": [
     {
       "name": "01-home",
