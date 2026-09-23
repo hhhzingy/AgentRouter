@@ -604,6 +604,8 @@ nav[aria-label] {display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
 .global-nav a:hover { background: var(--surface-2); text-decoration: none; }
 .global-nav a.active { color: var(--primary); background: var(--primary-soft); }
 .global-nav a > span { width: 22px; text-align: center; font-size: 16px; }
+.nav-mobile-label { display: none; }
+@media (max-width: 700px) { .nav-desktop-label { display: none; } .nav-mobile-label { display: inline; } }
 .global-nav .back-projects { color: var(--text-3); border-bottom: 1px solid var(--border); border-radius: 0; margin-bottom: var(--sp-2); }
 .nav-context { padding: 6px 10px 12px; color: var(--text); font-size: var(--fs-xs); font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sidebar-identity { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); min-width: 0; }

@@ -116,10 +116,10 @@ export function Shell({ children }: { children: ReactNode }) {
             {project ? <>
               <a href="#/" className="back-projects"><span aria-hidden="true">←</span><b>Projects</b></a>
               <div className="nav-context" title={project.name}>{project.name}</div>
-              <a className={route === projectRoute || route === `${projectRoute}/overview` || route.startsWith('#/role/') ? 'active' : ''} href={projectRoute} aria-current={route === projectRoute || route === `${projectRoute}/overview` || route.startsWith('#/role/') ? 'page' : undefined}><span aria-hidden="true">▦</span><b>Workbench</b></a>
+              <a className={route === projectRoute || route === `${projectRoute}/overview` || route.startsWith('#/role/') ? 'active' : ''} href={projectRoute} aria-current={route === projectRoute || route === `${projectRoute}/overview` || route.startsWith('#/role/') ? 'page' : undefined}><span aria-hidden="true">▦</span><b><span className="nav-desktop-label">Workbench</span><span className="nav-mobile-label">Home</span></b></a>
               <a className={route === `${projectRoute}/timeline` ? 'active' : ''} href={`${projectRoute}/timeline`} aria-current={route === `${projectRoute}/timeline` ? 'page' : undefined}><span aria-hidden="true">◷</span><b>Activity</b></a>
               <a className={route === `${projectRoute}/inbox` ? 'active' : ''} href={`${projectRoute}/inbox`} aria-current={route === `${projectRoute}/inbox` ? 'page' : undefined}><span aria-hidden="true">▤</span><b>Results</b></a>
-              <a className={route === `${projectRoute}/settings` ? 'active' : ''} href={`${projectRoute}/settings`} aria-current={route === `${projectRoute}/settings` ? 'page' : undefined}><span aria-hidden="true">⚙</span><b>Settings</b></a>
+              <a className={route === `${projectRoute}/settings` ? 'active' : ''} href={`${projectRoute}/settings`} aria-current={route === `${projectRoute}/settings` ? 'page' : undefined}><span aria-hidden="true">⚙</span><b><span className="nav-desktop-label">Settings</span><span className="nav-mobile-label">More</span></b></a>
             </> : <>
             <a className={!route || route === '#/' ? 'active' : ''} href="#/" aria-current={!route || route === '#/' ? 'page' : undefined}>
               <span aria-hidden="true">▦</span><b>Projects</b>
