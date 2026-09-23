@@ -1,12 +1,13 @@
 import {CommandButton} from './command-button.tsx';
 import {LocalDataPanel} from './pending-panel.tsx';
-import {errorMessage} from './action-state.ts';
+import {errorMessage,failureState} from './action-state.ts';
 import {HistoryPanel} from './history.tsx';
 /** 单项目页：概览/协作组/时间线/收件箱/审批与问题/产物/模型与账号/设置。 */
 import React, { useState } from 'react';
 import {
   Badge,
   Button,
+  Dialog,
   CapabilityGate,
   Card,
   EmptyState,
@@ -32,6 +33,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
   const [dispatchRole, setDispatchRole] = useState<RoleVM | null>(null);
   const [waitingTaskId,setWaitingTaskId]=useState<string|null>(null);
   const [selectedResultId,setSelectedResultId]=useState<string|null>(null);
+  const [reviewResultId,setReviewResultId]=useState<string|null>(null);
   const [resultFilter,setResultFilter]=useState<'all'|'pending'>('all');
   if (!project) return <EmptyState title="项目不存在" body="可能已归档或连接的是另一个 Core。" />;
 
@@ -203,7 +205,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
                     <div className="inbox-actions">
                       <CapabilityGate available={!s.readOnly} unavailableReason={s.readOnlyReason}>
                         <CommandButton method="result.accept" params={{id:r.id}}>接受</CommandButton>
-                        <CommandButton method="result.reject" params={{id:r.id}}>拒绝</CommandButton>
+                        <Button onClick={()=>setReviewResultId(r.id)}>请求修改</Button>
                       </CapabilityGate>
                     </div>
                   )}
@@ -344,12 +346,16 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
 
       {dispatchRole && <DispatchDrawer role={dispatchRole} onClose={() => setDispatchRole(null)} />}
       {waitingTask&&waitingRole&&<WaitingInputSheet role={waitingRole} task={waitingTask} onClose={()=>setWaitingTaskId(null)}/>}
+      {reviewResultId&&<RequestChangesDialog resultId={reviewResultId} onClose={()=>setReviewResultId(null)}/>}
     </div>
   );
 }
 
 function ResultDetail({result}:{result:ReturnType<typeof useStore>['snapshot']['results'][number]|undefined}){
  const s=useStore();
+ const [evidence,setEvidence]=useState<{evidence_layer:string;source_revision:string|null;run_id:string|null;harness:string|null;model_id:string|null;artifacts:Array<{id:string;sha256:string|null;state:string}>;test_records_status:string;known_limitations:string|null}|null>(null);
+ const [evidenceError,setEvidenceError]=useState('');
+ React.useEffect(()=>{if(!result)return;let active=true;setEvidence(null);setEvidenceError('');void s.callExtension('result.evidence',{id:result.id}).then(v=>{if(active)setEvidence(v as typeof evidence);},e=>{if(active)setEvidenceError(errorMessage(e));});return()=>{active=false;};},[result?.id,s]);
  if(!result)return null;
  const task=s.snapshot.tasks.find(t=>t.id===result.taskId);
  const role=task?s.snapshot.roles.find(r=>r.id===task.assigneeRoleId):undefined;
@@ -358,8 +364,20 @@ function ResultDetail({result}:{result:ReturnType<typeof useStore>['snapshot']['
   <div className="result-state-grid"><KeyValue k="Task" v={task?.summary??result.taskId}/><KeyValue k="Role" v={role?.name??'Core 未提供'}/><KeyValue k="Run" v={run?RUN_STATE_LABEL[run.state]:'未关联'}/><KeyValue k="交付" v={<Badge tone={result.delivery==='DELIVERED'?'ok':result.delivery==='UNDELIVERABLE'?'danger':result.delivery==='UNKNOWN'?'warning':'neutral'}>{{DELIVERED:'已交付',UNKNOWN:'交付状态未知',UNDELIVERABLE:'无法交付',DISPATCHING:'交付中',HELD:'暂缓交付',QUEUED:'排队交付'}[result.delivery]}</Badge>}/><KeyValue k="验收" v={<Badge tone={result.acceptance==='ACCEPTED'?'ok':result.acceptance==='PENDING'?'warning':'neutral'}>{{ACCEPTED:'已接受',PENDING:'待验收',REJECTED:'已拒绝',NOT_REQUIRED:'无需验收'}[result.acceptance]}</Badge>}/></div>
   {run&&<details><summary>运行技术标识</summary><KeyValue k="Run ID" v={run.id}/></details>}
   <h3>Artifacts / Evidence</h3><p className="muted">Artifact 可读、测试通过与用户接受是不同事实。以下只显示 Core 可验证的产物元数据。</p>
+  {evidence?<div className="result-evidence"><KeyValue k="证据来源" v="Core 持久记录"/><KeyValue k="源码修订" v={evidence.source_revision??'未记录，不能推断'}/><KeyValue k="结构化测试记录" v={evidence.test_records_status==='NOT_RECORDED'?'未记录，不能视为通过':evidence.test_records_status}/><KeyValue k="已核验产物" v={evidence.artifacts.length}/>{evidence.artifacts.map(a=><p key={a.id}>{a.id} · {a.state} · SHA-256 {a.sha256??'未提供'}</p>)}</div>:<p className="muted">{evidenceError?`Evidence 暂不可用：${evidenceError}`:'正在读取 Core Evidence…'}</p>}
   {result.artifactIds.length?<ArtifactList ids={result.artifactIds}/>:<p className="muted">该 Result 没有声明 Artifact。</p>}
  </Card>;
+}
+
+function RequestChangesDialog({resultId,onClose}:{resultId:string;onClose:()=>void}){
+ const s=useStore();
+ const key=`agentrouter.result-feedback:${s.pendingIdentity??s.hello.serverInstanceId}:${resultId}`;
+ const [feedback,setFeedback]=useState(()=>localStorage.getItem(key)??'');
+ const [busy,setBusy]=useState(false),[uncertain,setUncertain]=useState(false),[note,setNote]=useState('');
+ const save=(value:string)=>{setFeedback(value);localStorage.setItem(key,value);};
+ const check=async()=>{setBusy(true);try{const status=await s.callExtension('result.reviewStatus',{id:resultId}) as {acceptance:string;follow_up_task?:{id:string}|null};if(status.acceptance==='REJECTED'&&status.follow_up_task){localStorage.removeItem(key);const pending=s.pendingOperations?.find(r=>r.method==='result.requestChanges'&&(r.params as {id?:string})?.id===resultId);if(pending)await s.removePending?.(pending.recordId);setNote(`已确认修改请求，后续任务 ${status.follow_up_task.id}。原 Result 保留为历史。`);setUncertain(false);}else setNote(`Core 当前验收：${status.acceptance}；尚未确认后续任务，请在待核对提交中继续查询。`);}catch(e){setNote(errorMessage(e));}finally{setBusy(false);}};
+ const submit=async()=>{setBusy(true);setNote('');try{const result=await s.callExtension('result.requestChanges',{id:resultId,feedback:feedback.trim()}) as {follow_up_task:{id:string};published_history_retained:boolean};localStorage.removeItem(key);setNote(`修改意见已保存；后续任务 ${result.follow_up_task.id}。原 Result 保留为历史。`);}catch(e){setUncertain(failureState(e)==='uncertain');setNote(errorMessage(e));}finally{setBusy(false);}};
+ return <Dialog title="请求修改" onClose={onClose} footer={<><Button onClick={onClose}>关闭</Button>{uncertain?<Button onClick={()=>void check()} disabled={busy}>检查状态</Button>:<Button variant="primary" disabled={busy||s.readOnly||!feedback.trim()||feedback.length>4000||note.startsWith('修改意见已保存')} onClick={()=>void submit()}>提交修改请求</Button>}</>}><p>Core 将原 Result 保留为已发布历史，并原子保存反馈、拒绝本次验收、创建后续 Task。</p><label className="field"><span>修改意见</span><textarea value={feedback} maxLength={4000} rows={6} onChange={e=>save(e.target.value)} placeholder="说明需要修改的内容与验收标准"/></label>{uncertain&&<p className="hint tone-warning">提交结果未知，草稿已保留。请检查状态，不要重复提交新操作。</p>}{note&&<p role="status">{note}</p>}</Dialog>;
 }
 
 function ArtifactList({ ids }: { ids: string[] }) {

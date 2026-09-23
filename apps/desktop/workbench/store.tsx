@@ -212,12 +212,13 @@ export function StoreProvider({
   );
   const callExtension = useCallback(
     async (method: string, params: Record<string, unknown>): Promise<unknown> => {
-      if (!method.startsWith('roleSession.') && !method.startsWith('participant.slot.') && !method.startsWith('remoteDevice.'))
+      if (!method.startsWith('roleSession.') && !method.startsWith('participant.slot.') && !method.startsWith('remoteDevice.') && !['result.evidence','result.reviewStatus','result.requestChanges'].includes(method))
         throw Error('UNSUPPORTED_METHOD');
       const mutation =
         method === 'roleSession.create' ||
         method === 'roleSession.switch' ||
         method === 'participant.slot.create' ||
+        method === 'result.requestChanges' ||
         method === 'remoteDevice.createPairing' ||
         method === 'remoteDevice.revoke';
       if (mutation && !lease.current && session.connectionState() !== 'CONNECTED_CONTROLLER')
@@ -245,6 +246,16 @@ export function StoreProvider({
           operationId: 'op_' + crypto.randomUUID(),
           expectedRevision: snapshot.revision,
         });
+      }
+      if (method === 'result.requestChanges') {
+        const records=await getPending();
+        if(records.list().some(r=>r.method===method&&r.state==='uncertain'&&(r.params as {id?:unknown})?.id===params.id))throw Error('CHECK_STATUS_REQUIRED');
+        let command=records.list().find(r=>r.method===method&&JSON.stringify(r.params)===JSON.stringify(params));
+        if(command?.state==='uncertain')throw Error('CHECK_STATUS_REQUIRED');
+        if(!command){const snapshot=(await request('system.snapshot',{})) as {revision:number};command=records.prepare(method,params,Number(snapshot.revision),{});}
+        setPendingOperations(records.list());
+        try{const result=await request(method,command.params,{leaseId:lease.current?.leaseId,operationId:command.operationId,expectedRevision:command.expectedRevision});records.remove(command.recordId);setPendingOperations(records.list());await refresh();return result;}
+        catch(e){if(failureState(e)==='uncertain')records.markUncertain(command.recordId);else records.remove(command.recordId);setPendingOperations(records.list());throw e;}
       }
       const records = await getPending();
       let command = records.list().find(r => r.method === method && JSON.stringify(r.params) === JSON.stringify(params));
@@ -292,7 +303,7 @@ export function StoreProvider({
     const state = hello.connectionState;
     return {
       pendingOperations,pendingIdentity,contextMode,
-      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='roleSession.create'||record.method==='roleSession.switch')await callExtension(record.method,record.params as Record<string,unknown>);else await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
+      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='result.requestChanges')throw Error('CHECK_STATUS_REQUIRED');if(record.method==='roleSession.create'||record.method==='roleSession.switch')await callExtension(record.method,record.params as Record<string,unknown>);else await call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
       removePending:async(id)=>{const records=await getPending();records.remove(id);setPendingOperations(records.list());},
       hello,
       snapshot,

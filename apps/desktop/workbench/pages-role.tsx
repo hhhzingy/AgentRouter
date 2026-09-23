@@ -291,6 +291,8 @@ type RoleSessionPreflight = {
   new_session_available?: boolean;
   migration_fidelity?: string;
   reason_code?: string;
+  capacity_assessment?: {status:string;source:string;observed_at_ms:number|null;reason_code:string};
+  compression_policy?: string;
 };
 
 function migrationFidelityLabel(value?: string) {
@@ -337,7 +339,7 @@ function SessionWorkflow({ role,onWebParticipant }: { role:RoleVM;onWebParticipa
   const [busy, setBusy] = useState(false);
   const [wizardOpen,setWizardOpen]=useState(false);
   const [transferOpId,setTransferOpId]=useState('');
-  const [transferStatus,setTransferStatus]=useState<{state:string;error_code?:string|null}|null>(null);
+  const [transferStatus,setTransferStatus]=useState<{state:string;error_code?:string|null;capacity_assessment?:{status:string;reason_code:string};operation_summary?:{phase:string;can_cancel:boolean;needs_status_check:boolean;source_work_session_active:boolean}}|null>(null);
   const [transferError,setTransferError]=useState('');
   const [error, setError] = useState('');
   const [preflightError, setPreflightError] = useState('');
@@ -369,7 +371,7 @@ function SessionWorkflow({ role,onWebParticipant }: { role:RoleVM;onWebParticipa
   }, [roleId]);
   const checkTransfer=React.useCallback(async (opId:string) => {
     try {
-      const status=(await s.callExtension('roleSession.transferStatus',{role_id:roleId,op_id:opId})) as {state:string;error_code?:string|null};
+      const status=(await s.callExtension('roleSession.transferStatus',{role_id:roleId,op_id:opId})) as typeof transferStatus & {state:string};
       setTransferStatus(status);
       setTransferError('');
       if(status.state==='COMMITTED'){
@@ -405,7 +407,7 @@ function SessionWorkflow({ role,onWebParticipant }: { role:RoleVM;onWebParticipa
   return (
     <Card className="session-card">
       <div className="section-heading"><div><span className="eyebrow">WORKSESSION</span><h2>当前 WorkSession（工作会话）</h2></div>{!s.readOnly&&<Button variant="primary" disabled={Boolean(transferOpId)&&transferStatus?.state!=='COMMITTED'&&transferStatus?.state!=='FAILED'} onClick={()=>setWizardOpen(true)}>新建 WorkSession</Button>}</div>
-      {transferOpId&&<div className="session-preflight" role="status"><b>{transferStatus?.state==='COMMITTED'?'新 WorkSession 已激活':transferStatus?.state==='FAILED'?'新建失败，原 WorkSession 仍需核对':transferStatus?.error_code==='CONTEXT_TRANSFER_UNRESOLVED'?'确认结果未知，请人工核对':transferStatus?.state==='SEEDED'?'目标已初始化，等待 Core 确认':transferStatus?.state==='EXPORTED'?'上下文已导出，目标初始化中':'Core 正在处理上下文迁移'}</b><p>Core 阶段：{transferStatus?.state??'待查询'}{transferStatus?.error_code?` · ${transferStatus.error_code}`:''}。未获确认前不创建第二个 WorkSession。</p>{transferError&&<p role="alert">状态查询失败：{transferError}</p>}<Button variant="secondary" onClick={()=>void checkTransfer(transferOpId)}>检查状态</Button></div>}
+      {transferOpId&&<div className="session-preflight" role="status"><b>{transferStatus?.state==='COMMITTED'?'新 WorkSession 已激活':transferStatus?.state==='FAILED'?'新建失败，原 WorkSession 仍需核对':transferStatus?.error_code==='CONTEXT_TRANSFER_UNRESOLVED'?'确认结果未知，请人工核对':transferStatus?.state==='SEEDED'?'目标已初始化，等待 Core 确认':transferStatus?.state==='EXPORTED'?'上下文已导出，目标初始化中':'Core 正在处理上下文迁移'}</b><p>Core 阶段：{transferStatus?.operation_summary?.phase??transferStatus?.state??'待查询'}{transferStatus?.error_code?` · ${transferStatus.error_code}`:''}。未获确认前不创建第二个 WorkSession。</p>{transferStatus?.operation_summary&&<p>原 WorkSession：{transferStatus.operation_summary.source_work_session_active?'仍处于 ACTIVE':'Core 报告已非 ACTIVE'} · {transferStatus.operation_summary.needs_status_check?'需要继续查询':'无需轮询'} · {transferStatus.operation_summary.can_cancel?'Core 允许取消':'当前不能取消'}</p>}{transferStatus?.capacity_assessment&&<p>容量决策：{transferStatus.capacity_assessment.status==='UNKNOWN'?'未知':transferStatus.capacity_assessment.status==='FITS'?'可直接迁移':transferStatus.capacity_assessment.status==='COMPRESSION_REQUIRED'?'Core 需压缩':transferStatus.capacity_assessment.status}（{transferStatus.capacity_assessment.reason_code}）</p>}{transferError&&<p role="alert">状态查询失败：{transferError}</p>}<Button variant="secondary" onClick={()=>void checkTransfer(transferOpId)}>检查状态</Button></div>}
       <p className="muted">
         每个 WorkSession 固定绑定一个 Harness/Driver 与 Native Session。创建新 WorkSession 时可以从当前上下文迁移，迁移保真度由 Core 报告；历史 WorkSession 只读且永久归档。
       </p>
@@ -424,6 +426,7 @@ function SessionWorkflow({ role,onWebParticipant }: { role:RoleVM;onWebParticipa
                 ? ' 新建工作会话始终可用。'
                 : ''}
           </p>
+          {preflight.capacity_assessment&&<p className="hint tone-warning">容量评估：{preflight.capacity_assessment.status==='UNKNOWN'?'尚未测量，不能确认可直接迁移':preflight.capacity_assessment.status} · 压缩策略：{preflight.compression_policy==='CORE_DECIDES'?'由 Core 决定':preflight.compression_policy??'未上报'}</p>}
           {preflight.migration_fidelity === 'BLOCKED' && (
             <p className="hint tone-warning">当前上下文迁移被 Core 安全阻止；不会静默截断上下文。</p>
           )}
@@ -453,8 +456,8 @@ function CreateWorkSessionWizard({role,preflight,busy,onClose,onWebParticipant,o
  return <Dialog title="新建 WorkSession" onClose={onClose} footer={<><Button onClick={onClose}>{uncertain?'关闭并保留待核对操作':'取消'}</Button>{step>0&&!uncertain&&<Button onClick={()=>setStep(step-1)}>上一步</Button>}{sessionType==='web'?<Button variant="primary" onClick={onWebParticipant}>继续创建 Web Participant Slot</Button>:step<2?<Button variant="primary" disabled={blocked||uncertain||!selectedHarnessAvailable} onClick={()=>setStep(step+1)}>下一步</Button>:!uncertain&&<Button variant="primary" disabled={busy||blocked||!selectedHarnessAvailable} onClick={()=>void submit()}>{busy?'正在创建…':'创建 WorkSession'}</Button>}</>}>
   <ol className="wizard-steps" aria-label="创建 WorkSession 步骤"><li className={step===0?'active':''}>1 Who / Where</li><li className={step===1?'active':''}>2 Context</li><li className={step===2?'active':''}>3 Review</li></ol>
   {step===0&&<div className="wizard-panel"><h3>谁来承担这段上下文</h3><KeyValue k="Role" v={role.name}/><label className={`context-option ${sessionType==='managed'?'selected':''}`}><input type="radio" name="session-type" checked={sessionType==='managed'} onChange={()=>setSessionType('managed')}/><span><b>Managed Harness</b><small>由 Core 创建和管理原生会话。</small></span></label><label className={`context-option ${sessionType==='web'?'selected':''}`}><input type="radio" name="session-type" checked={sessionType==='web'} onChange={()=>setSessionType('web')}/><span><b>Web Participant</b><small>先创建 Slot，再用 Join Instruction 邀请参与者；绑定状态由 Core 确认。</small></span></label>{sessionType==='managed'?<><details><summary>可选：命名 WorkSession</summary><label className="field"><span>名称</span><input type="text" maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder={`工作会话 · ${role.name}`}/></label></details><label className="field"><span>Managed Harness</span><select value={harness} onChange={e=>setHarness(e.target.value as RoleVM['harness'])}>{harnesses.map(([id,cap])=><option key={id} value={id} disabled={!cap.create_session}>{id} · {cap.status}{cap.create_session?'':' · 不支持创建'}</option>)}</select></label>{!selectedHarnessAvailable&&<p className="hint tone-warning">当前 Harness 未声明可创建 WorkSession。</p>}<p className="hint">Harness、workspace 与 native session 在 WorkSession 建立后不能静默更换。</p></>:<p className="hint">下一步只会准备一个 Participant 槽位。参与者加入并由 Core 确认前，不会显示为活跃 WorkSession。</p>}</div>}
-  {step===1&&<div className="wizard-panel"><h3>选择 Context 策略</h3><label className={`context-option ${contextMode==='blank'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='blank'} onChange={()=>setContextMode('blank')}/><span><b>Start blank</b><small>创建全新上下文，不复制当前 WorkSession。</small></span></label><label className={`context-option ${contextMode==='inherit'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='inherit'} onChange={()=>setContextMode('inherit')}/><span><b>Transfer from current WorkSession</b><small>Core 决定可迁移内容与保真度；UI 不估算百分比。</small></span></label>{contextMode==='inherit'&&<div className={`hint ${blocked?'tone-warning':''}`}>Capability: {preflight?.migration_fidelity??'UNKNOWN'} · {preflightReasonLabel(preflight?.reason_code)}{blocked&&' 当前迁移被 Core 阻止，请改用 Start blank。'}</div>}</div>}
-  {step===2&&<div className="wizard-panel"><h3>确认创建</h3><KeyValue k="Role" v={role.name}/><KeyValue k="Harness" v={harness}/><KeyValue k="Context" v={contextMode==='blank'?'Start blank':'Transfer from current WorkSession'}/><KeyValue k="当前任务影响" v="只有 Core 成功激活后才切换；失败时当前 WorkSession 保持安全。"/><p className="hint tone-warning">旧 WorkSession 在成功切换后进入 Historical · Read-only，不能恢复。</p></div>}
+  {step===1&&<div className="wizard-panel"><h3>选择 Context 策略</h3><label className={`context-option ${contextMode==='blank'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='blank'} onChange={()=>setContextMode('blank')}/><span><b>Start blank</b><small>创建全新上下文，不复制当前 WorkSession。</small></span></label><label className={`context-option ${contextMode==='inherit'?'selected':''}`}><input type="radio" name="context" checked={contextMode==='inherit'} onChange={()=>setContextMode('inherit')}/><span><b>Transfer from current WorkSession</b><small>Core 决定可迁移内容与保真度；UI 不估算百分比。</small></span></label>{contextMode==='inherit'&&<div className={`hint ${blocked?'tone-warning':''}`}>Capability: {preflight?.migration_fidelity??'UNKNOWN'} · {preflightReasonLabel(preflight?.reason_code)}{blocked&&' 当前迁移被 Core 阻止，请改用 Start blank。'}<p>容量：{preflight?.capacity_assessment?.status==='UNKNOWN'?'未测量，不能确认 Fits 或需要压缩':preflight?.capacity_assessment?.status??'Core 未提供'} · 压缩：{preflight?.compression_policy==='CORE_DECIDES'?'由 Core 决定':preflight?.compression_policy??'未上报'}</p></div>}</div>}
+  {step===2&&<div className="wizard-panel"><h3>确认创建</h3><KeyValue k="Role" v={role.name}/><KeyValue k="Session Type" v="Managed Harness"/><KeyValue k="Harness" v={harness}/><KeyValue k="Context" v={contextMode==='blank'?'Start blank':'Transfer from current WorkSession'}/><KeyValue k="创建前容量评估" v={preflight?.capacity_assessment?.status==='UNKNOWN'?'未知，Core 尚未测量':preflight?.capacity_assessment?.status??'Core 未提供'}/><KeyValue k="压缩决策" v={preflight?.compression_policy==='CORE_DECIDES'?'由 Core 决定':preflight?.compression_policy??'未上报'}/><KeyValue k="当前任务影响" v="只有 Core 成功激活后才切换；失败时当前 WorkSession 保持安全。"/><p className="hint tone-warning">旧 WorkSession 在成功切换后进入 Historical · Read-only，不能恢复。</p></div>}
   {error&&<div className={`hint ${uncertain?'tone-warning':'tone-danger'}`} role="alert"><b>{uncertain?'创建结果尚未确认，请先核对当前 WorkSession 与待处理操作。':'创建未完成，请检查当前 WorkSession 状态。'}</b><br/>{error}{uncertain&&<p>这次请求可能已经生效。请勿再次点击创建；关闭后在待处理操作中核对。</p>}<details><summary>技术详情</summary>{error}</details></div>}
  </Dialog>;
 }
@@ -463,7 +466,7 @@ function CreateWorkSessionWizard({role,preflight,busy,onClose,onWebParticipant,o
 function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createRequest:number }) {
   const s = useStore();
   const [slots, setSlots] = useState<
-    { id: string; name: string; participant_kind: string; state: string; work_session_id: string | null }[] | null
+    { id: string; name: string; participant_kind: string; state: string; work_session_id: string | null;short_ref?:string;join_instruction_display?:string|null;binding_summary?:{display_name:string;participant_kind:string;state:string;last_seen_at_ms:number|null;external_session_display:string|null}|null }[] | null
   >(null);
   const [error, setError] = useState('');
   const [creating,setCreating]=useState(false),[name,setName]=useState(''),[kind,setKind]=useState<'CHATGPT_WEB'|'MANAGED_HARNESS'|'PAIR_CODE'>('CHATGPT_WEB'),[instruction,setInstruction]=useState('');
@@ -496,7 +499,7 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
         <ul className="slot-list" data-testid="slot-list">
           {slots.map((slot) => (
             <li key={slot.id}>
-              <div><b>{slot.name}</b><span>{slot.participant_kind}</span></div><div><Badge tone={slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'已绑定 · 在线未知':slot.state==='OPEN'?'等待参与者':'已关闭 / 已撤销'}</Badge><span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span></div>
+              <div><b>{slot.name}</b><span>{slot.short_ref??slot.participant_kind}</span>{slot.join_instruction_display&&<small>{slot.join_instruction_display}</small>}</div><div><Badge tone={slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'已绑定 · 在线未知':slot.state==='OPEN'?'等待参与者':'已关闭 / 已撤销'}</Badge><span>{slot.binding_summary?`${slot.binding_summary.display_name} · ${slot.binding_summary.state} · 在线未知`:slot.state==='BOUND'?'绑定详情未上报':'尚无活跃绑定'}</span><span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span></div>
             </li>
           ))}
         </ul>
