@@ -7,8 +7,8 @@
 | 项目 | 值 |
 |---|---|
 | 唯一分支 | `feat/v1.1-ui-kimi`，未创建新分支 |
-| 本轮源码/测试 SHA | `85d8513e685b7ff888da2cc8f6809ed5a5e21e97` |
-| VISUAL_FIXTURE 与本地 Core 证据提交 | `2fafe42`，16 张图，manifest `sourceSha=85d8513`、`sourceDirty=false`；新增 Managed/Web 向导和 Mobile Reply |
+| 本轮源码/测试 SHA | `7779c15f8cf9365d6f18bc31de7e3b8f57026d1c` |
+| VISUAL_FIXTURE 与本地 Core 证据提交 | `7cbed06`，16 张图，manifest `sourceSha=7779c15`、`sourceDirty=false`；新增 Managed/Web 向导和 Mobile Reply |
 | Codex Core 对照 | `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`；仅审计 UI-facing 差异，未 merge |
 | lane 状态 | `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION` |
 
@@ -18,11 +18,11 @@ Core 安全复核报告：普通分支、标签和远端 refs 的敏感扫描为
 
 ## 已交付与验收边界
 
-2026-09-23 再核验：基于 UI 源码/测试 SHA `85d8513`，直接 typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 16 张 FIXTURE 的无横向溢出检查均通过。16 张截图仅为 `PREVIEW_MOCK`；`evidence/M00/desktop.png` 与 `M07/roles.png` 来自真实打包 Electron。
+2026-09-23 再核验：基于 UI 源码/测试 SHA `7779c15`，直接 typecheck、lint、Unit 213/213、Contract+Chaos 70/70、UI 108/108、排除 DUT 的 Integration 209/209，以及 16 张 FIXTURE 的无横向溢出检查均通过。16 张截图仅为 `PREVIEW_MOCK`；`evidence/M00/desktop.png` 与 `M07/roles.png` 来自真实打包 Electron。
 
 `f5614bb` 先完成全部 11 页 P0、10 维 CURRENT↔TARGET 审计，再进入代码。实现包括 Project Shell、Workbench 双栏、Projects 角色预览、Role 双栏、WorkSession transfer operation 查询、Connections 安全降级、Activity/Settings/Result 层级与 Mobile 介入优先顺序。逐页证据在 `visual-diffs/`，本轮没有页面被标为 PASS。
 
-新增：Activity 业务事件默认优先、Results 全部/待验收筛选、Managed/Web WorkSession 入口分离、WAITING_INPUT 不确定提交防重发；Project Workbench 顶部移除重复 Core 徽标和原始路径。当前 SHA 的 packaged Core smoke 与打包 Electron 本地窗口 smoke 已通过：产物 hash `c68b9495393bfe978057de131818b2ce6b6c833d83c264e66f74510d00968ebf`，`sourceDirty=false`，覆盖真实本地 Core 连接、项目创建和控制租约。此测试不是完整 WorkSession/Remote/Mobile 验收。
+新增：Activity 业务事件默认优先、Results 全部/待验收筛选、Managed/Web WorkSession 入口分离、WAITING_INPUT 不确定提交防重发；Project Workbench 顶部移除重复 Core 徽标和原始路径；Slot 的 BOUND 改为中性“已绑定 · 在线未知”。当前 SHA 的 packaged Core smoke 与打包 Electron 本地窗口 smoke 已通过：产物 hash `b764b58afaf78da7a3ea7b3881e8d36e8f90ff10c3add44d7989ce4d00391bbc`，`sourceDirty=false`，覆盖真实本地 Core 连接、项目创建和控制租约。此测试不是完整 WorkSession/Remote/Mobile 验收。
 
 历史 `pnpm typecheck` 依赖准备曾因 Visual Studio C++ Build Tools 缺失失败；本轮现有 `better-sqlite3` 可加载并完成打包，但没有重建依赖。DUT 仍缺 `DSH_BIN`；真实 WorkSession、Remote/Mobile、Electron DPI 与屏幕阅读器未在当前 SHA 重跑。
 

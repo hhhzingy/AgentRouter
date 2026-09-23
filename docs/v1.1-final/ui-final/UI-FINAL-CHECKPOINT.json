@@ -8,9 +8,9 @@
   "ui_branch": "feat/v1.1-ui-kimi",
   "ui_base_sha": "89a41b5e0ff6af198141ded3c1d5c627fdcf9a52",
   "starting_handoff_sha": "9e7388b985f5af2928e6b5c30f60d8039ac9804e",
-  "final_ui_sha": "85d8513e685b7ff888da2cc8f6809ed5a5e21e97",
-  "evidence_sha": "2fafe4230462db37e44b2a66487586c38e907dc9",
-  "evidence_source_sha": "85d8513e685b7ff888da2cc8f6809ed5a5e21e97",
+  "final_ui_sha": "7779c15f8cf9365d6f18bc31de7e3b8f57026d1c",
+  "evidence_sha": "7cbed06a6598e094d058e944a5ae0ffea87885c9",
+  "evidence_source_sha": "7779c15f8cf9365d6f18bc31de7e3b8f57026d1c",
   "source_dirty": false,
   "last_inspected_codex_sha": "9794cdfc4ddf51de431f9e6ae069f3a4fec2d341",
   "last_merged_codex_sha": null,
@@ -41,7 +41,7 @@
   },
   "packaged_electron": {
     "status": "PASS_SMOKE_CURRENT_SHA",
-    "artifact_hash": "c68b9495393bfe978057de131818b2ce6b6c833d83c264e66f74510d00968ebf",
+    "artifact_hash": "b764b58afaf78da7a3ea7b3881e8d36e8f90ff10c3add44d7989ce4d00391bbc",
     "source_dirty": false,
     "scope": "packaged Core/SQLite/pipe and Electron local project/control/navigation; not full J2/remote/mobile"
   },
@@ -72,7 +72,7 @@
   },
   "notes": [
     "VISUAL_FIXTURE is PREVIEW_MOCK, never REAL_CORE evidence",
-    "Prior green tests and packaged evidence belonged to a809417 and must not be applied to 85d8513",
+    "Prior green tests and packaged evidence belonged to a809417 and must not be applied to 7779c15",
     "The lane must not be described as V1.1_WINDOWS_RC_READY"
   ]
 }

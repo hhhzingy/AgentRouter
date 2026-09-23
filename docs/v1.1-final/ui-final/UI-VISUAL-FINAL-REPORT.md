@@ -5,8 +5,8 @@
 ## 固定身份
 
 - 分支：`feat/v1.1-ui-kimi`；未新建分支，未 merge main/tag/release。
-- 本轮源码/测试 SHA：`85d8513e685b7ff888da2cc8f6809ed5a5e21e97`。
-- VISUAL_FIXTURE 与本地 Core 证据提交：`2fafe42`，16 张截图，manifest `sourceSha=85d8513`、`PREVIEW_MOCK`、`sourceDirty=false`。
+- 本轮源码/测试 SHA：`7779c15f8cf9365d6f18bc31de7e3b8f57026d1c`。
+- VISUAL_FIXTURE 与本地 Core 证据提交：`7cbed06`，16 张截图，manifest `sourceSha=7779c15`、`PREVIEW_MOCK`、`sourceDirty=false`。
 - 对照 Core：总负责人更新的最新固定 SHA `9794cdfc4ddf51de431f9e6ae069f3a4fec2d341`；相对旧对照 `3e4df007` 的 UI-facing 差异仅是 client transport 主体类别和 extension mutation metadata 透传，没有 Renderer/生成合同变化。本轮未 merge Core 分支。
 
 ## 阅读与 P0 审计
@@ -31,12 +31,12 @@
 
 ## 本轮验证边界
 
-当前 `85d8513` 上，直接 typecheck 与 lint PASS；Unit + Contract + Chaos + UI 合计 391/391；排除 DUT 的 Integration 209/209；16 张 FIXTURE 截图（`sourceDirty=false`）无横向溢出。打包 Core smoke 与打包 Electron 本地窗口 smoke 均 PASS。
+当前 `7779c15` 上，直接 typecheck 与 lint PASS；Unit + Contract + Chaos + UI 合计 391/391；排除 DUT 的 Integration 209/209；16 张 FIXTURE 截图（`sourceDirty=false`）无横向溢出。打包 Core smoke 与打包 Electron 本地窗口 smoke 均 PASS。
 
 - 直接 `tsc --noEmit` PASS；`node tools/lint.mjs` PASS；`tests/ui` 108/108 PASS。
 - 16 张 `VISUAL_FIXTURE` 截图通过无横向溢出检查，覆盖 1440×900、960×600 @150%、390×844、430×932、Light/Dark，以及实际打开的 Managed/Web 向导和 Reply 抽屉。
 - `pnpm typecheck` 的自动依赖准备因 `better-sqlite3` 需要的 Visual Studio C++ Build Tools 不存在而停止；TypeScript 本体已单独通过。
-- Unit 213/213、Contract+Chaos 70/70、UI 108/108 PASS。排除 DUT 的 Integration 48 文件 209/209 PASS；DUT 缺 `DSH_BIN`。当前 `85d8513` 候选包的 manifest `sourceDirty=false`，artifact hash `c68b9495393bfe978057de131818b2ce6b6c833d83c264e66f74510d00968ebf`；packaged Core/SQLite/命名管道与 Electron 本地 Core/项目创建/控制租约 smoke PASS。真实 WorkSession、Remote/Mobile、125/150/200% Electron 缩放与屏幕阅读器仍未重跑。旧 `a809417` 的绿色证据不能复用于本轮。
+- Unit 213/213、Contract+Chaos 70/70、UI 108/108 PASS。排除 DUT 的 Integration 48 文件 209/209 PASS；DUT 缺 `DSH_BIN`。当前 `7779c15` 候选包的 manifest `sourceDirty=false`，artifact hash `b764b58afaf78da7a3ea7b3881e8d36e8f90ff10c3add44d7989ce4d00391bbc`；packaged Core/SQLite/命名管道与 Electron 本地 Core/项目创建/控制租约 smoke PASS。真实 WorkSession、Remote/Mobile、125/150/200% Electron 缩放与屏幕阅读器仍未重跑。旧 `a809417` 的绿色证据不能复用于本轮。
 
 ## 集成决定
 
