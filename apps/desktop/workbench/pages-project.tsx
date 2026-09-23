@@ -71,16 +71,16 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             <a href="#/">项目</a> / {project.name}
           </div>
           <h1>
-            {project.name}
-            <span className="project-host-badge" title={ssh ? '远程 Core（SSH）' : '本地 Core'}>
+            {primaryTab==='inbox'?'成果':primaryTab==='timeline'?'动态':primaryTab==='settings'?'项目设置':project.name}
+            {primaryTab==='overview'&&<span className="project-host-badge" title={ssh ? '远程 Core（SSH）' : '本地 Core'}>
               {ssh ? '⌁ ' : ''}
               {project.hostLabel}
-            </span>
+            </span>}
           </h1>
-          <p className="project-root">{project.displayRoot}</p>
+          {primaryTab==='overview'&&<p className="project-root">{project.displayRoot}</p>}
         </div>
         <div className="project-head-actions">
-          <CapabilityGate
+          {activeTab === 'overview' && <CapabilityGate
             available={s.capabilities.role_plans !== false && !s.readOnly}
             unavailableReason={
               s.capabilities.role_plans === false ? '当前 Core 不支持 Role Plan' : '观察者只读'
@@ -89,7 +89,7 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
             <Button variant="primary" onClick={() => (location.hash = `#/roleplan/${projectId}`)}>
               ＋ 新建角色
             </Button>
-          </CapabilityGate>
+          </CapabilityGate>}
           <button className="btn" onClick={()=>setActiveTab('issues')}>待处理（{tabBadges.issues??0}）</button>
         </div>
       </header>
@@ -336,10 +336,9 @@ export function ProjectPage({ projectId, tab }: { projectId: string; tab?: strin
         <div className="tab-body" data-tab="settings">
           <div className="settings-grid"><Card>
             <span className="eyebrow">PROJECT</span><h3>项目</h3><LocalDataPanel/>
-            <KeyValue k="项目 ID" v={project.id} />
             <KeyValue k="Core" v={project.hostLabel} />
             <KeyValue k="根路径（来自 Core）" v={project.displayRoot} />
-            <KeyValue k="数据修订" v={`r${project.revision}`} />
+            <details><summary>项目技术标识</summary><KeyValue k="项目 ID" v={project.id} /><KeyValue k="数据修订" v={`r${project.revision}`} /></details>
             <p className="muted">
               项目没有独立的"暂停派发"开关；派发暂停是全局动作（运行时
               pauseDispatch），不会在项目页伪装成项目开关。

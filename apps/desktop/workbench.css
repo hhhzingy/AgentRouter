@@ -214,11 +214,14 @@ p { margin: var(--sp-1) 0; line-height: 1.6; }
 }
 .field { display: flex; flex-direction: column; gap: var(--sp-1); margin: var(--sp-2) 0; }
 .field span { font-size: var(--fs-sm); color: var(--text-2); }
-textarea, input[type='text'] {
-  font: inherit; border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm); padding: var(--sp-2); resize: vertical;
+textarea, select, input[type='text'], input[type='search'], input[type='number'], input[type='url'] {
+  font: inherit; min-height: 38px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3);
   background: var(--surface); color: var(--text);
 }
+textarea { resize: vertical; min-height: 84px; }
+select { appearance: none; padding-right: 32px; background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%); background-position: calc(100% - 16px) 16px, calc(100% - 11px) 16px; background-size: 5px 5px; background-repeat: no-repeat; }
+textarea:disabled, select:disabled, input:disabled { background-color: var(--surface-2); color: var(--text-2); cursor: not-allowed; }
 
 /* ---------- 全局壳 ---------- */
 .wb-shell { min-height: 100vh; display: flex; flex-direction: column; }
@@ -623,6 +626,26 @@ nav[aria-label] {display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
 .page-project .task-row-main { min-width: 0; overflow-wrap: anywhere; }
 .page-project .task-row-states { flex-wrap: wrap; }
 .page-project .task-row-states .badge { flex: none; }
+.page-role .role-grid { display: block; max-width: none; margin-top: var(--sp-4); }
+.page-role .role-col-main { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); grid-template-areas: 'identity identity' 'session current' 'composer slots' 'conversation conversation'; align-items: start; gap: var(--sp-4); }
+.page-role .role-col-main > :nth-child(1) { grid-area: identity; }
+.page-role .role-col-main > :nth-child(2) { grid-area: session; }
+.page-role .role-col-main > :nth-child(3) { grid-area: current; margin: 0; }
+.page-role .role-col-main > :nth-child(4) { grid-area: composer; }
+.page-role .role-col-main > :nth-child(5) { grid-area: conversation; }
+.page-role .role-col-main > :nth-child(6) { grid-area: slots; }
+.page-role .conversation-secondary > summary { font-weight: 600; color: var(--text-2); }
+.connections-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); gap: var(--sp-4); margin: var(--sp-4) 0; align-items: start; }
+.connections-grid .card { min-width: 0; }
+.connections-grid fieldset { border-color: var(--border) !important; }
+.page-project .tab-body[data-tab='timeline'] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); align-items: end; }
+.page-project .tab-body[data-tab='timeline'] > :nth-child(n+3) { grid-column: 1 / -1; }
+.page-project .tab-body[data-tab='timeline'] .field { margin: 0; }
+@media (max-width: 720px) { .page-project .tab-body[data-tab='timeline'] { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) { .connections-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1050px) {
+  .page-role .role-col-main { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'identity' 'session' 'current' 'slots' 'composer' 'conversation'; }
+}
 @media (max-width: 1080px) {
   .page-project .tab-body[data-tab='overview'] { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'attention' 'roles' 'counts' 'running' 'results'; }
   .page-project .overview-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -641,5 +664,6 @@ nav[aria-label] {display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
   .nav-context { display: none; }
   .page-project .role-rows { grid-template-columns: minmax(0, 1fr); }
   .page-project .overview-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .btn, textarea, select, input[type='text'], input[type='search'], input[type='number'], input[type='url'] { min-height: 44px; }
   .sidebar-identity { display: none; }
 }

@@ -6,6 +6,7 @@
 - P0 主参考 11 张和 CURRENT 7 张均实际查看；`f5614bb` 先提交 `UI-VISUAL-BASELINE.md` 与 11 页、10 维 CURRENT↔TARGET 差异矩阵。`UI-VISUAL-CONVERGENCE-001` 继续 OPEN。
 - `0edb0d5` 完成第一批 Project Shell、Workbench 双栏、Projects 角色预览及截图脚本修复；未修改 Core、合同或迁移。截图脚本现在寻找可用 Chromium，并处理随机端口进入浏览器不安全端口列表的问题。
 - Role 页把新建工作会话命名改为不预设迁移策略；创建失败保留向导，结果不确定时禁用再次创建并引导核对待处理操作。项目页移除重复顶级 Tabs 后，同步更新 UI 断言，`tests/ui` 108/108 PASS。
+- 第二批布局：Role 页改为身份 + WorkSession/当前工作双栏，Conversation 默认收起；Activity 两个筛选器并排；Settings 将项目 ID/修订移入技术详情；Connections 拆分 Core、管理客户端、参与者、设备，未启用配对能力时明确禁用。新增 Connections/Activity/Project Settings/Results Dark 的 fixture 截图，总计 13 张，横向溢出检查通过。
 - `node node_modules/typescript/bin/tsc --noEmit` PASS；9 张 `VISUAL_FIXTURE` 代表截图与无横向溢出检查 PASS。manifest 记录 `PREVIEW_MOCK`，不作为真实 Core 验收。
 - 本机 `pnpm typecheck` 的依赖准备因缺少 Visual Studio C++ Build Tools、`better-sqlite3` 无法重编译而中止；TypeScript 本体检查已直接通过。此环境问题与先前 `.git` 沙盒 ACL 初始化失败分开记录。
 - 当前仅 V2/V3 的一部分；Role/New WorkSession/Task/Result/Connections/Activity/Settings/Mobile、a11y 与真实 Core 终版证据尚未收敛。状态保持 `UI_LANE_BLOCKED_FOR_WINDOWS_RC_INTEGRATION`。

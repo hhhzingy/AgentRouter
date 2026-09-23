@@ -38,6 +38,10 @@ const shots=[
  {name:'07-settings-dark',route:'#/settings',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
  {name:'08-projects-dark',route:'#/',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
  {name:'09-mobile-wide',route:'#/project/proj_atlas/inbox',scenario:'observer',viewport:{width:430,height:932},scale:1},
+ {name:'10-connections',route:'#/remote',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'11-activity',route:'#/project/proj_atlas/timeline',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'12-project-settings',route:'#/project/proj_atlas/settings',scenario:'full',viewport:{width:1440,height:900},scale:1},
+ {name:'13-results-dark',route:'#/project/proj_atlas/inbox',scenario:'full',viewport:{width:1440,height:900},scale:1,theme:'dark'},
 ];
 const manifest=[];
 const sourceSha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();

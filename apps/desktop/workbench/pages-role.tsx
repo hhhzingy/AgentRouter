@@ -138,7 +138,7 @@ export function RolePage({ roleId }: { roleId: string }) {
             <Composer role={role} spaceId={role.spaceId} />
           </Card>
 
-          <details className="conversation-secondary" open><summary>Conversation · 业务记录与技术事件</summary><Card>
+          <details className="conversation-secondary"><summary>Conversation · 业务记录与技术事件</summary><Card>
             <p className="muted">Conversation 是辅助时间线。Task、Run、Result 与 Artifact 仍以各自状态为准。</p>
             <HistoryPanel scope={{project_id:project?.id,space_id:role.spaceId}} roleId={role.id}/>
           </Card></details>
