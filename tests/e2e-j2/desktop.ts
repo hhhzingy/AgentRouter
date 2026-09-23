@@ -75,6 +75,23 @@ try{
  expect((await core.session.request('system.snapshot',{})).roles).toHaveLength(7);pass('J2_IMPORT_EXPLICIT_PROJECT_WORKSPACE_MAPPING');
  await page.getByRole('button',{name:'返回项目',exact:true}).click();
 
+ const slotRole=(await core.session.request('system.snapshot',{})).roles[0];
+ await page.evaluate((id:string)=>{location.hash='#/role/'+id;},slotRole.id);
+ await expect(page.getByRole('heading',{name:'WorkSession Slots · 槽位与绑定'})).toBeVisible();
+ await page.getByRole('button',{name:'添加 Slot',exact:true}).click();
+ await page.getByLabel('Slot 名称',{exact:true}).fill('J2 网页参与者入口');
+ await page.getByLabel('Participant 类型',{exact:true}).selectOption('CHATGPT_WEB');
+ await page.getByRole('button',{name:'创建 Slot',exact:true}).click();
+ await expect(page.getByText('Join Instruction',{exact:true})).toBeVisible();
+ const slotList=await core.session.request('participant.slot.list' as never,{role_id:slotRole.id} as never) as {slots:{name:string;state:string;short_ref:string;join_instruction_display:string|null;binding_summary:unknown}[]};
+ const openSlot=slotList.slots.find(x=>x.name==='J2 网页参与者入口');
+ expect(openSlot).toMatchObject({state:'OPEN',binding_summary:null});
+ expect(openSlot!.join_instruction_display).toContain(openSlot!.short_ref);
+ await expect(page.getByTestId('slot-list').getByText('J2 网页参与者入口')).toBeVisible();
+ await expect(page.getByTestId('slot-list').getByText('等待参与者')).toBeVisible();
+ await shot('role-slot-open');pass('J2_REAL_CORE_SLOT_OPEN_JOIN_INSTRUCTION');
+ await page.evaluate((id:string)=>{location.hash='#/project/'+id;},project.id);
+
  const all=await core.session.request('system.snapshot',{}),originalSpace=snap.spaces.find(g=>g.name==='小组 1')!.id,a=all.roles.find(r=>r.name==='资料分析'&&r.spaceId===originalSpace)!,b=all.roles.find(r=>r.name==='实现复核'&&r.spaceId===originalSpace)!,c=all.roles.find(r=>r.name==='补充分析'&&r.spaceId===originalSpace)!;
  const finish={tool:'finish',payload:{outcome:'succeeded',summary:'核验成果',body:'**隔离执行证据**，不是真实模型。',outputs:[]}};
  await core.control('configureFixture',{roleId:a.id,scenario:{steps:[{tool:'wait',payload:{waiting_for:'user_input',reason:'请明确核验范围'}}],continuationSteps:[finish]}});
