@@ -774,6 +774,7 @@ export class ApplicationService extends Plans {
           if (!this.participantValid(id, roleId)) throw Error('PARTICIPANT_GENERATION_STALE');
           const role = this.roleScope(roleId);
           this.authorize(c, { project_id: role.project_id, space_id: role.space_id });
+          this.participantJoin.touchAuthenticatedRequest(roleId, c.principal);
           return Promise.resolve(reply(this.participantJoin.identity(roleId, c.principal)));
         }
         if (this.participantJoin && method === 'participant.leave') {

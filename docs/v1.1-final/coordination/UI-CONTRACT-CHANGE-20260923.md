@@ -12,6 +12,12 @@
 
 UI 可区分 `OPEN/BOUND/CLOSED` 与 Binding 是否存在；不得从 `BOUND` 推断在线。此缺口的“最近在线/外部会话显示”部分仍未解决。
 
+### 合流候选后继增量：可信活动时间与脱敏别名
+
+合流候选新增 migration `019-participant-binding-activity.sql`，仅新认领或同一 ACTIVE Binding principal 经授权检查的请求更新 `last_seen_at_ms`。从 v18 升级的既有 Binding 不回填创建时间，仍为 `null`；Core 为 v18 升级先生成 `before-v19-*` SQLite 备份。该字段语义是“最近已认证活动”，**不是在线心跳或当前连接状态**。`external_session_ref` 已登记时，Slot list 只显示由随机 Binding ID 生成的别名“已登记（绑定 #xxxxxxxx）”，不回显或截取外部引用；未登记时仍为 `null`。UI 显示活动时间与别名，但 `BOUND` 状态继续明确标示“在线未知”。
+
+这关闭了 Core 持久活动来源和不泄露原始引用的展示路径；网页插件尚无 `participant.join` 工具，故真实 ChatGPT 网页会话的 Slot/Binding UI 端到端验收仍未闭环。
+
 ## GAP-002：Result Evidence 只读投影
 
 新增扩展方法 `result.evidence({id})`。仅认证且有项目权限的连接可读取已发布给用户的 Result。返回：`result_id`、`evidence_layer=CORE_PERSISTED_RECORD`、可空 `source_revision/run_id/harness/provider_profile_id/model_id`、Artifact 的 `id/sha256/byte_size/media_type/state`、`tests=[]`、`test_records_status=NOT_RECORDED`、`known_limitations=null`。

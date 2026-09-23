@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, readFileSync, readdirSync, copyFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -69,7 +69,7 @@ it('DB-01:v5→v6→v7 升级恢复 one_current_binding_per_role 且拒绝双当
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 19 });
   // 006 重建 bindings 后 007 恢复了索引
   expect(
     up.prepare("select name from sqlite_master where name='one_current_binding_per_role'").get(),
@@ -104,7 +104,7 @@ it('DB-09:v17→v18 建立正式 TaskInput 账本并强制单次 wait/消费归�
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 19 });
   expect(
     up
       .prepare(
@@ -132,6 +132,34 @@ it('DB-09:v17→v18 建立正式 TaskInput 账本并强制单次 wait/消费归�
     up.prepare('select consumed_by_participant_request_key,consumed_at_ms from task_inputs where id=?').get('ti1'),
   ).toEqual({ consumed_by_participant_request_key: 'claim-1', consumed_at_ms: 3 });
   up.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+it('DB-10:v18→v19 保留既有 Binding 且不把创建时间伪装为最近活动', async () => {
+  mkdirSync('.local/w11-tests', { recursive: true });
+  const dir = mkdtempSync(resolve('.local/w11-tests', 'db10-'));
+  const db = buildUpTo(dir, 18);
+  seedRealData(db);
+  db.prepare("insert into work_session_slots(id,role_id,seq,name,participant_kind,state,work_session_id,binding_generation,created_at_ms) values('slot-old','r1',1,'旧槽','CHATGPT_WEB','BOUND','rs1',1,123)").run();
+  db.prepare("insert into participant_bindings(id,slot_id,role_id,work_session_id,principal,participant_kind,generation,state,request_key,created_at_ms) values('binding-old','slot-old','r1','rs1','web-old','CHATGPT_WEB',1,'ACTIVE','join-old',123)").run();
+  db.close();
+  const { openApplicationStore } = await import(pathToFileURL(resolve('packages/storage/application-store.ts')).href);
+  const up = openApplicationStore(dir, FULL);
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 19 });
+  expect(up.prepare("select state,created_at_ms,last_seen_at_ms from participant_bindings where id='binding-old'").get()).toEqual({ state: 'ACTIVE', created_at_ms: 123, last_seen_at_ms: null });
+  const before = readdirSync(resolve(dir, 'backups')).filter((name) => /^before-v19-.*\.db$/.test(name));
+  expect(before).toHaveLength(1);
+  up.close();
+  const reopened = openApplicationStore(dir, FULL);
+  expect(reopened.prepare("select last_seen_at_ms from participant_bindings where id='binding-old'").get()).toEqual({ last_seen_at_ms: null });
+  reopened.close();
+  const restoredDir = mkdtempSync(resolve('.local/w11-tests', 'db10-restore-'));
+  copyFileSync(resolve(dir, 'backups', before[0]), resolve(restoredDir, 'router.db'));
+  const restored = openApplicationStore(restoredDir, FULL);
+  expect(restored.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 19 });
+  expect(restored.prepare("select state,last_seen_at_ms from participant_bindings where id='binding-old'").get()).toEqual({ state: 'ACTIVE', last_seen_at_ms: null });
+  restored.close();
+  rmSync(restoredDir, { recursive: true, force: true });
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -205,7 +233,7 @@ it('DB-04:升级幂等——v7 库重复打开不再迁移且索引持续生效'
   const first = openApplicationStore(dir, FULL);
   first.close();
   const second = openApplicationStore(dir, FULL);
-  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
+  expect(second.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 19 });
   expect(
     second
       .prepare("select name from sqlite_master where name='one_current_binding_per_role'")
@@ -225,7 +253,7 @@ it('DB-05:011 回填 WorkSession metadata/activation 且 immutable reference 受
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 19 });
   expect(
     up
       .prepare("select harness,driver_id,workspace_affinity_json from role_sessions where id='rs1'")
@@ -300,7 +328,7 @@ it('DB-07:012 建立 Role Context head/state/receipt，并保持 entry append-on
     pathToFileURL(resolve('packages/storage/application-store.ts')).href
   );
   const up = openApplicationStore(dir, FULL);
-  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 18 });
+  expect(up.prepare('select max(version) v from schema_migrations').get()).toEqual({ v: 19 });
   expect(up.prepare("select * from role_context_heads where role_id='r1'").get()).toMatchObject({
     role_id: 'r1',
     head_seq: 0,

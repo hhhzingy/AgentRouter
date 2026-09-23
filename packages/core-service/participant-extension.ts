@@ -51,9 +51,13 @@ export class ParticipantExtension {
       if (!METHODS.includes(method)) throw Error('UNSUPPORTED_METHOD');
       if (context.mode !== 'controller') throw Error('CONTROL_LEASE_REQUIRED');
       // WN03/MCP-03:读路径同样复验 grant/代次/撤销(不只写验证)。
-      context.assertParticipantAttachment(
-        String((frame.params as Record<string, unknown>)?.role_id ?? ''),
-      );
+      const roleId = String((frame.params as Record<string, unknown>)?.role_id ?? '');
+      context.assertParticipantAttachment(roleId);
+      // 已通过当前 grant/generation 检查的请求才可刷新 ACTIVE Binding；不是在线心跳。
+      const seen = this.clock();
+      this.db.prepare(
+        "update participant_bindings set last_seen_at_ms=case when last_seen_at_ms is null or last_seen_at_ms<? then ? else last_seen_at_ms end where role_id=? and principal=? and state='ACTIVE'",
+      ).run(seen, seen, roleId, context.principal);
       const p = (frame.params ?? {}) as Record<string, unknown>;
       if (method === 'participant.inbox')
         return extensionReply(frame.id, this.inbox(String(p.role_id ?? '')));

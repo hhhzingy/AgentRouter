@@ -463,6 +463,17 @@ function CreateWorkSessionWizard({role,preflight,busy,onClose,onWebParticipant,o
 }
 
 /** 规划槽位 / 参与者绑定：与执行槽（role_slots.active_run）分离。 */
+export function slotBindingSummaryLabel(
+  binding: { display_name: string; state: string; last_seen_at_ms: number | null } | null | undefined,
+  slotState: string,
+) {
+  if (!binding) return slotState === 'BOUND' ? '绑定详情未上报' : '尚无活跃绑定';
+  const activity = binding.last_seen_at_ms === null
+    ? '最近活动未知'
+    : `最近已认证活动 ${formatDateTime(binding.last_seen_at_ms)}`;
+  return `${binding.display_name} · ${binding.state} · ${activity} · 在线未知`;
+}
+
 function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createRequest:number }) {
   const s = useStore();
   const [slots, setSlots] = useState<
@@ -499,7 +510,7 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
         <ul className="slot-list" data-testid="slot-list">
           {slots.map((slot) => (
             <li key={slot.id}>
-              <div><b>{slot.name}</b><span>{slot.short_ref??slot.participant_kind}</span>{slot.join_instruction_display&&<small>{slot.join_instruction_display}</small>}</div><div><Badge tone={slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'已绑定 · 在线未知':slot.state==='OPEN'?'等待参与者':'已关闭 / 已撤销'}</Badge><span>{slot.binding_summary?`${slot.binding_summary.display_name} · ${slot.binding_summary.state} · 在线未知`:slot.state==='BOUND'?'绑定详情未上报':'尚无活跃绑定'}</span><span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span></div>
+              <div><b>{slot.name}</b><span>{slot.short_ref??slot.participant_kind}</span>{slot.join_instruction_display&&<small>{slot.join_instruction_display}</small>}</div><div><Badge tone={slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'已绑定 · 在线未知':slot.state==='OPEN'?'等待参与者':'已关闭 / 已撤销'}</Badge><span>{slotBindingSummaryLabel(slot.binding_summary,slot.state)}</span>{slot.binding_summary?.external_session_display&&<span>{slot.binding_summary.external_session_display}</span>}<span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span></div>
             </li>
           ))}
         </ul>

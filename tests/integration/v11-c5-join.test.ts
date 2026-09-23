@@ -110,6 +110,7 @@ it('C5-A: Slot 无 WS 时 join 原子创建新 WS，同 request_key 不建第二
       short_ref: openSlot.short_ref,
       participant_kind: 'CHATGPT_WEB',
       request_key: 'join-a-1',
+      external_session_ref: 'private-session-do-not-display',
     } as never)) as {
       binding_id: string;
       work_session_id: string;
@@ -133,14 +134,24 @@ it('C5-A: Slot 无 WS 时 join 原子创建新 WS，同 request_key 不建第二
     };
     const bound = after.slots.find((x) => x.id === slot.slot_id)!;
     expect(bound.join_instruction_display).toBeNull();
-    expect(bound.binding_summary).toEqual({
+    expect(bound.binding_summary).toMatchObject({
       display_name: 'ChatGPT 网页 Participant',
       participant_kind: 'CHATGPT_WEB',
       state: 'ACTIVE',
-      last_seen_at_ms: null,
-      external_session_display: null,
     });
-    expect(JSON.stringify(bound)).not.toMatch(/human_web|join-a-1|grant_token|claim_code/);
+    expect(bound.binding_summary?.last_seen_at_ms).toEqual(expect.any(Number));
+    expect(bound.binding_summary?.external_session_display).toMatch(/^已登记（绑定 #[a-f0-9]{8}）$/);
+    expect(JSON.stringify(bound)).not.toMatch(/human_web|join-a-1|grant_token|claim_code|private-session-do-not-display/);
+    f.db.prepare('update participant_bindings set last_seen_at_ms=1 where id=?').run(joined.binding_id);
+    await w.request('participant.identity' as never, { role_id: f.roleId } as never);
+    const refreshed = (await f.ext('participant.slot.list', { role_id: f.roleId })) as typeof after;
+    expect(refreshed.slots.find((x) => x.id === slot.slot_id)?.binding_summary?.last_seen_at_ms).toBeGreaterThan(1);
+    f.db.prepare('update participant_bindings set last_seen_at_ms=1 where id=?').run(joined.binding_id);
+    await w.request('participant.inbox' as never, { role_id: f.roleId } as never);
+    expect(f.db.prepare('select last_seen_at_ms from participant_bindings where id=?').get(joined.binding_id)).toMatchObject({ last_seen_at_ms: expect.any(Number) });
+    f.db.prepare('update participant_bindings set last_seen_at_ms=1 where id=?').run(joined.binding_id);
+    await expect(w.request('participant.inbox' as never, { role_id: 'role_invalid' } as never)).rejects.toThrow();
+    expect(f.db.prepare('select last_seen_at_ms from participant_bindings where id=?').get(joined.binding_id)).toEqual({ last_seen_at_ms: 1 });
     expect(joined.identity).toMatchObject({
       slot_state: 'BOUND',
       work_session_state: 'ACTIVE',

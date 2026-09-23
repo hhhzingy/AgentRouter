@@ -25,8 +25,8 @@ assert.equal(manifest.sourceDirty, false);
 assert.equal(manifest.sourceSHA, execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim());
 assert.deepEqual(Object.keys(manifest.mcpEntrypoints).sort(), ['management', 'participantHttp', 'participantStdio']);
 for (const entry of Object.values(manifest.mcpEntrypoints)) assert.ok(existsSync(resolve(dest, entry)));
-assert.equal(manifest.migrations.count, 18);
-assert.equal(manifest.migrations.files.length, 18);
+assert.equal(manifest.migrations.count, 19);
+assert.equal(manifest.migrations.files.length, 19);
 assert.deepEqual(
   manifest.harnessDrivers.map((x) => x.harness).sort(),
   ['codex', 'deepseek_harness', 'kimi_code', 'pi', 'zcode'],

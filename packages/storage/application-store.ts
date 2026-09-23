@@ -53,6 +53,7 @@ export function openApplicationStore(
       '016-participant-workloop.sql',
       '017-work-session-slots.sql',
       '018-task-inputs.sql',
+      '019-participant-binding-activity.sql',
     ].map((name) => readFileSync(new URL(name, migrations), 'utf8'));
     const hashes = sources.map((sql) => createHash('sha256').update(sql).digest('hex'));
     if (
@@ -295,6 +296,19 @@ export function openApplicationStore(
         if ((db.pragma('foreign_key_check') as unknown[]).length)
           throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
         db.prepare('insert into schema_migrations values(18,?,?)').run(Date.now(), hashes[17]);
+      }).immediate();
+    }
+    if (rows.length < 19) {
+      if (existed && rows.length === 18) {
+        const backups = resolve(data, 'backups');
+        mkdirSync(backups, { recursive: true });
+        db.prepare('VACUUM INTO ?').run(resolve(backups, 'before-v19-' + randomUUID() + '.db'));
+      }
+      db.transaction(() => {
+        db.exec(sources[18]);
+        if ((db.pragma('foreign_key_check') as unknown[]).length)
+          throw Error('MIGRATION_FOREIGN_KEY_FAILURE');
+        db.prepare('insert into schema_migrations values(19,?,?)').run(Date.now(), hashes[18]);
       }).immediate();
     }
     db.pragma('journal_mode=WAL');

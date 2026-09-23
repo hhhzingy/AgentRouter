@@ -97,8 +97,8 @@ export class ParticipantJoinExtension {
       .prepare('select id,role_id,seq,name,participant_kind,state,work_session_id,binding_generation,created_at_ms from work_session_slots where role_id=? order by seq')
       .all(roleId) as Record<string, unknown>[];
     const bindings = this.db
-      .prepare("select slot_id,participant_kind,state from participant_bindings where role_id=? and state='ACTIVE'")
-      .all(roleId) as { slot_id: string; participant_kind: ParticipantKind; state: string }[];
+      .prepare("select id,slot_id,participant_kind,state,last_seen_at_ms,(external_session_ref is not null and length(trim(external_session_ref))>0) has_external_session from participant_bindings where role_id=? and state='ACTIVE'")
+      .all(roleId) as { id: string; slot_id: string; participant_kind: ParticipantKind; state: string; last_seen_at_ms: number | null; has_external_session: number }[];
     const bySlot = new Map(bindings.map((binding) => [binding.slot_id, binding]));
     return {
       slots: slots.map((slot) => {
@@ -119,8 +119,10 @@ export class ParticipantJoinExtension {
                 }[binding.participant_kind],
                 participant_kind: binding.participant_kind,
                 state: binding.state,
-                last_seen_at_ms: null,
-                external_session_display: null,
+                last_seen_at_ms: binding.last_seen_at_ms,
+                external_session_display: binding.has_external_session
+                  ? `已登记（绑定 #${binding.id.slice(-8)}）`
+                  : null,
               }
             : null,
         };
@@ -177,6 +179,7 @@ export class ParticipantJoinExtension {
       throw Error('BINDING_GENERATION_STALE');
     return this.db
       .transaction(() => {
+        const joinedAt = this.clock();
         let workSessionId: string | null = slot.work_session_id ?? null;
         if (!workSessionId) {
           const unbound = this.one(
@@ -195,7 +198,7 @@ export class ParticipantJoinExtension {
         const id = 'pbind_' + randomUUID();
         this.db
           .prepare(
-            'insert into participant_bindings(id,slot_id,role_id,work_session_id,principal,participant_kind,external_session_ref,grant_id,generation,state,request_key,created_at_ms) values(?,?,?,?,?,?,?,?,?,\'ACTIVE\',?,?)',
+            'insert into participant_bindings(id,slot_id,role_id,work_session_id,principal,participant_kind,external_session_ref,grant_id,generation,state,request_key,created_at_ms,last_seen_at_ms) values(?,?,?,?,?,?,?,?,?,\'ACTIVE\',?,?,?)',
           )
           .run(
             id,
@@ -208,7 +211,8 @@ export class ParticipantJoinExtension {
             input.grantId ?? null,
             slot.binding_generation,
             input.requestKey,
-            this.clock(),
+            joinedAt,
+            joinedAt,
           );
         this.db
           .prepare("update work_session_slots set state='BOUND',work_session_id=?,claim_code_hash=NULL where id=?")
@@ -217,6 +221,14 @@ export class ParticipantJoinExtension {
         return this.joinView(binding, { ...slot, state: 'BOUND', work_session_id: workSessionId });
       })
       .immediate();
+  }
+
+  /** 最近已认证请求，不等价于仍在线；只有当前 ACTIVE Binding 的同一 principal 可刷新。 */
+  touchAuthenticatedRequest(roleId: string, principal: string) {
+    const seen = this.clock();
+    this.db.prepare(
+      "update participant_bindings set last_seen_at_ms=case when last_seen_at_ms is null or last_seen_at_ms<? then ? else last_seen_at_ms end where role_id=? and principal=? and state='ACTIVE'",
+    ).run(seen, seen, roleId, principal);
   }
 
   identity(roleId: string, principal: string): RoleIdentityPack {
