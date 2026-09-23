@@ -92,6 +92,34 @@ try{
  await shot('role-slot-open');pass('J2_REAL_CORE_SLOT_OPEN_JOIN_INSTRUCTION');
  await page.evaluate((id:string)=>{location.hash='#/project/'+id;},project.id);
 
+ const transitionRole=snap.roles.find(r=>r.name==='证据检查')!;
+ await page.evaluate((id:string)=>{location.hash='#/role/'+id;},transitionRole.id);
+ await expect(page.getByRole('button',{name:'结束并关闭 Slot'})).toBeVisible();
+ await page.getByRole('button',{name:'结束并关闭 Slot'}).click();
+ await expect(page.getByRole('dialog',{name:'结束 WorkSession 并关闭 Slot'})).toBeVisible();
+ await page.getByRole('button',{name:'确认结束并关闭'}).click();
+ await until(()=>core.session.request('participant.slot.list' as never,{role_id:transitionRole.id} as never) as Promise<{slots:{participant_kind:string;state:string}[]}>,v=>v.slots.some(x=>x.participant_kind==='MANAGED_HARNESS'&&x.state==='CLOSED'));
+ await page.getByRole('button',{name:'添加 Slot',exact:true}).click();
+ await page.getByLabel('Slot 名称',{exact:true}).fill('J2 配对接续');
+ await page.getByLabel('Participant 类型',{exact:true}).selectOption('PAIR_CODE');
+ await page.getByRole('button',{name:'创建 Slot',exact:true}).click();
+ let pairInstruction='';
+ try{await expect(page.getByText('Join Instruction',{exact:true})).toBeVisible();pairInstruction=await page.locator('.join-instruction pre').innerText();}
+ finally{await page.evaluate((id:string)=>{location.hash='#/project/'+id;},project.id);}
+ const pairCode=pairInstruction.match(/^claim_code: ([a-f0-9]{24})$/m)?.[1];expect(pairCode).toBeTruthy();
+ const pairSlots=await core.session.request('participant.slot.list' as never,{role_id:transitionRole.id} as never) as {slots:{id:string;name:string;state:string;binding_summary:{last_seen_at_ms:number|null;external_session_display:string|null}|null}[]};
+ const pairSlot=pairSlots.slots.find(x=>x.name==='J2 配对接续')!;
+ await core.session.request('participant.join' as never,{role_id:transitionRole.id,slot_id:pairSlot.id,participant_kind:'PAIR_CODE',claim_code:pairCode,request_key:'j2-pair-join',external_session_ref:'j2-private-external-ref'} as never);
+ const boundSlots=await core.session.request('participant.slot.list' as never,{role_id:transitionRole.id} as never) as typeof pairSlots;
+ const boundSlot=boundSlots.slots.find(x=>x.id===pairSlot.id)!;
+ expect(boundSlot.state).toBe('BOUND');expect(boundSlot.binding_summary?.last_seen_at_ms).toEqual(expect.any(Number));expect(boundSlot.binding_summary?.external_session_display).toMatch(/^已登记（绑定 #[a-f0-9]{8}）$/);expect(JSON.stringify(boundSlot)).not.toContain('j2-private-external-ref');
+ await page.evaluate((id:string)=>{location.hash='#/role/'+id;},transitionRole.id);
+ await expect(page.getByTestId('slot-list').getByText('J2 配对接续')).toBeVisible();
+ await expect(page.getByTestId('slot-list').getByText(/最近已认证活动/)).toBeVisible();
+ await expect(page.getByTestId('slot-list').getByText(/已登记（绑定 #[a-f0-9]{8}）/)).toBeVisible();
+ await shot('role-slot-bound');pass('J2_REAL_CORE_SLOT_BOUND_ACTIVITY_UI');
+ await page.evaluate((id:string)=>{location.hash='#/project/'+id;},project.id);
+
  const all=await core.session.request('system.snapshot',{}),originalSpace=snap.spaces.find(g=>g.name==='小组 1')!.id,a=all.roles.find(r=>r.name==='资料分析'&&r.spaceId===originalSpace)!,b=all.roles.find(r=>r.name==='实现复核'&&r.spaceId===originalSpace)!,c=all.roles.find(r=>r.name==='补充分析'&&r.spaceId===originalSpace)!;
  const finish={tool:'finish',payload:{outcome:'succeeded',summary:'核验成果',body:'**隔离执行证据**，不是真实模型。',outputs:[]}};
  await core.control('configureFixture',{roleId:a.id,scenario:{steps:[{tool:'wait',payload:{waiting_for:'user_input',reason:'请明确核验范围'}}],continuationSteps:[finish]}});

@@ -212,12 +212,13 @@ export function StoreProvider({
   );
   const callExtension = useCallback(
     async (method: string, params: Record<string, unknown>): Promise<unknown> => {
-      if (!method.startsWith('roleSession.') && !method.startsWith('participant.slot.') && !method.startsWith('remoteDevice.') && !['result.evidence','result.reviewStatus','result.requestChanges'].includes(method))
+      if (!method.startsWith('roleSession.') && !method.startsWith('participant.slot.') && method !== 'participant.leave' && !method.startsWith('remoteDevice.') && !['result.evidence','result.reviewStatus','result.requestChanges'].includes(method))
         throw Error('UNSUPPORTED_METHOD');
       const mutation =
         method === 'roleSession.create' ||
         method === 'roleSession.switch' ||
         method === 'participant.slot.create' ||
+        method === 'participant.leave' ||
         method === 'result.requestChanges' ||
         method === 'remoteDevice.createPairing' ||
         method === 'remoteDevice.revoke';
@@ -247,9 +248,9 @@ export function StoreProvider({
           expectedRevision: snapshot.revision,
         });
       }
-      if (method === 'participant.slot.create') {
+      if (method === 'participant.slot.create' || method === 'participant.leave') {
         const records = await getPending();
-        const prior = records.list().find(r => r.method === method && r.state === 'uncertain' && (r.params as { role_id?: unknown })?.role_id === params.role_id && JSON.stringify(r.params) !== JSON.stringify(params));
+        const prior = records.list().find(r => (r.method === 'participant.slot.create' || r.method === 'participant.leave') && r.state === 'uncertain' && (r.params as { role_id?: unknown })?.role_id === params.role_id && (r.method !== method || JSON.stringify(r.params) !== JSON.stringify(params)));
         if (prior) throw Error('PENDING_SLOT_NEEDS_REVIEW');
         let command = records.list().find(r => r.method === method && JSON.stringify(r.params) === JSON.stringify(params));
         if (!command) {
@@ -323,7 +324,7 @@ export function StoreProvider({
     const state = hello.connectionState;
     return {
       pendingOperations,pendingIdentity,contextMode,
-      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='result.requestChanges')throw Error('CHECK_STATUS_REQUIRED');if(record.method==='roleSession.create'||record.method==='roleSession.switch'||record.method==='participant.slot.create')return callExtension(record.method,record.params as Record<string,unknown>);return call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
+      retryPending:async(id)=>{const record=(await getPending()).list().find(r=>r.recordId===id);if(!record)throw Error('NOT_FOUND');if(record.method==='result.requestChanges')throw Error('CHECK_STATUS_REQUIRED');if(record.method==='roleSession.create'||record.method==='roleSession.switch'||record.method==='participant.slot.create'||record.method==='participant.leave')return callExtension(record.method,record.params as Record<string,unknown>);return call(record.method,record.params as MethodMap[Method]['params'],record.scope);},
       removePending:async(id)=>{const records=await getPending();records.remove(id);setPendingOperations(records.list());},
       hello,
       snapshot,

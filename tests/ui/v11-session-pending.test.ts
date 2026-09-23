@@ -48,3 +48,12 @@ it('Slot 创建结果未知时保留同一个 request_key 与 revision，避免�
   const restored=new PendingStore(storage,identity);
   expect(restored.prepare('participant.slot.create',params,99,{})).toMatchObject({operationId:first.operationId,requestKey:first.requestKey,expectedRevision:18,state:'uncertain'});
 });
+
+it('Slot 结束结果未知时保留原键，不能换键重复归档 WorkSession',()=>{
+  const storage=memory(), store=new PendingStore(storage,identity);
+  const params={role_id:'role_a',slot_id:'wslot_a'};
+  const first=store.prepare('participant.leave',params,21,{});
+  store.markUncertain(first.recordId);
+  const restored=new PendingStore(storage,identity);
+  expect(restored.prepare('participant.leave',params,22,{})).toMatchObject({operationId:first.operationId,requestKey:first.operationId,expectedRevision:21,state:'uncertain'});
+});

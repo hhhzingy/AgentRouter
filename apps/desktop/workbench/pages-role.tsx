@@ -481,7 +481,9 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
   >(null);
   const [error, setError] = useState('');
   const [creating,setCreating]=useState(false),[name,setName]=useState(''),[kind,setKind]=useState<'CHATGPT_WEB'|'MANAGED_HARNESS'|'PAIR_CODE'>('CHATGPT_WEB'),[instruction,setInstruction]=useState(''),[uncertain,setUncertain]=useState(false);
+  const [closingSlot,setClosingSlot]=useState<{id:string;name:string;state:string;work_session_id:string|null}|null>(null),[closingUnknown,setClosingUnknown]=useState(false);
   useEffect(()=>{if(!s.pendingOperations?.some(r=>r.method==='participant.slot.create'&&(r.params as {role_id?:unknown})?.role_id===roleId))setUncertain(false);},[s.pendingOperations,roleId]);
+  useEffect(()=>{if(!s.pendingOperations?.some(r=>r.method==='participant.leave'&&(r.params as {role_id?:unknown})?.role_id===roleId))setClosingUnknown(false);},[s.pendingOperations,roleId]);
   useEffect(()=>{if(createRequest>0){setKind('CHATGPT_WEB');setCreating(true);}},[createRequest]);
   const load=React.useCallback(() => {
     let active = true;
@@ -498,6 +500,7 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
   }, [roleId, s]);
   useEffect(() => load(), [load]);
   const create=async()=>{try{const result=await s.callExtension('participant.slot.create',{role_id:roleId,name:name.trim()||'Web Participant',participant_kind:kind}) as {slot_id:string;seq:number;claim_code?:string};const text=[`AgentRouter Participant Join`,`role_id: ${roleId}`,`slot_id: ${result.slot_id}`,`participant_kind: ${kind}`,...(result.claim_code?[`claim_code: ${result.claim_code}`]:[])].join('\n');setInstruction(text);setCreating(false);setName('');setError('');setUncertain(false);load();}catch(e){setUncertain(failureState(e)==='uncertain');setError(errorMessage(e));}};
+  const closeSlot=async()=>{if(!closingSlot)return;try{await s.callExtension('participant.leave',{role_id:roleId,slot_id:closingSlot.id});setClosingSlot(null);setClosingUnknown(false);setInstruction('');setError('');load();}catch(e){setClosingUnknown(failureState(e)==='uncertain');setError(errorMessage(e));}};
   const copy=async(text:string)=>{try{await navigator.clipboard.writeText(text);}catch{setError('无法访问剪贴板，请手动复制 Join Instruction。');}};
   return (
     <Card className="slot-card">
@@ -511,13 +514,14 @@ function SlotBindingPanel({ roleId,createRequest }: { roleId: string;createReque
         <ul className="slot-list" data-testid="slot-list">
           {slots.map((slot) => (
             <li key={slot.id}>
-              <div><b>{slot.name}</b><span>{slot.short_ref??slot.participant_kind}</span>{slot.join_instruction_display&&<small>{slot.join_instruction_display}</small>}</div><div><Badge tone={slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'已绑定 · 在线未知':slot.state==='OPEN'?'等待参与者':'已关闭 / 已撤销'}</Badge><span>{slotBindingSummaryLabel(slot.binding_summary,slot.state)}</span>{slot.binding_summary?.external_session_display&&<span>{slot.binding_summary.external_session_display}</span>}<span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span></div>
+              <div><b>{slot.name}</b><span>{slot.short_ref??slot.participant_kind}</span>{slot.join_instruction_display&&<small>{slot.join_instruction_display}</small>}</div><div><Badge tone={slot.state==='OPEN'?'warning':'neutral'}>{slot.state==='BOUND'?'已绑定 · 在线未知':slot.state==='OPEN'?'等待参与者':'已关闭 / 已撤销'}</Badge><span>{slotBindingSummaryLabel(slot.binding_summary,slot.state)}</span>{slot.binding_summary?.external_session_display&&<span>{slot.binding_summary.external_session_display}</span>}<span>{slot.work_session_id?'WorkSession 已关联':'WorkSession 尚未关联'}</span>{!s.readOnly&&slot.state!=='CLOSED'&&<Button variant="secondary" onClick={()=>setClosingSlot({id:slot.id,name:slot.name,state:slot.state,work_session_id:slot.work_session_id})}>{slot.state==='BOUND'?'结束并关闭 Slot':'关闭 Slot'}</Button>}</div>
             </li>
           ))}
         </ul>
       )}
       {instruction&&<div className="join-instruction"><div><b>Join Instruction</b><span>只显示一次；请交给预期 Participant。</span></div><pre>{instruction}</pre><Button onClick={()=>void copy(instruction)}>复制 Join Instruction</Button></div>}
       {creating&&<Dialog title="添加 WorkSession Slot" onClose={()=>setCreating(false)} footer={<><Button onClick={()=>setCreating(false)}>取消</Button><Button variant="primary" disabled={!name.trim()||uncertain} onClick={()=>void create()}>创建 Slot</Button></>}><label className="field"><span>Slot 名称</span><input type="text" value={name} maxLength={80} onChange={e=>setName(e.target.value)} placeholder="例如：W3 Web Review"/></label><label className="field"><span>Participant 类型</span><select aria-label="Participant 类型" value={kind} onChange={e=>setKind(e.target.value as typeof kind)}><option value="CHATGPT_WEB">ChatGPT Web</option><option value="MANAGED_HARNESS">Managed Harness</option><option value="PAIR_CODE">Pair Code Participant</option></select></label><p className="hint">创建 Slot 只准备一个 Join 位置，不代表 Participant 已绑定或正在运行。</p>{uncertain&&<p role="alert" className="hint tone-warning">创建结果未知；请在待核对提交中按原操作重试，勿用新键重复创建。</p>}</Dialog>}
+      {closingSlot&&<Dialog title={closingSlot.state==='BOUND'?'结束 WorkSession 并关闭 Slot':'关闭未认领 Slot'} onClose={()=>setClosingSlot(null)} footer={<><Button onClick={()=>setClosingSlot(null)}>取消</Button><Button variant="danger" disabled={closingUnknown} onClick={()=>void closeSlot()}>{closingSlot.state==='BOUND'?'确认结束并关闭':'确认关闭 Slot'}</Button></>}><p>将关闭「{closingSlot.name}」；关闭后该 Slot 不能再认领。</p>{closingSlot.work_session_id&&<p className="hint tone-warning">关联的 WorkSession 会永久归档、变为只读，不能重新激活。若仍有未完成任务或运行，Core 将拒绝结束。</p>}{closingUnknown&&<p role="alert" className="hint tone-warning">结果未知。请在待核对提交中按原操作重试或核对，不要发起第二次关闭。</p>}</Dialog>}
     </Card>
   );
 }
