@@ -20,6 +20,7 @@
     "016-participant-workloop.sql": "4989318ce97a9b6842174c92745cb3e3ed5ceed8665a4aa6da5a228c2820a740",
     "017-work-session-slots.sql": "bdf7e3e65816fd48ac2cfd82384faa7d0bca0d846ca4b2b22412146a4917ec96",
     "018-task-inputs.sql": "64402edcf2fb96b1cbe63d2463a9886b1ab71ee04d740a304dd4df5881449c2c",
-    "019-participant-binding-activity.sql": "5283ff7dd58dbe06c27cb1eb77a920df69574beb2d878c30752a57a3f8070f19"
+    "019-participant-binding-activity.sql": "5283ff7dd58dbe06c27cb1eb77a920df69574beb2d878c30752a57a3f8070f19",
+    "020-result-evidence-attestation.sql": "9ad3ab837db5c85962c70a5d21544fb351be67d1fd8adf816d647aeb7a6b95bb"
   }
 }

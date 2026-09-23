@@ -164,6 +164,37 @@ it('C6 Gate: Management 派任务，Participant join/claim/artifact/result，下
       artifacts: [{ id: art.artifact_id, sha256: art.sha256, state: 'AVAILABLE' }],
     });
     expect(evidence.tests).toEqual([]);
+    const evidenceOptions = {
+      leaseId: f.leaseId, operationId: 'evidence-c6',
+      expectedRevision: (await f.s.request('system.snapshot', {})).revision,
+    };
+    await expect(f.s.request('result.evidence.record' as never, {
+      id: result.id, source_revision: 'a'.repeat(40),
+      tests: [{ name: 'isolated integration', outcome: 'PASS', evidence_artifact_id: 'art_not_in_result' }],
+      known_limitations: [],
+    } as never, evidenceOptions as never)).rejects.toThrow('INVALID_PARAMS');
+    const declaration = {
+      id: result.id, source_revision: 'a'.repeat(40),
+      tests: [{ name: 'isolated integration', outcome: 'PASS', evidence_artifact_id: art.artifact_id }],
+      known_limitations: ['仅隔离环境复核'],
+    };
+    const recorded = await f.s.request('result.evidence.record' as never, declaration as never, evidenceOptions as never) as { source: string };
+    expect(recorded.source).toBe('CONTROLLER_ATTESTED');
+    expect(await f.s.request('result.evidence.record' as never, declaration as never, evidenceOptions as never)).toEqual(recorded);
+    await expect(f.s.request('result.evidence.record' as never, {
+      ...declaration, known_limitations: ['different'],
+    } as never, evidenceOptions as never)).rejects.toThrow('OPERATION_CONFLICT');
+    const attested = await f.s.request('result.evidence' as never, { id: result.id } as never) as {
+      source_revision: string; tests: unknown[]; known_limitations: string[]; test_records_status: string;
+    };
+    expect(attested).toMatchObject({
+      source_revision: 'a'.repeat(40), test_records_status: 'CONTROLLER_ATTESTED',
+      tests: declaration.tests, known_limitations: declaration.known_limitations,
+    });
+    await expect(f.s.request('result.evidence.record' as never, declaration as never, {
+      ...evidenceOptions, operationId: 'evidence-second',
+      expectedRevision: (await f.s.request('system.snapshot', {})).revision,
+    } as never)).rejects.toThrow('PLAN_STATE_CONFLICT');
     const binding = f.db.prepare('select id,epoch from bindings where role_id=? and is_current=1').get(f.roleId) as { id: string; epoch: number };
     f.db.prepare("insert into runs(id,role_id,binding_id,task_id,kind,binding_epoch,request_snapshot_json,state,created_at_ms,execution_provenance) values(?,?,?,?,?,?,?,'SUCCEEDED',?,?)")
       .run('run_c6_fixture_evidence', f.roleId, binding.id, task.id, 'TASK', binding.epoch, '{}', Date.now(), JSON.stringify({execution_layer:'FIXTURE'}));

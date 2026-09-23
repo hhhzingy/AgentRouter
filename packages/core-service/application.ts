@@ -564,7 +564,7 @@ export class ApplicationService extends Plans {
     const c = this.connection(id);
     if (
       typeof (raw as { method?: unknown })?.method === 'string' &&
-      ['result.evidence', 'result.reviewStatus', 'result.requestChanges'].includes(
+      ['result.evidence', 'result.evidence.record', 'result.reviewStatus', 'result.requestChanges'].includes(
         String((raw as { method?: unknown }).method),
       )
     ) {
@@ -575,13 +575,16 @@ export class ApplicationService extends Plans {
         const frame = validateExternalApiFrame(raw);
         const method = String(frame.method);
         const params = (frame.params ?? {}) as Record<string, unknown>;
-        const allowed = method === 'result.requestChanges' ? ['id', 'feedback'] : ['id'];
+        const allowed = method === 'result.requestChanges' ? ['id', 'feedback']
+          : method === 'result.evidence.record' ? ['id', 'source_revision', 'tests', 'known_limitations'] : ['id'];
         if (
           Object.keys(params).some((key) => !allowed.includes(key)) ||
           typeof params.id !== 'string' ||
           !/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(params.id)
         ) throw Error('INVALID_PARAMS');
-        const result = method === 'result.requestChanges'
+        const result = method === 'result.evidence.record'
+          ? this.recordResultEvidence(id, c, frame, params)
+          : method === 'result.requestChanges'
           ? this.requestResultChanges(id, c, frame, String(params.id), params.feedback)
           : this.resultReviewRead(c, method, String(params.id));
         return { v: 1, id: frame.id, result };
@@ -965,19 +968,24 @@ export class ApplicationService extends Plans {
             executionLayer = provenance.execution_layer;
         }
       } catch { /* legacy or corrupt provenance is not real-execution evidence */ }
+      const attestation = this.one(
+        'select source_revision,tests_json,limitations_json,principal,client_id,recorded_at_ms from result_evidence_attestations where result_id=?',
+        result.id,
+      );
       return {
         result_id: result.id,
         evidence_layer: 'CORE_PERSISTED_RECORD',
         execution_layer: executionLayer,
-        source_revision: null,
+        source_revision: attestation?.source_revision ?? null,
         run_id: run?.id ?? null,
         harness: run?.harness ?? null,
         provider_profile_id: typeof model.provider_profile_id === 'string' ? model.provider_profile_id : null,
         model_id: typeof model.model_id === 'string' ? model.model_id : null,
         artifacts,
-        tests: [],
-        test_records_status: 'NOT_RECORDED',
-        known_limitations: null,
+        tests: attestation ? JSON.parse(String(attestation.tests_json)) : [],
+        test_records_status: attestation ? 'CONTROLLER_ATTESTED' : 'NOT_RECORDED',
+        known_limitations: attestation ? JSON.parse(String(attestation.limitations_json)) : null,
+        attestation: attestation ? { source: 'CONTROLLER_ATTESTED', principal: attestation.principal, client_id: attestation.client_id, recorded_at_ms: attestation.recorded_at_ms } : null,
       };
     }
     const followUp = this.one(
@@ -995,6 +1003,71 @@ export class ApplicationService extends Plans {
       follow_up_run_id: run?.id ?? null,
       published_history_retained: true,
     };
+  }
+  private recordResultEvidence(
+    connectionId: string,
+    c: Connection,
+    frame: import('../client-contract/external-api-1.ts').ExternalApiFrame,
+    params: Record<string, unknown>,
+  ) {
+    if (!c.mayAcquireController || c.mode !== 'controller' ||
+      !frame.client_id || frame.client_id !== c.clientId ||
+      !frame.lease_id || !frame.operation_id || !Number.isSafeInteger(frame.expected_revision))
+      throw Error('CONTROL_LEASE_REQUIRED');
+    this.checkLease(connectionId, frame.lease_id);
+    const sourceRevision = params.source_revision;
+    if (sourceRevision !== null && sourceRevision !== undefined &&
+      (typeof sourceRevision !== 'string' || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(sourceRevision)))
+      throw Error('INVALID_PARAMS');
+    const tests = params.tests;
+    const limitations = params.known_limitations;
+    if (!Array.isArray(tests) || tests.length > 30 || !Array.isArray(limitations) || limitations.length > 20 ||
+      tests.some((t) => !t || typeof t !== 'object' || Array.isArray(t) ||
+        Object.keys(t).some((k) => !['name', 'outcome', 'evidence_artifact_id'].includes(k)) ||
+        typeof t.name !== 'string' || !t.name.trim() || t.name.length > 160 ||
+        !['PASS', 'FAIL', 'SKIP', 'UNKNOWN'].includes(t.outcome) ||
+        (t.evidence_artifact_id !== undefined && (typeof t.evidence_artifact_id !== 'string' || !/^[A-Za-z][A-Za-z0-9_.:-]{0,159}$/.test(t.evidence_artifact_id)))) ||
+      limitations.some((x) => typeof x !== 'string' || !x.trim() || x.length > 500) ||
+      (!sourceRevision && tests.length === 0 && limitations.length === 0)) throw Error('INVALID_PARAMS');
+    const resultId = String(params.id);
+    const source = this.resultReviewRow(c, resultId);
+    const outputs = JSON.parse(String(source.outputs_json)) as Array<{type?:string;kind?:string;id?:string;artifact_id?:string}>;
+    const outputIds = new Set(outputs.filter((o) => o.type === 'artifact' || o.kind === 'artifact').map((o) => o.id ?? o.artifact_id));
+    if (tests.some((t) => t.evidence_artifact_id && !outputIds.has(t.evidence_artifact_id))) throw Error('INVALID_PARAMS');
+    const normalized = {
+      source_revision: sourceRevision ?? null,
+      tests: tests.map((t) => ({ name: t.name.trim(), outcome: t.outcome,
+        ...(t.evidence_artifact_id ? { evidence_artifact_id: t.evidence_artifact_id } : {}) })),
+      known_limitations: limitations.map((x) => x.trim()),
+    };
+    const hash = digest({ method: 'result.evidence.record', result_id: resultId, ...normalized });
+    let replay = false;
+    const response = this.db.transaction(() => {
+      const old = this.one('select request_hash,response_json from command_ledger where principal=? and client_id=? and operation_id=?', c.principal, c.clientId, frame.operation_id);
+      if (old) {
+        if (old.request_hash !== hash) throw Error('OPERATION_CONFLICT');
+        replay = true;
+        return JSON.parse(String(old.response_json));
+      }
+      if (frame.expected_revision !== this.revision) throw Error('REVISION_CONFLICT');
+      if (this.one('select result_id from result_evidence_attestations where result_id=?', resultId)) throw Error('PLAN_STATE_CONFLICT');
+      this.next();
+      const at = this.clock();
+      this.db.prepare('insert into result_evidence_attestations values(?,?,?,?,?,?,?,?)')
+        .run(resultId, normalized.source_revision, JSON.stringify(normalized.tests), JSON.stringify(normalized.known_limitations), c.principal, c.clientId, frame.operation_id, at);
+      const recorded = { result_id: resultId, source: 'CONTROLLER_ATTESTED', recorded_at_ms: at };
+      if (this.failNextCommit) { this.failNextCommit = false; throw Error('INTERNAL_ERROR'); }
+      this.db.prepare('insert into command_ledger values(?,?,?,?,?,?)')
+        .run(c.principal, c.clientId, frame.operation_id, hash, JSON.stringify(recorded), at);
+      this.db.prepare('insert into entity_revisions values(?,?,?) on conflict(entity_id) do update set revision=excluded.revision,updated_at_ms=excluded.updated_at_ms')
+        .run(resultId, this.revision, at);
+      this.db.prepare('insert into application_audit(project_id,actor,kind,detail_json,at_ms) values(?,?,?,?,?)')
+        .run(source.project_id, c.principal, 'result.evidence.record', JSON.stringify({ client_id: c.clientId, operation_id: frame.operation_id }), at);
+      this.event(source.project_id, 'result.evidence.record', resultId);
+      return recorded;
+    }).immediate();
+    if (!replay) this.notify();
+    return response;
   }
   private requestResultChanges(
     connectionId: string,

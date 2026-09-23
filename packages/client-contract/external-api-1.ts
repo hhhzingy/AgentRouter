@@ -15,6 +15,7 @@ export function isExtensionMethod(method: unknown): boolean {
       (method.startsWith('roleSession.') ||
         method.startsWith('participant.') ||
         method === 'result.evidence' ||
+        method === 'result.evidence.record' ||
         method === 'result.reviewStatus' ||
         method === 'result.requestChanges' ||
         method.startsWith('contract.') ||
