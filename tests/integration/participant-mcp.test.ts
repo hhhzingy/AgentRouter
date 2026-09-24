@@ -54,6 +54,19 @@ it(
     const v = await s.request('rolePlan.validate', { plan });
     await mutate('rolePlan.apply', { plan, plan_hash: v.planHash, confirmed: true, permission_grants: [{ role_key: plan.roles[0].role_key, permissions: plan.roles[0].requested_permissions }] }, { project_id: project.id }, 'apply');
     const roleId = ((await s.request('role.list', { scope: { project_id: project.id } })) as any).items[0].id;
+    const existingSlots = await s.request('participant.slot.list' as never, { role_id: roleId } as never) as any;
+    for (const old of existingSlots.slots ?? []) {
+      if (old.state !== 'CLOSED') await s.request('participant.leave' as never, { role_id: roleId, slot_id: old.id } as never, {
+        leaseId: (lease as any).leaseId, operationId: 'p3-leave-' + old.id,
+        requestKey: 'p3-leave-' + old.id, expectedRevision: (await snap()).revision,
+      } as never);
+    }
+    const webSlot = await s.request('participant.slot.create' as never, { role_id: roleId, name: 'W1', participant_kind: 'CHATGPT_WEB' } as never, {
+      leaseId: (lease as any).leaseId, operationId: 'p3-web-slot', requestKey: 'p3-web-slot', expectedRevision: (await snap()).revision,
+    } as never) as any;
+    const slotList = await s.request('participant.slot.list' as never, { role_id: roleId } as never) as any;
+    const shortRef = slotList.slots.find((item: any) => item.id === webSlot.slot_id)?.short_ref;
+    expect(shortRef).toMatch(/^W[1-9][0-9]*$/);
     const grantA = await s.request('participant.grant.issue' as never, { role_id: roleId } as never, { leaseId: (lease as any).leaseId });
     const grantToken = (grantA as any).token;
     await setup.close();
@@ -91,6 +104,21 @@ it(
       if (r.isError) throw new Error(v.error);
       return v;
     };
+    const toolNames = (await client.listTools()).tools.map((tool) => tool.name);
+    expect(toolNames).toContain('participant_join');
+    expect(toolNames).toContain('participant_identity');
+    await expect(call('participant_join', { params: { short_ref: shortRef } })).rejects.toThrow('REQUEST_KEY_REQUIRED');
+    const joined = await call('participant_join', { params: { short_ref: shortRef, request_key: 'p3-join-1' } });
+    const joinReplay = await call('participant_join', { params: { short_ref: shortRef, request_key: 'p3-join-1' } });
+    expect(joinReplay.binding_id).toBe(joined.binding_id);
+    expect(joined.identity).toMatchObject({ role_id: roleId, slot_state: 'BOUND' });
+    expect(joined.identity.short_ref).toMatch(new RegExp(':' + shortRef + '$'));
+    const identity = await call('participant_identity');
+    expect(identity).toMatchObject({ role_id: roleId, slot_state: 'BOUND' });
+    expect(identity.short_ref).toBe(joined.identity.short_ref);
+    const joinedDb = new Database(resolve(dir, 'core/router.db'), { readonly: true });
+    expect(joinedDb.prepare("select count(*) n from participant_bindings where role_id=? and state='ACTIVE'").get(roleId)).toEqual({ n: 1 });
+    joinedDb.close();
     // 收件箱只读
     let inbox: any;
     try {

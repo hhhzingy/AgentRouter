@@ -56,6 +56,21 @@ export async function openParticipantBridge({ data, roleId, grant }) {
   const spaceId = attachInfo.space_id;
   const frameMemo = new Map(); // operationId → { biz, expectedRevision }(见 send_user_input 注释)
   const call = async (name, args = {}) => {
+    if (name === 'participant_join') {
+      const p = args.params ?? {};
+      if (typeof p.short_ref !== 'string' || !/^W[1-9][0-9]*$/.test(p.short_ref))
+        throw Error('SLOT_SHORT_REF_REQUIRED');
+      if (typeof p.request_key !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(p.request_key))
+        throw Error('REQUEST_KEY_REQUIRED');
+      return session.request('participant.join', {
+        role_id: roleId,
+        short_ref: p.short_ref,
+        participant_kind: 'CHATGPT_WEB',
+        request_key: p.request_key,
+      });
+    }
+    if (name === 'participant_identity')
+      return session.request('participant.identity', { role_id: roleId });
     if (name === 'participant_read_inbox')
       return session.request('participant.inbox', { role_id: roleId });
     if (name === 'participant_read_artifact') {
@@ -156,6 +171,31 @@ export async function openParticipantBridge({ data, roleId, grant }) {
 }
 
 export const PARTICIPANT_TOOLS = [
+  {
+    name: 'participant_join',
+    description:
+      '参与者:按 Controller 发出的 Join Instruction 中 W 编号认领本角色 OPEN 的 ChatGPT Web Slot。先调用一次；request_key 必填且同一意图重试保持不变。仅现有受信 grant 可调用，不创建或签发 grant。返回绑定身份与 WorkSession。',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['params'],
+      properties: {
+        params: {
+          type: 'object', additionalProperties: false, required: ['short_ref', 'request_key'],
+          properties: {
+            short_ref: { type: 'string', pattern: '^W[1-9][0-9]*$' },
+            request_key: { type: 'string', maxLength: 128 },
+          },
+        },
+      },
+    },
+    annotations: { readOnlyHint: false },
+  },
+  {
+    name: 'participant_identity',
+    description:
+      '参与者:读取当前已认证绑定的 Project、Role、WorkSession 和 Slot 安全摘要。BOUND 只表示绑定，不表示网页 GPT 正在线思考。加入后用此工具核对身份。',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true },
+  },
   {
     name: 'participant_read_inbox',
     description:

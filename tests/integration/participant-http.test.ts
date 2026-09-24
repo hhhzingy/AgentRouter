@@ -115,6 +115,8 @@ it(
       // 1) 正确 token → tools/list 200
       const ok = await httpJson(address, { jsonrpc: '2.0', id: 1, method: 'tools/list' }, token);
       expect(ok.status).toBe(200);
+      expect(ok.text).toContain('participant_join');
+      expect(ok.text).toContain('participant_identity');
       // 2) 错误 token → 401
       const bad = await httpJson(address, { jsonrpc: '2.0', id: 2, method: 'tools/list' }, token.slice(0, -2) + 'zz');
       expect(bad.status).toBe(401);
