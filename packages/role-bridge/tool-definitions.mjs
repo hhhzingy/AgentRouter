@@ -6,7 +6,7 @@ const descriptions = {
   route_send:
     '按任务合同向另一个 Role 发送请求或通知；发送成功不完成当前任务。Send a routed request or notice; success does not complete the current task.',
   route_finish:
-    '当前任务的必需终态提交。完成工作及所有 Artifact 操作后必须调用一次；成功后停止。Required terminal submission for the current task. Call once after all work and Artifact operations, then stop.',
+    '当前任务的必需终态提交。必填 outcome（不是 status）、summary、body、outputs；例如 {"outcome":"succeeded","summary":"已完成","body":"结果说明","outputs":[{"kind":"artifact","artifact_id":"artifact_..."}]}。完成 Artifact 操作后调用；成功后停止。Required terminal submission. Required keys: outcome (not status), summary, body, outputs. Copy artifact reference from route_artifact_write into outputs. Call after all work, then stop.',
   route_wait:
     '等待已路由子任务或输入，不完成当前任务。Wait for routed work or input; this never completes the current task.',
   route_artifact_write:

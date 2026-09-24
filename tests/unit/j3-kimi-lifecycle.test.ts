@@ -9,9 +9,10 @@ it('Kimi 任务轮作废一次性 Bootstrap ACK 并用 route_finish 提交终态
   expect(prompt).toContain('指令已作废');
   expect(prompt).toContain(JSON.stringify(charter));
   expect(prompt).toContain(JSON.stringify(request));
-  expect(prompt).toContain('必须调用 route_finish 恰好一次');
+  expect(prompt).toContain('必须调用 route_finish 提交终态');
   expect(prompt).toContain('自然语言回答');
-  expect(prompt).toContain('无法完成时提交 failed');
+  expect(prompt).toContain('outcome(不是 status)、summary、body、outputs');
+  expect(prompt).toContain('outcome="failed"');
 });
 const tick = () => new Promise((r) => setImmediate(r));
 function fixture(

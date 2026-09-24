@@ -123,7 +123,7 @@ export const codexDriver: HarnessDriver = {
     return (
       '本轮任务请求:' + JSON.stringify(request) + '\n' +
       '执行协议:先按任务需要调用获授权的 Route 工具。route_context、route_send、route_wait、route_artifact_write、route_artifact_register、route_artifact_read 的成功都只是中间步骤,不会完成任务。' +
-      '结束本轮原生 turn 前必须调用 route_finish 恰好一次提交终态;完成时提交 succeeded 及要求的 outputs,无法完成时也必须提交 failed 和诚实原因。route_finish 成功后立即停止。'
+      '结束本轮原生 turn 前必须调用 route_finish 恰好一次提交终态。其参数必填 outcome(不是 status)、summary、body、outputs；成功时 outcome="succeeded"，outputs 原样使用 Artifact 工具返回的 reference；无法完成时 outcome="failed" 并写诚实原因。若工具报 INVALID_INPUT，检查这四项后重试同一终态；route_finish 成功后立即停止。'
     );
   },
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {
@@ -170,7 +170,7 @@ export const kimiDriver: HarnessDriver = {
       '生效中的角色章程(须继续遵守):' + JSON.stringify(charter) + '\n' +
       '本轮任务请求:' + JSON.stringify(request) + '\n' +
       '执行协议:按任务需要调用获授权的 Route 工具。任何自然语言回答、route_context、route_send、route_wait、route_artifact_write、route_artifact_register、route_artifact_read 都不是任务终态。' +
-      '在结束原生 turn 前必须调用 route_finish 恰好一次;成功时提交 succeeded 和任务要求的 outputs,无法完成时提交 failed 和诚实原因。route_finish 成功后停止。'
+      '在结束原生 turn 前必须调用 route_finish 提交终态；参数必填 outcome(不是 status)、summary、body、outputs。成功时 outcome="succeeded" 且 outputs 原样使用 Artifact reference；失败时 outcome="failed" 并写诚实原因。INVALID_INPUT 时先补齐字段再重试；成功后停止。'
     );
   },
   createLifecycle({ config, epoch, write, onEvent, promptTimeoutMs, onApproval }) {
@@ -264,7 +264,7 @@ export const zcodeDriver: HarnessDriver = {
       'Bootstrap 阶段已结束:此前"回复 ' + `AGENTROUTER_CHARTER_ACK:${charterHash}` + ' 一次"的指令已作废,本轮回复中不得再出现该确认。\n' +
       '生效中的角色章程(须继续遵守):' + JSON.stringify(charter) + '\n' +
       '本轮任务请求:' + JSON.stringify(request) + '\n' +
-      '可用工具以你的角色被授权的工具列表为准(Role MCP 工具带 mcp__agentrouter-role__ 前缀,任务文本提到的 route_context/route_finish 即指其中对应工具)。按任务需要使用获授权的工具完成并提交结果。'
+      '可用工具以你的角色被授权的工具列表为准(Role MCP 工具带 mcp__agentrouter-role__ 前缀,任务文本提到的 route_context/route_finish 即指其中对应工具)。按任务需要使用获授权的工具；最终 route_finish 参数必填 outcome(不是 status)、summary、body、outputs，成功的 Artifact reference 原样放入 outputs。'
     );
   },
   createLifecycle({ config, write, onEvent, promptTimeoutMs }) {

@@ -40,7 +40,9 @@ it('Codex 任务轮声明中间 Route 工具不完成任务且终态必须 route
   expect(prompt).toContain('route_artifact_write');
   expect(prompt).toContain('只是中间步骤');
   expect(prompt).toContain('必须调用 route_finish 恰好一次');
-  expect(prompt).toContain('无法完成时也必须提交 failed');
+  expect(prompt).toContain('outcome(不是 status)、summary、body、outputs');
+  expect(prompt).toContain('outcome="failed"');
+  expect(prompt).toContain('INVALID_INPUT');
 });
 it('真实协议命令与原生完成分离；终态不授予资源停止证明，也不允许内部第二轮', async () => {
   const f = fixture();
