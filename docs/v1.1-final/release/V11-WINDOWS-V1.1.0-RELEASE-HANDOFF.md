@@ -9,4 +9,4 @@
 - 真实 ZCode Run 上 Controller-attested Evidence 和 Request Changes 幂等通过。最终 ZIP 全新解包后 Core/SQLite/重启 smoke 与 Electron Projects/Workbench/Results/连接状态核对通过。
 - 候选 ZIP：`release/AgentRouter-v1.1.0-windows-x64-a76ca27.zip`，SHA-256 `8f9e3241495cd0d62bab181cf724842229e4b82e899ede2d06b326d39b5c5410`。索引、publish refs 历史、包目录及解包目录敏感扫描均为 0 findings，仅对这些范围成立。
 
-**未闭环：** 单一 `AR_V11_FINAL_*` 数据集的首个原生 Task 写入 Artifact 后未发布 Result；完整的同链黄金用户旅程与 Electron 全部关键动作仍为 `PARTIAL`。Codex→ZCode 完整历史迁移已由用户明确放到 V1.2，不能再算 V1.1 P1，也不能说已实现。签名安装器等按执行包延后。本轮未获 merge/tag/release 授权，也未使用 Codex reset credit；**不得上传候选 ZIP 为正式 GitHub Release**。
+**未闭环：** 单一 `AR_V11_FINAL_*` 数据集的首个原生 Task 写入 Artifact 后未发布 Result；补建同项目 Role 又遇 `BOOTSTRAP_ACK_MISSING`，新 Task 仍排队。完整的同链黄金用户旅程与 Electron 全部关键动作仍为 `PARTIAL`。Codex→ZCode 完整历史迁移已由用户明确放到 V1.2，不能再算 V1.1 P1，也不能说已实现。签名安装器等按执行包延后。本轮未获 merge/tag/release 授权，也未使用 Codex reset credit；**不得上传候选 ZIP 为正式 GitHub Release**。

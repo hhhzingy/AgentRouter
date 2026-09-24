@@ -6,6 +6,7 @@
 |---|---|---|
 | 最终干净包、全新 ZIP 解包 | manifest `1.1.0/a76ca27/sourceDirty=false`；Core/SQLite/pipe、重启后 Project 持久化；解包 Electron 成功连接隔离 Core | PASS |
 | 同项目原生 Artifact→Result | `AR_V11_FINAL_20260924_102508` 的原生 Run `SUCCEEDED`、Artifact bytes/hash 可读，但当时 `route_finish` 参数错误，原 Task 没有 Result，保留 `NEEDS_ATTENTION` | PARTIAL |
+| 同项目重试 | 新建隔离原生 Role 的 Bootstrap 为 `FAILED/BOOTSTRAP_ACK_MISSING`，新 Task 仍 `QUEUED`；未删除原失败对象 | FAIL；不得冒称补齐 |
 | Codex、ZCode 完整链 | 修正提示后，在各自隔离新 Core 上 Bootstrap、`42/PUBLISHED`、输入→输出 Artifact、下载哈希 PASS；不是上一行同一 Task | PASS（分段） |
 | Evidence 和 Request Changes | ZCode 真实 Result 上 Controller-attested Evidence、同 operation id 幂等、原件保留与唯一 follow-up PASS | PASS（独立数据集） |
 | ChatGPT Work Web Participant | 同一 `AR_V11_FINAL_*` 项目，`W2` BOUND；join/identity/claim/read Artifact/submit Result 完成，`WEB_VERIFIED:FINAL_NATIVE_2edafa43` 已发布 | PASS |

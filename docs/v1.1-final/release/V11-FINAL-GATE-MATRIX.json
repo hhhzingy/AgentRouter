@@ -82,7 +82,7 @@
     "package_findings": 0
   },
   "blockers": [
-    "AR_V11_FINAL_* 同一数据集的首个原生 Run 已写 Artifact 但未发布 Result；随后独立隔离 DUT 完整通过，不能冒充同一 Golden Flow。",
+    "AR_V11_FINAL_* 同一数据集的首个原生 Run 已写 Artifact 但未发布 Result；新建同项目 Role 的 Bootstrap ACK_MISSING；独立隔离 DUT 完整通过不能冒充同一 Golden Flow。",
     "最终解包 Electron 只核对 Projects/Workbench/Results/连接，未在同一链完成桌面 Request Changes、New WorkSession 等全部核心页面。"
   ],
   "failure_denominator": [
@@ -91,6 +91,7 @@
     "手机提交曾显示 PLAN_STATE_CONFLICT / CONNECTION_LOST；Core 最终确认一次 Request Changes",
     "Codex 错误 DUT 根与二进制路径首测失败；获准 DUT 后 PASS",
     "ZCode 沙箱首测失败；非沙箱 PASS",
-    "DSH 并行首测 NATIVE_DISCONNECTED；单独复测 PASS"
+    "DSH 并行首测 NATIVE_DISCONNECTED；单独复测 PASS",
+    "同项目补建原生 Role Bootstrap FAILED/BOOTSTRAP_ACK_MISSING，任务保持 QUEUED"
   ]
 }

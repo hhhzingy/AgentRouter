@@ -35,7 +35,7 @@ ZIP 是**候选物**，manifest 仍为 `CANDIDATE_NOT_CERTIFIED`，不是 GitHub
 
 ## 仍未闭环 / 不得夸大
 
-1. **单一 Golden Flow 尚未直接 PASS。** `AR_V11_FINAL_20260924_102508` 同一项目中，首个原生 Codex Task 的 Run `SUCCEEDED`、Artifact 已写入，但因当时模型以错误参数调用 `route_finish`，未生成该 Task 的 Result，Task 保留 `NEEDS_ATTENTION`。修正工具说明后，Codex/ZCode 在各自新隔离数据集的完整 Artifact→Result 链已通过；不能把分散数据集冒称同一条完整黄金链。此处为发布前用户旅程证据缺口，必须补齐或由发布负责人明确接受缩减的验收范围。
+1. **单一 Golden Flow 尚未直接 PASS。** `AR_V11_FINAL_20260924_102508` 同一项目中，首个原生 Codex Task 的 Run `SUCCEEDED`、Artifact 已写入，但因当时模型以错误参数调用 `route_finish`，未生成该 Task 的 Result，Task 保留 `NEEDS_ATTENTION`。文档首次推送后尝试新建同项目原生 Role/Task，Role `role_71ae662c-b3be-416c-8c14-2c87ede6a7b4` Bootstrap 为 `FAILED/BOOTSTRAP_ACK_MISSING`，Task `task_060d9335-19d2-40d3-89e0-760e887386e3` 仍 `QUEUED`；未删除旧失败对象。修正工具说明后，Codex/ZCode 在各自新隔离数据集的完整 Artifact→Result 链已通过；不能把分散数据集冒称同一条完整黄金链。此处为发布前用户旅程证据缺口，必须补齐或由发布负责人明确接受缩减的验收范围。
 2. **网页 follow-up 的执行源必须区分。** 手机 Request Changes 后，新 Result `result_95e221b5-9be8-4460-9630-4b342bb510c3` 是测试 Role 自动派发的**原生 Codex Run**，不是 ChatGPT Work 网页 Participant 自动交付。最初 `WEB_VERIFIED` 才是网页 Participant 提交。该测试 Role 同时具备原生绑定和 Web Slot，不能用后续 Result 证明网页二次处理。
 3. **桌面人工步骤未全覆盖。** 最终解包 Electron 已核对 Projects、Workbench、Results/Result Detail 与连接状态；没有在同一项目的 Electron 上亲自执行 Request Changes，也未逐项完成 New WorkSession、Role Detail 等全部六个黄金页面。手机是真机浏览器验收，不是桌面动作的替身。
 4. **冷续证据是分段的。** 旧 SHA 上 Codex/ZCode 各自同 Harness marker 与 Core 冷重启核心断言通过，但组合脚本清理阶段分别失败；最终 `a76ca27` 未重做两家的 cold continuation。跨 Harness 完整历史迁移已移至 V1.2，不应再以此作为 V1.1 P1。
