@@ -142,7 +142,12 @@ class RemoteSession implements ClientSession {
     else validateFrameForRevision(frame, this.revision);
     const reply = await this.exchange(id, frame, this.revision, opts.timeoutMs ?? this.timeoutMs);
     if ('error' in reply && reply.error) throw Object.assign(new Error(reply.error.code), reply.error);
-    if (extension) { validateExtensionResult(method as string, reply.result); return reply.result as MethodMap[M]['result']; }
+    if (extension) {
+      validateExtensionResult(method as string, reply.result);
+      if (method === 'contract.upgrade' as Method &&
+          (reply.result as { revision?: string })?.revision === 'C1R1P2') this.revision = 'C1R1P2';
+      return reply.result as MethodMap[M]['result'];
+    }
     validateFrameForRevision(reply, this.revision);
     validateResponseForRevision(method, reply.result, this.revision);
     if (method === 'system.snapshot') this.observedCursor = Math.max(this.observedCursor, (reply.result as { cursor: number }).cursor);

@@ -77,13 +77,20 @@ async function connect(): Promise<ClientSession> {
   const params = new URLSearchParams(location.search);
   if (window.agentrouterClient) {
     const mode = params.get('mode');
-    return window.agentrouterClient.connect({
+    const session = await window.agentrouterClient.connect({
       clientId: 'workbench',
       clientVersion: productPackage.version,
       requestedMode: params.get('as') === 'observer' ? 'observer' : 'controller',
       contractRevision: 'C1R1P1',
       ...(mode === 'PREVIEW_MOCK' || mode === 'LOCAL_CORE' ? { mode } : {}),
     });
+    // Dynamic Harness roles (including ZCode) are intentionally hidden from P1 projections.
+    // Negotiate P2 before the first snapshot so a WorkSession switch never hides its Role.
+    const upgrade = await (session.request as unknown as (method: string, params: unknown) => Promise<{ revision: string }>)(
+      'contract.upgrade', { revision: 'C1R1P2' },
+    );
+    if (upgrade.revision !== 'C1R1P2') throw Error('PROTOCOL_INCOMPATIBLE');
+    return session;
   }
   // 静态预览：固定时钟，保证截图可复现。
   if (

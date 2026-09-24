@@ -76,6 +76,24 @@ async function provisionRole(f: Awaited<ReturnType<typeof env>>, name: string) {
   return { projectId: project.id, roleId: roles.items[0].id };
 }
 
+it('REMOTE-P2: 桌面连接升级后后续请求使用 C1R1P2 校验', async () => {
+  const g = await boot();
+  try {
+    const pairing = g.devices.createPairing({ displayName: 'p2-desktop', kind: 'DESKTOP', canRequestController: true });
+    const paired = await pair(g.base, pairing.challenge);
+    expect(paired.status).toBe(200);
+    const { transport, session } = await connect(g.url, paired.body.token, 'observer');
+    try {
+      const upgraded = await (session.request as unknown as (method: string, params: unknown) => Promise<{ revision: string }>)(
+        'contract.upgrade', { revision: 'C1R1P2' },
+      );
+      expect(upgraded.revision).toBe('C1R1P2');
+      expect((session as unknown as { revision: string }).revision).toBe('C1R1P2');
+      await expect(session.request('system.snapshot', {})).resolves.toMatchObject({ projects: [] });
+    } finally { await transport.close(); }
+  } finally { await g.stop(); }
+});
+
 it('REMOTE-01/03/05/06 + W06: 配对→controller→空scope不可见既有项目→自创建可见→幂等变更', async () => {
   const g = await boot();
   try {
