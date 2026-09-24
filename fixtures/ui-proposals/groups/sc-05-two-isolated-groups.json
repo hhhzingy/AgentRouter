@@ -1,0 +1,42 @@
+{
+  "scenario_id": "sc-05",
+  "title": "两个隔离协作组",
+  "description": "同项目两个 ACTIVE 组，各自角色集合不重叠。验证组边界与组≠worktree 的界面表达。",
+  "ui_surfaces": ["项目概览", "派发任务抽屉"],
+  "snapshot": {
+    "cursor": 4000,
+    "projects": [
+      { "id": "proj_atlas", "name": "支付中台重构", "status": "ACTIVE", "hostLabel": "SSH · core-prod-01", "displayRoot": "~/work/pay-core", "spacesCount": 2, "activeRunsCount": 0, "issuesCount": 0, "revision": 45 }
+    ],
+    "spaces": [
+      { "id": "sp_core", "projectId": "proj_atlas", "name": "核心实现组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 9 },
+      { "id": "sp_ui", "projectId": "proj_atlas", "name": "UI 组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 7 }
+    ],
+    "roles": [
+      { "id": "r_lin", "spaceId": "sp_core", "name": "林岚", "description": "规划", "status": "ACTIVE", "harness": "codex", "harnessSupport": "MOCK", "modelLabel": "runtime", "workspaceLabel": "wt:core", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 5 },
+      { "id": "r_zhou", "spaceId": "sp_core", "name": "周实现", "description": "执行", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "deepseek-v4-pro · 推理 high", "workspaceLabel": "wt:core", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 5 },
+      { "id": "r_chen", "spaceId": "sp_core", "name": "陈复核", "description": "复核", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "glm-5.3 · 推理 max", "workspaceLabel": "wt:core", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 5 },
+      { "id": "r_su", "spaceId": "sp_ui", "name": "苏界面", "description": "UI 实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "glm-5.3-flash · 推理 max", "workspaceLabel": "wt:ui", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 4 },
+      { "id": "r_tang", "spaceId": "sp_ui", "name": "唐测试", "description": "测试", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "qwen3.8-flash · 推理 xhigh", "workspaceLabel": "wt:ui", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 4 },
+      { "id": "r_he", "spaceId": "sp_ui", "name": "何文档", "description": "文档", "status": "ACTIVE", "harness": "kimi_code", "harnessSupport": "MOCK", "modelLabel": "runtime", "workspaceLabel": "wt:ui", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 4 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-06", "CCR-UI-10"],
+    "workspaces": [
+      { "id": "ws_core", "label": "wt:core", "kind": "DEDICATED_WORKTREE", "display_path": "~/work/pay-core-wt/core", "write_lease_holder_run_id": null, "bound_roles": ["r_lin", "r_zhou", "r_chen"] },
+      { "id": "ws_ui", "label": "wt:ui", "kind": "DEDICATED_WORKTREE", "display_path": "~/work/pay-core-wt/ui", "write_lease_holder_run_id": null, "bound_roles": ["r_su", "r_tang", "r_he"] }
+    ],
+    "spaces_extra": [
+      { "id": "sp_core", "purpose": "Core、协议、SSH 与稳定性", "policy_revision": 3 },
+      { "id": "sp_ui", "purpose": "桌面 UI 与体验", "policy_revision": 2 }
+    ]
+  },
+  "expected_ui": [
+    "概览并列两张组卡，组名旁同时出现『规则 r3』与『⧉wt:core』两个徽标（组=通信边界，工作区=文件边界）",
+    "核心实现组的派发抽屉中，结果去向『同组角色』下拉只含 林岚/陈复核，不含苏界面等 UI 组角色",
+    "组卡显示 purpose 一行：『Core、协议、SSH 与稳定性』",
+    "两组角色头像色块由 role_id 哈希决定，跨组不撞色板冲突处理不影响可读性",
+    "Tooltip 明示：『不同组的角色不能直接通信，由 Core 强制』"
+  ]
+}

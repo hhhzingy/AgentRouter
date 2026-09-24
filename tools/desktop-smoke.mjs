@@ -19,7 +19,7 @@ const child = spawn(
   { windowsHide: true, env, stdio: ['pipe', 'pipe', 'pipe'] },
 );
 child.stdout.on('data', () => {});
-child.stderr.on('data', (b) => process.stderr.write(b));
+child.stderr.on('data', () => {});
 const timer = setTimeout(() => {
   child.kill();
   process.exitCode = 1;

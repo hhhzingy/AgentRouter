@@ -1,0 +1,43 @@
+{
+  "scenario_id": "sc-03",
+  "title": "Local 单组项目卡",
+  "description": "1 个 Local 项目、1 个协作组、3 个空闲角色的最简形态。",
+  "ui_surfaces": ["首页"],
+  "snapshot": {
+    "cursor": 900,
+    "projects": [
+      { "id": "proj_nova", "name": "官网改版", "status": "ACTIVE", "hostLabel": "Local · 本机", "displayRoot": "D:\\work\\nova-site", "spacesCount": 1, "activeRunsCount": 0, "issuesCount": 0, "revision": 12 }
+    ],
+    "spaces": [
+      { "id": "sp_nova", "projectId": "proj_nova", "name": "站点组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 0, "revision": 3 }
+    ],
+    "roles": [
+      { "id": "r_su", "spaceId": "sp_nova", "name": "苏界面", "description": "页面实现", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "glm-5.3-flash", "workspaceLabel": "nova-site", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 3 },
+      { "id": "r_tang", "spaceId": "sp_nova", "name": "唐测试", "description": "测试", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "qwen3.8-flash", "workspaceLabel": "nova-site", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 3 },
+      { "id": "r_he", "spaceId": "sp_nova", "name": "何文档", "description": "文案与文档", "status": "ACTIVE", "harness": "kimi_code", "harnessSupport": "MOCK", "modelLabel": "runtime", "workspaceLabel": "nova-site", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 3 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-01", "CCR-UI-06"],
+    "card_summaries": [
+      { "project_id": "proj_nova",
+        "spaces": [
+          { "id": "sp_nova", "name": "站点组", "workspace_label": "nova-site（共享·串行写）",
+            "roles": [
+              { "id": "r_su", "name": "苏界面", "status": "ACTIVE" },
+              { "id": "r_tang", "name": "唐测试", "status": "ACTIVE" },
+              { "id": "r_he", "name": "何文档", "status": "ACTIVE" }
+            ] }
+        ],
+        "extra_spaces_count": 0,
+        "last_activity": { "at_ms": 1788930000000, "actor_role_id": "r_su", "summary": "苏界面 交付了「首页首屏」" } }
+    ]
+  },
+  "expected_ui": [
+    "卡组概览仅一行组；三角色角标均为 ○(空闲)",
+    "苏界面若 10 分钟内有交付，头像角标为 ○ + ✓辅助标记（最近完成不覆盖主状态）",
+    "计数条整体不渲染（全部为零）",
+    "共享串行写工作区在组行尾部显示 ⧉ 小标，Tooltip 说明写互斥",
+    "位置行为『Local · 本机 · D:\\work\\nova-site』，无 SSH 徽标"
+  ]
+}

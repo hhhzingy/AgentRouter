@@ -1,0 +1,1438 @@
+{
+  "mock": true,
+  "realHarnessSupport": 0,
+  "hello": {
+    "serverInstanceId": "mock_2d5cb58a-43a8-4d63-8212-f42c99cd50e3",
+    "serverVersion": "1.0.0-dev.0",
+    "protocol": "agentrouter-client/1",
+    "schemaVersion": 2,
+    "contractRevision": "C1R1",
+    "platform": "win32",
+    "connectionState": "CONNECTED_OBSERVER",
+    "eventCursor": 0,
+    "capabilities": {
+      "methods": [
+        "system.initialize",
+        "system.ping",
+        "system.snapshot",
+        "events.catchup",
+        "harness.list",
+        "runtime.getActiveWork",
+        "project.list",
+        "project.get",
+        "space.list",
+        "role.list",
+        "role.get",
+        "task.list",
+        "task.get",
+        "run.list",
+        "run.get",
+        "approval.list",
+        "issue.list",
+        "inbox.list",
+        "binding.getCurrent",
+        "binding.listHistory",
+        "control.acquire",
+        "control.renew",
+        "control.release",
+        "role.rename",
+        "runtime.drain",
+        "space.get",
+        "space.reconfigure.preview",
+        "space.reconfigure.get",
+        "space.reconfigure.commit",
+        "space.reconfigure.abort",
+        "workspace.list",
+        "workspace.get",
+        "workspace.createWorktree",
+        "workspace.archive",
+        "model.list",
+        "model.get",
+        "model.refresh",
+        "provider.listProfiles",
+        "rolePlan.validate",
+        "rolePlan.apply",
+        "rolePlan.list",
+        "rolePlan.get",
+        "role.createFromSpec",
+        "roleCharter.get",
+        "roleCharter.listHistory",
+        "roleCharter.update"
+      ],
+      "remote_filesystem": false,
+      "event_stream": true,
+      "controller_lease": true,
+      "auth_unit_max_active_runs": 1,
+      "reference_types": {
+        "artifact": true,
+        "external": true,
+        "git": false,
+        "live": false
+      },
+      "output_types": [
+        "artifact"
+      ],
+      "harnesses": {
+        "codex": {
+          "status": "PROBED",
+          "create_session": false,
+          "cancel": false
+        },
+        "kimi_code": {
+          "status": "PROBED",
+          "create_session": false,
+          "cancel": false
+        },
+        "pi": {
+          "status": "PROBED",
+          "create_session": false,
+          "cancel": false
+        }
+      },
+      "mock": true,
+      "role_plans": true,
+      "role_charters": true,
+      "space_reconfiguration": true,
+      "model_catalog": true,
+      "workspaces": true
+    },
+    "health": "OK",
+    "upgradeRequired": false,
+    "lease": null
+  },
+  "validation": {
+    "valid": true,
+    "planHash": "5ea845fb0187efeb74208e8f51b9e2eaeac15871ee0ea1575592d530220792ad",
+    "errors": [],
+    "warnings": [
+      {
+        "code": "MODEL_UNVERIFIED",
+        "field": "rolekey_0_0"
+      },
+      {
+        "code": "MODEL_UNVERIFIED",
+        "field": "rolekey_0_1"
+      },
+      {
+        "code": "MODEL_UNVERIFIED",
+        "field": "rolekey_0_2"
+      },
+      {
+        "code": "MODEL_UNVERIFIED",
+        "field": "rolekey_1_0"
+      },
+      {
+        "code": "MODEL_UNVERIFIED",
+        "field": "rolekey_1_1"
+      },
+      {
+        "code": "MODEL_UNVERIFIED",
+        "field": "rolekey_1_2"
+      }
+    ],
+    "requiredConfirmations": [
+      "USER_REVIEW",
+      "PERMISSIONS",
+      "UNVERIFIED_MODELS_CANNOT_START"
+    ]
+  },
+  "applied": {
+    "id": "plan_02dd222b-bef7-42da-bd8c-82afb879e241",
+    "projectId": "project_example",
+    "planHash": "5ea845fb0187efeb74208e8f51b9e2eaeac15871ee0ea1575592d530220792ad",
+    "sourcePlan": {
+      "schema_version": "agentrouter-role-plan/1",
+      "project_id": "project_example",
+      "title": "两个隔离并行组示例",
+      "source": "external_ai",
+      "goals": [
+        "并行完成核心实现与桌面 UI 设计，并在人工集成阶段汇合。"
+      ],
+      "non_goals": [
+        "不允许两个组直接修改同一个工作区。"
+      ],
+      "assumptions": [
+        "Core 合同已经冻结。"
+      ],
+      "groups": [
+        {
+          "group_key": "core_group",
+          "display_name": "核心实现组",
+          "purpose": "Core、协议、SSH 和稳定性。",
+          "communication_boundary": "within_group_only",
+          "workspace_strategy": "dedicated_worktree",
+          "workspace_ref": "workspace_core",
+          "rules": {
+            "handoff_requirements": [
+              "结果必须带提交和测试证据。"
+            ],
+            "completion_definition": [
+              "合同测试和集成测试通过。"
+            ],
+            "parallelism_notes": "不得修改 UIAI 拥有的 Renderer 文件。"
+          }
+        },
+        {
+          "group_key": "ui_group",
+          "display_name": "UI 组",
+          "purpose": "产品信息架构、Renderer 和 UI 测试。",
+          "communication_boundary": "within_group_only",
+          "workspace_strategy": "dedicated_worktree",
+          "workspace_ref": "workspace_ui",
+          "rules": {
+            "handoff_requirements": [
+              "需要接口变化时提交 CCR。"
+            ],
+            "completion_definition": [
+              "Mock E2E 和可访问性通过。"
+            ],
+            "parallelism_notes": "只使用生成合同，不读取 SQLite。"
+          }
+        }
+      ],
+      "roles": [
+        {
+          "role_key": "rolekey_0_0",
+          "group_key": "core_group",
+          "display_name": "Core 实现 1",
+          "role_kind": "executor",
+          "mission": "实现 AgentRouter Core。",
+          "responsibilities": [
+            "实现合同和核心服务。"
+          ],
+          "out_of_scope": [
+            "不设计最终 UI。"
+          ],
+          "accepted_inputs": [
+            "冻结合同。"
+          ],
+          "required_outputs": [
+            "提交、测试和风险报告。"
+          ],
+          "default_completion_target": {
+            "type": "user"
+          },
+          "problem_target": {
+            "type": "user"
+          },
+          "workspace_ref": "workspace_core",
+          "requested_permissions": {
+            "workspace_access": "read_write",
+            "allowed_paths": [
+              "packages",
+              "apps/core-service"
+            ],
+            "tool_profiles": [
+              "build",
+              "test"
+            ],
+            "network_profile": "provider_only",
+            "notes": "权限由用户审核。"
+          },
+          "runtime": {
+            "harness": "pi",
+            "provider_profile_id": "profile_mock_deepseek",
+            "model_id": "deepseek-v4-pro",
+            "reasoning_effort": "high",
+            "selection_source": "seed"
+          },
+          "bootstrap_notes": "严格遵守 C1R1。"
+        },
+        {
+          "role_key": "rolekey_0_1",
+          "group_key": "core_group",
+          "display_name": "Core 实现 2",
+          "role_kind": "executor",
+          "mission": "实现 AgentRouter Core。",
+          "responsibilities": [
+            "实现合同和核心服务。"
+          ],
+          "out_of_scope": [
+            "不设计最终 UI。"
+          ],
+          "accepted_inputs": [
+            "冻结合同。"
+          ],
+          "required_outputs": [
+            "提交、测试和风险报告。"
+          ],
+          "default_completion_target": {
+            "type": "user"
+          },
+          "problem_target": {
+            "type": "user"
+          },
+          "workspace_ref": "workspace_core",
+          "requested_permissions": {
+            "workspace_access": "read_write",
+            "allowed_paths": [
+              "packages",
+              "apps/core-service"
+            ],
+            "tool_profiles": [
+              "build",
+              "test"
+            ],
+            "network_profile": "provider_only",
+            "notes": "权限由用户审核。"
+          },
+          "runtime": {
+            "harness": "pi",
+            "provider_profile_id": "profile_mock_deepseek",
+            "model_id": "deepseek-v4-flash",
+            "reasoning_effort": "high",
+            "selection_source": "seed"
+          },
+          "bootstrap_notes": "严格遵守 C1R1。"
+        },
+        {
+          "role_key": "rolekey_0_2",
+          "group_key": "core_group",
+          "display_name": "Core 实现 3",
+          "role_kind": "executor",
+          "mission": "实现 AgentRouter Core。",
+          "responsibilities": [
+            "实现合同和核心服务。"
+          ],
+          "out_of_scope": [
+            "不设计最终 UI。"
+          ],
+          "accepted_inputs": [
+            "冻结合同。"
+          ],
+          "required_outputs": [
+            "提交、测试和风险报告。"
+          ],
+          "default_completion_target": {
+            "type": "user"
+          },
+          "problem_target": {
+            "type": "user"
+          },
+          "workspace_ref": "workspace_core",
+          "requested_permissions": {
+            "workspace_access": "read_write",
+            "allowed_paths": [
+              "packages",
+              "apps/core-service"
+            ],
+            "tool_profiles": [
+              "build",
+              "test"
+            ],
+            "network_profile": "provider_only",
+            "notes": "权限由用户审核。"
+          },
+          "runtime": {
+            "harness": "pi",
+            "provider_profile_id": "profile_mock_zai",
+            "model_id": "glm-5.3",
+            "reasoning_effort": "max",
+            "selection_source": "seed"
+          },
+          "bootstrap_notes": "严格遵守 C1R1。"
+        },
+        {
+          "role_key": "rolekey_1_0",
+          "group_key": "ui_group",
+          "display_name": "UI 设计与实现 1",
+          "role_kind": "designer_executor",
+          "mission": "设计并实现面向人类的桌面 UI。",
+          "responsibilities": [
+            "信息架构、组件、Renderer 和 UI 测试。"
+          ],
+          "out_of_scope": [
+            "不修改 Core、SQLite、SSH 和 Harness。"
+          ],
+          "accepted_inputs": [
+            "C1R1 生成类型和 Mock。"
+          ],
+          "required_outputs": [
+            "UX 文档、代码、E2E 和截图。"
+          ],
+          "default_completion_target": {
+            "type": "user"
+          },
+          "problem_target": {
+            "type": "user"
+          },
+          "workspace_ref": "workspace_ui",
+          "requested_permissions": {
+            "workspace_access": "read_write",
+            "allowed_paths": [
+              "apps/desktop/renderer",
+              "packages/ui",
+              "docs/ui",
+              "tests/ui"
+            ],
+            "tool_profiles": [
+              "frontend-build",
+              "ui-test"
+            ],
+            "network_profile": "none",
+            "notes": "禁止访问凭据。"
+          },
+          "runtime": {
+            "harness": "pi",
+            "provider_profile_id": "profile_mock_zai",
+            "model_id": "glm-5.3-flash",
+            "reasoning_effort": "max",
+            "selection_source": "seed"
+          },
+          "bootstrap_notes": "旧 GUI 不是设计基线。"
+        },
+        {
+          "role_key": "rolekey_1_1",
+          "group_key": "ui_group",
+          "display_name": "UI 设计与实现 2",
+          "role_kind": "designer_executor",
+          "mission": "设计并实现面向人类的桌面 UI。",
+          "responsibilities": [
+            "信息架构、组件、Renderer 和 UI 测试。"
+          ],
+          "out_of_scope": [
+            "不修改 Core、SQLite、SSH 和 Harness。"
+          ],
+          "accepted_inputs": [
+            "C1R1 生成类型和 Mock。"
+          ],
+          "required_outputs": [
+            "UX 文档、代码、E2E 和截图。"
+          ],
+          "default_completion_target": {
+            "type": "user"
+          },
+          "problem_target": {
+            "type": "user"
+          },
+          "workspace_ref": "workspace_ui",
+          "requested_permissions": {
+            "workspace_access": "read_write",
+            "allowed_paths": [
+              "apps/desktop/renderer",
+              "packages/ui",
+              "docs/ui",
+              "tests/ui"
+            ],
+            "tool_profiles": [
+              "frontend-build",
+              "ui-test"
+            ],
+            "network_profile": "none",
+            "notes": "禁止访问凭据。"
+          },
+          "runtime": {
+            "harness": "pi",
+            "provider_profile_id": "profile_mock_dashscope",
+            "model_id": "qwen3.8-max",
+            "reasoning_effort": "xhigh",
+            "selection_source": "seed"
+          },
+          "bootstrap_notes": "旧 GUI 不是设计基线。"
+        },
+        {
+          "role_key": "rolekey_1_2",
+          "group_key": "ui_group",
+          "display_name": "UI 设计与实现 3",
+          "role_kind": "designer_executor",
+          "mission": "设计并实现面向人类的桌面 UI。",
+          "responsibilities": [
+            "信息架构、组件、Renderer 和 UI 测试。"
+          ],
+          "out_of_scope": [
+            "不修改 Core、SQLite、SSH 和 Harness。"
+          ],
+          "accepted_inputs": [
+            "C1R1 生成类型和 Mock。"
+          ],
+          "required_outputs": [
+            "UX 文档、代码、E2E 和截图。"
+          ],
+          "default_completion_target": {
+            "type": "user"
+          },
+          "problem_target": {
+            "type": "user"
+          },
+          "workspace_ref": "workspace_ui",
+          "requested_permissions": {
+            "workspace_access": "read_write",
+            "allowed_paths": [
+              "apps/desktop/renderer",
+              "packages/ui",
+              "docs/ui",
+              "tests/ui"
+            ],
+            "tool_profiles": [
+              "frontend-build",
+              "ui-test"
+            ],
+            "network_profile": "none",
+            "notes": "禁止访问凭据。"
+          },
+          "runtime": {
+            "harness": "pi",
+            "provider_profile_id": "profile_mock_dashscope",
+            "model_id": "qwen3.8-flash",
+            "reasoning_effort": "xhigh",
+            "selection_source": "seed"
+          },
+          "bootstrap_notes": "旧 GUI 不是设计基线。"
+        }
+      ],
+      "review": {
+        "requires_user_confirmation": true,
+        "known_risks": [
+          "两个组最终合并代码仍需要专门集成与复核。"
+        ]
+      }
+    },
+    "state": "APPLIED",
+    "roleIds": [
+      "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+      "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+      "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+      "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+      "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+      "role_80e8358f-010f-4213-899a-0d71948fb6fa"
+    ],
+    "spaceIds": [
+      "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+      "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119"
+    ],
+    "revision": 2,
+    "appliedBy": "mock_fixture"
+  },
+  "snapshot": {
+    "cursor": 1,
+    "revision": 2,
+    "projects": [
+      {
+        "id": "project_example",
+        "name": "双协作组演示",
+        "status": "ACTIVE",
+        "hostLabel": "MOCK",
+        "displayRoot": "受控项目",
+        "spacesCount": 2,
+        "activeRunsCount": 0,
+        "issuesCount": 0,
+        "revision": 1,
+        "statusSummary": {
+          "groups": [
+            {
+              "spaceId": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+              "name": "核心实现组",
+              "roles": [
+                {
+                  "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+                  "name": "Core 实现 1",
+                  "status": "PAUSED"
+                },
+                {
+                  "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+                  "name": "Core 实现 2",
+                  "status": "PAUSED"
+                },
+                {
+                  "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+                  "name": "Core 实现 3",
+                  "status": "PAUSED"
+                }
+              ],
+              "extraRolesCount": 0,
+              "activeRunsCount": 0,
+              "queuedTasksCount": 0,
+              "needsUserCount": 3,
+              "pendingApprovalsCount": 0
+            },
+            {
+              "spaceId": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+              "name": "UI 组",
+              "roles": [
+                {
+                  "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+                  "name": "UI 设计与实现 1",
+                  "status": "PAUSED"
+                },
+                {
+                  "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+                  "name": "UI 设计与实现 2",
+                  "status": "PAUSED"
+                },
+                {
+                  "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+                  "name": "UI 设计与实现 3",
+                  "status": "PAUSED"
+                }
+              ],
+              "extraRolesCount": 0,
+              "activeRunsCount": 0,
+              "queuedTasksCount": 0,
+              "needsUserCount": 3,
+              "pendingApprovalsCount": 0
+            }
+          ],
+          "extraGroupsCount": 0,
+          "activeRunsCount": 0,
+          "queuedTasksCount": 0,
+          "needsUserCount": 6,
+          "pendingApprovalsCount": 0,
+          "lastActivityAtMs": 0
+        }
+      }
+    ],
+    "spaces": [
+      {
+        "id": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "projectId": "project_example",
+        "name": "核心实现组",
+        "status": "ACTIVE",
+        "rolesCount": 3,
+        "queuedTasksCount": 0,
+        "revision": 2,
+        "purpose": "Core、协议、SSH 和稳定性。",
+        "policyRevision": 1,
+        "topologyState": "ACTIVE",
+        "activeRunsCount": 0,
+        "needsUserCount": 3
+      },
+      {
+        "id": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+        "projectId": "project_example",
+        "name": "UI 组",
+        "status": "ACTIVE",
+        "rolesCount": 3,
+        "queuedTasksCount": 0,
+        "revision": 2,
+        "purpose": "产品信息架构、Renderer 和 UI 测试。",
+        "policyRevision": 1,
+        "topologyState": "ACTIVE",
+        "activeRunsCount": 0,
+        "needsUserCount": 3
+      }
+    ],
+    "roles": [
+      {
+        "id": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+        "spaceId": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "name": "Core 实现 1",
+        "description": "实现 AgentRouter Core。",
+        "status": "PAUSED",
+        "harness": "pi",
+        "harnessSupport": "PROBED",
+        "workspaceLabel": "core",
+        "queuedTasksCount": 0,
+        "unreadNoticesCount": 0,
+        "pendingApprovalsCount": 0,
+        "revision": 2,
+        "charterRevision": 1,
+        "bootstrapState": "PENDING",
+        "interventionState": "BOOTSTRAP_REQUIRED",
+        "modelSelection": {
+          "harness": "pi",
+          "provider_profile_id": "profile_mock_deepseek",
+          "model_id": "deepseek-v4-pro",
+          "reasoning_effort": "high",
+          "selection_source": "seed"
+        },
+        "providerProfileId": "profile_mock_deepseek"
+      },
+      {
+        "id": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+        "spaceId": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "name": "Core 实现 2",
+        "description": "实现 AgentRouter Core。",
+        "status": "PAUSED",
+        "harness": "pi",
+        "harnessSupport": "PROBED",
+        "workspaceLabel": "core",
+        "queuedTasksCount": 0,
+        "unreadNoticesCount": 0,
+        "pendingApprovalsCount": 0,
+        "revision": 2,
+        "charterRevision": 1,
+        "bootstrapState": "PENDING",
+        "interventionState": "BOOTSTRAP_REQUIRED",
+        "modelSelection": {
+          "harness": "pi",
+          "provider_profile_id": "profile_mock_deepseek",
+          "model_id": "deepseek-v4-flash",
+          "reasoning_effort": "high",
+          "selection_source": "seed"
+        },
+        "providerProfileId": "profile_mock_deepseek"
+      },
+      {
+        "id": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+        "spaceId": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "name": "Core 实现 3",
+        "description": "实现 AgentRouter Core。",
+        "status": "PAUSED",
+        "harness": "pi",
+        "harnessSupport": "PROBED",
+        "workspaceLabel": "core",
+        "queuedTasksCount": 0,
+        "unreadNoticesCount": 0,
+        "pendingApprovalsCount": 0,
+        "revision": 2,
+        "charterRevision": 1,
+        "bootstrapState": "PENDING",
+        "interventionState": "BOOTSTRAP_REQUIRED",
+        "modelSelection": {
+          "harness": "pi",
+          "provider_profile_id": "profile_mock_zai",
+          "model_id": "glm-5.3",
+          "reasoning_effort": "max",
+          "selection_source": "seed"
+        },
+        "providerProfileId": "profile_mock_zai"
+      },
+      {
+        "id": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+        "spaceId": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+        "name": "UI 设计与实现 1",
+        "description": "设计并实现面向人类的桌面 UI。",
+        "status": "PAUSED",
+        "harness": "pi",
+        "harnessSupport": "PROBED",
+        "workspaceLabel": "ui",
+        "queuedTasksCount": 0,
+        "unreadNoticesCount": 0,
+        "pendingApprovalsCount": 0,
+        "revision": 2,
+        "charterRevision": 1,
+        "bootstrapState": "PENDING",
+        "interventionState": "BOOTSTRAP_REQUIRED",
+        "modelSelection": {
+          "harness": "pi",
+          "provider_profile_id": "profile_mock_zai",
+          "model_id": "glm-5.3-flash",
+          "reasoning_effort": "max",
+          "selection_source": "seed"
+        },
+        "providerProfileId": "profile_mock_zai"
+      },
+      {
+        "id": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+        "spaceId": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+        "name": "UI 设计与实现 2",
+        "description": "设计并实现面向人类的桌面 UI。",
+        "status": "PAUSED",
+        "harness": "pi",
+        "harnessSupport": "PROBED",
+        "workspaceLabel": "ui",
+        "queuedTasksCount": 0,
+        "unreadNoticesCount": 0,
+        "pendingApprovalsCount": 0,
+        "revision": 2,
+        "charterRevision": 1,
+        "bootstrapState": "PENDING",
+        "interventionState": "BOOTSTRAP_REQUIRED",
+        "modelSelection": {
+          "harness": "pi",
+          "provider_profile_id": "profile_mock_dashscope",
+          "model_id": "qwen3.8-max",
+          "reasoning_effort": "xhigh",
+          "selection_source": "seed"
+        },
+        "providerProfileId": "profile_mock_dashscope"
+      },
+      {
+        "id": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+        "spaceId": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+        "name": "UI 设计与实现 3",
+        "description": "设计并实现面向人类的桌面 UI。",
+        "status": "PAUSED",
+        "harness": "pi",
+        "harnessSupport": "PROBED",
+        "workspaceLabel": "ui",
+        "queuedTasksCount": 0,
+        "unreadNoticesCount": 0,
+        "pendingApprovalsCount": 0,
+        "revision": 2,
+        "charterRevision": 1,
+        "bootstrapState": "PENDING",
+        "interventionState": "BOOTSTRAP_REQUIRED",
+        "modelSelection": {
+          "harness": "pi",
+          "provider_profile_id": "profile_mock_dashscope",
+          "model_id": "qwen3.8-flash",
+          "reasoning_effort": "xhigh",
+          "selection_source": "seed"
+        },
+        "providerProfileId": "profile_mock_dashscope"
+      }
+    ],
+    "tasks": [],
+    "runs": [],
+    "issues": [],
+    "approvals": [],
+    "results": [],
+    "workspaces": [
+      {
+        "id": "workspace_core",
+        "projectId": "project_example",
+        "label": "core",
+        "kind": "WORKTREE",
+        "displayPath": "受控工作区/core",
+        "status": "READY",
+        "access": "SERIAL_WRITE",
+        "revision": 1
+      },
+      {
+        "id": "workspace_ui",
+        "projectId": "project_example",
+        "label": "ui",
+        "kind": "WORKTREE",
+        "displayPath": "受控工作区/ui",
+        "status": "READY",
+        "access": "SERIAL_WRITE",
+        "revision": 1
+      }
+    ],
+    "modelCatalog": [
+      {
+        "id": "model_deepseek_deepseek_v4_pro",
+        "harness": "pi",
+        "provider_id": "deepseek",
+        "provider_profile_id": "profile_mock_deepseek",
+        "model_id": "deepseek-v4-pro",
+        "display_name": "DeepSeek V4 Pro",
+        "source": "SEED",
+        "availability": "UNVERIFIED",
+        "modalities": [
+          "text"
+        ],
+        "tool_support": "VERIFY_AT_RUNTIME",
+        "reasoning": {
+          "control": "reasoning_effort",
+          "levels": [
+            "low",
+            "high",
+            "max"
+          ],
+          "default": "high"
+        },
+        "compatibility_notes": [
+          "执行包提供的未验证种子；不是实时可用性证明",
+          "Runtime Probe 优先",
+          "reasoning_effort 与 thinking_budget 互斥"
+        ]
+      },
+      {
+        "id": "model_deepseek_deepseek_v4_flash",
+        "harness": "pi",
+        "provider_id": "deepseek",
+        "provider_profile_id": "profile_mock_deepseek",
+        "model_id": "deepseek-v4-flash",
+        "display_name": "DeepSeek V4 Flash",
+        "source": "SEED",
+        "availability": "UNVERIFIED",
+        "modalities": [
+          "text"
+        ],
+        "tool_support": "VERIFY_AT_RUNTIME",
+        "reasoning": {
+          "control": "reasoning_effort",
+          "levels": [
+            "low",
+            "high",
+            "max"
+          ],
+          "default": "high"
+        },
+        "compatibility_notes": [
+          "执行包提供的未验证种子；不是实时可用性证明",
+          "Runtime Probe 优先",
+          "reasoning_effort 与 thinking_budget 互斥"
+        ]
+      },
+      {
+        "id": "model_zai_glm_5_3",
+        "harness": "pi",
+        "provider_id": "zai",
+        "provider_profile_id": "profile_mock_zai",
+        "model_id": "glm-5.3",
+        "display_name": "GLM-5.3",
+        "source": "SEED",
+        "availability": "UNVERIFIED",
+        "modalities": [
+          "text"
+        ],
+        "tool_support": "VERIFY_AT_RUNTIME",
+        "reasoning": {
+          "control": "reasoning_effort",
+          "levels": [
+            "low",
+            "high",
+            "max"
+          ],
+          "default": "max"
+        },
+        "compatibility_notes": [
+          "执行包提供的未验证种子；不是实时可用性证明",
+          "Runtime Probe 优先",
+          "reasoning_effort 与 thinking_budget 互斥"
+        ]
+      },
+      {
+        "id": "model_zai_glm_5_3_flash",
+        "harness": "pi",
+        "provider_id": "zai",
+        "provider_profile_id": "profile_mock_zai",
+        "model_id": "glm-5.3-flash",
+        "display_name": "GLM-5.3 Flash",
+        "source": "SEED",
+        "availability": "UNVERIFIED",
+        "modalities": [
+          "text"
+        ],
+        "tool_support": "VERIFY_AT_RUNTIME",
+        "reasoning": {
+          "control": "reasoning_effort",
+          "levels": [
+            "low",
+            "high",
+            "max"
+          ],
+          "default": "max"
+        },
+        "compatibility_notes": [
+          "执行包提供的未验证种子；不是实时可用性证明",
+          "Runtime Probe 优先",
+          "reasoning_effort 与 thinking_budget 互斥"
+        ]
+      },
+      {
+        "id": "model_dashscope_qwen3_8_max",
+        "harness": "pi",
+        "provider_id": "dashscope",
+        "provider_profile_id": "profile_mock_dashscope",
+        "model_id": "qwen3.8-max",
+        "display_name": "Qwen3.8 Max",
+        "source": "SEED",
+        "availability": "UNVERIFIED",
+        "modalities": [
+          "text"
+        ],
+        "tool_support": "VERIFY_AT_RUNTIME",
+        "reasoning": {
+          "control": "reasoning_effort",
+          "levels": [
+            "none",
+            "low",
+            "medium",
+            "xhigh"
+          ],
+          "default": "xhigh"
+        },
+        "compatibility_notes": [
+          "执行包提供的未验证种子；不是实时可用性证明",
+          "Runtime Probe 优先",
+          "reasoning_effort 与 thinking_budget 互斥"
+        ]
+      },
+      {
+        "id": "model_dashscope_qwen3_8_flash",
+        "harness": "pi",
+        "provider_id": "dashscope",
+        "provider_profile_id": "profile_mock_dashscope",
+        "model_id": "qwen3.8-flash",
+        "display_name": "Qwen3.8 Flash",
+        "source": "SEED",
+        "availability": "UNVERIFIED",
+        "modalities": [
+          "text"
+        ],
+        "tool_support": "VERIFY_AT_RUNTIME",
+        "reasoning": {
+          "control": "reasoning_effort",
+          "levels": [
+            "none",
+            "low",
+            "medium",
+            "xhigh"
+          ],
+          "default": "xhigh"
+        },
+        "compatibility_notes": [
+          "执行包提供的未验证种子；不是实时可用性证明",
+          "Runtime Probe 优先",
+          "reasoning_effort 与 thinking_budget 互斥"
+        ]
+      }
+    ]
+  },
+  "crossGroupError": "CROSS_SPACE_DENIED",
+  "preview": {
+    "planId": "reconfiguration_692bec74-fbf9-4628-8abd-fad2e6f75749",
+    "planHash": "ae76b8b88fc2080ccfdf476f22aa481b09f5d2c9e105e6f8beef2360b290671b",
+    "expectedRevision": 3,
+    "blockers": [],
+    "affectedRoleIds": [
+      "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+      "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+      "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+      "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+      "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+      "role_80e8358f-010f-4213-899a-0d71948fb6fa"
+    ],
+    "affectedTaskIds": [],
+    "affectedRunIds": [],
+    "affectedWorkspaceIds": [
+      "workspace_core",
+      "workspace_ui"
+    ],
+    "proposedDestinations": {
+      "mode": "MERGE",
+      "source_space_ids": [
+        "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119"
+      ],
+      "targets": [
+        {
+          "group_key": "merged",
+          "display_name": "合并组",
+          "purpose": "受控合并",
+          "rules": {
+            "handoff_requirements": [],
+            "completion_definition": [
+              "用户验收"
+            ],
+            "parallelism_notes": "工作区保持独立"
+          }
+        }
+      ],
+      "assignments": [
+        {
+          "role_id": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+          "target_group_key": "merged",
+          "workspace_id": "workspace_core",
+          "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+        },
+        {
+          "role_id": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+          "target_group_key": "merged",
+          "workspace_id": "workspace_core",
+          "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+        },
+        {
+          "role_id": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+          "target_group_key": "merged",
+          "workspace_id": "workspace_core",
+          "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+        },
+        {
+          "role_id": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+          "target_group_key": "merged",
+          "workspace_id": "workspace_ui",
+          "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+        },
+        {
+          "role_id": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+          "target_group_key": "merged",
+          "workspace_id": "workspace_ui",
+          "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+        },
+        {
+          "role_id": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+          "target_group_key": "merged",
+          "workspace_id": "workspace_ui",
+          "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+        }
+      ],
+      "task_dispositions": []
+    },
+    "requiredConfirmations": [
+      "EXPLICIT_TASK_DISPOSITIONS",
+      "SESSION_CONTINUITY",
+      "NO_WORKTREE_MERGE",
+      "OLD_CONTEXT_NOT_FORGOTTEN"
+    ]
+  },
+  "committed": {
+    "id": "reconfiguration_692bec74-fbf9-4628-8abd-fad2e6f75749",
+    "state": "COMMITTED",
+    "preview": {
+      "planId": "reconfiguration_692bec74-fbf9-4628-8abd-fad2e6f75749",
+      "planHash": "ae76b8b88fc2080ccfdf476f22aa481b09f5d2c9e105e6f8beef2360b290671b",
+      "expectedRevision": 3,
+      "blockers": [],
+      "affectedRoleIds": [
+        "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+        "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+        "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+        "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+        "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+        "role_80e8358f-010f-4213-899a-0d71948fb6fa"
+      ],
+      "affectedTaskIds": [],
+      "affectedRunIds": [],
+      "affectedWorkspaceIds": [
+        "workspace_core",
+        "workspace_ui"
+      ],
+      "proposedDestinations": {
+        "mode": "MERGE",
+        "source_space_ids": [
+          "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+          "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119"
+        ],
+        "targets": [
+          {
+            "group_key": "merged",
+            "display_name": "合并组",
+            "purpose": "受控合并",
+            "rules": {
+              "handoff_requirements": [],
+              "completion_definition": [
+                "用户验收"
+              ],
+              "parallelism_notes": "工作区保持独立"
+            }
+          }
+        ],
+        "assignments": [
+          {
+            "role_id": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+            "target_group_key": "merged",
+            "workspace_id": "workspace_core",
+            "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+          },
+          {
+            "role_id": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+            "target_group_key": "merged",
+            "workspace_id": "workspace_core",
+            "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+          },
+          {
+            "role_id": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+            "target_group_key": "merged",
+            "workspace_id": "workspace_core",
+            "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+          },
+          {
+            "role_id": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+            "target_group_key": "merged",
+            "workspace_id": "workspace_ui",
+            "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+          },
+          {
+            "role_id": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+            "target_group_key": "merged",
+            "workspace_id": "workspace_ui",
+            "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+          },
+          {
+            "role_id": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+            "target_group_key": "merged",
+            "workspace_id": "workspace_ui",
+            "session_strategy": "NEW_SESSION_WITH_HANDOVER"
+          }
+        ],
+        "task_dispositions": []
+      },
+      "requiredConfirmations": [
+        "EXPLICIT_TASK_DISPOSITIONS",
+        "SESSION_CONTINUITY",
+        "NO_WORKTREE_MERGE",
+        "OLD_CONTEXT_NOT_FORGOTTEN"
+      ]
+    },
+    "newSpaceIds": [
+      "space_405560a8-ee22-4d55-9db8-01dcfb8b37c9"
+    ],
+    "transitionPackets": [
+      {
+        "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+        "oldSpaceId": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "newSpaceId": "space_405560a8-ee22-4d55-9db8-01dcfb8b37c9",
+        "effectiveAtMs": 1000,
+        "policyRevision": 1,
+        "charterId": "charter_c4c573ab-f7a7-4aa7-8329-188f75971a51",
+        "directory": [
+          {
+            "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+            "displayName": "Core 实现 1"
+          },
+          {
+            "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+            "displayName": "Core 实现 2"
+          },
+          {
+            "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+            "displayName": "Core 实现 3"
+          },
+          {
+            "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+            "displayName": "UI 设计与实现 1"
+          },
+          {
+            "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+            "displayName": "UI 设计与实现 2"
+          },
+          {
+            "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+            "displayName": "UI 设计与实现 3"
+          }
+        ],
+        "workspaceId": "workspace_core",
+        "effectivePermissions": {
+          "workspace_access": "read_only",
+          "allowed_paths": [],
+          "tool_profiles": [],
+          "network_profile": "none"
+        },
+        "taskDispositions": [],
+        "strategy": "NEW_SESSION_WITH_HANDOVER",
+        "confirmedFacts": [],
+        "nextStep": "下一项实际任务前交付新章程；不自动唤醒",
+        "untrustedOldAssumptions": [
+          "拆组不会使旧会话遗忘；旧组任务和通讯录不自动继承"
+        ]
+      },
+      {
+        "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+        "oldSpaceId": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "newSpaceId": "space_405560a8-ee22-4d55-9db8-01dcfb8b37c9",
+        "effectiveAtMs": 1000,
+        "policyRevision": 1,
+        "charterId": "charter_d0618cc7-5376-4e54-a4c9-b3f2501986f9",
+        "directory": [
+          {
+            "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+            "displayName": "Core 实现 1"
+          },
+          {
+            "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+            "displayName": "Core 实现 2"
+          },
+          {
+            "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+            "displayName": "Core 实现 3"
+          },
+          {
+            "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+            "displayName": "UI 设计与实现 1"
+          },
+          {
+            "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+            "displayName": "UI 设计与实现 2"
+          },
+          {
+            "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+            "displayName": "UI 设计与实现 3"
+          }
+        ],
+        "workspaceId": "workspace_core",
+        "effectivePermissions": {
+          "workspace_access": "read_only",
+          "allowed_paths": [],
+          "tool_profiles": [],
+          "network_profile": "none"
+        },
+        "taskDispositions": [],
+        "strategy": "NEW_SESSION_WITH_HANDOVER",
+        "confirmedFacts": [],
+        "nextStep": "下一项实际任务前交付新章程；不自动唤醒",
+        "untrustedOldAssumptions": [
+          "拆组不会使旧会话遗忘；旧组任务和通讯录不自动继承"
+        ]
+      },
+      {
+        "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+        "oldSpaceId": "space_fdac5eec-d777-41f3-a61a-af25e8d4349b",
+        "newSpaceId": "space_405560a8-ee22-4d55-9db8-01dcfb8b37c9",
+        "effectiveAtMs": 1000,
+        "policyRevision": 1,
+        "charterId": "charter_2963ce00-7241-42e4-8a9a-c44497b97314",
+        "directory": [
+          {
+            "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+            "displayName": "Core 实现 1"
+          },
+          {
+            "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+            "displayName": "Core 实现 2"
+          },
+          {
+            "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+            "displayName": "Core 实现 3"
+          },
+          {
+            "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+            "displayName": "UI 设计与实现 1"
+          },
+          {
+            "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+            "displayName": "UI 设计与实现 2"
+          },
+          {
+            "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+            "displayName": "UI 设计与实现 3"
+          }
+        ],
+        "workspaceId": "workspace_core",
+        "effectivePermissions": {
+          "workspace_access": "read_only",
+          "allowed_paths": [],
+          "tool_profiles": [],
+          "network_profile": "none"
+        },
+        "taskDispositions": [],
+        "strategy": "NEW_SESSION_WITH_HANDOVER",
+        "confirmedFacts": [],
+        "nextStep": "下一项实际任务前交付新章程；不自动唤醒",
+        "untrustedOldAssumptions": [
+          "拆组不会使旧会话遗忘；旧组任务和通讯录不自动继承"
+        ]
+      },
+      {
+        "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+        "oldSpaceId": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+        "newSpaceId": "space_405560a8-ee22-4d55-9db8-01dcfb8b37c9",
+        "effectiveAtMs": 1000,
+        "policyRevision": 1,
+        "charterId": "charter_75af6d92-f917-457c-bd24-cb22dece0f39",
+        "directory": [
+          {
+            "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+            "displayName": "Core 实现 1"
+          },
+          {
+            "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+            "displayName": "Core 实现 2"
+          },
+          {
+            "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+            "displayName": "Core 实现 3"
+          },
+          {
+            "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+            "displayName": "UI 设计与实现 1"
+          },
+          {
+            "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+            "displayName": "UI 设计与实现 2"
+          },
+          {
+            "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+            "displayName": "UI 设计与实现 3"
+          }
+        ],
+        "workspaceId": "workspace_ui",
+        "effectivePermissions": {
+          "workspace_access": "read_only",
+          "allowed_paths": [],
+          "tool_profiles": [],
+          "network_profile": "none"
+        },
+        "taskDispositions": [],
+        "strategy": "NEW_SESSION_WITH_HANDOVER",
+        "confirmedFacts": [],
+        "nextStep": "下一项实际任务前交付新章程；不自动唤醒",
+        "untrustedOldAssumptions": [
+          "拆组不会使旧会话遗忘；旧组任务和通讯录不自动继承"
+        ]
+      },
+      {
+        "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+        "oldSpaceId": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+        "newSpaceId": "space_405560a8-ee22-4d55-9db8-01dcfb8b37c9",
+        "effectiveAtMs": 1000,
+        "policyRevision": 1,
+        "charterId": "charter_22c4de50-b7ad-44c3-9a96-8fe244dce598",
+        "directory": [
+          {
+            "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+            "displayName": "Core 实现 1"
+          },
+          {
+            "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+            "displayName": "Core 实现 2"
+          },
+          {
+            "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+            "displayName": "Core 实现 3"
+          },
+          {
+            "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+            "displayName": "UI 设计与实现 1"
+          },
+          {
+            "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+            "displayName": "UI 设计与实现 2"
+          },
+          {
+            "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+            "displayName": "UI 设计与实现 3"
+          }
+        ],
+        "workspaceId": "workspace_ui",
+        "effectivePermissions": {
+          "workspace_access": "read_only",
+          "allowed_paths": [],
+          "tool_profiles": [],
+          "network_profile": "none"
+        },
+        "taskDispositions": [],
+        "strategy": "NEW_SESSION_WITH_HANDOVER",
+        "confirmedFacts": [],
+        "nextStep": "下一项实际任务前交付新章程；不自动唤醒",
+        "untrustedOldAssumptions": [
+          "拆组不会使旧会话遗忘；旧组任务和通讯录不自动继承"
+        ]
+      },
+      {
+        "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+        "oldSpaceId": "space_0a2ed65d-eb51-4ca8-938d-cf9bfd10b119",
+        "newSpaceId": "space_405560a8-ee22-4d55-9db8-01dcfb8b37c9",
+        "effectiveAtMs": 1000,
+        "policyRevision": 1,
+        "charterId": "charter_7f016cef-b597-4cc8-ae91-3e5f9e4dba78",
+        "directory": [
+          {
+            "roleId": "role_1c6ba3e5-be0f-484a-a918-a0e235666365",
+            "displayName": "Core 实现 1"
+          },
+          {
+            "roleId": "role_cd1fa458-dc37-4dae-baaf-b511532cc82c",
+            "displayName": "Core 实现 2"
+          },
+          {
+            "roleId": "role_3eab6f43-6516-420c-ad15-176a3c8d1d85",
+            "displayName": "Core 实现 3"
+          },
+          {
+            "roleId": "role_e328ff21-b8d5-4b6f-8a97-f09e2b7a6086",
+            "displayName": "UI 设计与实现 1"
+          },
+          {
+            "roleId": "role_05cde3ee-ec08-4c81-86f7-f23e4dc4e6a1",
+            "displayName": "UI 设计与实现 2"
+          },
+          {
+            "roleId": "role_80e8358f-010f-4213-899a-0d71948fb6fa",
+            "displayName": "UI 设计与实现 3"
+          }
+        ],
+        "workspaceId": "workspace_ui",
+        "effectivePermissions": {
+          "workspace_access": "read_only",
+          "allowed_paths": [],
+          "tool_profiles": [],
+          "network_profile": "none"
+        },
+        "taskDispositions": [],
+        "strategy": "NEW_SESSION_WITH_HANDOVER",
+        "confirmedFacts": [],
+        "nextStep": "下一项实际任务前交付新章程；不自动唤醒",
+        "untrustedOldAssumptions": [
+          "拆组不会使旧会话遗忘；旧组任务和通讯录不自动继承"
+        ]
+      }
+    ],
+    "auditId": "audit_7183b082-be89-4e77-a134-25ce91b6eeb8",
+    "revision": 4
+  }
+}

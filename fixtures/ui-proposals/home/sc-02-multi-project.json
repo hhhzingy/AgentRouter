@@ -1,0 +1,51 @@
+{
+  "scenario_id": "sc-02",
+  "title": "多项目混合首页",
+  "description": "三个项目（SSH 双组、Local 单组、Local 归档），验证网格排序、混合徽标与 +N 组。",
+  "ui_surfaces": ["首页"],
+  "snapshot": {
+    "cursor": 4120,
+    "projects": [
+      { "id": "proj_atlas", "name": "支付中台重构", "status": "ACTIVE", "hostLabel": "SSH · core-prod-01", "displayRoot": "~/work/pay-core", "spacesCount": 3, "activeRunsCount": 2, "issuesCount": 1, "revision": 47 },
+      { "id": "proj_nova", "name": "官网改版", "status": "ACTIVE", "hostLabel": "Local · 本机", "displayRoot": "D:\\work\\nova-site", "spacesCount": 1, "activeRunsCount": 0, "issuesCount": 0, "revision": 12 },
+      { "id": "proj_old", "name": "旧报表迁移", "status": "ARCHIVED", "hostLabel": "Local · 本机", "displayRoot": "D:\\work\\legacy-report", "spacesCount": 1, "activeRunsCount": 0, "issuesCount": 0, "revision": 88 }
+    ],
+    "spaces": [
+      { "id": "sp_core", "projectId": "proj_atlas", "name": "核心实现组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 2, "revision": 9 },
+      { "id": "sp_ui", "projectId": "proj_atlas", "name": "UI 组", "status": "ACTIVE", "rolesCount": 3, "queuedTasksCount": 1, "revision": 7 },
+      { "id": "sp_ops", "projectId": "proj_atlas", "name": "运维观察组", "status": "ACTIVE", "rolesCount": 1, "queuedTasksCount": 0, "revision": 2 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-01", "CCR-UI-12"],
+    "card_summaries": [
+      { "project_id": "proj_atlas",
+        "spaces": [
+          { "id": "sp_core", "name": "核心实现组", "workspace_label": "wt:core",
+            "roles": [
+              { "id": "r_lin", "name": "林岚", "status": "ACTIVE", "task_state": null, "run_state": null, "queued": 0, "approvals": 0 },
+              { "id": "r_zhou", "name": "周实现", "status": "ACTIVE", "task_state": "ACTIVE", "run_state": "RUNNING", "queued": 2, "approvals": 0 },
+              { "id": "r_chen", "name": "陈复核", "status": "ACTIVE", "task_state": "WAITING_INPUT", "run_state": null, "queued": 0, "approvals": 0 }
+            ] },
+          { "id": "sp_ui", "name": "UI 组", "workspace_label": "wt:ui",
+            "roles": [
+              { "id": "r_su", "name": "苏界面", "status": "ACTIVE", "task_state": "NEEDS_ATTENTION", "run_state": "RUNNING", "queued": 0, "approvals": 0 },
+              { "id": "r_tang", "name": "唐测试", "status": "ACTIVE", "task_state": null, "run_state": null, "queued": 1, "approvals": 0 }
+            ], "extra_roles_count": 1 }
+        ],
+        "extra_spaces_count": 1,
+        "pending_approvals": 1,
+        "last_activity": { "at_ms": 1788931740000, "actor_role_id": "r_zhou", "summary": "周实现 提交了「登录接口」" } },
+      { "project_id": "proj_nova", "spaces": [], "extra_spaces_count": 0, "pending_approvals": 0,
+        "last_activity": { "at_ms": 1788918000000, "actor_role_id": null, "summary": "项目创建" } }
+    ]
+  },
+  "expected_ui": [
+    "项目卡按 last_activity 倒序：proj_atlas 在 proj_nova 前；归档项目置底且灰显『已归档』",
+    "proj_atlas 卡组概览渲染 2 组 + 『+1 个组』；UI 组角色行渲染 2 头像 + 『+1』",
+    "苏界面角标为 !(需介入)，周实现为 ●(执行中)，陈复核为 ◐(等待)，唐测试为 ⧉(排队)",
+    "计数条：▶2 运行、⚠1 介入、⏸1 审批、⧉3 排队（跨组聚合）",
+    "proj_atlas 位置行显示『SSH · core-prod-01 · ~/work/pay-core』，proj_nova 显示『Local · 本机』",
+    "创建项目卡位于网格末尾"
+  ]
+}

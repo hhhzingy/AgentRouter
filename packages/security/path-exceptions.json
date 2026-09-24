@@ -1,0 +1,21 @@
+{
+  "reason": "仅允许基线生成的类型/Schema 文件名含 Token；精确内容哈希匹配且仍做内容扫描。不是凭据数据。",
+  "files": {
+    "fixtures/codex/0.153.4/schema/ChatgptAuthTokensRefreshParams.json": "03b7a734b8b3180d9cb477b33564385d29b22a2528165a614891f13849060503",
+    "fixtures/codex/0.153.4/schema/ChatgptAuthTokensRefreshResponse.json": "06d6b30436fc962d80b5d7920f8f323de12a052214d9148c5f0dfbaedd5eec6c",
+    "fixtures/codex/0.153.4/types/AutoCompactTokenLimitScope.ts": "6ff974aeb0fb08741a6c51c253bc1adecc78e9e49b7edf7270198c606f76a25d",
+    "fixtures/codex/0.153.4/types/v2/AccountTokenUsageDailyBucket.ts": "dec66188900692d8c4ff29ccd172f65b494a5b68c3d6c4cdf80b7167f5ea8b2a",
+    "fixtures/codex/0.153.4/types/v2/AccountTokenUsageSummary.ts": "afb22ae8edf0130af826655f557843f22c77dcac69e72cbd40ed93d29487f9b3",
+    "fixtures/codex/0.153.4/types/v2/ChatgptAuthTokensRefreshParams.ts": "7c5e6a8629b8d6484d45ed07709198e010c14089623bb0879dc42198ec9db243",
+    "fixtures/codex/0.153.4/types/v2/ChatgptAuthTokensRefreshReason.ts": "52bd0b02848c809f48ba2bd2fb0babaffb4d9ca2e12974792125fc0f6774545f",
+    "fixtures/codex/0.153.4/types/v2/ChatgptAuthTokensRefreshResponse.ts": "b7744dfdf2e62755d1153bd4c5217bb62283e9fd32143665317e44206bff6790",
+    "fixtures/codex/0.153.4/types/v2/GetAccountTokenUsageParams.ts": "1a7a313f8a64fb038abfff5360e61f7e27019d708c37190840e1689633363892",
+    "fixtures/codex/0.153.4/types/v2/GetAccountTokenUsageResponse.ts": "c342b7d5c798aac1b65f9753cae44c0a785aeef6d39be82f310f96227b24c5ae",
+    "fixtures/codex/0.153.4/types/v2/ThreadTokenUsage.ts": "27cae6c3e6c44696225e9a0903e0531c6eff126c6de3da2176bc5cdd904def4e",
+    "fixtures/codex/0.153.4/types/v2/ThreadTokenUsageUpdatedNotification.ts": "53ce4421d686b8a7f9a86c5ad54de2a7dceecfb95df74fa5f441947e136f063d",
+    "fixtures/codex/0.153.4/types/v2/TokenUsageBreakdown.ts": "e983f21175fdfdf1a239e26cd8916e1cb765bc0cb7904e2bd9cc83ffe325c8a7",
+    "fixtures/codex/0.153.4/schema/v2/GetAccountTokenUsageResponse.json": "a58e58c852c888e5de925d99a66688d55ebb2fff038e795aadf04f8a8426dff8",
+    "fixtures/codex/0.153.4/schema/v2/NullableGetAccountTokenUsageParams.json": "a992c6ea0fe02b0e9f46b18afb51b8ee2635e7f0c7d546f71e7f95e2a98bebba",
+    "fixtures/codex/0.153.4/schema/v2/ThreadTokenUsageUpdatedNotification.json": "aba4f6c7e4a19b2b842c08ee793b57000c07dafd57b922ad0d8e7c76609108c2"
+  }
+}

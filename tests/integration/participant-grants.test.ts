@@ -1,0 +1,435 @@
+import { it, expect } from 'vitest';
+import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { openApplicationStore } from '../../packages/storage/application-store.ts';
+import { ApplicationService } from '../../packages/core-service/application.ts';
+import { ParticipantExtension } from '../../packages/core-service/participant-extension.ts';
+import { P1MemoryTransport } from '../../packages/client-transport/p1/memory.ts';
+import seed from '../../fixtures/client-c1r1/two-groups.plan.json' with { type: 'json' };
+import type { RolePlanInput, Method, Scope } from '../../packages/client-contract/c1r1p1/index.ts';
+
+async function fixture(clock: () => number = Date.now) {
+  mkdirSync('.local/w11-tests', { recursive: true });
+  const dir = mkdtempSync(resolve('.local/w11-tests/pgrant-'));
+  const db = openApplicationStore(dir),
+    server = new ApplicationService(db, [dir], false, clock),
+    transport = new P1MemoryTransport(server, 'human_test'),
+    s = await transport.connect({
+      clientId: 'client_setup',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'controller',
+    });
+  server.participant = new ParticipantExtension(db);
+  const lease = await s.request(
+    'control.acquire',
+    {},
+    { operationId: 'op_lease', expectedRevision: (await s.request('system.snapshot', {})).revision, scope: {} },
+  );
+  let n = 0;
+  const write = async (m: Method, p: any, scope: Scope = {}, op?: string) =>
+    s.request(m, p, {
+      operationId: op ?? 'op_' + ++n,
+      expectedRevision: (await s.request('system.snapshot', {})).revision,
+      scope,
+      leaseId: (lease as { leaseId: string }).leaseId,
+    });
+  const roots = await s.request('filesystem.listRoots', {}),
+    project = (await write('project.create', {
+      name: 'grant测试',
+      path_handle: roots.items[0].pathHandle,
+    })) as any;
+  const ws = await s.request('workspace.list', { project_id: project.id });
+  const plan = structuredClone(seed) as RolePlanInput;
+  plan.project_id = project.id;
+  plan.groups = plan.groups.slice(0, 1);
+  plan.roles = plan.roles.slice(0, 1);
+  plan.groups[0].workspace_ref = ws.items[0].id;
+  plan.roles[0].workspace_ref = ws.items[0].id;
+  const v = await s.request('rolePlan.validate', { plan });
+  await write(
+    'rolePlan.apply',
+    { plan, plan_hash: v.planHash, confirmed: true, permission_grants: [] },
+    { project_id: project.id },
+    'apply',
+  );
+  const roleId = ((await s.request('role.list', { scope: { project_id: project.id } })) as any)
+    .items[0].id;
+  const spaceId = (db.prepare('select space_id from roles where id=?').get(roleId) as { space_id: string }).space_id;
+  // 管理面签发 grant(全局租约)——操作员动作
+  const issueGrant = async () =>
+    (await s.request(
+      'participant.grant.issue' as never,
+      { role_id: roleId } as never,
+      { leaseId: (lease as { leaseId: string }).leaseId },
+    )) as unknown as { grant_id: string; token: string; generation: number; revoked_previous: boolean };
+  // 参与者连接工厂(controller 模式但不取全局 lease;模拟两个聊天各一连接)
+  const makeParticipant = async (clientId: string) => {
+    const t = new P1MemoryTransport(server, 'human_test');
+    const p = await t.connect({ clientId, clientVersion: '1.0.0-dev.0', requestedMode: 'controller' });
+    const attach = (grantId: string, token: string) =>
+      p.request(
+        'participant.attach' as never,
+        { role_id: roleId, grant_id: grantId, grant_token: token } as never,
+      ) as unknown as Promise<{ generation: number; project_id: string; space_id: string }>;
+    const artifact = (name: string, content: string) =>
+      p.request(
+        'participant.artifact' as never,
+        { role_id: roleId, name, content } as never,
+      ) as unknown as Promise<Record<string, unknown>>;
+    const inputFrames = new Map<string, { body: string; expectedRevision: number }>();
+    const sendInput = async (
+      task: string,
+      body: string,
+      operationId = 'pinput_' + clientId + '_' + Math.random().toString(36).slice(2),
+    ) => {
+      const prior = inputFrames.get(operationId);
+      const expectedRevision =
+        prior?.body === body
+          ? prior.expectedRevision
+          : (await p.request('system.snapshot' as never, {} as never) as unknown as { revision: number }).revision;
+      if (!prior) inputFrames.set(operationId, { body, expectedRevision });
+      return p.request(
+        'conversation.sendUserInput' as never,
+        { role_id: roleId, task_id: task, body } as never,
+        {
+          operationId,
+          expectedRevision,
+          scope: { project_id: project.id, space_id: spaceId },
+          // 冻结写帧必填 lease 字段;attachment 旁路服务端忽略其值(F-02:适配器统一注入)
+          leaseId: 'participant-attachment',
+        },
+      ) as unknown as Promise<{ entityId: string }>;
+    };
+    return { t, p, attach, artifact, sendInput };
+  };
+  // 使任务进入 WAITING_INPUT(fixture 直改 DB;写路径仍走服务校验)
+  const makeWaitingTask = async (summary: string) => {
+    await write(
+      'task.submitFromUser',
+      { request: { kind: 'task.request', to: { type: 'role', id: roleId }, summary, body: 'b', inputs: [], expected: ['x'], completion: { mode: 'result', to: { type: 'user' } } } },
+      { project_id: project.id, space_id: spaceId },
+      'task-' + summary,
+    );
+    const task = db.prepare('select id from tasks where summary=?').get(summary) as { id: string };
+    db.prepare("update tasks set state='WAITING_INPUT' where id=?").run(task.id);
+    db.prepare("insert into wait_records(task_id,waiting_for,reason,dependency_json,ready,updated_at_ms) values(?,?,?,?,0,?)").run(
+      task.id, 'user_input', '等待参与者输入', '{}', clock(),
+    );
+    return task.id;
+  };
+  return {
+    dir, db, server, s, write, project, spaceId, roleId, lease, issueGrant,
+    makeParticipant, makeWaitingTask,
+    async close() {
+      await transport.close();
+      db.close();
+    },
+  };
+}
+
+it('PART-01/02/03:签发grant→attach→真实WAITING_INPUT任务 sendUserInput 成功,输入恰好一次进入正确任务并进入产物正路径', async () => {
+  const f = await fixture();
+  try {
+    const g = await f.issueGrant();
+    expect(g.grant_id).toMatch(/^pgrant_/);
+    expect(g.revoked_previous).toBe(false);
+    const part = await f.makeParticipant('client_chatA');
+    const at = await part.attach(g.grant_id, g.token);
+    expect(at.project_id).toBe(f.project.id);
+    expect(at.space_id).toBe(f.spaceId);
+    const task = await f.makeWaitingTask('T1');
+    const r = await part.sendInput(task, '回答A', 'pinput-chatA-T1');
+    expect(r.entityId).toBe(task);
+    await expect(part.sendInput(task, '回答A', 'pinput-chatA-T1')).resolves.toEqual(r);
+    const items = f.db.prepare("select count(*) c from conversation_items where task_id=? and body='回答A'").get(task) as { c: number };
+    expect(items.c).toBe(1);
+    const input = f.db
+      .prepare(
+        'select id,payload,payload_sha256,operation_id,consumed_at_ms from task_inputs where task_id=?',
+      )
+      .get(task) as {
+      id: string;
+      payload: string;
+      payload_sha256: string;
+      operation_id: string;
+      consumed_at_ms: number | null;
+    };
+    expect(input).toMatchObject({
+      payload: '回答A',
+      payload_sha256: createHash('sha256').update(Buffer.from('回答A', 'utf8')).digest('hex'),
+      operation_id: 'pinput-chatA-T1',
+      consumed_at_ms: null,
+    });
+    expect(input.id).toMatch(/^task_input_/);
+    await expect(part.sendInput(task, '回答B', 'pinput-chatA-T1-conflict')).rejects.toMatchObject({
+      message: 'PLAN_STATE_CONFLICT',
+    });
+    const ctxCount = f.db.prepare('select count(*) c from role_context_entries where role_id=?').get(f.roleId) as { c: number };
+    expect(ctxCount.c).toBe(0);
+    const wr = f.db.prepare('select ready from wait_records where task_id=?').get(task) as { ready: number };
+    expect(wr.ready).toBe(1);
+    // 正路径产物
+    await expect(part.artifact('note.md', '# ok')).resolves.toMatchObject({ name: 'note.md' });
+    // 无 grant attach 被拒(PART-06)
+    await expect(part.attach('', '')).rejects.toMatchObject({ message: 'PARTICIPANT_GRANT_REVOKED' });
+  } finally { await f.close(); }
+});
+
+it('PART-11: Artifact 文件落盘后 DB 写失败时回滚 workspace 文件/新 blob，但保留共享 blob', async () => {
+  const f = await fixture();
+  const trigger = 'force_artifact_insert_failure';
+  try {
+    const g = await f.issueGrant();
+    const part = await f.makeParticipant('client_artifact_rollback');
+    await part.attach(g.grant_id, g.token);
+    const name = 'rollback-proof.md';
+    const content = '# forced database failure\nunique rollback payload';
+    const sha = createHash('sha256').update(Buffer.from(content, 'utf8')).digest('hex');
+    const workspace = (
+      f.db
+        .prepare(
+          'select w.canonical_path from bindings b join workspaces w on w.id=b.workspace_id where b.role_id=? and b.is_current=1',
+        )
+        .get(f.roleId) as { canonical_path: string }
+    ).canonical_path;
+    const workspacePath = join(workspace, 'agentrouter-artifacts', name);
+    const blobPath = join(dirname(f.db.name), 'artifacts', sha);
+    expect(existsSync(workspacePath)).toBe(false);
+    expect(existsSync(blobPath)).toBe(false);
+    f.db.exec(
+      "create trigger " +
+        trigger +
+        " before insert on artifacts begin select raise(abort,'forced artifact insert failure'); end",
+    );
+    await expect(part.artifact(name, content)).rejects.toThrow('SQLITE_CONSTRAINT_TRIGGER');
+    expect(existsSync(workspacePath)).toBe(false);
+    expect(existsSync(blobPath)).toBe(false);
+    expect(
+      (f.db.prepare('select count(*) count from artifacts where sha256=?').get(sha) as { count: number })
+        .count,
+    ).toBe(0);
+
+    f.db.exec('drop trigger if exists ' + trigger);
+    const sharedContent = '# shared content-addressed blob';
+    const sharedSha = createHash('sha256')
+      .update(Buffer.from(sharedContent, 'utf8'))
+      .digest('hex');
+    await expect(part.artifact('shared-seed.md', sharedContent)).resolves.toMatchObject({
+      name: 'shared-seed.md',
+    });
+    const sharedBlobPath = join(dirname(f.db.name), 'artifacts', sharedSha);
+    expect(existsSync(sharedBlobPath)).toBe(true);
+    f.db.exec(
+      "create trigger " +
+        trigger +
+        " before insert on artifacts begin select raise(abort,'forced artifact insert failure'); end",
+    );
+    await expect(part.artifact('shared-rollback.md', sharedContent)).rejects.toThrow(
+      'SQLITE_CONSTRAINT_TRIGGER',
+    );
+    expect(existsSync(join(workspace, 'agentrouter-artifacts', 'shared-rollback.md'))).toBe(false);
+    expect(existsSync(sharedBlobPath)).toBe(true);
+    expect(
+      (
+        f.db.prepare('select count(*) count from artifacts where sha256=?').get(sharedSha) as {
+          count: number;
+        }
+      ).count,
+    ).toBe(1);
+    await part.t.close();
+  } finally {
+    f.db.exec('drop trigger if exists ' + trigger);
+    await f.close();
+  }
+});
+
+it('PART-04/05/08:同角色新签发撤销旧grant;旧聊天写/重挂接被拒,不能自行重签发', async () => {
+  const f = await fixture();
+  try {
+    const gA = await f.issueGrant();
+    const chatA = await f.makeParticipant('client_chatA');
+    await chatA.attach(gA.grant_id, gA.token);
+    // 操作员为新聊天签发接管
+    const gB = await f.issueGrant();
+    expect(gB.revoked_previous).toBe(true);
+    const chatB = await f.makeParticipant('client_chatB');
+    await chatB.attach(gB.grant_id, gB.token);
+    // 旧聊天写被拒
+    await expect(chatA.artifact('late.md', 'x')).rejects.toMatchObject({ message: 'PARTICIPANT_GENERATION_STALE' });
+    // 旧聊天凭据再挂接被拒
+    await expect(chatA.attach(gA.grant_id, gA.token)).rejects.toMatchObject({ message: 'PARTICIPANT_GRANT_REVOKED' });
+    // 新聊天正常
+    await expect(chatB.artifact('fresh.md', 'y')).resolves.toMatchObject({ name: 'fresh.md' });
+  } finally { await f.close(); }
+});
+
+it('PART-07:连接断开清理挂接;同grant重连再attach恢复,grant保持ACTIVE', async () => {
+  const f = await fixture();
+  try {
+    const g = await f.issueGrant();
+    const part = await f.makeParticipant('client_re');
+    await part.attach(g.grant_id, g.token);
+    await part.t.close();
+    // 断开后该连接不再持有挂接;grant 本身仍 ACTIVE(可重挂)
+    const list = (await f.s.request(
+      'participant.grant.list' as never,
+      { role_id: f.roleId } as never,
+      { leaseId: (f.lease as { leaseId: string }).leaseId },
+    )) as unknown as { grants: { id: string; state: string }[] };
+    expect(list.grants.find((x) => x.id === g.grant_id)?.state).toBe('ACTIVE');
+    const part2 = await f.makeParticipant('client_re2');
+    await part2.attach(g.grant_id, g.token);
+    await expect(part2.artifact('after-reconnect.md', 'z')).resolves.toMatchObject({ name: 'after-reconnect.md' });
+    await part2.t.close();
+  } finally { await f.close(); }
+});
+
+it('PART-09:挂接不占全局租约——>120s 后写仍成功且管理面并发 acquire 正常', async () => {
+  let now = 1_000_000;
+  const f = await fixture(() => now);
+  try {
+    const g = await f.issueGrant();
+    const part = await f.makeParticipant('client_long');
+    await part.attach(g.grant_id, g.token);
+    // 参与者挂接期间管理面释放/重新 acquire(挂接不占租约)
+    await f.s.request(
+      'control.release',
+      { lease_id: (f.lease as { leaseId: string }).leaseId },
+      { operationId: 'op_release_setup', expectedRevision: (await f.s.request('system.snapshot', {})).revision, scope: {} },
+    );
+    const lease2 = await f.s.request(
+      'control.acquire',
+      {},
+      { operationId: 'op_reacquire', expectedRevision: (await f.s.request('system.snapshot', {})).revision, scope: {} },
+    );
+    expect((lease2 as { leaseId: string }).leaseId).toBeTruthy();
+    // 时钟前进 30 分钟:attachment 写不受任何租约过期影响(旧模型 30s 必失败)
+    now += 30 * 60_000;
+    await expect(part.artifact('long.md', 'w')).resolves.toMatchObject({ name: 'long.md' });
+  } finally { await f.close(); }
+});
+
+it('PART-10:grant.revoke 撤销后旧聊天失效;grant.issue 需要全局租约(无租约连接被拒)', async () => {
+  const f = await fixture();
+  try {
+    const g = await f.issueGrant();
+    const part = await f.makeParticipant('client_r');
+    await part.attach(g.grant_id, g.token);
+    await expect(
+      part.p.request(
+        'participant.slot.list' as never,
+        { role_id: f.roleId } as never,
+      ),
+    ).resolves.toMatchObject({ slots: expect.any(Array) });
+    // 无租约的参与者连接不能自行签发
+    await expect(
+      part.p.request('participant.grant.issue' as never, { role_id: f.roleId } as never, { leaseId: 'nope' } as never),
+    ).rejects.toThrow(/CONTROL_LEASE|SCOPE|LEASE/);
+    // 管理面 revoke
+    await f.s.request(
+      'participant.grant.revoke' as never,
+      { grant_id: g.grant_id } as never,
+      { leaseId: (f.lease as { leaseId: string }).leaseId },
+    );
+    await expect(part.artifact('post-revoke.md', 'x')).rejects.toMatchObject({ message: 'PARTICIPANT_GENERATION_STALE' });
+    await expect(
+      part.p.request(
+        'participant.slot.list' as never,
+        { role_id: f.roleId } as never,
+      ),
+    ).rejects.toMatchObject({ message: 'PARTICIPANT_GENERATION_STALE' });
+    await expect(part.attach(g.grant_id, g.token)).rejects.toMatchObject({ message: 'PARTICIPANT_GRANT_REVOKED' });
+  } finally { await f.close(); }
+});
+
+it('F09: 受限连接不得跨项目签发 grant；范围内角色可以签发', async () => {
+  const f = await fixture();
+  try {
+    const roots = await f.s.request('filesystem.listRoots', {});
+    const p2 = (await f.write(
+      'project.create',
+      { name: '越权项目', path_handle: roots.items[0].pathHandle },
+      {},
+      'p2',
+    )) as { id: string };
+    const ws2 = await f.s.request('workspace.list', { project_id: p2.id });
+    const plan = structuredClone(seed) as RolePlanInput;
+    plan.project_id = p2.id;
+    plan.groups = plan.groups.slice(0, 1);
+    plan.roles = plan.roles.slice(0, 1);
+    plan.groups[0].workspace_ref = ws2.items[0].id;
+    plan.roles[0].workspace_ref = ws2.items[0].id;
+    const v = await f.s.request('rolePlan.validate', { plan });
+    await f.write(
+      'rolePlan.apply',
+      { plan, plan_hash: v.planHash, confirmed: true, permission_grants: [] },
+      { project_id: p2.id },
+      'apply2',
+    );
+    const role2 = ((await f.s.request('role.list', { scope: { project_id: p2.id } })) as { items: { id: string }[] })
+      .items[0].id;
+    f.server.defaultConnectionScope = new Set([f.project.id]);
+    await f.s.request(
+      'control.release',
+      { lease_id: (f.lease as { leaseId: string }).leaseId },
+      { operationId: 'op_release_scope', expectedRevision: (await f.s.request('system.snapshot', {})).revision, scope: {} },
+    );
+    const scopedObserver = new P1MemoryTransport(f.server, 'human_' + 'o'.repeat(24));
+    const observer = await scopedObserver.connect({
+      clientId: 'mcp_management_cursor',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'observer',
+    });
+    await expect(
+      observer.request(
+        'participant.slot.list' as never,
+        { role_id: f.roleId } as never,
+      ),
+    ).resolves.toMatchObject({ slots: expect.any(Array) });
+    await expect(
+      observer.request(
+        'participant.slot.list' as never,
+        { role_id: role2 } as never,
+      ),
+    ).rejects.toThrow('SCOPE_DENIED');
+    await expect(
+      observer.request(
+        'participant.slot.create' as never,
+        { role_id: f.roleId, name: 'observer-no-write', participant_kind: 'CHATGPT_WEB' } as never,
+        { requestKey: 'observer-no-write', operationId: 'observer-no-write', expectedRevision: 1 } as never,
+      ),
+    ).rejects.toThrow('CONTROL_LEASE_REQUIRED');
+    await scopedObserver.close();
+    const scoped = new P1MemoryTransport(f.server, 'human_' + 'd'.repeat(24));
+    const ss = await scoped.connect({
+      clientId: 'mcp_management_cursor',
+      clientVersion: '1.0.0-dev.0',
+      requestedMode: 'controller',
+    });
+    const snap = (await ss.request('system.snapshot', {})) as { projects: { id: string }[]; revision: number };
+    expect(snap.projects.map((x) => x.id)).toEqual([f.project.id]);
+    const lease = await ss.request(
+      'control.acquire',
+      {},
+      { operationId: 'scoped_lease', expectedRevision: snap.revision, scope: {} },
+    );
+    await expect(
+      ss.request(
+        'participant.grant.issue' as never,
+        { role_id: role2 } as never,
+        { leaseId: (lease as { leaseId: string }).leaseId } as never,
+      ),
+    ).rejects.toThrow('SCOPE_DENIED');
+    await expect(
+      ss.request(
+        'participant.grant.issue' as never,
+        { role_id: f.roleId } as never,
+        { leaseId: (lease as { leaseId: string }).leaseId } as never,
+      ),
+    ).resolves.toMatchObject({ grant_id: expect.stringMatching(/^pgrant_/) });
+    scoped.close?.();
+  } finally {
+    await f.close();
+  }
+});

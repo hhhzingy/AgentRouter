@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "agentrouter-management": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/.local/management-mcp/main.mjs",
+        "${env:AGENTROUTER_DATA}",
+        "observer",
+        "mcp_management_cursor"
+      ]
+    }
+  },
+  "_comment": "EXAMPLE ONLY. Set AGENTROUTER_DATA to a DUT or V11-REAL-SMOKE data root. Never put 百炼 keys, Codex/ZCode auth, grant tokens, or remote device secrets here. Cursor is a Management MCP client, not a Role. Switch argv mode to controller only after F07/F09 DUT observer passes."
+}

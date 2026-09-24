@@ -18,7 +18,7 @@ async function request(message) {
     if (initialized) throw Error('ALREADY_INITIALIZED');
     initialized = true;
     result = {
-      protocolVersion: '2025-11-25',
+      protocolVersion: ['2024-11-05','2025-03-26','2025-06-18','2025-11-25'].includes(message.params?.protocolVersion) ? message.params.protocolVersion : '2025-11-25',
       capabilities: { tools: {} },
       serverInfo: { name: 'agentrouter-role-bridge', version: '1.0.0-dev.0' },
     };

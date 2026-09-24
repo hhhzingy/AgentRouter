@@ -1,0 +1,20 @@
+{
+  "protocol": "agentrouter-client/1",
+  "revision": "C1",
+  "status": "FROZEN_PENDING_REVIEW",
+  "baseline": "16370d3971740c80ca9ccec7a6d9b3553e896545",
+  "canonicalization": "UTF-8; CRLF normalized to LF",
+  "sha256_lf": {
+    "contracts/client-api.c1.schema.json": "fa92882485dc5f82edef387a90f48dc9208f6b67f46ac776497e7d759306e05c",
+    "packages/client-contract/generated.ts": "052b7e2d2466034f60e806855a4b7ae96ba299edbdc732aae4a16dfdf5753d30",
+    "packages/client-contract/index.ts": "b208a7e634deda94b112e22cc3a0cd287ea245344446982f4b2b0739429a17ea",
+    "packages/client-transport/index.ts": "0325ada0d45dc81461ca9389a2226ab38361851f6b261ebf6f864504573ee400",
+    "packages/client-transport/framing.ts": "7c68a6e1a02415f7daf6d7b4a51acf768cb27dd1592031869975aa460926a823",
+    "apps/desktop/preload.ts": "814f91dbf22eefeb3903c3749470e80574f2094619daa430f3efb0419b1d2ca8",
+    "fixtures/client-c1/snapshot.json": "7a94b1864bb29281e0469ad33844cc9d935d803da6c55a06bfc48e9fff159e93",
+    "fixtures/client-c1/capabilities.json": "07f68fcf34a67d2326bcbbd181843af4f9ddae4b7411e523ff029dc26e8d302c",
+    "docs/api/README.md": "4b84e4bf72df3ac94826176ceed1a223d97fbade3583c9615dcdfed978ea86a9",
+    "docs/api/methods.c1.md": "cc58197e1808943ed0df8414663c2f717ab95fe16396f70fb347431c6c08dca6",
+    "docs/api/compatibility.c1.md": "423d0b7fec1da8c5e87ab929f8dde413df903ceacfa84e463d1c875036b96611"
+  }
+}

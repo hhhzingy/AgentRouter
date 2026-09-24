@@ -1,0 +1,187 @@
+﻿{
+    "runId":  "ed6b39e26cc2460bb953c3641f5e3a06",
+    "at":  "2026-09-11T03:02:46.9647452Z",
+    "sourceHash":  "a6945bfa77a21cdf10bf1125f5b77988803b0849e731730252acd33ea6508d2a",
+    "binaryHash":  "ac630d8e81c6f87c2c065957600c076ee37e47be356ce6ea83924e9618eb9905",
+    "runnerHash":  "50499ba89ad2bfc8e94d9afea1454390a90c73bfdbbbf9fd7ac7e94bdbb8baae",
+    "elapsedMs":  460,
+    "watchdogTimedOut":  false,
+    "outputCompleted":  true,
+    "stderrPresent":  false,
+    "exitCode":  1,
+    "status":  "BLOCKED_ENV_OR_CHECK_FAILED",
+    "fullIsolationCertified":  false,
+    "realAccountsRead":  false,
+    "events":  [
+                   {
+                       "stage":  "create-new-root",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "metadata":  true,
+                       "ntfs":  true,
+                       "fixedVolume":  true,
+                       "ownerMatchesPrincipal":  true,
+                       "groupCount":  10,
+                       "administratorEnabled":  false,
+                       "daclProtected":  false,
+                       "aceCount":  10
+                   },
+                   {
+                       "stage":  "volume-principal-acl-metadata",
+                       "ok":  true,
+                       "elapsedMs":  5,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "open-own-token",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "integrityRid":  8192
+                   },
+                   {
+                       "stage":  "integrity-metadata",
+                       "ok":  true,
+                       "elapsedMs":  1,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "ordinary-dummy-read-write",
+                       "ok":  true,
+                       "elapsedMs":  8,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "dacl-only-protection",
+                       "ok":  true,
+                       "elapsedMs":  1,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "owner-only-same-owner",
+                       "ok":  false,
+                       "elapsedMs":  8,
+                       "hresult":  -2147024891,
+                       "win32Error":  5,
+                       "errorType":  "UnauthorizedAccessException"
+                   },
+                   {
+                       "stage":  "dummy-workspace-dacl",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "create-restricted-token",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "impersonate",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "restricted-dummy-read-write",
+                       "ok":  true,
+                       "elapsedMs":  1,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "restricted-canary-read-denial",
+                       "ok":  true,
+                       "elapsedMs":  1,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "restricted-canary-write-denial",
+                       "ok":  true,
+                       "elapsedMs":  1,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "restricted-canary-acl-denial",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "original-acl-fresh-grant-denial",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "original-acl-read-after-grant-attempt-denial",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "owner-rights-read-denial",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "owner-rights-write-denial",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "owner-rights-acl-grant-denial",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "stage":  "restricted-broker-memory-denial",
+                       "ok":  true,
+                       "elapsedMs":  0,
+                       "hresult":  0,
+                       "win32Error":  0
+                   },
+                   {
+                       "primaryChildExitCode":  3221225506
+                   },
+                   {
+                       "stage":  "restricted-primary-child-grandchild-controls",
+                       "ok":  false,
+                       "elapsedMs":  8,
+                       "hresult":  -2146233079,
+                       "win32Error":  0,
+                       "errorType":  "InvalidOperationException"
+                   },
+                   {
+                       "restrictedToken":  true,
+                       "scope":  "THREAD_ACCESS_CHECK_ONLY",
+                       "fullIsolationCertified":  false
+                   }
+               ]
+}

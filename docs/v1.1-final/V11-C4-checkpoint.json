@@ -1,0 +1,46 @@
+{
+  "schema": "agentrouter-v1.1-final-win-checkpoint/1",
+  "stage": "C4",
+  "source_sha": "16598f621d7160627ce769ecafb8d14ab55399f4",
+  "worktree": "E:/AgentRouter/.worktrees/v1.1-final-cursor-win",
+  "branch": "feat/v1.1-final-cursor-win",
+  "main_merge_authorized": false,
+  "release_authorized": false,
+  "adr": "docs/adr/V11-final-role-worksession-binding.md",
+  "review_findings": {
+    "F12": "FIXED",
+    "F13": "FIXED",
+    "F15": "SUPERSEDED",
+    "F02": "FIXED",
+    "F06": "FIXED"
+  },
+  "policy": {
+    "session_home": "ResolvedExecutionContext from native_binding_configs + unique profile; never first-profile",
+    "role_context_runtime": "stopped; conversation_items remain human history",
+    "zcode_level_b": "REQUIRES_NEW_WORKSESSION; same WS does not replace native_session_ref",
+    "native_lifecycle": "all five harnesses COLD_RUN"
+  },
+  "tests": {
+    "unit_v11_c4_lifecycle": "PASS",
+    "context_transfer_engine_c4": "PASS",
+    "participant_grants_f13": "PASS",
+    "wc02_continuity": "PASS",
+    "role_session": "PASS",
+    "context_migration": "PASS",
+    "work_session_cross_harness": "PASS"
+  },
+  "gate_c4": {
+    "a_b_c_restart_keeps_c": "PASS",
+    "history_ab_readonly": "PASS",
+    "zcode_same_ws_two_rounds_depend_on_prior": "NOT_CLAIMED"
+  },
+  "known_limitations": [
+    "ZCode 0.16.5 cold resume is UNSUPPORTED; Level B continuity requires a new WorkSession plus one-shot Context Transfer",
+    "built-in history_export remains UNKNOWN/not FULL_VISIBLE except test overrides; production inherit stays CONTEXT_EXPORT_UNSUPPORTED until a port has FULL_VISIBLE evidence",
+    "ZCode same ACTIVE WS two-round real DUT is not claimed this stage"
+  ],
+  "notes": [
+    "Cursor remains Management MCP client only.",
+    "C5 ADR is accepted and is the Join/Slot/Identity design gate."
+  ]
+}

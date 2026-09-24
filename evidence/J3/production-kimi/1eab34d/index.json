@@ -1,0 +1,28 @@
+{
+  "code_sha": "1eab34d455b77a824b2dcc41155987337e87153c",
+  "dirty_source": false,
+  "scope": "PRODUCTION_CORE_REAL_KIMI 固定源码复测(任务交付+运行中取消)",
+  "profile": {
+    "harness": "kimi_code",
+    "version": "0.42.0",
+    "model": "kimi-code/kimi-for-coding",
+    "effort": "on",
+    "executableSha256": "015e9ecfea02a491d47f5d3fb4db47b070c163d25a88ee54fcb6489328117d5d"
+  },
+  "bundleSha256": {
+    "core": "7f2f960c69e50015be4e082e0995de5add5c2a8f9d5bcd0fd37db445094b147d",
+    "roleBridge": "5d5e7b9cd0e5cac863f5ba09a524eb59af41fb75bf13095d22aa5b740fdb8bd5",
+    "roleTools": "072a277537d0bd623be7c4222afcb44c6022922e12bfd6bb9fa8aae78b8f1532"
+  },
+  "delivery": {
+    "bootstrap": "DELIVERED",
+    "run": "SUCCEEDED",
+    "publication_state": "PUBLISHED",
+    "summary": "42",
+    "cancel": "CANCELLED",
+    "coreExited": true
+  },
+  "reportSha256": "2f1f6635ec43dd50a5ca3dca0ad3c7db9c83e661bbf0e6b98732b18ad805a0b7",
+  "developerAccountTouched": false,
+  "ssh": "DEFERRED_BY_USER"
+}

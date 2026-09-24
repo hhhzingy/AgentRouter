@@ -58,3 +58,7 @@ pnpm test:desktop
 ## 5. GitHub
 
 远程为 https://github.com/hhhzingy/AgentRouter，私人仓库。若受限执行账户触发 dubious ownership，仅使用 `git -c safe.directory=E:/AgentRouter ...`，不修改全局安全目录列表。网络推送失败需分辨网络隔离与真实认证失效，不输出或索取 token。
+
+## C1 验证与提交 Gate
+
+`pnpm contract:check`；`node tools/check-client-freeze.mjs`；`pnpm security:check`；`pnpm security:history`。新 clone 使用 `git config --local core.hooksPath .githooks` 启用提交阻断；CI 独立重复检查。完整回归 `node tools/checkpoint.mjs`；C1 预览 `pnpm mock:c1`，UI 接口见 docs/api/README.md。

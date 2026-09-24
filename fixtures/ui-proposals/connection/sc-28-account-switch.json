@@ -1,0 +1,34 @@
+{
+  "scenario_id": "sc-28",
+  "title": "账号切换",
+  "description": "唐测试的 auth-unit 正在切换 Provider Profile：进度可见；阻断组重构；完成后模型需重新确认。",
+  "ui_surfaces": ["模型与账号", "角色详情", "组重构向导"],
+  "snapshot": {
+    "cursor": 5600,
+    "accounts": [
+      { "id": "prof_dashscope_a", "harness": "pi", "label": "DashScope · 团队 A", "maskedIdentity": "ak-****7f2c", "status": "ACTIVE", "quotaStatus": "OK", "revision": 3 },
+      { "id": "prof_dashscope_b", "harness": "pi", "label": "DashScope · 团队 B", "maskedIdentity": "ak-****91e0", "status": "SWITCHING_TO", "quotaStatus": "UNKNOWN", "revision": 1 }
+    ],
+    "roles": [
+      { "id": "r_tang", "spaceId": "sp_ui", "name": "唐测试", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "modelLabel": "qwen3.8-flash · 推理 xhigh", "workspaceLabel": "wt:ui", "queuedTasksCount": 1, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 5 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-11", "CCR-UI-02"],
+    "account_switch": {
+      "auth_unit_id": "au_pi_dashscope",
+      "from_profile_id": "prof_dashscope_a",
+      "to_profile_id": "prof_dashscope_b",
+      "started_at_ms": 1788931600000,
+      "state": "IN_PROGRESS"
+    }
+  },
+  "expected_ui": [
+    "账号区显示切换进度卡『团队 A → 团队 B · 进行中』，maskedIdentity 只显示掩码",
+    "切换期间唐测试不可派发新 Run，角色详情显示『账号切换中』系统提示",
+    "组重构 preview 将『唐测试 账号切换进行中』列为 blocker（sc-23 联动）",
+    "切换完成后提示『Provider 目录已更新，请重新确认模型与推理档位』，不静默改变已选模型",
+    "切换失败产生 Issue（ACCOUNT_SWITCH_FAILED），角色保持旧 Profile 可用",
+    "全流程不出现凭据原文，只出现 secret_ref/掩码"
+  ]
+}

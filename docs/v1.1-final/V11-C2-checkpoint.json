@@ -1,0 +1,35 @@
+{
+  "schema": "agentrouter-v1.1-final-win-checkpoint/1",
+  "stage": "C2",
+  "source_sha": "16598f621d7160627ce769ecafb8d14ab55399f4",
+  "worktree": "E:/AgentRouter/.worktrees/v1.1-final-cursor-win",
+  "branch": "feat/v1.1-final-cursor-win",
+  "main_merge_authorized": false,
+  "release_authorized": false,
+  "freeze_migrations_includes_016": true,
+  "review_findings": {
+    "F01": "FIXED",
+    "F02": "FIXED",
+    "F03": "FIXED",
+    "F04": "FIXED",
+    "F05": "FIXED",
+    "F07": "FIXED",
+    "F09": "FIXED",
+    "F10": "FIXED",
+    "F11": "FIXED"
+  },
+  "p0_remaining_open": [],
+  "tests": {
+    "unit_v11_c2_p0": "PASS",
+    "mcp_scope_F07": "PASS",
+    "participant_grants_F09": "PASS",
+    "context_transfer_F02": "PASS",
+    "remote_gateway_F10_F11_W09": "PASS",
+    "migration_manifest_016": "PASS"
+  },
+  "notes": [
+    "C0 baseline remains the audit snapshot at 16598f6; this file records C2 containment after tests.",
+    "ZCode confirmed:true now means session/send was accepted, not that the model replied READY.",
+    "Cursor remains Management MCP client only."
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+  "mode": "REAL_ELECTRON_LOCAL_CORE",
+  "realHarnessSupport": 0,
+  "nativeDialogs": "CONTROLLED_RETURN_MANUAL_NOT_RUN",
+  "checks": [
+    {
+      "id": "J2_MANUAL_TWO_GROUPS_THREE_ROLES_ATOMIC",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_RELOAD_SAVED_UNVERIFIED_NOT_STARTED",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_ADD_EXISTING_GROUP_ROLE",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_IMPORT_EXPLICIT_PROJECT_WORKSPACE_MAPPING",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_NEW_TASK_IME_AND_BOUND_TASK_INPUT",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_DOUBLE_CLICK_AND_FIFO",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_EXPLICIT_HANDOFF_NATIVE_BARRIER",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_HISTORY_150_MARKDOWN_SAFE",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_HISTORY_ERROR_NOT_EMPTY",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_FAST_ROLE_SWITCH_ISOLATED",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_EVENT_REFRESH_COALESCED",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_SETTINGS_DRAWER_FOCUS_AND_BACKGROUND",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_FOUR_ENTRIES_FILTERS_BACK",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_UNCERTAIN_EDIT_RELOAD_ORIGINAL_RETRY",
+      "status": "PASS"
+    },
+    {
+      "id": "J2_ZOOM_125_150_200",
+      "status": "PASS"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-empty-home.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-manual-editor.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-review.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-two-groups.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-conversation.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-settling-held.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-150.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-history-read-error.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-role-settings.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-project-activity.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-runtime-settings.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1440x900-100-uncertain-edited-draft.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "zoom": 1
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-125-workbench-zoom.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 1024,
+        "height": 576,
+        "dpr": 1.25
+      },
+      "zoom": 1.25
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-150-workbench-zoom.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 853,
+        "height": 480,
+        "dpr": 1.5
+      },
+      "zoom": 1.5
+    },
+    {
+      "path": "evidence/J2/screenshots/LOCAL_CORE-1280x720-200-workbench-zoom.png",
+      "sourceSha": "b8fb2f55565015ef4f2185fd7ecfc3b4e01fdd2c",
+      "mode": "LOCAL_CORE",
+      "viewport": {
+        "width": 640,
+        "height": 360,
+        "dpr": 2
+      },
+      "zoom": 2
+    }
+  ]
+}

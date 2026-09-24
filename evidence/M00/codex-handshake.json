@@ -1,40 +1,9 @@
 {
-  "harness": "codex",
+  "redacted": true,
+  "marker": "REDACTED",
+  "source_sha256": "f67a45cbe75a8bde994eee0947c6387c9b9197b3d4c01009fca3314eddd58bf0",
   "at": "2026-09-09T07:15:12.616Z",
-  "mode": "PROBED_NO_ACCOUNT_NO_MODEL",
-  "request": {
-    "id": 1,
-    "method": "initialize",
-    "params": {
-      "clientInfo": {
-        "name": "agentrouter_probe",
-        "version": "1.0.0"
-      }
-    }
-  },
-  "responses": [
-    {
-      "id": 1,
-      "result": {
-        "userAgent": "agentrouter_probe/0.153.4 (Windows 10.0.26200; x86_64) unknown (agentrouter_probe; 1.0.0)",
-        "codexHome": "E:\\AgentRouter\\.local\\probes\\codex",
-        "platformFamily": "windows",
-        "platformOs": "windows"
-      }
-    },
-    {
-      "method": "remoteControl/status/changed",
-      "params": {
-        "status": "disabled",
-        "serverName": "Young-Lab",
-        "installationId": "595d68af-5ce2-43d7-b624-83921b5c79fe",
-        "environmentId": null
-      },
-      "emittedAtMs": 1788938112931
-    }
-  ],
   "exit_code": 0,
-  "timeout": false,
   "received_handshake": true,
-  "stderr_bytes": 0
+  "mode": "PROBED_NO_ACCOUNT_NO_MODEL"
 }

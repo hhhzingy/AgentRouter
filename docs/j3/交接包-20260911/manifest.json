@@ -1,0 +1,20 @@
+{
+  "createdAt": "2026-09-11T08:19:31.752Z",
+  "branch": "feat/v1-finalization-j3",
+  "head": "e99782f7e675dcea896f0a45cfe90796c6508e23",
+  "dirtySource": true,
+  "files": [
+    {
+      "path": "evidence/J3/production-codex/e99782f/report.json",
+      "sha256": "bb915ff7daf3dd277340f2a32b3a5eada2007f7862835bb3b7d5221829a34fc0"
+    },
+    {
+      "path": "evidence/J3/production-pair/e99782f-dirty/report.json",
+      "sha256": "6447a34df9dce9f8b7daa09210744ed35db3781566c7f9657ae185746e17b46f"
+    },
+    {
+      "path": ".local/j3-production-pi/run-wb9l5X/report.json",
+      "sha256": "8bee613ec204128ae1d52d10f293e572cde52fe57f66e721154444ac5fe2682b"
+    }
+  ]
+}

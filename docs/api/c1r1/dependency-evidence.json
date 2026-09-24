@@ -1,0 +1,12 @@
+{
+  "node": "v24.14.0",
+  "platform": "win32",
+  "arch": "x64",
+  "sqlite_version": "13.0.3",
+  "sqlite_binary": "node_modules/.pnpm/better-sqlite3@13.0.3/node_modules/better-sqlite3/prebuilds/win32-x64.node",
+  "sha256": "e21e5efd71fba66578e95b62554d9028064a80dafd7221bf8a8ef155de8d240a",
+  "sqlite_memory_select": "PASS",
+  "source_build": "NOT_TESTED",
+  "real_accounts": "NOT_TESTED_USER_DEFERRED",
+  "real_harness_support": 0
+}

@@ -1,0 +1,45 @@
+{
+  "scenario_id": "sc-24",
+  "title": "拆分为新会话",
+  "description": "核心组拆为两个组：默认 NEW_SESSION_WITH_HANDOVER；每角色唯一目标组；旧组只读归档。",
+  "ui_surfaces": ["组重构向导", "项目概览", "角色详情"],
+  "snapshot": {
+    "cursor": 5200,
+    "spaces": [
+      { "id": "sp_core", "projectId": "proj_atlas", "name": "核心实现组", "status": "ARCHIVED", "rolesCount": 0, "queuedTasksCount": 0, "revision": 10 },
+      { "id": "sp_api", "projectId": "proj_atlas", "name": "API 组", "status": "ACTIVE", "rolesCount": 2, "queuedTasksCount": 1, "revision": 1 },
+      { "id": "sp_data", "projectId": "proj_atlas", "name": "数据组", "status": "ACTIVE", "rolesCount": 1, "queuedTasksCount": 0, "revision": 1 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-05", "CCR-UI-10", "CCR-UI-15"],
+    "reconfigure_result": {
+      "kind": "split",
+      "source_space": "sp_core",
+      "targets": [
+        { "space_id": "sp_api", "roles": ["r_lin", "r_zhou"], "session_policy": "NEW_SESSION_WITH_HANDOVER", "policy_revision": 1 },
+        { "space_id": "sp_data", "roles": ["r_chen"], "session_policy": "NEW_SESSION_WITH_HANDOVER", "policy_revision": 1 }
+      ],
+      "queue_dispositions": [
+        { "task_id": "t_q1", "choice": "MOVE_WITH_ASSIGNEE" },
+        { "task_id": "t_q2", "choice": "SUSPEND_FOR_REVIEW" },
+        { "task_id": "t_q3", "choice": "CANCEL" }
+      ],
+      "transition_packets_delivered": ["r_lin", "r_zhou", "r_chen"]
+    },
+    "membership_history": [
+      { "role_id": "r_zhou", "entries": [
+        { "space_id": "sp_core", "joined_at_ms": 1788800000000, "left_at_ms": 1788932000000, "reason": "RECONFIGURE_SPLIT" },
+        { "space_id": "sp_api", "joined_at_ms": 1788932000000, "left_at_ms": null, "reason": "RECONFIGURE_SPLIT" }
+      ] }
+    ]
+  },
+  "expected_ui": [
+    "拆分向导中会话策略默认且锁定为 NEW_SESSION_WITH_HANDOVER（拆分不允许 NATIVE_RESUME）",
+    "角色分配矩阵强制每角色唯一目标组；未分配完成时无法进入下一步",
+    "结果页显示：旧组『核心实现组 · 已归档·只读』+ 两个新组链接 + 每角色交接包（Transition Packet）查看入口",
+    "归档组内旧任务/消息仍引用 sp_core 与旧 policy revision，可查看不可派发",
+    "周实现详情『组变更记录』显示 核心实现组→API 组（原因：拆分）",
+    "对话流插入新章程系统卡（r2），旧会话只读保留；文案明示『不宣称旧角色已遗忘其他组信息』"
+  ]
+}

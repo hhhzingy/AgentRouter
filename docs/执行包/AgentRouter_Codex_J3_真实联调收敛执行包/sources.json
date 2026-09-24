@@ -1,0 +1,132 @@
+{
+  "checked_at": "2026-09-11",
+  "scope": "Repository read-only review and official documentation; no secret reads or live calls",
+  "sources": [
+    {
+      "id": "R1",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/docs/j3/H-01.json",
+      "supports": "当前授权与范围"
+    },
+    {
+      "id": "R2",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/docs/j3/full-debug-20260911.md",
+      "supports": "252/38/20证据范围与实现缺口"
+    },
+    {
+      "id": "R3",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/apps/core-daemon/w11-main.ts",
+      "supports": "FixtureDriver和NO_EXECUTOR"
+    },
+    {
+      "id": "R4",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/native/windows-isolation/AccessCanary.cs",
+      "supports": "ACL/SetOwner/impersonation探针"
+    },
+    {
+      "id": "R5",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/tools/test-j3-access-environment.ps1",
+      "supports": "环境检查脚本"
+    },
+    {
+      "id": "R6",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/packages/adapters/codex/lifecycle.ts",
+      "supports": "现有Codex协议生命周期"
+    },
+    {
+      "id": "R7",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/docs/j3/checkpoint.md",
+      "supports": "直连DeepSeek9token及旧范围冲突"
+    },
+    {
+      "id": "R8",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/blob/d28aa3e8836b013d53818bcf6475b01c31154710/docs/j3/work-ledger.json",
+      "supports": "原J3工作包映射"
+    },
+    {
+      "id": "R9",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/actions/runs/34550830283",
+      "supports": "已核对success，对应211abf3"
+    },
+    {
+      "id": "R10",
+      "type": "repository",
+      "url": "https://github.com/hhhzingy/AgentRouter/actions/runs/34550830431",
+      "supports": "已核对success，对应211abf3"
+    },
+    {
+      "id": "W1",
+      "type": "official",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow",
+      "supports": "WRITE_DAC与WRITE_OWNER不同"
+    },
+    {
+      "id": "W2",
+      "type": "official",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/secauthz/restricted-tokens",
+      "supports": "restricted primary token与impersonation区别"
+    },
+    {
+      "id": "W3",
+      "type": "official",
+      "url": "https://learn.chatgpt.com/docs/windows/windows-sandbox",
+      "supports": "Windows native sandbox及受限身份"
+    },
+    {
+      "id": "W4",
+      "type": "official",
+      "url": "https://learn.chatgpt.com/docs/computer-use",
+      "supports": "Windows前台、权限及敏感屏幕限制"
+    },
+    {
+      "id": "W5",
+      "type": "official",
+      "url": "https://learn.chatgpt.com/docs/auth",
+      "supports": "Codex认证后端及CODEX_HOME"
+    },
+    {
+      "id": "W6",
+      "type": "official",
+      "url": "https://learn.chatgpt.com/docs/auth/ci-cd-auth",
+      "supports": "auth刷新、保留与并发副本风险"
+    },
+    {
+      "id": "W7",
+      "type": "official",
+      "url": "https://learn.chatgpt.com/docs/app-server",
+      "supports": "原生模型/身份/会话API，实际版本需核验"
+    },
+    {
+      "id": "W8",
+      "type": "official",
+      "url": "https://developers.openai.com/api/docs/models/gpt-5.6-luna",
+      "supports": "模型与effort分开"
+    },
+    {
+      "id": "W9",
+      "type": "official",
+      "url": "https://moonshotai.github.io/kimi-code/en/reference/kimi-acp",
+      "supports": "当前ACP接入"
+    },
+    {
+      "id": "W10",
+      "type": "official",
+      "url": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md",
+      "supports": "RPC与agent_settled"
+    },
+    {
+      "id": "W11",
+      "type": "official",
+      "url": "https://api-docs.deepseek.com/guides/thinking_mode/",
+      "supports": "工具调用与thinking参数；正式配置以对应版本为准"
+    }
+  ]
+}

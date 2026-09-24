@@ -1,0 +1,62 @@
+{
+  "schema": "agentrouter-upstream-pins/1",
+  "agentrouter_source_sha": "82195197c4c994a82147026df23cd83401d9112c",
+  "captured_at": "2026-09-21T15:56:00+08:00",
+  "entries": [
+    {
+      "harness": "zcode",
+      "repo": "zai-org/ZCode",
+      "reviewed_source_sha": "872ad960de7ec172591f7e1952f7849229f94521",
+      "reviewed_version": "0.16.9",
+      "actual_installed_version": "0.16.9",
+      "actual_entry": "E:/software/ZCode/resources/glm/zcode.cjs",
+      "actual_entry_sha256": "8f5cfccf2a899b92e57bc2a5760b949c1a928f739652fffc9e6d07c24f11ba05",
+      "protocol": "zcode app-server",
+      "status": "PINNED_INSTALLED_BINARY_AND_REVIEWED_UPSTREAM"
+    },
+    {
+      "harness": "codex",
+      "repo": "openai/codex",
+      "reviewed_source_ref": "HEAD-current-at-2026-09-21T11:48:00+08:00",
+      "reviewed_source_sha": "a86631502d49274cb47208925c7d3dcece032029",
+      "actual_installed_version": "0.155.0-alpha.9.2",
+      "actual_entry": "C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/247581e40ee272fb/codex.exe",
+      "actual_entry_sha256": "bc45017e8239dc150258f69309ced9df6bbcdf5b8e4f346decf780ac0999e226",
+      "protocol": "codex app-server",
+      "status": "PINNED_INSTALLED_BINARY_AND_CURRENT_UPSTREAM_HEAD;VERSION_TO_SOURCE_MAPPING_PENDING_F1"
+    },
+    {
+      "harness": "kimi_code",
+      "repo": "MoonshotAI/kimi-code",
+      "reviewed_source_ref": "HEAD-current-at-2026-09-21T11:48:00+08:00",
+      "reviewed_source_sha": "65ae3e368c7cfa096242cacc12eeeb661e682977",
+      "actual_installed_version": "0.42.0",
+      "actual_entry": "C:/Users/hap_p/.kimi-code/bin/kimi.exe",
+      "actual_entry_sha256": "015e9ecfea02a491d47f5d3fb4db47b070c163d25a88ee54fcb6489328117d5d",
+      "protocol": "ACP v1 / kimi acp",
+      "status": "PINNED_INSTALLED_BINARY_AND_CURRENT_UPSTREAM_HEAD"
+    },
+    {
+      "harness": "deepseek_harness",
+      "repo": "deepseek-ai/deepseek-harness",
+      "reviewed_source_ref": "HEAD-current-at-2026-09-21T11:48:00+08:00",
+      "reviewed_source_sha": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+      "actual_installed_version": "0.1.5-rc.1",
+      "actual_entry": "C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js",
+      "actual_entry_sha256": "0ff7f1d72c4e0cbe14001709c81e20a04b70464118a7f78568952988e28f2ac5",
+      "protocol": "ACP v1 / dsh --profile acp",
+      "status": "PINNED_INSTALLED_BINARY_AND_CURRENT_UPSTREAM_HEAD"
+    },
+    {
+      "harness": "pi",
+      "repo": "badlogic/pi-mono",
+      "reviewed_source_ref": "HEAD-current-at-2026-09-21T11:48:00+08:00",
+      "reviewed_source_sha": "890f920884f6d21fc7617d236ef9e1cc5d7a0ef8",
+      "actual_installed_version": "0.85.1",
+      "actual_entry": "C:/Users/hap_p/AppData/Roaming/npm/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+      "actual_entry_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+      "protocol": "pi RPC mode",
+      "status": "PINNED_INSTALLED_BINARY_AND_CURRENT_UPSTREAM_HEAD"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "scope": "REAL_ELECTRON_PREVIEW_MOCK",
+  "realHarnessSupport": 0,
+  "checks": [
+    {
+      "id": "B0_PRELOAD_REAL_ELECTRON",
+      "status": "PASS",
+      "revision": "C1R1P1",
+      "mock": true,
+      "roles": 6,
+      "models": 6,
+      "bootstrap": "PENDING",
+      "node": "undefined",
+      "keys": [
+        "close",
+        "connect"
+      ],
+      "oldDenied": true,
+      "newLease": true,
+      "mode": "PREVIEW_MOCK"
+    },
+    {
+      "id": "B0_RENDERER_RELOAD",
+      "status": "PASS"
+    }
+  ]
+}

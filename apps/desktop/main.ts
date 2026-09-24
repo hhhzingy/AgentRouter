@@ -1,3 +1,4 @@
+import { installC1Preview } from './c1-preview.ts';
 import { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } from 'electron';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
@@ -77,6 +78,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => window());
   app.whenReady().then(() => {
+    installC1Preview(process.env.AGENTROUTER_C1_MOCK === '1');
     const data = process.env.AGENTROUTER_DATA ?? app.getPath('userData');
     const runtime = resolve(dir, '../runtime/node.exe');
     child = spawn(runtime, [resolve(dir, 'core.mjs')], {
@@ -178,7 +180,7 @@ else {
         } catch (e) {
           writeFileSync(
             reportPath,
-            JSON.stringify({ status: 'FAIL', error: String(e), exit_code: 1 }),
+            JSON.stringify({ status: 'FAIL', code: 'CHECK_FAILED', redacted: true, exit_code: 1 }),
           );
         } finally {
           await stop();

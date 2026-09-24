@@ -1,0 +1,21 @@
+{
+  "scenario_id": "sc-27",
+  "title": "历史缺口（GAP）",
+  "description": "对话流含接口无法补取的缺口：GAP 卡明示区间与不可恢复，不静默跳过。",
+  "ui_surfaces": ["角色详情对话流"],
+  "snapshot": {
+    "cursor": 5500,
+    "conversation": [
+      { "id": "ci_1001", "cursor": 1001, "kind": "ASSISTANT_MESSAGE", "roleId": "r_zhou", "runId": "run_405", "taskId": "t_old", "occurredAtMs": 1788924000000, "title": "", "body": "开始处理订单查询接口……", "state": "", "artifactIds": [], "replay": false, "sensitive": false },
+      { "id": "ci_1002", "cursor": 1002, "kind": "GAP", "occurredAtMs": 1788927600000, "title": "历史缺失", "body": "11:00–11:07 之间的对话无法补取（原生会话窗口外）。", "state": "UNRECOVERABLE", "artifactIds": [], "replay": false, "sensitive": false },
+      { "id": "ci_1003", "cursor": 1003, "kind": "ASSISTANT_MESSAGE", "roleId": "r_zhou", "runId": "run_405", "taskId": "t_old", "occurredAtMs": 1788928200000, "title": "", "body": "继续：根据已有证据完成剩余实现。", "state": "", "artifactIds": [], "replay": false, "sensitive": false }
+    ]
+  },
+  "expected_ui": [
+    "GAP 卡以 ⚠ 警示样式插入对话流正确时序位置，标注时间区间『11:00–11:07』与『无法补取』",
+    "缺口前后消息正常渲染，UI 不伪造缺口内容、不做『智能补全』",
+    "GAP 卡不计入未读、不触发通知",
+    "replay=true 的条目在流中以低强调样式渲染并与新事件区分",
+    "sensitive=true 条目只渲染『已脱敏』占位，正文不进 DOM"
+  ]
+}

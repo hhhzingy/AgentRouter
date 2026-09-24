@@ -1,14 +1,16 @@
 import type Database from 'better-sqlite3';
 import { RouteError, validatePayload, id, digest, type Data } from '../protocol/index.ts';
-import { readFileSync, mkdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { readFileSync, mkdirSync, writeFileSync, renameSync, existsSync, lstatSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { freezeFile } from '../artifacts/index.ts';
+import { freezeFile, resolveArtifactBlobPath } from '../artifacts/index.ts';
 import { assertTransition } from '../domain/index.ts';
 export interface Identity {
   roleId: string;
   bindingId: string;
   epoch: number;
+  activationId?: string;
+  activationEpoch?: number;
   spaceId: string;
   projectId: string;
   runId?: string;
@@ -28,7 +30,13 @@ export class Core {
   constructor(
     readonly db: Database.Database,
     readonly clock = () => Date.now(),
-    readonly options: { allowMock?: boolean } = {},
+    readonly options: {
+      allowMock?: boolean;
+      fixtureAuthorization?: (bindingId: string) => boolean;
+      nativeAuthorization?: (bindingId: string) => boolean;
+      beforeDispatch?: (roleId: string) => string | null;
+      kindForTask?: (taskId: string) => string;
+    } = {},
   ) {}
   private one(sql: string, ...args: any[]): Data | undefined {
     return this.db.prepare(sql).get(...args) as Data | undefined;
@@ -74,6 +82,21 @@ export class Core {
       b.project_id !== p.projectId
     )
       throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+    if (p.activationId !== undefined) {
+      const activation = this.one(
+        'select id,role_id,binding_id,binding_epoch,activation_epoch,state from role_session_activations where id=?',
+        p.activationId,
+      );
+      if (
+        !activation ||
+        activation.state !== 'ACTIVE' ||
+        activation.role_id !== p.roleId ||
+        activation.binding_id !== p.bindingId ||
+        activation.binding_epoch !== p.epoch ||
+        (p.activationEpoch !== undefined && activation.activation_epoch !== p.activationEpoch)
+      )
+        throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+    }
     if (p.management) return b; // Only a trusted local application service constructs this; bridge never accepts Identity from payload.
     const r = this.one('select * from runs where id=?', p.runId ?? '');
     if (
@@ -202,6 +225,7 @@ export class Core {
     const task = id('task');
     this.exec(
       'insert into tasks(id,space_id,requester_role_id,assignee_role_id,parent_task_id,chain_id,policy_id,summary,body,request_json,completion_json,problem_target_json,state,created_at_ms,updated_at_ms) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+
       task,
       p.spaceId,
       p.roleId,
@@ -217,6 +241,11 @@ export class Core {
       'QUEUED',
       this.clock(),
       this.clock(),
+    );
+    this.exec(
+      'update tasks set role_session_id=? where id=? and role_session_id is null',
+      this.activeSessionId(request.to.id),
+      task,
     );
     this.message(p, request, op, task, heldRun);
     return task;
@@ -267,6 +296,110 @@ export class Core {
         this.message(p, input, row, null);
       }
     });
+  }
+  /** 角色当前活动会话；迁移005保证每个角色恰有一个。 */
+  activeSessionId(roleId: string): string | undefined {
+    return (
+      this.one("select id from role_sessions where role_id=? and state='ACTIVE'", roleId) as
+        { id: string } | undefined
+    )?.id;
+  }
+  submitFromUser(
+    scope: { projectId: string; spaceId: string },
+    input: unknown,
+    operationRow: number,
+  ) {
+    validatePayload(input);
+    if (input.kind !== 'task.request') throw new RouteError('WRONG_TOOL_PAYLOAD');
+    for (const target of [input.to, input.completion.to, input.on_problem ?? { type: 'user' }])
+      if (
+        target.type === 'role' &&
+        !this.one('select id from roles where id=? and space_id=?', target.id, scope.spaceId)
+      )
+        throw new RouteError('CROSS_SPACE_DENIED', 'AUTHORIZATION');
+    if (
+      !this.one('select id from spaces where id=? and project_id=?', scope.spaceId, scope.projectId)
+    )
+      throw new RouteError('SCOPE_DENIED', 'AUTHORIZATION');
+    for (const ref of input.inputs) {
+      // 用户路由引用按 C1 合同以 kind/artifact_id 表达(与角色工具 refs() 一致);
+      // 容忍历史 type/id 形状,未知 kind 仍拒绝。
+      const kind = (ref.kind ?? ref.type) as string | undefined;
+      if (
+        kind === 'artifact' &&
+        !this.one(
+          "select id from artifacts where id=? and project_id=? and state='AVAILABLE'",
+          ref.artifact_id ?? ref.id,
+          scope.projectId,
+        )
+      )
+        throw new RouteError('ARTIFACT_SCOPE', 'AUTHORIZATION');
+      if (!['artifact', 'external'].includes(String(kind)))
+        throw new RouteError('REFERENCE_UNSUPPORTED');
+    }
+    const chain = id('chain'),
+      task = id('task'),
+      message = id('message'),
+      now = this.clock();
+    const policy = this.one(
+      'select id from policies where project_id=? order by revision desc limit 1',
+      scope.projectId,
+    );
+    if (!policy) throw new RouteError('POLICY_REQUIRED');
+    this.exec(
+      'insert into chains values(?,?,?,?,?,?,?)',
+      chain,
+      scope.spaceId,
+      id('operation'),
+      now,
+      100,
+      28800000,
+      'ACTIVE',
+    );
+    this.exec(
+      'insert into tasks(id,space_id,assignee_role_id,chain_id,policy_id,summary,body,request_json,completion_json,problem_target_json,state,acceptance,created_at_ms,updated_at_ms) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      task,
+      scope.spaceId,
+      input.to.id,
+      chain,
+      policy.id,
+      input.summary,
+      input.body,
+      JSON.stringify(input),
+      JSON.stringify(input.completion),
+      JSON.stringify(input.on_problem ?? { type: 'user' }),
+      'QUEUED',
+      'PENDING',
+      now,
+      now,
+    );
+    this.exec(
+      'update tasks set role_session_id=? where id=? and role_session_id is null',
+      this.activeSessionId(input.to.id),
+      task,
+    );
+    this.exec(
+      'insert into messages(id,space_id,task_id,kind,from_kind,to_kind,to_role_id,payload_json,operation_row_id,created_at_ms) values(?,?,?,?,?,?,?,?,?,?)',
+      message,
+      scope.spaceId,
+      task,
+      'task.request',
+      'user',
+      'role',
+      input.to.id,
+      JSON.stringify(input),
+      operationRow,
+      now,
+    );
+    this.exec(
+      'insert into outbox(id,message_id,state,updated_at_ms) values(?,?,?,?)',
+      id('outbox'),
+      message,
+      'QUEUED',
+      now,
+    );
+    this.event('UserTaskStored', { messageId: message }, null, task);
+    return task;
   }
   private transition(task: string, to: string) {
     const t = this.one('select state from tasks where id=?', task)!;
@@ -334,7 +467,7 @@ export class Core {
           throw new RouteError('INVALID_WAIT_DEPENDENCY');
       }
       this.exec(
-        'insert into wait_records values(?,?,?,?,?,?) on conflict(task_id) do update set waiting_for=excluded.waiting_for,reason=excluded.reason,dependency_json=excluded.dependency_json,ready=excluded.ready,updated_at_ms=excluded.updated_at_ms',
+        'insert into wait_records(task_id,waiting_for,reason,dependency_json,ready,updated_at_ms) values(?,?,?,?,?,?) on conflict(task_id) do update set waiting_for=excluded.waiting_for,reason=excluded.reason,dependency_json=excluded.dependency_json,ready=excluded.ready,updated_at_ms=excluded.updated_at_ms,generation=wait_records.generation+1',
         p.taskId,
         input.waiting_for,
         input.reason,
@@ -369,13 +502,99 @@ export class Core {
     this.exec('update role_slots set blocked_reason=? where role_id=?', reason, role);
     return null;
   }
+  /**
+   * A WorkSession id is durable user history. Execution authorization is a
+   * separate, short-lived activation record. A binding change or WS switch
+   * therefore always receives a fresh activation epoch.
+   */
+  private ensureActiveActivation(roleId: string, binding: Data, roleSessionId: string) {
+    const session = this.one(
+      "select id,role_id,harness,driver_id,workspace_affinity_json from role_sessions where id=? and role_id=? and state='ACTIVE'",
+      roleSessionId,
+      roleId,
+    );
+    if (!session) return null;
+    if (session.harness && session.harness !== binding.harness) return null;
+    if (session.driver_id && session.driver_id !== binding.harness) return null;
+    if (session.workspace_affinity_json) {
+      let affinity: unknown;
+      try {
+        affinity = JSON.parse(session.workspace_affinity_json);
+      } catch {
+        return null;
+      }
+      if (!affinity || typeof affinity !== 'object' || Array.isArray(affinity)) return null;
+      const workspaceId = (affinity as Record<string, unknown>).workspace_id;
+      if (workspaceId !== undefined && workspaceId !== null && workspaceId !== binding.workspace_id)
+        return null;
+    }
+    if (!session.harness) {
+      this.exec(
+        'update role_sessions set harness=?,driver_id=?,workspace_affinity_json=? where id=? and harness is null',
+        binding.harness,
+        binding.harness,
+        JSON.stringify({ workspace_id: binding.workspace_id }),
+        roleSessionId,
+      );
+    }
+    const active = this.one(
+      "select id,role_session_id,binding_id,binding_epoch,activation_epoch from role_session_activations where role_id=? and state='ACTIVE'",
+      roleId,
+    );
+    if (
+      active &&
+      active.role_session_id === roleSessionId &&
+      active.binding_id === binding.id &&
+      active.binding_epoch === binding.epoch
+    )
+      return active;
+    const now = this.clock();
+    if (active)
+      this.exec(
+        "update role_session_activations set state='ENDED',ended_at_ms=? where id=? and state='ACTIVE'",
+        now,
+        active.id,
+      );
+    const activationEpoch =
+      Number(
+        this.one(
+          'select coalesce(max(activation_epoch),0) as n from role_session_activations where role_id=?',
+          roleId,
+        )?.n ?? 0,
+      ) + 1;
+    const id = 'rsa_' + globalThis.crypto.randomUUID();
+    this.exec(
+      "insert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,operation_id,created_at_ms,activated_at_ms) values(?,?,?,?,?,?,'ACTIVE',?,?,?)",
+      id,
+      roleId,
+      roleSessionId,
+      binding.id,
+      binding.epoch,
+      activationEpoch,
+      'core-dispatch',
+      now,
+      now,
+    );
+    return this.one(
+      'select id,role_session_id,binding_id,binding_epoch,activation_epoch from role_session_activations where id=?',
+      id,
+    );
+  }
   dispatch(roleId: string): Dispatch | null {
     return this.tx(() => {
       const p = this.management(roleId),
         b = this.identity(p);
       const caps = JSON.parse(b.capability_json);
-      if (!(this.options.allowMock && caps.fixture === 'mock') && caps.status !== 'LIVE_TESTED')
+      if (
+        !(this.options.allowMock && caps.fixture === 'mock') &&
+        !this.options.fixtureAuthorization?.(b.id) &&
+        !(this.options.nativeAuthorization
+          ? this.options.nativeAuthorization(b.id)
+          : caps.status === 'LIVE_TESTED')
+      )
         return this.blocked(roleId, 'harness_unverified');
+      const blocked = this.options.beforeDispatch?.(roleId);
+      if (blocked) return this.blocked(roleId, blocked);
       const role = this.one(
         'select r.status,s.status as space_status,p.status as project_status from roles r join spaces s on s.id=r.space_id join projects p on p.id=s.project_id where r.id=?',
         roleId,
@@ -404,6 +623,7 @@ export class Core {
           roleId,
         );
       if (!task) return null;
+      if (kind === 'TASK') kind = this.options.kindForTask?.(task.id) ?? kind;
       const now = this.clock();
       const latest = this.one('select max(started_at_ms) as t from auto_starts')?.t;
       if (latest && latest > now) return this.blocked(roleId, 'clock_rollback');
@@ -437,14 +657,60 @@ export class Core {
       const resources = [`workspace:${ws.canonical_path}`];
       if (b.auth_unit_id) {
         const au = this.one('select * from auth_units where id=?', b.auth_unit_id);
+        if (au?.max_active_runs !== 1) return this.blocked(roleId, 'auth_concurrency_unsupported');
         if (au?.state !== 'READY') return this.blocked(roleId, 'auth_unavailable');
         resources.push(`auth:${b.auth_unit_id}`);
       }
       if (resources.some((r) => this.one('select * from resource_leases where resource_key=?', r)))
         return this.blocked(roleId, 'resource_locked');
+      const roleSessionId = (this.one('select role_session_id from tasks where id=?', task.id)
+        ?.role_session_id ?? null) as string | null;
+      if (!roleSessionId) return this.blocked(roleId, 'work_session_missing');
+      const activation = this.ensureActiveActivation(roleId, b, roleSessionId);
+      if (!activation) return this.blocked(roleId, 'work_session_binding_mismatch');
+      const original = JSON.parse(String(task.request_json)) as Data;
+      let snapshot = original;
+      let taskInputId: string | null = null;
+      if (kind === 'CONTINUATION') {
+        const wait = this.one('select waiting_for from wait_records where task_id=?', task.id);
+        if (wait?.waiting_for === 'user_input') {
+          const formal = this.one(
+            'select id,payload,payload_sha256,actor,operation_id,created_at_ms from task_inputs where task_id=? and consumed_at_ms is null order by created_at_ms,id limit 1',
+            task.id,
+          );
+          const legacy = formal
+            ? undefined
+            : this.one(
+                "select body,at_ms,source_key from conversation_items where task_id=? and kind='USER_MESSAGE' order by seq desc limit 1",
+                task.id,
+              );
+          const body = String(formal?.payload ?? legacy?.body ?? '').trim();
+          if (!body) return this.blocked(roleId, 'task_input_missing');
+          taskInputId = formal ? String(formal.id) : null;
+          snapshot = {
+            ...original,
+            task_input: formal
+              ? {
+                  input_id: formal.id,
+                  body,
+                  payload_sha256: formal.payload_sha256,
+                  actor: formal.actor,
+                  created_at_ms: Number(formal.created_at_ms),
+                  source_id: formal.operation_id,
+                }
+              : {
+                  body,
+                  at_ms: Number(legacy!.at_ms),
+                  source_id: legacy!.source_key ?? null,
+                  legacy: true,
+                },
+            body: String(original.body ?? '') + '\n\n[用户续办输入]\n' + body,
+          };
+        }
+      }
       const run = id('run');
       this.exec(
-        'insert into runs values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        'insert into runs(id,role_id,binding_id,task_id,chain_id,kind,binding_epoch,native_run_ref,request_snapshot_json,state,accepted_at_ms,settled_at_ms,exit_reason,created_at_ms,role_session_id,activation_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         run,
         roleId,
         b.id,
@@ -453,12 +719,14 @@ export class Core {
         kind,
         b.epoch,
         null,
-        task.request_json,
+        JSON.stringify(snapshot),
         'STARTING',
         null,
         null,
         null,
         now,
+        roleSessionId,
+        activation.id,
       );
       for (const resource of resources)
         this.exec(
@@ -484,7 +752,7 @@ export class Core {
         chain.id,
         now,
       );
-      if (kind === 'TASK')
+      if (kind === 'TASK' || kind === 'RESULT_HANDLING')
         this.exec(
           "update outbox set state='DISPATCHING',claimed_run_id=?,attempt_count=attempt_count+1,updated_at_ms=? where message_id in (select id from messages where task_id=? and kind='task.request')",
           run,
@@ -499,13 +767,29 @@ export class Core {
         );
         this.exec('update wait_records set ready=0 where task_id=?', task.id);
       }
+      if (taskInputId) {
+        const consumed = this.exec(
+          'update task_inputs set consumed_by_run_id=?,consumed_at_ms=? where id=? and consumed_at_ms is null',
+          run,
+          now,
+          taskInputId,
+        );
+        if (consumed.changes !== 1) throw new RouteError('TASK_INPUT_ALREADY_CONSUMED');
+      }
       this.event('DispatchIntent', { kind }, roleId, task.id, run);
       return {
         id: run,
         taskId: task.id,
         kind,
-        principal: { ...p, management: false, runId: run, taskId: task.id },
-        request: JSON.parse(task.request_json),
+        principal: {
+          ...p,
+          management: false,
+          runId: run,
+          taskId: task.id,
+          activationId: activation.id,
+          activationEpoch: activation.activation_epoch,
+        },
+        request: snapshot,
       };
     });
   }
@@ -533,6 +817,19 @@ export class Core {
       const b = this.one('select * from bindings where id=?', run.binding_id)!;
       if (epoch !== run.binding_epoch || !b.is_current || b.epoch !== epoch)
         throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+      if (run.activation_id) {
+        const activation = this.one(
+          'select binding_id,binding_epoch from role_session_activations where id=? and role_id=?',
+          run.activation_id,
+          run.role_id,
+        );
+        if (
+          !activation ||
+          activation.binding_id !== run.binding_id ||
+          activation.binding_epoch !== run.binding_epoch
+        )
+          throw new RouteError('STALE_IDENTITY', 'AUTHORIZATION');
+      }
       if (evidence.replay) return;
       if (['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(run.state)) return;
       if (run.state === 'UNKNOWN') throw new RouteError('RECONCILIATION_REQUIRED', 'AMBIGUOUS');
@@ -639,12 +936,12 @@ export class Core {
     return resolve(dirname(this.db.name), 'artifacts');
   }
   private readObject(a: Data) {
-    if (!/^(?:project_[A-Za-z0-9_-]+\/)?[a-f0-9]{64}$/.test(a.storage_key))
-      throw new RouteError('INVALID_STORAGE_KEY');
     let bytes: Buffer;
     try {
-      bytes = readFileSync(resolve(this.objectRoot(), a.storage_key));
-    } catch {
+      bytes = readFileSync(resolveArtifactBlobPath(this.objectRoot(), String(a.storage_key)));
+    } catch (error) {
+      if ((error as { code?: string }).code === 'INVALID_STORAGE_KEY' || error instanceof RouteError)
+        throw error instanceof RouteError ? error : new RouteError('INVALID_STORAGE_KEY');
       throw new RouteError('ARTIFACT_MISSING', 'UNAVAILABLE');
     }
     if (
@@ -654,32 +951,94 @@ export class Core {
       throw new RouteError('ARTIFACT_CORRUPTED', 'AMBIGUOUS');
     return bytes;
   }
-  context(p: Identity, input: Data = {}) {
+  /** 被动收件：分页读取不改变任务、投递或业务回执。 */
+  notices(p: Identity, after = 0, limit = 50) {
     this.identity(p, true);
     if (
-      Object.keys(input).some((k) => k !== 'section') ||
-      (input.section && !['all', 'roles', 'task', 'policy', 'results'].includes(input.section))
+      !Number.isSafeInteger(after) ||
+      after < 0 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    )
+      throw new RouteError('INVALID_NOTICE_PAGE');
+    const rows = this.all(
+      "select seq,id,from_role_id,payload_json,created_at_ms from messages where kind='notice' and space_id=? and to_kind='role' and to_role_id=? and seq>? order by seq limit ?",
+      p.spaceId,
+      p.roleId,
+      after,
+      limit + 1,
+    );
+    const page = rows.slice(0, limit);
+    return {
+      items: page.map(({ payload_json, ...row }) => ({ ...row, notice: JSON.parse(payload_json) })),
+      next_cursor: page.at(-1)?.seq ?? after,
+      has_more: rows.length > limit,
+    };
+  }
+  context(p: Identity, input: Data = {}) {
+    const binding = this.identity(p, true);
+    const section = input.section ?? 'identity';
+    if (
+      Object.keys(input).some((k) => !['section', 'after_cursor', 'limit'].includes(k)) ||
+      ![
+        'identity',
+        'roles',
+        'task',
+        'child_results',
+        'policy',
+        'notices',
+        'all',
+        'results',
+      ].includes(section) ||
+      (section !== 'notices' && ('after_cursor' in input || 'limit' in input))
     )
       throw new RouteError('INVALID_CONTEXT_QUERY');
-    return {
-      identity: { role_id: p.roleId, space_id: p.spaceId, project_id: p.projectId },
-      roles: this.all('select id,name,status from roles where space_id=?', p.spaceId),
-      task: p.taskId
-        ? this.one('select id,summary,state,request_json from tasks where id=?', p.taskId)
-        : null,
-      children: p.taskId
-        ? this.all(
-            'select id,assignee_role_id,completion_json,state from tasks where parent_task_id=?',
-            p.taskId,
-          )
-        : [],
-      results: p.taskId
-        ? this.all(
-            'select r.id,r.summary,r.body,r.outputs_json from continuations c join results r on r.id=c.result_id where c.parent_task_id=?',
-            p.taskId,
-          )
-        : [],
+    const task = () =>
+      p.taskId
+        ? this.one('select id,summary,state,request_json,policy_id from tasks where id=?', p.taskId)
+        : null;
+    const sections: Record<string, () => unknown> = {
+      identity: () => ({ role_id: p.roleId, space_id: p.spaceId, project_id: p.projectId }),
+      roles: () => this.all('select id,name,status from roles where space_id=?', p.spaceId),
+      task: () => {
+        const t = task();
+        return t
+          ? { id: t.id, summary: t.summary, state: t.state, request: JSON.parse(t.request_json) }
+          : null;
+      },
+      child_results: () =>
+        p.taskId
+          ? this.all(
+              "select r.id,r.summary,r.body,r.outputs_json from continuations c join results r on r.id=c.result_id where c.parent_task_id=? and r.publication_state='PUBLISHED'",
+              p.taskId,
+            ).map(({ outputs_json, ...r }) => ({ ...r, outputs: JSON.parse(outputs_json) }))
+          : [],
+      policy: () => {
+        const policyId = task()?.policy_id ?? binding.last_synced_policy_id;
+        const policy = policyId
+          ? this.one(
+              'select id,revision,protocol_version,content_json,content_hash from policies where id=? and project_id=?',
+              policyId,
+              p.projectId,
+            )
+          : undefined;
+        if (!policy) throw new RouteError('POLICY_REQUIRED');
+        return {
+          id: policy.id,
+          revision: policy.revision,
+          protocol_version: policy.protocol_version,
+          content_hash: policy.content_hash,
+          rules: JSON.parse(policy.content_json),
+        };
+      },
+      notices: () => this.notices(p, input.after_cursor, input.limit),
     };
+    // 显式 all/results 作为旧调用别名保留；默认只披露 identity。
+    if (section === 'all')
+      return Object.fromEntries(Object.entries(sections).map(([k, fn]) => [k, fn()]));
+    if (section === 'results') return { results: sections.child_results() };
+    return { [section]: sections[section]() };
   }
   registerArtifact(p: Identity, op: string, input: Data) {
     if (
@@ -695,18 +1054,19 @@ export class Core {
     const workspace = this.one('select * from workspaces where id=?', input.workspace_id)!;
     return this.operation(p, op, { tool: 'artifact_register', input }, () => {
       if (!/^project_[A-Za-z0-9_-]+$/.test(p.projectId)) throw new RouteError('INVALID_PROJECT_ID');
-      const frozen = freezeFile(
-        workspace.display_path,
-        input.path,
-        resolve(this.objectRoot(), p.projectId),
-      );
+      const frozen = freezeFile(workspace.display_path, input.path, this.objectRoot());
       frozen.storage_key = p.projectId + '/' + frozen.storage_key;
       const existing = this.one(
         'select id from artifacts where project_id=? and storage_key=?',
         p.projectId,
         frozen.storage_key,
       );
-      if (existing) return { artifact_id: existing.id, ...frozen };
+      if (existing)
+        return {
+          artifact_id: existing.id,
+          reference: { kind: 'artifact', artifact_id: existing.id },
+          ...frozen,
+        };
       const artifact = id('artifact');
       this.exec(
         'insert into artifacts values(?,?,?,?,?,?,?,?,?)',
@@ -720,15 +1080,120 @@ export class Core {
         'AVAILABLE',
         this.clock(),
       );
-      return { artifact_id: artifact, ...frozen };
+      return {
+        artifact_id: artifact,
+        reference: { kind: 'artifact', artifact_id: artifact },
+        ...frozen,
+      };
+    });
+  }
+  /** 受管 Role 的小型 UTF-8 输出：只写当前绑定 workspace 的固定子目录，随后冻结为 Artifact。 */
+  writeArtifact(p: Identity, op: string, input: Data) {
+    if (
+      !input ||
+      Object.keys(input).some((k) => !['workspace_id', 'name', 'content', 'media_type'].includes(k)) ||
+      typeof input.workspace_id !== 'string' ||
+      typeof input.name !== 'string' ||
+      typeof input.content !== 'string' ||
+      input.content.length === 0
+    )
+      throw new RouteError('INVALID_ARTIFACT_INPUT');
+    const binding = this.identity(p);
+    if (binding.workspace_id !== input.workspace_id)
+      throw new RouteError('WORKSPACE_SCOPE', 'AUTHORIZATION');
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(input.name) || input.name.includes('..'))
+      throw new RouteError('ARTIFACT_NAME_INVALID', 'AUTHORIZATION');
+    const mediaByExtension: Record<string, string> = {
+      '.md': 'text/markdown',
+      '.json': 'application/json',
+      '.txt': 'text/plain',
+    };
+    const dot = input.name.lastIndexOf('.');
+    const mediaType = mediaByExtension[input.name.slice(dot).toLowerCase()];
+    if (!mediaType || (input.media_type !== undefined && input.media_type !== mediaType))
+      throw new RouteError('ARTIFACT_TYPE_REJECTED', 'AUTHORIZATION');
+    const bytes = Buffer.from(input.content, 'utf8');
+    if (bytes.length > 262144) throw new RouteError('ARTIFACT_LIMIT');
+    const workspace = this.one('select * from workspaces where id=?', input.workspace_id)!;
+    return this.operation(p, op, { tool: 'artifact_write', input }, () => {
+      const dir = resolve(workspace.display_path, 'agentrouter-artifacts');
+      mkdirSync(dir, { recursive: true });
+      const finalPath = join(dir, input.name);
+      if (existsSync(finalPath)) {
+        // 只允许同一普通文件、同字节内容重试；绝不覆盖已有路径或跟随符号链接。
+        if (lstatSync(finalPath).isFile() && readFileSync(finalPath).equals(bytes)) {
+          const retryHash = createHash('sha256').update(bytes).digest('hex');
+          const existing = this.one(
+            "select id from artifacts where project_id=? and storage_key=? and state='AVAILABLE'",
+            p.projectId,
+            retryHash,
+          );
+          if (existing)
+            return {
+              artifact_id: existing.id,
+              reference: { kind: 'artifact', artifact_id: existing.id },
+              sha256: retryHash,
+              byte_size: bytes.length,
+              media_type: mediaType,
+              name: input.name,
+              deduplicated: true,
+            };
+        }
+        throw new RouteError('ARTIFACT_NAME_TAKEN', 'CONFLICT');
+      }
+      const tempPath = join(dir, `.${id('write')}.tmp`);
+      writeFileSync(tempPath, bytes, { flag: 'wx' });
+      renameSync(tempPath, finalPath);
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      const objectRoot = this.objectRoot();
+      mkdirSync(objectRoot, { recursive: true });
+      const blobPath = join(objectRoot, sha256);
+      if (!existsSync(blobPath)) writeFileSync(blobPath, bytes, { flag: 'wx' });
+      const existing = this.one(
+        "select id from artifacts where project_id=? and storage_key=? and state='AVAILABLE'",
+        p.projectId,
+        sha256,
+      );
+      if (existing)
+        return {
+          artifact_id: existing.id,
+          reference: { kind: 'artifact', artifact_id: existing.id },
+          sha256,
+          byte_size: bytes.length,
+          media_type: mediaType,
+          name: input.name,
+          deduplicated: true,
+        };
+      const artifact = id('artifact');
+      this.exec(
+        'insert into artifacts values(?,?,?,?,?,?,?,?,?)',
+        artifact,
+        p.projectId,
+        sha256,
+        sha256,
+        bytes.length,
+        mediaType,
+        JSON.stringify({ workspace_id: input.workspace_id, path: finalPath, name: input.name, task_id: p.taskId, source: 'NATIVE_ROLE' }),
+        'AVAILABLE',
+        this.clock(),
+      );
+      return {
+        artifact_id: artifact,
+        reference: { kind: 'artifact', artifact_id: artifact },
+        sha256,
+        byte_size: bytes.length,
+        media_type: mediaType,
+        name: input.name,
+      };
     });
   }
   readArtifact(p: Identity, input: Data) {
     this.identity(p, true);
     if (
       !input ||
-      Object.keys(input).some((k) => !['reference', 'offset_bytes', 'limit_bytes'].includes(k)) ||
-      input.reference?.kind !== 'artifact'
+      Object.keys(input).some((k) => !['reference', 'artifact_id', 'offset_bytes', 'limit_bytes'].includes(k)) ||
+      (input.reference?.kind !== 'artifact' && typeof input.artifact_id !== 'string') ||
+      (input.reference !== undefined && input.artifact_id !== undefined)
     )
       throw new RouteError('INVALID_ARTIFACT_READ');
     const offset = input.offset_bytes ?? 0,
@@ -743,7 +1208,7 @@ export class Core {
       throw new RouteError('ARTIFACT_READ_LIMIT');
     const a = this.one(
       "select * from artifacts where id=? and project_id=? and state='AVAILABLE'",
-      input.reference.artifact_id,
+      input.reference?.artifact_id ?? input.artifact_id,
       p.projectId,
     );
     if (!a) throw new RouteError('ARTIFACT_SCOPE', 'AUTHORIZATION');

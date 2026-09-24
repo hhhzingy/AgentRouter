@@ -5,163 +5,95 @@
   "results": [
     {
       "name": "spec",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/spec-check.mjs"
-      ],
       "started_at": "2026-09-09T07:58:24.892Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/spec.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/spec.summary.json"
     },
     {
       "name": "lint",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/lint.mjs"
-      ],
       "started_at": "2026-09-09T07:58:25.742Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/lint.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/lint.summary.json"
     },
     {
       "name": "typecheck",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "node_modules/typescript/bin/tsc",
-        "--noEmit"
-      ],
       "started_at": "2026-09-09T07:58:25.828Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/typecheck.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/typecheck.summary.json"
     },
     {
       "name": "unit",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "node_modules/vitest/vitest.mjs",
-        "run",
-        "tests/unit",
-        "--reporter=json",
-        "--outputFile=E:\\AgentRouter\\evidence\\runs\\2026-09-09T07-58-24-884Z/unit.json"
-      ],
       "started_at": "2026-09-09T07:58:26.115Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/unit.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/unit.summary.json"
     },
     {
       "name": "integration",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "node_modules/vitest/vitest.mjs",
-        "run",
-        "tests/integration",
-        "--reporter=json",
-        "--outputFile=E:\\AgentRouter\\evidence\\runs\\2026-09-09T07-58-24-884Z/integration.json"
-      ],
       "started_at": "2026-09-09T07:58:27.340Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/integration.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/integration.summary.json"
     },
     {
       "name": "contract",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "node_modules/vitest/vitest.mjs",
-        "run",
-        "tests/contract",
-        "--reporter=json",
-        "--outputFile=E:\\AgentRouter\\evidence\\runs\\2026-09-09T07-58-24-884Z/contract.json"
-      ],
       "started_at": "2026-09-09T07:58:29.011Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/contract.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/contract.summary.json"
     },
     {
       "name": "chaos",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "node_modules/vitest/vitest.mjs",
-        "run",
-        "tests/chaos",
-        "--reporter=json",
-        "--outputFile=E:\\AgentRouter\\evidence\\runs\\2026-09-09T07-58-24-884Z/chaos.json"
-      ],
       "started_at": "2026-09-09T07:58:30.050Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/chaos.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/chaos.summary.json"
     },
     {
       "name": "database",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/db-verify.mjs"
-      ],
       "started_at": "2026-09-09T07:58:31.103Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/database.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/database.summary.json"
     },
     {
       "name": "windows-job",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/test-supervisor.mjs"
-      ],
       "started_at": "2026-09-09T07:58:31.270Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/windows-job.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/windows-job.summary.json"
     },
     {
       "name": "build",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/build-win.mjs"
-      ],
       "started_at": "2026-09-09T07:58:31.847Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/build.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/build.summary.json"
     },
     {
       "name": "packaged",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/packaged-test.mjs"
-      ],
       "started_at": "2026-09-09T07:58:32.616Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/packaged.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/packaged.summary.json"
     },
     {
       "name": "electron-smoke",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/desktop-smoke.mjs"
-      ],
       "started_at": "2026-09-09T07:58:33.796Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/electron-smoke.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/electron-smoke.summary.json"
     },
     {
       "name": "desktop",
-      "command": [
-        "D:\\Software\\nodejs\\node.exe",
-        "tools/desktop-test.mjs"
-      ],
       "started_at": "2026-09-09T07:58:35.924Z",
       "exit_code": 0,
       "status": "PASS",
-      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/desktop.log"
+      "evidence": "evidence/runs/2026-09-09T07-58-24-884Z/desktop.summary.json"
     }
-  ]
+  ],
+  "redacted": true
 }

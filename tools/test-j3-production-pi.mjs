@@ -1,0 +1,905 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { spawn, execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createHash, randomUUID } from 'node:crypto';
+import { build } from 'esbuild';
+import Database from 'better-sqlite3';
+import { piEntry } from './pi-location.mjs';
+if (!process.argv.includes('--live')) throw Error('EXPLICIT_LIVE_FLAG_REQUIRED');
+const kimiBailian = process.argv.includes('--kimi-bailian'); // W05 kimi→百炼(官方 openai-wire provider)
+const kimi = process.argv.includes('--kimi') || kimiBailian;
+const codex = process.argv.includes('--codex');
+if(kimi&&codex)throw Error('ONE_HARNESS_PER_TEST');
+const dshBailian = process.argv.includes('--dsh-bailian');
+const dsh = process.argv.includes('--dsh') || dshBailian;
+const zcodeExisting = process.argv.includes('--zcode-existing');
+if (zcodeExisting) process.argv.push('--zcode');
+const zcode = process.argv.includes('--zcode'); // W11 ZCode→百炼(官方 openai-compatible provider)
+const bailian = process.argv.includes('--bailian'); // pi→百炼(DashScope MaaS)绑定
+const packageArgIndex = process.argv.indexOf('--package');
+if (packageArgIndex >= 0 && packageArgIndex + 1 >= process.argv.length)
+  throw Error('PACKAGE_PATH_REQUIRED');
+const packageRoot =
+  packageArgIndex >= 0 ? resolve(process.argv[packageArgIndex + 1]) : null;
+const packageManifest = packageRoot
+  ? JSON.parse(readFileSync(resolve(packageRoot, 'manifest.json'), 'utf8'))
+  : null;
+const currentSourceSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+  encoding: 'utf8',
+}).trim();
+if (
+  packageManifest &&
+  (packageManifest.sourceDirty !== false || packageManifest.sourceSHA !== currentSourceSha)
+)
+  throw Error('PACKAGE_SOURCE_MISMATCH');
+const harnessLabel=codex?'Codex':kimi?(kimiBailian?'Kimi(百炼)':'Kimi'):dsh?'DeepSeek Harness':zcode?'ZCode':'pi';
+const harness=codex?'codex':kimi?'kimi_code':dsh?'deepseek_harness':zcode?'zcode':'pi';
+const providerId=codex?'agentrouter-codex':kimi?(kimiBailian?'agentrouter-bailian':'agentrouter-kimi'):zcodeExisting?'account:bigmodel-individual-coding-plan':zcode?'agentrouter-zcode':dshBailian?'agentrouter-dashscope':bailian?'agentrouter-dashscope':'agentrouter-deepseek';
+const modelId=codex?'gpt-5.6-luna':kimi?(kimiBailian?'bailian/qwen3.8-flash':'kimi-code/kimi-for-coding'):zcodeExisting?'GLM-5.3-Flash':zcode?'zcode-managed':(bailian||dshBailian)?'qwen3.8-flash':'deepseek-v4-flash';
+const effort=codex?'low':kimi?'on':'off';
+const codexDutRoot=resolve(process.env.AGENTROUTER_TEST_CODEX_DUT_ROOT ?? '.local-protected/codex-dut');
+const executable=codex?(process.env.AGENTROUTER_TEST_CODEX_EXECUTABLE ?? 'C:/Users/hap_p/AppData/Local/OpenAI/Codex/bin/247581e40ee272fb/codex.exe'):kimi?'C:/Users/hap_p/.kimi-code/bin/kimi.exe':process.execPath;
+const codexVersion=codex?execFileSync(executable,['--version'],{encoding:'utf8',windowsHide:true}).trim().replace(/^codex-cli\s+/,''):undefined;
+const dshBin='C:/Users/hap_p/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/lib/bin.js';
+const zcodeCli='E:/software/ZCode/resources/glm/zcode.cjs';
+const zcodeSelection = zcode && !zcodeExisting
+  ? JSON.parse(readFileSync(resolve('.local-protected/zcode-dut/home/.zcode/v2/provider_config.json'), 'utf8'))
+      ?.config?.defaultModelSelection
+  : undefined;
+if (zcode && !zcodeExisting && (typeof zcodeSelection?.providerId !== 'string' || typeof zcodeSelection?.modelId !== 'string'))
+  throw Error('ZCODE_MODEL_SELECTION_MISSING');
+const credFile='E:/AgentRouter/账号信息/通用API/百炼.txt';
+if([kimi,codex,dsh,zcode,bailian].filter(Boolean).length>1)throw Error('ONE_HARNESS_PER_TEST');
+mkdirSync('.local/j3-production-pi', { recursive: true });
+const root = mkdtempSync(resolve('.local/j3-production-pi/run-'));
+const path = (n) => resolve(root, n),
+  sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
+for (const dir of ['core', 'workspace', 'managed', 'managed/pi', 'managed/dsh', 'managed/dsh-home/profiles', 'managed/zcode', 'managed/zcode/home'])
+  mkdirSync(path(dir), { recursive: true });
+let supervisor;
+if (packageRoot) {
+  supervisor = resolve(packageRoot, 'resources/w11-core/windows-supervisor.exe');
+} else {
+  supervisor = path('supervisor.exe');
+  execFileSync(
+    resolve(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),
+    [
+      '/nologo',
+      '/target:exe',
+      '/out:' + supervisor,
+      resolve('native/windows-supervisor/Supervisor.cs'),
+    ],
+    { windowsHide: true, stdio: 'pipe' },
+  );
+}
+const entry = harness === 'pi' ? piEntry() : undefined;
+const coreNode = packageRoot
+  ? resolve(packageRoot, 'resources/app/core-node.exe')
+  : process.execPath;
+const coreEntry = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/core.mjs')
+  : resolve('.local/w11-core/core.mjs');
+const managementEntry = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/management-mcp.mjs')
+  : resolve('.local/management-mcp/main.mjs');
+const extension = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/role-tools.mjs')
+  : resolve('.local/w11-core/role-tools.mjs');
+const roleBridge = packageRoot
+  ? resolve(packageRoot, 'resources/w11-core/role-bridge.mjs')
+  : resolve('.local/w11-core/role-bridge.mjs');
+writeFileSync(
+  path('runtime.json'),
+  JSON.stringify({
+    isolation: 'LIMITED_ISOLATION',
+    managedRoot: codex?codexDutRoot:kimi?resolve('.local/j3-kimi'):zcodeExisting?path('managed/zcode'):zcode?resolve('.local-protected/zcode-dut'):path('managed'),
+    // 端点从受控凭据文件运行时解析,绝不写进 Git 可见的常量。
+    ...(zcodeExisting?{
+      zcodeCli,
+      zcodeModelSelection:{providerId:'account:bigmodel-individual-coding-plan',modelId:'GLM-5.3-Flash',options:{reasoningLevel:'low'},thoughtLevel:'low'},
+      zcodeExistingAccount:{
+        mode:'EXISTING_ACCOUNT',
+        dataBaseDir:'C:/Users/hap_p/AppData/Roaming/SPB_Data',
+        builtinProviderConfigFile:'E:/software/ZCode/resources/config/provider/zcode-builtin.json',
+        expectedAccountType:'bigmodel',
+        expectedMode:'individual-coding-plan',
+        expectedProviderId:'account:bigmodel-individual-coding-plan',
+        expectedModelId:'GLM-5.3-Flash',
+        upstreamVersion:'0.16.9',
+        upstreamSourceSha:'872ad960de7ec172591f7e1952f7849229f94521',
+        allowCredentialMutation:false,
+        allowCredentialCopy:false,
+      },
+    }:zcode?{zcodeCli:resolve('.local-protected/zcode-dut/cli/zcode.cjs'),zcodeProvider:{main:'zai/glm-4.6',provider:{id:'zai',kind:'openai-compatible',baseURL:'https://api.z.ai/api/paas/v4',name:'Z.AI'}},zcodeModelSelection:{providerId:zcodeSelection.providerId,modelId:zcodeSelection.modelId}}:{}),
+    dshBin: dshBin,
+    dshHome: dsh?path('managed/dsh-home'):undefined,
+    workspaceRoot: path('workspace'),
+    supervisorExecutable: supervisor,
+    supervisorSha256: sha(supervisor),
+    ...(entry ? {
+      piEntry: entry,
+      piEntrySha256: sha(entry),
+      piExtension: extension,
+      piExtensionSha256: sha(extension),
+    } : {}),
+    credentialFile: bailian?'E:/AgentRouter/账号信息/通用API/百炼.txt':'E:/AgentRouter/账号信息/通用API/Deepseek.txt',
+    ...((bailian||dshBailian)?{piProvider:{providerId:'agentrouter-dashscope',modelId:'qwen3.8-flash',contextWindowTokens:131072,maxOutputTokens:4096},...(bailian?{piCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),dshCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{}),
+    ...(kimiBailian?{kimiBailianCredentialFile:'E:/AgentRouter/账号信息/通用API/百炼.txt'}:{kimiCredentialSource:'C:/Users/hap_p/.kimi-code/credentials/kimi-code.json'}),
+    codexApprovedIdentityFile:resolve(codexDutRoot,'dut-fj/approved-identity.json'),
+    roleBridge, roleBridgeSha256:sha(roleBridge),
+    profiles: [
+      {
+        id: 'production_'+harness,
+        harness, executable, executableSha256:sha(executable),
+        version: codex?codexVersion:kimi?'0.42.0':dsh?'0.1.5-rc.1':zcode?'0.16.9':'0.85.1',
+        providerId, modelId, effort,
+        sessionHome: codex?resolve(codexDutRoot,'dut-fj/home'):kimi?resolve('.local/j3-kimi/dut/home'):zcodeExisting?path('managed/zcode/home'):zcode?resolve('.local-protected/zcode-dut/home'):dsh?path('managed/dsh'):path('managed/pi'),
+      },
+    ],
+  }),
+);
+await build({
+  entryPoints: ['packages/client-transport/p1/local.ts'],
+  outfile: path('transport.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  packages: 'external',
+});
+const { LocalCoreTransport } = await import(pathToFileURL(path('transport.mjs')));
+const coreEnv = {
+  SystemRoot: process.env.SystemRoot,
+  WINDIR: process.env.WINDIR,
+  PATH: '',
+  TEMP: root,
+  TMP: root,
+  AGENTROUTER_DATA: path('core'),
+  AGENTROUTER_PROJECT_ROOTS: JSON.stringify([path('workspace')]),
+  AGENTROUTER_NATIVE_CONFIG: path('runtime.json'),
+  ...(process.env.AR_ZCODE_DEBUG ? { AR_ZCODE_DEBUG: process.env.AR_ZCODE_DEBUG } : {}),
+};
+const core = spawn(coreNode, [coreEntry], {
+  windowsHide: true,
+  stdio: ['ignore', 'ignore', 'pipe'],
+  env: coreEnv,
+});
+// Do not persist raw stderr or any credential-bearing transport body.
+const coreErrChunks = [];
+  core.stderr.on('data', (d) => coreErrChunks.push(d));
+let didClose = false;
+const closed = new Promise((r) =>
+  core.once('close', (code) => {
+    didClose = true;
+    r(code);
+  }),
+);
+const report = {
+  scope:
+    (packageRoot ? 'PACKAGED_' : '') +
+    (codex
+      ? 'PRODUCTION_CORE_REAL_CODEX'
+      : kimi
+        ? 'PRODUCTION_CORE_REAL_KIMI'
+        : dsh
+          ? 'PRODUCTION_CORE_REAL_DEEPSEEK_HARNESS'
+          : zcode
+            ? 'PRODUCTION_CORE_REAL_ZCODE'
+            : 'PRODUCTION_CORE_REAL_PI'),
+  status: 'FAIL',
+  code_sha: currentSourceSha,
+  dirty_source: !!execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim(),
+  ...(packageManifest
+    ? {
+        package_source_sha: packageManifest.sourceSHA,
+        package_artifact_hash: packageManifest.artifactHash,
+      }
+    : {}),
+  checks: [],
+  fullIsolationCertified: false,
+};
+let transport, shutdown, client;
+try {
+  for (let i = 0; i < 100 && !existsSync(path('core/endpoint.json')); i++) {
+    if (core.exitCode !== null) throw Error('CORE_START_FAILED');
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  const endpoint = JSON.parse(readFileSync(path('core/endpoint.json'), 'utf8'));
+  if (endpoint.source !== 'NATIVE_LIMITED_ISOLATION') throw Error('NATIVE_RUNTIME_NOT_ACTIVE');
+  transport = new LocalCoreTransport(path('core'));
+  const s = await transport.connect({
+    clientId: 'j3_live_pi',
+    clientVersion: '1.0.0',
+    requestedMode: 'controller',
+    contractRevision: 'C1R1P1',
+    mode: 'LOCAL_CORE',
+  });
+  const snapshot = () => s.request('system.snapshot', {});
+  let snap = await snapshot();
+  const lease = await s.request(
+    'control.acquire',
+    {},
+    { operationId: 'acquire', expectedRevision: snap.revision, scope: {} },
+  );
+  const mutate = async (method, params, scope, operationId) =>
+    s.request(method, params, {
+      operationId,
+      expectedRevision: (await snapshot()).revision,
+      scope,
+      leaseId: lease.leaseId,
+    });
+  shutdown = () => mutate('runtime.shutdownCore', {}, {}, 'shutdown');
+  if (dsh || zcode) {
+    // C1R1P2:动态 HarnessId 计划需先升级连接协议
+    const up = await s.request('contract.upgrade', { revision: 'C1R1P2' });
+    report.p2upgrade = up && up.revision === 'C1R1P2';
+  }
+  const roots = await s.request('filesystem.listRoots', {});
+  const project = await mutate(
+    'project.create',
+    { name: '真实pi生产入口验证', path_handle: roots.items[0].pathHandle },
+    {},
+    'project',
+  );
+  const ws = await s.request('workspace.list', { project_id: project.id });
+  const plan = JSON.parse(readFileSync('fixtures/client-c1r1/two-groups.plan.json', 'utf8'));
+  plan.project_id = project.id;
+  plan.groups = plan.groups.slice(0, 1);
+  plan.roles = plan.roles.slice(0, 1);
+  plan.groups[0].workspace_ref = ws.items[0].id;
+  const role = plan.roles[0];
+  role.workspace_ref = ws.items[0].id;
+  role.mission = process.argv.includes('--marker') || process.argv.includes('--core-restart')
+    ? '仅完成隔离测试中的最小算术与无敏感随机标记连续性验证；业务任务使用获授权的 Route 工具提交结果。'
+    : '只完成最小算术任务；业务任务使用获授权的 Route 工具提交结果。';
+  role.runtime = {
+    harness, provider_profile_id:providerId, model_id:modelId, reasoning_effort:effort,
+    selection_source: 'runtime',
+  };
+  role.requested_permissions = {
+    workspace_access: 'read_only',
+    allowed_paths: [],
+    tool_profiles: process.argv.includes('--artifact')
+      ? ['route_context', 'route_finish', 'route_artifact_write', 'route_artifact_read']
+      : process.argv.includes('--wait-input')
+        ? ['route_context', 'route_finish', 'route_wait']
+        : ['route_context', 'route_finish'],
+    network_profile: 'none',
+  };
+  const v = await s.request('rolePlan.validate', { plan });
+  if (!v.valid) throw Error('PLAN_INVALID');
+  const applied = await mutate(
+    'rolePlan.apply',
+    {
+      plan,
+      plan_hash: v.planHash,
+      confirmed: true,
+      permission_grants: [{ role_key: role.role_key, permissions: role.requested_permissions }],
+    },
+    { project_id: project.id },
+    'apply',
+  );
+  report.checks.push('真实产品入口Plan应用并注册Native配置');
+  const appliedRole = (await snapshot()).roles.find(r => r.name === role.display_name);
+  if (!appliedRole) throw Error('APPLIED_ROLE_NOT_FOUND');
+  const harnessChoices = await s.request('roleSession.harnesses', { role_id: appliedRole.id });
+  const enabled = harnessChoices.harnesses.filter(item => item.create_session).map(item => item.id);
+  if (enabled.length !== 1 || enabled[0] !== harness) throw Error('TRUSTED_HARNESS_CAPABILITY_MISMATCH');
+  report.checks.push('受信Native profile仅开放对应Harness的新WorkSession能力');
+  for (let i = 0; i < 180; i++) {
+    const db = new Database(path('core/router.db'), { readonly: true });
+    const init = db
+      .prepare('select state from initialization_attempts order by created_at_ms desc limit 1')
+      .get();
+    db.close();
+    if (init && ['DELIVERED', 'FAILED', 'UNKNOWN'].includes(init.state)) {
+      report.bootstrap = init.state;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (report.bootstrap !== 'DELIVERED') throw Error('BOOTSTRAP_NOT_DELIVERED');
+  report.checks.push('真实'+harnessLabel+' Bootstrap原生结算和Windows Job全树收尾');
+  const roles = await s.request('role.list', { scope: { project_id: project.id }, limit: 100 });
+  const target = roles.items[0],
+    scope = { project_id: project.id, space_id: target.spaceId };
+  const request = {
+    kind: 'task.request',
+    to: { type: 'role', id: target.id },
+    summary: '17+25',
+    body: 'Calculate 17+25. Call route_context then route_finish with outcome succeeded, summary 42, body 42, outputs []. Do not use any other tools. After tool success, stop.',
+    inputs: [],
+    expected: ['42'],
+    completion: { mode: 'result', to: { type: 'user' } },
+  };
+  await transport.close();
+  client = new Client({ name: 'j3-production-pi', version: '1.0.0' });
+  await client.connect(
+    new StdioClientTransport({
+      command: coreNode,
+      args: [managementEntry, path('core'), 'controller'],
+      env: {
+        SystemRoot: process.env.SystemRoot,
+        WINDIR: process.env.WINDIR,
+        PATH: '',
+        TEMP: root,
+        TMP: root,
+      },
+      stderr: 'pipe',
+    }),
+  );
+  const call = async (name, args = {}) => {
+    const r = await client.callTool({ name, arguments: args });
+    const v = JSON.parse(r.content[0].text);
+    if (r.isError) throw Error(name + ' -> ' + v.error);
+    return v;
+  };
+  const status = await call('router_status');
+  await call('router_control_acquire', {
+    request_key: 'mcp-acquire',
+    scope: {},
+    expected_revision: status.snapshot.revision,
+  });
+  const dispatch = {
+    request_key: 'mcp-task',
+    expected_revision: status.snapshot.revision,
+    scope,
+    params: { request },
+  };
+  const task = await call('router_task_dispatch', dispatch);
+  const replay = await call('router_task_dispatch', dispatch);
+  if (JSON.stringify(task) !== JSON.stringify(replay)) throw Error('MCP_IDEMPOTENCY_FAILED');
+  report.checks.push('STDIO SDK Management MCP真实派发与同key幂等');
+  for (let i = 0; i < 120; i++) {
+    const db = new Database(path('core/router.db'), { readonly: true });
+    const run = db
+      .prepare('select state from runs where task_id=? order by created_at_ms desc limit 1')
+      .get(task.id);
+    const result = db
+      .prepare('select publication_state,summary from results where task_id=?')
+      .get(task.id);
+    db.close();
+    if (run && ['SUCCEEDED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(run.state)) {
+      report.run = run.state;
+      report.result = result;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (
+    report.run !== 'SUCCEEDED' ||
+    report.result?.publication_state !== 'PUBLISHED' ||
+    report.result?.summary !== '42'
+  )
+    throw Error('TASK_RESULT_NOT_VERIFIED');
+  report.checks.push('真实Route工具、指定用户结果、原生终态与全树屏障');
+  if (process.argv.includes('--marker')) {
+    const marker = 'MARKER-' + randomUUID().slice(0, 12);
+    const active = await call('router_role_session_list', { params: { role_id: target.id } });
+    const activeSessionId = active.active_session_id;
+    const markerTask = async (key, summary, body) => {
+      const state = await call('router_status');
+      const created = await call('router_task_dispatch', {
+        request_key: key,
+        expected_revision: state.snapshot.revision,
+        scope,
+        params: {
+          request: {
+            kind: 'task.request',
+            to: { type: 'role', id: target.id },
+            summary,
+            body,
+            inputs: [],
+            expected: ['terminal result'],
+            completion: { mode: 'result', to: { type: 'user' } },
+          },
+        },
+      });
+      for (let i = 0; i < 150; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(created.id);
+        const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(created.id);
+        const session = db.prepare('select state,native_session_ref from role_sessions where id=?').get(activeSessionId);
+        db.close();
+        if (run && ['SUCCEEDED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(run.state)) return { run, result, session };
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      throw Error('MARKER_TASK_TIMEOUT');
+    };
+    const first = await markerTask(
+      'marker-turn-1',
+      '记忆第一轮',
+      `Remember this exact private marker for the next task: ${marker}. Call route_finish with outcome succeeded, summary STORED, body STORED, outputs [].`,
+    );
+    if (first.run.state !== 'SUCCEEDED' || first.result?.publication_state !== 'PUBLISHED' || first.result?.summary !== 'STORED')
+      throw Error('MARKER_TURN1_NOT_PUBLISHED');
+    const second = await markerTask(
+      'marker-turn-2',
+      '记忆第二轮',
+      'What exact private marker did the previous task ask you to remember? Do not guess. Call route_finish with outcome succeeded, summary set to that exact marker, body set to that exact marker, outputs [].',
+    );
+    if (second.run.state !== 'SUCCEEDED' || second.result?.publication_state !== 'PUBLISHED' || second.result?.summary !== marker)
+      throw Error('MARKER_TURN2_MISMATCH');
+    if (first.run.role_session_id !== activeSessionId || second.run.role_session_id !== activeSessionId || first.session?.state !== 'ACTIVE' || second.session?.state !== 'ACTIVE' || !first.session.native_session_ref || first.session.native_session_ref !== second.session.native_session_ref)
+      throw Error('MARKER_WORK_SESSION_IDENTITY_MISMATCH');
+    report.marker = { workSessionId: activeSessionId, sameNativeRef: true, turn1Published: true, turn2Matched: true };
+    report.checks.push('同ACTIVE WorkSession两轮随机marker、第二轮请求不重复marker、native ref不暗换');
+  }
+  if (process.argv.includes('--wait-input')) {
+    const value = 'INPUT-' + randomUUID().slice(0, 12);
+    const status = await call('router_status');
+    const waiting = await call('router_task_dispatch', {
+      request_key: 'wait-input-task',
+      expected_revision: status.snapshot.revision,
+      scope,
+      params: {
+        request: {
+          kind: 'task.request',
+          to: { type: 'role', id: target.id },
+          summary: '正式 TaskInput 往返',
+          body: 'Ask the user for a new verification value by calling route_wait with waiting_for user_input and reason asking for the verification value. Do not call route_finish until that value arrives. In the continuation turn, use the formal task_input value and call route_finish succeeded with summary and body equal to the exact value, outputs [].',
+          inputs: [],
+          expected: ['user supplied value'],
+          completion: { mode: 'result', to: { type: 'user' } },
+        },
+      },
+    });
+    let waitingRun;
+    for (let i = 0; i < 120; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const task = db.prepare('select state,role_session_id from tasks where id=?').get(waiting.id);
+      const run = db.prepare('select id,state from runs where task_id=? order by created_at_ms desc limit 1').get(waiting.id);
+      const session = task ? db.prepare('select state,native_session_ref from role_sessions where id=?').get(task.role_session_id) : null;
+      db.close();
+      if (task?.state === 'WAITING_INPUT' && run && ['SUCCEEDED', 'FAILED', 'UNKNOWN'].includes(run.state)) {
+        waitingRun = { task, run, session };
+        break;
+      }
+      if (task && ['FAILED', 'NEEDS_ATTENTION', 'DELIVERED'].includes(task.state)) throw Error('WAIT_INPUT_NOT_REQUESTED');
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!waitingRun || waitingRun.run.state !== 'SUCCEEDED') throw Error('WAIT_INPUT_NOT_READY');
+    await call('router_control_release', {
+      request_key: 'wait-input-release',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+    const inputTransport = new LocalCoreTransport(path('core'));
+    try {
+      const inputSession = await inputTransport.connect({
+        clientId: 'j3_wait_input', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const before = await inputSession.request('system.snapshot', {});
+      const inputLease = await inputSession.request('control.acquire', {}, {
+        operationId: 'wait-input-acquire', expectedRevision: before.revision, scope: {},
+      });
+      const revision = (await inputSession.request('system.snapshot', {})).revision;
+      await inputSession.request('conversation.sendUserInput', {
+        role_id: target.id, task_id: waiting.id, body: value,
+      }, {
+        operationId: 'wait-input-submit', expectedRevision: revision, scope,
+        leaseId: inputLease.leaseId,
+      });
+      await inputSession.request('control.release', { lease_id: inputLease.leaseId }, {
+        operationId: 'wait-input-release-local',
+        expectedRevision: (await inputSession.request('system.snapshot', {})).revision,
+        scope: {},
+      });
+    } finally {
+      await inputTransport.close();
+    }
+    let completed;
+    for (let i = 0; i < 150; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const task = db.prepare('select state,role_session_id from tasks where id=?').get(waiting.id);
+      const runs = db.prepare('select id,kind,state,role_session_id from runs where task_id=? order by created_at_ms').all(waiting.id);
+      const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(waiting.id);
+      const input = db.prepare('select payload,consumed_by_run_id,role_session_id from task_inputs where task_id=?').get(waiting.id);
+      const session = task ? db.prepare('select state,native_session_ref from role_sessions where id=?').get(task.role_session_id) : null;
+      db.close();
+      if (task?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(task?.state)) {
+        completed = { task, runs, result, input, session };
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!completed || completed.task.state !== 'DELIVERED' || completed.result?.outcome !== 'succeeded' || completed.result.publication_state !== 'PUBLISHED' || completed.result.summary !== value || completed.input?.payload !== value || completed.runs.length !== 2 || completed.runs[1].kind !== 'CONTINUATION' || completed.input.consumed_by_run_id !== completed.runs[1].id || completed.runs.some((run) => run.role_session_id !== waitingRun.task.role_session_id) || waitingRun.session?.state !== 'ACTIVE' || completed.session?.state !== 'ACTIVE' || !waitingRun.session.native_session_ref || waitingRun.session.native_session_ref !== completed.session.native_session_ref)
+      throw Error('WAIT_INPUT_CONTINUATION_NOT_VERIFIED');
+    report.waitInput = { workSessionId: waitingRun.task.role_session_id, runCount: 2, sameNativeRef: true, formalInputConsumedOnce: true, valueMatched: true };
+    report.checks.push('真实route_wait→正式TaskInput→同WS/同native ref CONTINUATION Run消费→Result PUBLISHED');
+    await call('router_control_acquire', {
+      request_key: 'wait-input-reacquire-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+  }
+  if (process.argv.includes('--client-reconnect')) {
+    const db = new Database(path('core/router.db'), { readonly: true });
+    const before = db.prepare('select id,state,native_session_ref from role_sessions where role_id=? and state=?').get(target.id, 'ACTIVE');
+    db.close();
+    if (!before?.native_session_ref) throw Error('RECONNECT_ACTIVE_NATIVE_REF_MISSING');
+    await call('router_control_release', {
+      request_key: 'reconnect-release-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+    const firstTransport = new LocalCoreTransport(path('core'));
+    try {
+      const firstClient = await firstTransport.connect({
+        clientId: 'j3_reconnect', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const firstSnapshot = await firstClient.request('system.snapshot', {});
+      await firstClient.request('control.acquire', {}, {
+        operationId: 'reconnect-acquire-before', expectedRevision: firstSnapshot.revision, scope: {},
+      });
+    } finally {
+      // Deliberately drop the live controller connection without control.release.
+      await firstTransport.close();
+    }
+    const secondTransport = new LocalCoreTransport(path('core'));
+    let created;
+    try {
+      const secondClient = await secondTransport.connect({
+        clientId: 'j3_reconnect', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      let secondLease;
+      for (let i = 0; i < 50; i++) {
+        try {
+          const secondSnapshot = await secondClient.request('system.snapshot', {});
+          secondLease = await secondClient.request('control.acquire', {}, {
+            operationId: 'reconnect-acquire-after-' + i,
+            expectedRevision: secondSnapshot.revision, scope: {},
+          });
+          break;
+        } catch (error) {
+          if (error.message !== 'CONTROL_LEASE_BUSY') throw error;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
+      if (!secondLease) throw Error('RECONNECT_LEASE_NOT_RELEASED');
+      const revision = (await secondClient.request('system.snapshot', {})).revision;
+      created = await secondClient.request('task.submitFromUser', {
+        request: {
+          ...request,
+          summary: '重连后正式任务',
+          body: 'Calculate 20+22. Call route_context then route_finish with outcome succeeded, summary 42, body 42, outputs []. Do not use any other tools. After tool success, stop.',
+        },
+      }, {
+        operationId: 'reconnect-task', expectedRevision: revision, scope, leaseId: secondLease.leaseId,
+      });
+      await secondClient.request('control.release', { lease_id: secondLease.leaseId }, {
+        operationId: 'reconnect-release-after',
+        expectedRevision: (await secondClient.request('system.snapshot', {})).revision,
+        scope: {},
+      });
+    } finally {
+      await secondTransport.close();
+    }
+    let after;
+    for (let i = 0; i < 150; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const taskRow = db.prepare('select state,role_session_id from tasks where id=?').get(created?.id);
+      const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(created?.id);
+      const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(created?.id);
+      const session = db.prepare('select state,native_session_ref from role_sessions where id=?').get(before.id);
+      db.close();
+      if (taskRow?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(taskRow?.state)) {
+        after = { task: taskRow, run, result, session };
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!after || after.task.state !== 'DELIVERED' || after.run?.state !== 'SUCCEEDED' || after.result?.outcome !== 'succeeded' || after.result.publication_state !== 'PUBLISHED' || after.result.summary !== '42' || after.task.role_session_id !== before.id || after.run.role_session_id !== before.id || after.session?.state !== 'ACTIVE' || after.session.native_session_ref !== before.native_session_ref)
+      throw Error('RECONNECT_CONTINUATION_NOT_VERIFIED');
+    report.clientReconnect = { workSessionId: before.id, sameNativeRef: true, resultPublished: true };
+    report.checks.push('真实controller持租约断连→同clientId重连重新取租约→同WS/native ref任务PUBLISHED');
+    await call('router_control_acquire', {
+      request_key: 'reconnect-reacquire-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+  }
+  if (process.argv.includes('--core-restart')) {
+    const db = new Database(path('core/router.db'), { readonly: true });
+    const before = db.prepare('select id,state,native_session_ref from role_sessions where role_id=? and state=?').get(target.id, 'ACTIVE');
+    db.close();
+    if (!before?.native_session_ref) throw Error('RESTART_ACTIVE_NATIVE_REF_MISSING');
+    const restartMarker = 'RESTART-MARKER-' + randomUUID().slice(0, 12);
+    const markerStatus = await call('router_status');
+    const markerTask = await call('router_task_dispatch', {
+      request_key: 'restart-marker-before',
+      expected_revision: markerStatus.snapshot.revision,
+      scope,
+      params: {
+        request: {
+          ...request,
+          summary: '重启前记忆',
+          body: `Remember this exact private marker after Core restarts: ${restartMarker}. Call route_finish with outcome succeeded, summary STORED, body STORED, outputs [].`,
+          expected: ['STORED'],
+        },
+      },
+    });
+    let stored;
+    for (let i = 0; i < 150; i++) {
+      const db = new Database(path('core/router.db'), { readonly: true });
+      const taskRow = db.prepare('select state,role_session_id from tasks where id=?').get(markerTask.id);
+      const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(markerTask.id);
+      const result = db.prepare('select publication_state,summary from results where task_id=?').get(markerTask.id);
+      db.close();
+      if (taskRow?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(taskRow?.state)) {
+        stored = { task: taskRow, run, result };
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!stored || stored.task.state !== 'DELIVERED' || stored.run?.state !== 'SUCCEEDED' || stored.result?.publication_state !== 'PUBLISHED' || stored.result.summary !== 'STORED' || stored.task.role_session_id !== before.id || stored.run.role_session_id !== before.id)
+      throw Error('RESTART_MARKER_NOT_STORED');
+    await call('router_control_release', {
+      request_key: 'restart-release-mcp',
+      expected_revision: (await call('router_status')).snapshot.revision,
+      scope: {},
+    });
+    await client.close();
+    client = undefined;
+    const stopTransport = new LocalCoreTransport(path('core'));
+    try {
+      const stopClient = await stopTransport.connect({
+        clientId: 'j3_core_restart', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const stopSnapshot = await stopClient.request('system.snapshot', {});
+      const stopLease = await stopClient.request('control.acquire', {}, {
+        operationId: 'restart-acquire-stop', expectedRevision: stopSnapshot.revision, scope: {},
+      });
+      try {
+        await stopClient.request('runtime.shutdownCore', {}, {
+          operationId: 'restart-shutdown',
+          expectedRevision: (await stopClient.request('system.snapshot', {})).revision,
+          scope: {}, leaseId: stopLease.leaseId,
+        });
+      } catch (error) {
+        // The old Core may close its pipe before the shutdown reply is delivered.
+        // The process-exit barrier below remains mandatory.
+        if (error.message !== 'CONNECTION_LOST') throw error;
+      }
+    } finally {
+      await stopTransport.close();
+    }
+    await Promise.race([closed, new Promise((_, reject) => setTimeout(() => reject(Error('RESTART_OLD_CORE_EXIT_TIMEOUT')), 10000))]);
+    if (!didClose) throw Error('RESTART_OLD_CORE_NOT_EXITED');
+    const oldEndpointCredential = endpoint.credential;
+    const resumedCore = spawn(coreNode, [coreEntry], {
+      windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], env: coreEnv,
+    });
+    const resumedErrChunks = [];
+    resumedCore.stderr.on('data', (d) => resumedErrChunks.push(d));
+    let resumedClosed = false;
+    const resumedExit = new Promise((r) => resumedCore.once('close', (code) => {
+      resumedClosed = true;
+      r(code);
+    }));
+    const resumeTransport = new LocalCoreTransport(path('core'));
+    try {
+      let freshEndpoint = false;
+      for (let i = 0; i < 120; i++) {
+        if (resumedCore.exitCode !== null) throw Error('RESTART_NEW_CORE_EXITED_EARLY');
+        try {
+          const currentEndpoint = JSON.parse(readFileSync(path('core/endpoint.json'), 'utf8'));
+          if (currentEndpoint.credential !== oldEndpointCredential) {
+            freshEndpoint = true;
+            break;
+          }
+        } catch {}
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (!freshEndpoint) throw Error('RESTART_NEW_ENDPOINT_TIMEOUT');
+      const resumeClient = await resumeTransport.connect({
+        clientId: 'j3_core_restart', clientVersion: '1.0.0', requestedMode: 'controller',
+        contractRevision: 'C1R1P1', mode: 'LOCAL_CORE',
+      });
+      const resumeSnapshot = await resumeClient.request('system.snapshot', {});
+      const resumeLease = await resumeClient.request('control.acquire', {}, {
+        operationId: 'restart-acquire-resume', expectedRevision: resumeSnapshot.revision, scope: {},
+      });
+      const created = await resumeClient.request('task.submitFromUser', {
+        request: {
+          ...request,
+          summary: 'Core 重启后回忆',
+          body: 'What exact private marker did the previous task ask you to remember before Core restarted? Do not guess. Call route_finish with outcome succeeded, summary set to that exact marker, body set to that exact marker, outputs [].',
+          expected: ['private marker from previous task'],
+        },
+      }, {
+        operationId: 'restart-task',
+        expectedRevision: (await resumeClient.request('system.snapshot', {})).revision,
+        scope, leaseId: resumeLease.leaseId,
+      });
+      let after;
+      for (let i = 0; i < 150; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const taskRow = db.prepare('select state,role_session_id from tasks where id=?').get(created.id);
+        const run = db.prepare('select state,role_session_id from runs where task_id=? order by created_at_ms desc limit 1').get(created.id);
+        const result = db.prepare('select outcome,publication_state,summary from results where task_id=?').get(created.id);
+        const session = db.prepare('select state,native_session_ref from role_sessions where id=?').get(before.id);
+        db.close();
+        if (taskRow?.state === 'DELIVERED' || ['FAILED', 'NEEDS_ATTENTION', 'CANCELLED'].includes(taskRow?.state)) {
+          after = { task: taskRow, run, result, session };
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      if (!after || after.task.state !== 'DELIVERED' || after.run?.state !== 'SUCCEEDED' || after.result?.outcome !== 'succeeded' || after.result.publication_state !== 'PUBLISHED' || after.result.summary !== restartMarker || after.task.role_session_id !== before.id || after.run.role_session_id !== before.id || after.session?.state !== 'ACTIVE' || after.session.native_session_ref !== before.native_session_ref)
+        throw Error('RESTART_COLD_CONTINUATION_NOT_VERIFIED');
+      report.coreRestart = { workSessionId: before.id, sameNativeRef: true, markerRecalled: true, resultPublished: true };
+      report.checks.push('真实Core停机重启→第二轮请求不重复随机marker→同ACTIVE WS/native ref冷续轮→Result PUBLISHED');
+      try {
+        await resumeClient.request('runtime.shutdownCore', {}, {
+          operationId: 'restart-final-shutdown',
+          expectedRevision: (await resumeClient.request('system.snapshot', {})).revision,
+          scope: {}, leaseId: resumeLease.leaseId,
+        });
+      } catch (error) {
+        if (error.message !== 'CONNECTION_LOST') throw error;
+      }
+      await Promise.race([resumedExit, new Promise((_, reject) => setTimeout(() => reject(Error('RESTART_FINAL_CORE_EXIT_TIMEOUT')), 10000))]);
+    } finally {
+      await resumeTransport.close();
+      if (!resumedClosed) resumedCore.kill('SIGTERM');
+      await Promise.race([resumedExit, new Promise((r) => setTimeout(r, 10000))]);
+      report.restartedCoreExited = resumedClosed;
+      report.restartedCoreStderrPresent = resumedErrChunks.length > 0;
+    }
+  }
+  if (process.argv.includes('--artifact')) {
+    const artifactMarker = 'AR-' + randomUUID().slice(0, 8);
+    const waitTask = async (taskId) => {
+      for (let i = 0; i < 180; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const run = db.prepare('select state from runs where task_id=? order by created_at_ms desc limit 1').get(taskId);
+        const result = db.prepare('select publication_state,summary,outputs_json from results where task_id=?').get(taskId);
+        db.close();
+        if (run && ['SUCCEEDED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(run.state)) return { run, result };
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      throw Error('ARTIFACT_TASK_TIMEOUT');
+    };
+    const dispatchArtifactTask = async (key, summary, body, inputs = []) => {
+      const state = await call('router_status');
+      const created = await call('router_task_dispatch', {
+        request_key: key,
+        expected_revision: state.snapshot.revision,
+        scope,
+        params: { request: { kind: 'task.request', to: { type: 'role', id: target.id }, summary, body, inputs, expected: ['artifact'], completion: { mode: 'result', to: { type: 'user' } } } },
+      });
+      const done = await waitTask(created.id);
+      if (done.run.state !== 'SUCCEEDED' || done.result?.publication_state !== 'PUBLISHED') throw Error('ARTIFACT_TASK_NOT_PUBLISHED');
+      const outputs = JSON.parse(done.result.outputs_json ?? '[]');
+      if (outputs.length !== 1 || outputs[0]?.kind !== 'artifact') throw Error('ARTIFACT_OUTPUT_MISSING');
+      return outputs[0].artifact_id;
+    };
+    const workspaceId = ws.items[0].id;
+    const inputArtifact = await dispatchArtifactTask(
+      'artifact-producer',
+      'Artifact输入生成',
+      `Call route_context for task identity. Then call route_artifact_write with workspace_id ${workspaceId}, name input.md, and exact content ${artifactMarker}. Finish succeeded with that artifact as the only output.`,
+    );
+    const outputArtifact = await dispatchArtifactTask(
+      'artifact-consumer',
+      'Artifact读取与输出',
+      `Call route_context for task. Call route_artifact_read with artifact_id ${inputArtifact}. Decode its content. Then call route_artifact_write with workspace_id ${workspaceId}, name output.md, and exact content REVIEWED:${artifactMarker}. Finish succeeded with the new artifact as the only output.`,
+      [{ kind: 'artifact', artifact_id: inputArtifact }],
+    );
+    const verifyTransport = new LocalCoreTransport(path('core'));
+    const verifySession = await verifyTransport.connect({ clientId: 'j3_artifact_verify', clientVersion: '1.0.0', requestedMode: 'observer', contractRevision: 'C1R1P1', mode: 'LOCAL_CORE' });
+    try {
+      const inputView = await verifySession.request('artifact.verify', { id: inputArtifact });
+      const outputView = await verifySession.request('artifact.verify', { id: outputArtifact });
+      const downloaded = await verifySession.request('artifact.download', { id: outputArtifact, offset_bytes: 0, limit_bytes: 65536 });
+      const outputBytes = Buffer.from(downloaded.content, 'base64');
+      if (inputView.state !== 'AVAILABLE' || outputView.state !== 'AVAILABLE' || downloaded.hasMore || createHash('sha256').update(outputBytes).digest('hex') !== outputView.sha256 || !outputBytes.toString('utf8').includes(artifactMarker))
+        throw Error('ARTIFACT_GUI_PATH_HASH_MISMATCH');
+      report.artifact = { inputArtifact, outputArtifact, inputHash: inputView.sha256, outputHash: outputView.sha256, markerVerified: true };
+      report.checks.push('真实input Artifact读取→output Artifact→Result PUBLISHED→GUI同路径下载/hash核对');
+    } finally {
+      await verifyTransport.close();
+    }
+  }
+  if (process.argv.includes('--ab')) {
+    // R4:A→B→A→C 原生会话隔离+交接包 ACK——切回必须恢复各自原生会话
+    const abListA = await call('router_role_session_list', { params: { role_id: target.id } });
+    const sessionA = abListA.active_session_id;
+    const abTask = async (summary, body, expectedSummary, key) => {
+      await call('router_task_dispatch', {
+        request_key: key,
+        expected_revision: (await call('router_status')).snapshot.revision,
+        scope,
+        params: { request: { kind: 'task.request', to: { type: 'role', id: target.id }, summary, body, inputs: [], expected: [expectedSummary], completion: { mode: 'result', to: { type: 'user' } } } },
+      });
+      for (let i = 0; i < 150; i++) {
+        const db = new Database(path('core/router.db'), { readonly: true });
+        const run = db.prepare("select state from runs where task_id=(select id from tasks where summary=?) order by created_at_ms desc limit 1").get(summary);
+        const result = db.prepare('select publication_state,summary from results where task_id=(select id from tasks where summary=?)').get(summary);
+        db.close();
+        if (run && ['SUCCEEDED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(run.state)) return { run: run.state, result };
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      return { run: 'TIMEOUT', result: null };
+    };
+    const abExpect = (r, want) => {
+      if (!r || r.run !== 'SUCCEEDED' || !r.result || r.result.publication_state !== 'PUBLISHED' || r.result.summary !== want)
+        throw Error('AB_RUN_NOT_VERIFIED');
+    };
+    const abSessionMeta = async (params) => {
+      const pre = await call('router_role_session_preflight', { params });
+      const status = await call('router_status');
+      return { request_key: 'ab-' + Math.random().toString(36).slice(2), expected_revision: status.snapshot.revision, preflight_hash: pre.preflight_hash };
+    };
+    const createdB = await call('router_role_session_create', { params: { role_id: target.id, name: 'B方向' }, ...(await abSessionMeta({ role_id: target.id })) });
+    const sessionB = createdB.session.id;
+    abExpect(await abTask('AB任务一', 'Calculate 8+9. Call route_context then route_finish with outcome succeeded, summary 17, body 17, outputs []. After tool success, stop.', '17', 'ab-task-b'), '17');
+    // N5 产品面已彻底移除历史 switch/resume；Management MCP 不广告该工具比“调用后拒绝”更强。
+    const managementTools = await client.listTools();
+    if (managementTools.tools.some((tool) => tool.name === 'router_role_session_switch'))
+      throw Error('AB_REACTIVATION_TOOL_EXPOSED');
+    const reactivationRejected = 'TOOL_NOT_ADVERTISED';
+    const createdC = await call('router_role_session_create', { params: { role_id: target.id, name: 'C方向' }, ...(await abSessionMeta({ role_id: target.id })) });
+    const sessionC = createdC.session.id;
+    abExpect(await abTask('AB任务二', 'Calculate 5+6. Call route_context then route_finish with outcome succeeded, summary 11, body 11, outputs []. After tool success, stop.', '11', 'ab-task-c'), '11');
+    const dbh = new Database(path('core/router.db'), { readonly: true });
+    const refs = dbh.prepare('select id, state, native_session_ref from role_sessions where role_id=?').all(target.id);
+    const archivedA = refs.find((r) => r.id === sessionA);
+    dbh.close();
+    if (archivedA?.state !== 'ARCHIVED') throw Error('AB_OLD_WS_NOT_ARCHIVED');
+    const refIds = refs.filter((r) => r.native_session_ref).map((r) => JSON.parse(r.native_session_ref).id);
+    if (refIds.length < 3 || new Set(refIds).size < 3) throw Error('AB_NATIVE_ISOLATION_BROKEN');
+    report.ab = { sessions: [sessionA, sessionB, sessionC], reactivationRejected, nativeRefs: refIds.length };
+    report.checks.push('真实A→B→C新语义连续创建;切回旧WS被显式拒绝;原生会话隔离');
+  }
+  if (process.argv.includes('--cancel')) {
+    const next = await call('router_status');
+    const cancelledTask = await call('router_task_dispatch', {
+      request_key: 'cancel-task', expected_revision: next.snapshot.revision, scope,
+      params: {request: {...request, summary:'取消验证',body:'List prime numbers below 200 and explain the calculation, then report with route_finish. This is a cancellation test.'}},
+    });
+    let running;
+    for (let i=0;i<1000;i++) {
+      const db=new Database(path('core/router.db'),{readonly:true});
+      running=db.prepare('select id,state from runs where task_id=? order by created_at_ms desc limit 1').get(cancelledTask.id);db.close();
+      if (running?.state === 'RUNNING') break;
+      if (running && ['UNKNOWN','SUCCEEDED','FAILED','CANCELLED'].includes(running.state)) throw Error('CANCEL_WINDOW_NOT_OBSERVED');
+      await new Promise(r=>setTimeout(r,20));
+    }
+    if (running?.state !== 'RUNNING') throw Error('CANCEL_RUN_NOT_ACCEPTED');
+    const current=await call('router_status');
+    await call('router_run_cancel',{request_key:'cancel-run',expected_revision:current.snapshot.revision,scope,params:{id:running.id}});
+    for (let i=0;i<120;i++) {
+      const db=new Database(path('core/router.db'),{readonly:true});
+      const ended=db.prepare('select state from runs where id=?').get(running.id);db.close();
+      if (['UNKNOWN','SUCCEEDED','FAILED','CANCELLED'].includes(ended.state)){report.cancel=ended.state;break;}
+      await new Promise(r=>setTimeout(r,500));
+    }
+    if(report.cancel!=='CANCELLED')throw Error('NATIVE_CANCEL_NOT_VERIFIED');
+    report.checks.push('Management MCP运行中取消、原生取消终态和Job屏障');
+  }
+  report.status = 'PASS_TASK_AND_BOOTSTRAP';
+} catch (error) {
+  report.error = /^[A-Z0-9_]{1,96}$/.test(error.message) ? error.message : 'CHECK_FAILED';
+  report.error_stack = String(error.stack ?? '').split('\n').slice(0, 6).join(' | ');
+} finally {
+  try {
+    await shutdown?.();
+  } catch {}
+  await client?.close();
+  await transport?.close();
+  if (!didClose) core.kill('SIGTERM');
+  await Promise.race([closed, new Promise((r) => setTimeout(r, 10000))]);
+  report.coreExited = didClose;
+  try { report.core_stderr = coreErrChunks.join('').slice(-2000); } catch {}
+  writeFileSync(path('report.json'), JSON.stringify(report, null, 2) + '\n');
+  console.log(JSON.stringify({ report: path('report.json'), ...report }));
+}
+if (report.status === 'FAIL') process.exitCode = 1;

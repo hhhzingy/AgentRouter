@@ -1,0 +1,28 @@
+{
+  "schema": "agentrouter-web-ready/1",
+  "filled_by": "操作员(勿含任何秘密值;token/key 一律写"文件位置说明"而非内容)",
+  "candidate_source_sha": "",
+  "app_tab_label": "聊天窗口实际显示的 app 名",
+  "tunnel": {
+    "client_source_verified": "official|other",
+    "version": "",
+    "help_checked": true,
+    "install_dir": "可回退目录",
+    "profile": "stdio|http"
+  },
+  "control_profile": {
+    "core_instance_alias": "root 别名/hash 前 8 位(勿贴路径)",
+    "project_scope_ids": [],
+    "mode": "observer|controller"
+  },
+  "review_profile": {
+    "role_alias": "role_xxxx 前 8 位",
+    "grant_file_present": true,
+    "grant_issued_by": "management-plane",
+    "output_root_alias": "agentrouter-artifacts(勿贴绝对路径)"
+  },
+  "test_project_alias": "",
+  "nonce_source": "网页可读的公开 nonce 来源(如某公开页面标识)",
+  "revocation_steps_confirmed": true,
+  "known_limits_ack": "同一外层认证的多聊天共享同一入口;单活动聊天约定;不宣称逐聊天强隔离"
+}

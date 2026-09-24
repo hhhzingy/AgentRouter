@@ -1,0 +1,67 @@
+{
+  "schema": "agentrouter-v1.1-final-gate-matrix/1",
+  "date": "2026-09-22",
+  "branch": "feat/v1.1-functional-closeout-codex",
+  "runtime_candidate_sha": "7fda36940599c39c39d74f4f79c34ee18c22b3bc",
+  "verified_source_sha": "eccf799575ef4a1a4d761a9add11435874e98aab",
+  "release_decision": "NOT_V1.1_NON_UI_FUNCTIONAL_RC_READY",
+  "all_non_ui_gates_closed": false,
+  "ci_execution_paused_by_user": false,
+  "no_codex_reset_credit_used": true,
+  "gates": {
+    "G1": "PASS",
+    "G2": "PASS",
+    "G3": "PASS_WITH_RETRY_DENOMINATOR",
+    "G4": "PASS_BY_UNCHANGED_CODE_EVIDENCE",
+    "G5": {
+      "status": "PASS",
+      "transport": "TAILSCALE_SERVE_HTTPS_WSS",
+      "checks": [
+        "https_health",
+        "wss_hello_snapshot",
+        "observer_controller_lease",
+        "isolated_mutation",
+        "task_cancel",
+        "live_stream_revoke_4001",
+        "restart_old_instance_cursor_expired",
+        "restart_new_instance_event_catchup",
+        "response_drop_connection_lost_no_replay"
+      ],
+      "serve_restored_to_empty": true
+    },
+    "G6": {
+      "status": "PASS",
+      "artifact_hash": "835d2e86194c28dd79125d3e249a4beec453d01a418dbc79d970b9fabfb954dc",
+      "zip_sha256": "061ca629bc0321149fce0e499f867787bfe825d0d85c6a29d6c07caccb332866",
+      "zip_bytes": 200093488,
+      "migrations": 18,
+      "source_package_secret_scan": { "files": 137, "findings": 0 },
+      "unpacked_secret_scan": { "files": 137, "findings": 0 },
+      "codex_source_package": ".local/j3-production-pi/run-buM0Gy/report.json",
+      "zcode_source_package": ".local/j3-production-pi/run-iJxaZz/report.json",
+      "codex_unpacked": ".local/j3-production-pi/run-dovdeC/report.json",
+      "zcode_unpacked": ".local/j3-production-pi/run-ErSWWu/report.json"
+    },
+    "G7": {
+      "status": "PASS",
+      "green": true,
+      "waived": false,
+      "c1_run": "https://github.com/hhhzingy/AgentRouter/actions/runs/35815427852",
+      "w11_run": "https://github.com/hhhzingy/AgentRouter/actions/runs/35815427813",
+      "note": "Both workflows completed successfully on verified_source_sha. C1 was confirmed by gh; W11 was confirmed from its public completed/success run page because anonymous gh API was rate-limited. Release package remains bound to runtime_candidate_sha and must be rebuilt before RC reassessment."
+    }
+  },
+  "local_regression": {
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "test_files_passed": 113,
+    "test_files_skipped": 2,
+    "tests_passed": 638,
+    "tests_skipped": 3,
+    "live_tailscale_opt_in": "PASS",
+    "c1_equivalent": { "status": "PASS", "test_files": 100, "tests": 539 },
+    "w11_equivalent": { "status": "PASS", "test_files": 111, "tests": 638, "electron_b0_j1_j2": "PASS" },
+    "zcode_native_fork_cold_resume": "PASS",
+    "codex_native_fork_cold_resume": "PASS"
+  }
+}

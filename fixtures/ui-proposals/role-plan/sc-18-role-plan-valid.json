@@ -1,0 +1,33 @@
+{
+  "scenario_id": "sc-18",
+  "title": "Role Plan 有效并应用",
+  "description": "导入符合 agentrouter-role-plan/1 的双组方案：Review 全要素、Apply 差异、应用后章程交付。",
+  "ui_surfaces": ["编排页", "Role Plan Review", "项目概览", "角色详情"],
+  "snapshot": {
+    "cursor": 5000,
+    "projects": [
+      { "id": "proj_atlas", "name": "支付中台重构", "status": "ACTIVE", "hostLabel": "SSH · core-prod-01", "displayRoot": "~/work/pay-core", "spacesCount": 0, "activeRunsCount": 0, "issuesCount": 0, "revision": 30 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-03", "CCR-UI-04", "CCR-UI-14"],
+    "role_plan": "见执行包 examples/role-plan.two-groups.example.json（schema 校验通过）",
+    "apply_preview": {
+      "diff": { "spaces_added": ["核心实现组", "UI 组"], "roles_added": ["core_implementer", "ui_designer"], "roles_changed": [], "conflicts": [] },
+      "plan_hash": "a91f…c3"
+    },
+    "apply_progress": { "apply_id": "apl_01", "state": "DELIVERING_BOOTSTRAP" },
+    "charter_after_apply": [
+      { "role_key": "core_implementer", "bootstrap_delivery": { "state": "DELIVERED", "delivered_at_ms": 1788931900000 }, "charter_revision": 1 },
+      { "role_key": "ui_designer", "bootstrap_delivery": { "state": "QUEUED" }, "charter_revision": 1 }
+    ]
+  },
+  "expected_ui": [
+    "Review 左树展示 项目→2 组→各角色；右卡逐项展示使命/职责/非职责/输入/输出/结果去向/运行/工作区/权限/风险",
+    "『请求权限 vs 实际权限』对照呈现，实际权限可收窄不可放宽",
+    "Apply 前差异显示『全部新增：2 组 2 角色』，无冲突",
+    "确认并应用后：core_implementer 章程 DELIVERED → 可派发；ui_designer 章程 QUEUED → 显示『待初始化』且输入框禁用",
+    "角色详情第一条为『⚙ 系统 · 角色章程 (r1)』系统卡，不伪装成用户消息",
+    "重复提交同 plan_hash 不产生重复角色（幂等，返回首个 apply_id）"
+  ]
+}

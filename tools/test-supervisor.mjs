@@ -20,7 +20,7 @@ try {
   const info = await new Promise((res, rej) => {
     const timer = setTimeout(() => rej(Error('TIMEOUT')), 10000);
     helper.on('error', rej);
-    helper.stderr.on('data', (b) => rej(Error(b.toString())));
+    helper.stderr.on('data', (b) => rej(Error('CHILD_DIAGNOSTIC')));
     helper.stdout.once('data', (b) => {
       clearTimeout(timer);
       res(JSON.parse(b.toString()));
@@ -48,7 +48,7 @@ try {
     exit_code: 0,
   });
 } catch (e) {
-  Object.assign(report, { error: String(e), exit_code: 1 });
+  Object.assign(report, { code: 'CHECK_FAILED', redacted: true, exit_code: 1 });
   process.exitCode = 1;
 } finally {
   helper.kill();

@@ -1,11 +1,15 @@
+import { diagnosticSummary } from '../packages/security/diagnostics.mjs';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 const runId = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
 const root = resolve('evidence/runs', runId);
 mkdirSync(root, { recursive: true });
+const resultRoot = resolve('.local/verification', runId);
+mkdirSync(resultRoot, { recursive: true });
 const commands = [
   ['spec', ['tools/spec-check.mjs']],
+  ['c1-drift', ['tools/generate-client-contract.mjs', '--check']],
   ['lint', ['tools/lint.mjs']],
   ['typecheck', ['node_modules/typescript/bin/tsc', '--noEmit']],
   ...['unit', 'integration', 'contract', 'chaos'].map((kind) => [
@@ -15,7 +19,7 @@ const commands = [
       'run',
       `tests/${kind}`,
       '--reporter=json',
-      `--outputFile=${root}/${kind}.json`,
+      `--outputFile=${resultRoot}/${kind}.json`,
     ],
   ]),
   ['database', ['tools/db-verify.mjs']],
@@ -24,6 +28,7 @@ const commands = [
   ['packaged', ['tools/packaged-test.mjs']],
   ['electron-smoke', ['tools/desktop-smoke.mjs']],
   ['desktop', ['tools/desktop-test.mjs']],
+  ['c1-preload', ['tools/test-c1-desktop.mjs']],
 ];
 const results = [];
 for (const [name, args] of commands) {
@@ -34,16 +39,32 @@ for (const [name, args] of commands) {
     timeout: 90000,
     env: { ...process.env, TEMP: resolve('.local/tmp'), TMP: resolve('.local/tmp') },
   });
-  const log = `$ ${process.execPath} ${args.join(' ')}\n${result.stdout ?? ''}\n${result.stderr ?? ''}`;
-  writeFileSync(resolve(root, name + '.log'), log);
+  let tests = {};
+  let reportMissing = false;
+  try {
+    const parsed = JSON.parse(readFileSync(resolve(resultRoot, name + '.json'), 'utf8'));
+    tests = {
+      test_count: parsed.numTotalTests,
+      passed_count: parsed.numPassedTests,
+      failed_count: parsed.numFailedTests,
+    };
+  } catch {
+    reportMissing = ['unit', 'integration', 'contract', 'chaos'].includes(name);
+  }
+  const summary = diagnosticSummary({
+    test: name.toUpperCase().replaceAll('-', '_'),
+    at: start,
+    exit_code: result.status,
+    status: result.status === 0 && !reportMissing ? 'PASS' : 'FAIL',
+    ...tests,
+  });
+  writeFileSync(resolve(root, name + '.json'), JSON.stringify(summary, null, 2));
   results.push({
     name,
-    command: [process.execPath, ...args],
-    started_at: start,
+    status: summary.status,
     exit_code: result.status,
-    status: result.status === 0 ? 'PASS' : 'FAIL',
-    error: result.error?.message,
-    evidence: `evidence/runs/${runId}/${name}.log`,
+    redacted: true,
+    evidence: `evidence/runs/${runId}/${name}.json`,
   });
   console.log(name, results.at(-1).status);
 }

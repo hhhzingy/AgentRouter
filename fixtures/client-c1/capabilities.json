@@ -1,0 +1,58 @@
+{
+  "methods": [
+    "system.initialize",
+    "system.ping",
+    "system.snapshot",
+    "events.catchup",
+    "control.acquire",
+    "control.renew",
+    "control.release",
+    "project.list",
+    "project.get",
+    "role.list",
+    "role.get",
+    "task.list",
+    "task.get",
+    "run.list",
+    "run.get",
+    "space.list",
+    "approval.list",
+    "issue.list",
+    "inbox.list",
+    "harness.list",
+    "runtime.getActiveWork",
+    "role.rename",
+    "run.reconcile"
+  ],
+  "remote_filesystem": false,
+  "event_stream": true,
+  "controller_lease": true,
+  "auth_unit_max_active_runs": 1,
+  "reference_types": {
+    "artifact": true,
+    "external": true,
+    "git": false,
+    "live": false
+  },
+  "output_types": [
+    "artifact"
+  ],
+  "harnesses": {
+    "codex": {
+      "status": "PROBED",
+      "create_session": false,
+      "cancel": false
+    },
+    "kimi_code": {
+      "status": "PROBED",
+      "create_session": false,
+      "cancel": false
+    },
+    "pi": {
+      "status": "PROBED",
+      "create_session": false,
+      "cancel": false
+    }
+  },
+  "mock": true
+}

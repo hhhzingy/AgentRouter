@@ -1,0 +1,107 @@
+{
+  "request_id": "H-01",
+  "status": "DRAFT_NOT_AUTHORIZED",
+  "purpose": "本轮账号与双平台现场联调",
+  "requested_by_role": "codex-integration-lead",
+  "candidate_or_branch": null,
+  "known_environment": {
+    "windows": "User Windows machine; inspect exact build",
+    "ubuntu": "20.04; RV1126B SDK host must remain unchanged"
+  },
+  "profiles": [
+    {
+      "harness": "codex",
+      "platform": "windows",
+      "profile_aliases": [
+        "A",
+        "B"
+      ],
+      "login_action": "User completes native login outside AI context",
+      "secret_ref_metadata_only": null
+    },
+    {
+      "harness": "kimi_code",
+      "platform": "windows",
+      "profile_aliases": [
+        "A",
+        "B"
+      ],
+      "login_action": "User completes native login outside AI context",
+      "secret_ref_metadata_only": null
+    },
+    {
+      "harness": "pi",
+      "platform": "windows",
+      "profile_aliases": [
+        "TEST_PROVIDER"
+      ],
+      "login_action": "User completes native login outside AI context",
+      "secret_ref_metadata_only": null
+    },
+    {
+      "harness": "codex",
+      "platform": "ubuntu",
+      "profile_aliases": [
+        "A",
+        "B"
+      ],
+      "login_action": "User completes native login outside AI context",
+      "secret_ref_metadata_only": null
+    },
+    {
+      "harness": "kimi_code",
+      "platform": "ubuntu",
+      "profile_aliases": [
+        "A",
+        "B"
+      ],
+      "login_action": "User completes native login outside AI context",
+      "secret_ref_metadata_only": null
+    },
+    {
+      "harness": "pi",
+      "platform": "ubuntu",
+      "profile_aliases": [
+        "TEST_PROVIDER"
+      ],
+      "login_action": "User completes native login outside AI context",
+      "secret_ref_metadata_only": null
+    }
+  ],
+  "ssh": {
+    "host_alias": null,
+    "user_verified_host_key": false,
+    "allowed_install_directory": null,
+    "allowed_project_roots": [],
+    "user_service_install_approved": false,
+    "linger_approved": false
+  },
+  "budget": {
+    "currency": null,
+    "total_limit": null,
+    "max_test_calls": null,
+    "provider_enforced_cap_available": null,
+    "approved_model_ids": [],
+    "automatic_paid_fallback": false
+  },
+  "allowed_data": {
+    "test_workspace_roots": [],
+    "production_data_allowed": false,
+    "sdk_or_hardware_write_allowed": false
+  },
+  "human_observation": [
+    "Native choose/save dialogs",
+    "Windows IME candidate UI",
+    "Five-minute independent use",
+    "Real multi-role task",
+    "Clean Windows install/start/restore"
+  ],
+  "approval": {
+    "user_decision": null,
+    "approved_scope": [],
+    "valid_until": null,
+    "revocation_action": null,
+    "raw_credentials_requested": false
+  },
+  "note": "只有用户填明对象/范围并明确批准才授权；不能将本模板当许可。不得填 Key、token、auth.json 正文或私钥。"
+}

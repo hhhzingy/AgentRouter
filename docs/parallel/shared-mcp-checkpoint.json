@@ -1,0 +1,82 @@
+{
+  "schema": "agentrouter-shared-mcp-checkpoint/1",
+  "state": "SC2_1_WORKLOOP_LOCAL_VERIFIED",
+  "source_sha": "dc64b8d00b316272df615bd4fa5129dbe77abc21",
+  "source_sha_note": "SC2 基线 dc64b8d;工作环增量在本分支后续提交(claim/request_user_input/submit_result+migration016)。live web-demo bundle 见 workloop_bundle_hashes。",
+  "evidence_commit_sha": null,
+  "adopts_SC1_source_sha": "108b70a834145971094de7ac747a30926ead62fe",
+  "tool_catalog_hashes": {
+    "control": "d93cdeba9d343fcaf00804e25178a9da94f817b667071cbf92ca094865bbf3e2",
+    "participant": "1f66380d64ddf9e69c679bfce1b1b217a06788b12c9b0b61233d4cf355f1e424"
+  },
+  "contract_and_migration_hashes": {
+    "contracts/client-api.c1.schema.json": "fa92882485dc5f82edef387a90f48dc9208f6b67f46ac776497e7d759306e05c",
+    "packages/client-contract/c1r1p1/generated.ts": "20ce8c6b4346a6734ec6b9f3786cc7c6481f8631fc55c1126eae7ec86b55620a",
+    "packages/client-contract/external-api-1.ts": "ef2583daefd4e03df87abfbbae0e9a834bfde7f05211f4319abf67ca900413c1",
+    "packages/storage/migrations/014-context-convergence.sql": "96c142acbc52b46d7bb5930034e124a595416a414e8969b84e606a246832e04f",
+    "packages/storage/migrations/015-context-transfer.sql": "2943063cb49e73833f2df519d2a0bd67186948a56dad753ec80db173f0f6ed97",
+    "packages/storage/migrations/016-participant-workloop.sql": "4989318ce97a9b6842174c92745cb3e3ed5ceed8665a4aa6da5a228c2820a740"
+  },
+  "real_driver_context_ports": [
+    "zcode: implemented (cold export via session/resume messages; init via fresh session+seed; idempotent by operationId; confirm=resume probe); registered in w11-main when native config carries zcodeCli — LIVE transfer run still pending",
+    "others: unregistered → inherit explicitly CONTEXT_EXPORT_UNSUPPORTED (no silent blank)"
+  ],
+  "mcp_semantics_for_linux": {
+    "management": "stdio retained; P2 negotiated when capability exposes contract.upgrade; create forwards context_mode blank|inherit; router_role_session_transfer_status added; switch description states permanent read-only of archived WS; router_status strips hostLabel/displayRoot→root_alias; lease renewal capped ~5min then dropped",
+    "participant": "shared bridge (participant-common.mjs); no direct DB reads, no runtime self-issue; grant-validated reads (inbox/read_artifact); stable request_key with ledger receipts (replay=original receipt; conflict on diff content); http lifecycle fixed (port parse incl 0, Buffer body+cap, health vs MCP, per-request transport close); workloop: claim(QUEUED|WAITING_INPUT-ready→ACTIVE,ROLE_BUSY 单活守卫,operations 账本幂等)+ request_user_input(ACTIVE→WAITING_INPUT,wait_records user_input)+ submit_result(ACTIVE→RESULT_STAGED→DELIVERED/FAILED,results.run_id NULL(016),直发 PUBLISHED+task.result outbox DELIVERED,acceptance 留人类 result.accept);send_user_input 桥侧帧备忘重放同字节帧;submitter 不得自称批准",
+    "scoping": "tunnel/受限实例范围由专用 core 进程 AGENTROUTER_MCP_PROJECT_SCOPE 启动时固定(未知 id 拒绝启动);协议面不新增字段(冻结 schema 未动)"
+  },
+  "tests": {
+    "management_local": "PASS (role-session-gateway-retry 5/5 incl P2/passthrough/minimization at dc64b8d)",
+    "participant_local_workflow": "PASS (participant-mcp + participant-http integration incl replay/conflict/revocation)",
+    "full_suite_local": "463/463 (91 files, serial;含 migration v16 断言升级)",
+    "chatgpt_read": "PENDING_USER (operator card docs/cloud-kit/USER_ACTION_CARD-web-mcp.md)",
+    "chatgpt_management": "PENDING_USER",
+    "chatgpt_participant": "PASS — CHATGPT_PARTICIPANT_VERIFIED (v1 旧目录 6/6; v2 7 工具全链: WAITING_INPUT→send_user_input 口令逐字落产物→claim→artifact→submit DELIVERED/PUBLISHED; round4 nonce 经 inbox body; 两轮 acceptance PENDING; revoke 后网页 read+claim 双路径 GENERATION_STALE; 证据链 docs/parallel/web-demo-participant-evidence-20260918.md; Participant 演练完结)",
+    "participant_workloop": "PASS (P4 integration 全链 + live-stack rehearsal: preclaim/submit PLAN_STATE_CONFLICT, send_user_input 幂等+OPERATION_CONFLICT, resume claim, artifact≠completion, submit→DELIVERED/PUBLISHED/PENDING, result.accept 人类门, DB run_id NULL/outbox DELIVERED)"
+  },
+  "linux_required_retests": [
+    "adopt SC2 tool bundles: management-mcp/participant-stdio/participant-http startup guards on Linux",
+    "participant request_key ledger + revocation reads via real core",
+    "mcp scope dedicated-instance behavior (boot-refuse unknown ids)",
+    "context transfer engine state machine (CT-02/03/04 tests)",
+    "zcode port lifecycle if Linux runs zcode harness (currently official-executor-blocked)",
+    "HTTP entry: health vs MCP split + body limits under Linux"
+  ],
+  "remaining_code": [
+    "P0 BLOCKER: Windows supervisor stdio 断裂(DuplicateHandle 副本丢 overlapped→libuv EOF)阻塞全部 native harness live 路径;修复=CreateNamedPipe(FILE_FLAG_OVERLAPPED)中转,执行卡 docs/执行包/AgentRouter_WC09_supervisor_stdio执行卡;WC01 zcode live run 装配全就位待重放(.local-protected/ztransfer-r1/run.mjs)",
+    "zcode warm session host in audited backend (session≠run lifecycle) — protocol proven feasible, backend residency unimplemented",
+    "cross-harness inherit end-to-end (binding transition path coded; needs live test)"
+  ],
+  "host_blockers": [
+    "BLOCKED_CI_INFRA: account billing (both lanes' jobs not started; raw failure preserved)",
+    "PENDING_USER: OpenAI account linking + one web call for each drill",
+    "PENDING_HUMAN_DEVICE: phone/second-machine HTTPS WSS (explicitly deferred by user this round)"
+  ],
+  "main_merge_authorized": false,
+  "release_authorized": false,
+  "tool_catalog_hash_method": "sha256 over JSON.stringify(PARTICIPANT_TOOLS array literal);旧值 control 哈希方法未记录,participant 已按此法重算(7 工具)",
+  "workloop_bundle_hashes": {
+    "core.mjs": "4f7cb40e97e337ce6c89ec70176f2c186563d6eb6cff5004511697aec768e6dc",
+    "participant-http.mjs": "b97928b53392b63c141dee51d69eea0dd3e484d7182e017abbfad1224f135902",
+    "location": "E:/AgentRouter/.worktrees/v1.1-integration/release/AgentRouter-j3-6e95922e6675-…/resources/w11-core(live web-demo 服务目录;旧件备份 .local-protected/web-demo/bundle-backup-20260917b)"
+  },
+  "live_drill_state_20260917": {
+    "data_root": "E:/AgentRouter/.local-protected/web-demo/core(schema v16, before-v16 备份)",
+    "tasks": {
+      "legacy_nonce": "task_d6ba0023…(QUEUED,勿认领)",
+      "rehearsed": "task_dd5601c4…(DELIVERED+ACCEPTED,result_dde8db57…,artifact_1698ea0b…)",
+      "waiting_for_web": "task_989880f1-8b5e-4839-a95f-f28f890d4542(WAITING_INPUT user_input_ready:false)",
+      "nonce_loop": "task_1271f0f7-028e-4b7e-9e85-f3c11c1cbc44(QUEUED,body 含 WEBDEMO-7QX4)"
+    },
+    "tunnel": "profile agentrouter-review 不变;daemon readyz=ready;入口重启后 ChatGPT 重连即新 7 工具",
+    "walkthrough": "docs/cloud-kit/CHATGPT-walkthrough.zh.md(本轮序 W1–W7)"
+  },
+  "live_drill_state_20260918": {
+    "tasks": "989880f1/1271f0f7 DELIVERED(PENDING);dd5601c4 DELIVERED(ACCEPTED);d6ba0023 遗留 QUEUED",
+    "grant": "REVOKED(token 文件保留;tunnel/runtime key 未动)",
+    "data_root": "未动(v16)",
+    "web_revoke": "网页 read(inbox)+write(claim rk=chatgpt-revoke-claim-1)→PARTICIPANT_GENERATION_STALE(2026-09-18);grant REVOKED;token 文件/Tunnel/runtime key/数据保留",
+    "zcode_live": "BLOCKED_BY_SUPERVISOR_STDIO(装配/凭据/P2/迁移接线全验证;模型链直 spawn 已通;执行卡+探针证据齐)"
+  }
+}

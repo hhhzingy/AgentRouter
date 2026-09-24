@@ -1,0 +1,10 @@
+{
+  "sourceSha": "4ffecefc5f4f3b44e1755791c5461dc5cbc183c2",
+  "sourceDirty": false,
+  "tests": 19,
+  "exitCode": 0,
+  "scope": "OFFLINE_PROTOCOL_ONLY",
+  "productionCoreWired": false,
+  "realHarnessSupport": 0,
+  "log": "committed-protocol-tests.txt"
+}

@@ -1,0 +1,71 @@
+{
+  "mock": true,
+  "test_source": "tests/contract/c1r1.test.ts",
+  "demo_source": "fixtures/client-c1r1/demo.json",
+  "scenarios": [
+    {
+      "id": "C1R1-MOCK-01",
+      "name": "两个隔离组各三角色"
+    },
+    {
+      "id": "C1R1-MOCK-02",
+      "name": "跨组任务/结果/通知拒绝"
+    },
+    {
+      "id": "C1R1-MOCK-03",
+      "name": "合并 Preview/Commit"
+    },
+    {
+      "id": "C1R1-MOCK-04",
+      "name": "拆分 Preview/Commit"
+    },
+    {
+      "id": "C1R1-MOCK-05",
+      "name": "活跃 Run/UNKNOWN 阻断"
+    },
+    {
+      "id": "C1R1-MOCK-06",
+      "name": "显式队列处置及后继任务"
+    },
+    {
+      "id": "C1R1-MOCK-07",
+      "name": "新会话交接/原生恢复拒绝"
+    },
+    {
+      "id": "C1R1-MOCK-08",
+      "name": "Bootstrap 四态及首任务屏障"
+    },
+    {
+      "id": "C1R1-MOCK-09",
+      "name": "Role Plan 原子应用/幂等/回滚"
+    },
+    {
+      "id": "C1R1-MOCK-10",
+      "name": "未登录模型不可启动"
+    },
+    {
+      "id": "C1R1-MOCK-11",
+      "name": "Runtime/缓存目录刷新优先级"
+    },
+    {
+      "id": "C1R1-MOCK-12",
+      "name": "模型原生推理档位差异"
+    },
+    {
+      "id": "C1R1-MOCK-13",
+      "name": "项目卡派生状态摘要"
+    },
+    {
+      "id": "C1R1-MOCK-14",
+      "name": "拆组结果去向显式确认"
+    },
+    {
+      "id": "C1R1-MOCK-15",
+      "name": "职责/模型变更新章程和 Binding"
+    },
+    {
+      "id": "C1R1-MOCK-16",
+      "name": "Observer/错误 scope/未确认拒绝"
+    }
+  ]
+}

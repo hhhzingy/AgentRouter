@@ -1,0 +1,34 @@
+{
+  "scenario_id": "sc-16",
+  "title": "结果交付给用户",
+  "description": "陈复核将复核结论显式交付给用户：收件箱结果卡 + 验收操作。成功发信无回执。",
+  "ui_surfaces": ["收件箱", "角色详情", "项目卡"],
+  "snapshot": {
+    "cursor": 4650,
+    "roles": [
+      { "id": "r_chen", "spaceId": "sp_core", "name": "陈复核", "status": "ACTIVE", "harness": "pi", "harnessSupport": "MOCK", "workspaceLabel": "wt:core", "taskState": "DELIVERED", "currentTaskSummary": "登录接口复核", "queuedTasksCount": 0, "unreadNoticesCount": 0, "pendingApprovalsCount": 0, "revision": 7 }
+    ],
+    "tasks": [
+      { "id": "t_review", "spaceId": "sp_core", "requesterRoleId": "r_zhou", "assigneeRoleId": "r_chen", "summary": "登录接口复核", "state": "DELIVERED", "acceptance": "PENDING", "completionTargetLabel": "用户", "createdAtMs": 1788930000000, "updatedAtMs": 1788931770000, "revision": 4 }
+    ],
+    "runs": [
+      { "id": "run_410", "roleId": "r_chen", "taskId": "t_review", "harness": "pi", "state": "SUCCEEDED", "startedAtMs": 1788931000000, "settledAtMs": 1788931770000, "nativeSessionDisplay": "pi session #92", "reconciliationRequired": false, "revision": 5 }
+    ],
+    "inbox": [
+      { "id": "in_55", "kind": "RESULT_DELIVERY", "projectId": "proj_atlas", "spaceId": "sp_core", "roleId": "r_chen", "taskId": "t_review", "resultId": "res_18", "summary": "登录接口复核：不通过（2 项阻断）", "occurredAtMs": 1788931770000, "read": false }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-08", "CCR-UI-16"],
+    "roles_extra": [
+      { "id": "r_chen", "last_succeeded_run_at_ms": 1788931770000 }
+    ]
+  },
+  "expected_ui": [
+    "收件箱『结果交付』区出现结果卡：来源 陈复核/核心实现组、关联任务、摘要、Acceptance=PENDING",
+    "结果卡提供『接受』『拒绝』（result.accept/reject）；拒绝需填原因",
+    "陈复核头像：○(空闲) + ✓最近完成辅助角标（10 分钟内消退）",
+    "用户在陈复核对话中发送消息后，仅显示『已送达』，不产生『已读/已处理』回执条目",
+    "验收后 Acceptance 变 ACCEPTED，收件箱卡片降强调；任务保持 DELIVERED 终态记录"
+  ]
+}

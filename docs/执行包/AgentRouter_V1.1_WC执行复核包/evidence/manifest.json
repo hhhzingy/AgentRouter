@@ -1,0 +1,21 @@
+{
+  "note": "core_stderr 字段已剥除;报告本体来自 .local/j3-production-pi/run-*/report.json",
+  "files": [
+    {
+      "path": "evidence/README.md",
+      "sha256": "8117e5988978cda49416223b600b9e732070e2b8b91e129e55f896883422b456"
+    },
+    {
+      "path": "evidence/dut-kimi-bailian-pass-42.json",
+      "sha256": "46d7d373547a66df330f0a51583dc8d8b78a2e11e7ca7972049caf1a1ffdc332"
+    },
+    {
+      "path": "evidence/dut-kimi-flaky-fail-sample.json",
+      "sha256": "d6062f2f5913035172d215ff9d179ef884ddb966772f92b51fe0a5ae01898430"
+    },
+    {
+      "path": "evidence/dut-zcode-bailian-pass-42.json",
+      "sha256": "630511863c787bec595cac2eeae7c7d2fc185ebad1b3727f4da9a1e3e8ca9497"
+    }
+  ]
+}

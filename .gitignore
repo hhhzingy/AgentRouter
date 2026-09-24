@@ -1,5 +1,7 @@
 node_modules/
 .local/
+.local-protected/
+.cursor/mcp.json
 .worktrees/
 dist/
 release/
@@ -12,4 +14,15 @@ auth.json
 *.db-wal
 *.db-shm
 *.log
-!evidence/**/*.log
+# 只提交 allowlist 脱敏摘要；忽略规则不自动取消旧跟踪。
+evidence/raw/
+evidence/live-raw/
+**/auth.json
+**/*token*
+**/*secret*
+**/.env*
+
+.vitest/
+
+# 本地账号材料禁止进入版本库与发布物
+/账号信息/

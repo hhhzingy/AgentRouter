@@ -1,0 +1,237 @@
+{
+  "evidenceClass": "VISUAL_FIXTURE",
+  "transport": "PREVIEW_MOCK",
+  "sourceSha": "ab7922b88ef1bb6181dcf104b8d0366b72550bea",
+  "sourceDirty": false,
+  "generatedAt": "2026-09-23T03:57:32.214Z",
+  "shots": [
+    {
+      "name": "01-home",
+      "route": "#/",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/01-home.png",
+      "horizontalOverflow": false,
+      "sha256": "80d4c7bdf960b4d130535b9390b7e884035948df37951ce1a4211779c5e06d79"
+    },
+    {
+      "name": "02-workbench",
+      "route": "#/project/proj_atlas",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/02-workbench.png",
+      "horizontalOverflow": false,
+      "sha256": "d9de5a1ff4a906f6ce27dae682016892eafacff089c955f3dadce7065b5ace12"
+    },
+    {
+      "name": "03-role-worksession",
+      "route": "#/role/role_zhou",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/03-role-worksession.png",
+      "horizontalOverflow": false,
+      "sha256": "721720f4b6b19f7a43c4d7f9c76134212373b71c666ee1bb57bd1753efb9faa3"
+    },
+    {
+      "name": "04-results-evidence",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/04-results-evidence.png",
+      "horizontalOverflow": false,
+      "sha256": "be998716822ab046970301403b59425bf4c097210783ef1e89622ec42e214755"
+    },
+    {
+      "name": "05-workbench-150dpi",
+      "route": "#/project/proj_atlas",
+      "scenario": "full",
+      "viewport": {
+        "width": 960,
+        "height": 600
+      },
+      "scale": 1.5,
+      "file": "screenshots/05-workbench-150dpi.png",
+      "horizontalOverflow": false,
+      "sha256": "a5ec1b6856f71ecbde53ffd850e3612f5bd90125f95fc7c1506c66719c612c61"
+    },
+    {
+      "name": "06-mobile-intervention",
+      "route": "#/project/proj_atlas",
+      "scenario": "observer",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scale": 1,
+      "file": "screenshots/06-mobile-intervention.png",
+      "horizontalOverflow": false,
+      "sha256": "9e528282ac689179058f8069abadd3cc08eadc9f1b7aa481cafee1732e297cf9"
+    },
+    {
+      "name": "07-settings-dark",
+      "route": "#/settings",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "theme": "dark",
+      "file": "screenshots/07-settings-dark.png",
+      "horizontalOverflow": false,
+      "sha256": "3099fd107e26487be7c873cad575f201f6625edd0a36b589405166b0e37a13f2"
+    },
+    {
+      "name": "08-projects-dark",
+      "route": "#/",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "theme": "dark",
+      "file": "screenshots/08-projects-dark.png",
+      "horizontalOverflow": false,
+      "sha256": "22f90bd8fa11dd832b5298687be12bab1260c5fac1e6ab5098c8c219fb4fcc12"
+    },
+    {
+      "name": "09-mobile-wide",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "observer",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "scale": 1,
+      "file": "screenshots/09-mobile-wide.png",
+      "horizontalOverflow": false,
+      "sha256": "0214bffddfb06e5a6176ea9082a8edc5db4d6e71817ba196fabd838d2e1c4544"
+    },
+    {
+      "name": "10-connections",
+      "route": "#/remote",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/10-connections.png",
+      "horizontalOverflow": false,
+      "sha256": "9dc65f3d11eb724e81891841c1e3beb9efb5568e1735e086a1f77fb1c513e361"
+    },
+    {
+      "name": "11-activity",
+      "route": "#/project/proj_atlas/timeline",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/11-activity.png",
+      "horizontalOverflow": false,
+      "sha256": "acada090d15cdaf1d1916e59c9025ef836d8a8890fa6ee382b8afafe032d13d3"
+    },
+    {
+      "name": "12-project-settings",
+      "route": "#/project/proj_atlas/settings",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "file": "screenshots/12-project-settings.png",
+      "horizontalOverflow": false,
+      "sha256": "8869e33e7dfa95f06e2d0d7ccc8d2ef1fa32daaf53ef8a44465ddeb3d253c266"
+    },
+    {
+      "name": "13-results-dark",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "theme": "dark",
+      "file": "screenshots/13-results-dark.png",
+      "horizontalOverflow": false,
+      "sha256": "28d35d70e2eb2cb11d7743c6656ee6ac6f8e02cf8173a81704fc88bfffbabac3"
+    },
+    {
+      "name": "14-worksession-setup",
+      "route": "#/role/role_zhou",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "action": "managed-setup",
+      "file": "screenshots/14-worksession-setup.png",
+      "horizontalOverflow": false,
+      "sha256": "b4d39e33e18a6c90fd3307b1ceacea44e8719f754b791a351b7b7fbbf146e923"
+    },
+    {
+      "name": "15-web-participant-setup",
+      "route": "#/role/role_zhou",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "action": "web-setup",
+      "file": "screenshots/15-web-participant-setup.png",
+      "horizontalOverflow": false,
+      "sha256": "b960f5d94ab24341b4f67bcb378184373c1e7992a2f4fcbc9e504dace0b97ca0"
+    },
+    {
+      "name": "16-mobile-reply",
+      "route": "#/project/proj_atlas",
+      "scenario": "waiting-input",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scale": 1,
+      "action": "reply",
+      "file": "screenshots/16-mobile-reply.png",
+      "horizontalOverflow": false,
+      "sha256": "d30a159294589873c2e8305e4bcad8e173c998b3eacd0987e689b0a69369772e"
+    },
+    {
+      "name": "17-result-request-changes",
+      "route": "#/project/proj_atlas/inbox",
+      "scenario": "full",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "action": "request-changes",
+      "file": "screenshots/17-result-request-changes.png",
+      "horizontalOverflow": false,
+      "sha256": "07c80b4999d18e9c10e5484d87ca3b153654d7813602c6990bc11a68bb5a2318"
+    }
+  ]
+}

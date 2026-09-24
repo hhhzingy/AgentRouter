@@ -1,3 +1,11 @@
+/** C1R1P2:合法 Harness 集合由宿主注入(默认冻结三家);注册表运行时判定。 */
+let allowedHarnesses = ['codex', 'kimi_code', 'pi'];
+export function setAllowedHarnesses(list: string[]) {
+  allowedHarnesses = list;
+}
+function registeredHarnessList(): string[] {
+  return allowedHarnesses;
+}
 import type Database from 'better-sqlite3';
 import { realpathSync, statSync } from 'node:fs';
 import { id, digest, RouteError, validatePolicy, type Data } from '../protocol/index.ts';
@@ -5,6 +13,12 @@ export class Management {
   constructor(readonly db: Database.Database) {}
   private row(sql: string, ...args: any[]) {
     return this.db.prepare(sql).get(...args) as Data | undefined;
+  }
+  private v11RoleSessions() {
+    return Boolean(
+      this.row("select 1 as ok from sqlite_master where type='table' and name='role_session_activations'") &&
+        this.row("select 1 as ok from pragma_table_info('role_sessions') where name='harness'"),
+    );
   }
   private directory(input: string) {
     if (typeof input !== 'string' || !input || input.startsWith('\\\\'))
@@ -93,7 +107,7 @@ export class Management {
     model?: Data;
   }) {
     if (
-      !['codex', 'kimi_code', 'pi'].includes(input.harness) ||
+      !(registeredHarnessList().includes(input.harness)) ||
       typeof input.name !== 'string' ||
       !input.name.trim() ||
       input.name.length > 160 ||
@@ -111,6 +125,10 @@ export class Management {
       this.db
         .prepare('insert into roles values(?,?,?,?,?,?)')
         .run(role, input.spaceId, input.name, input.description, 'ACTIVE', Date.now());
+      // 每个新角色即拥有初始工作会话（迁移005只为存量角色播种）。
+      this.db
+        .prepare("insert into role_sessions(id,role_id,seq,name,state,generation,created_at_ms,activated_at_ms) values('rsess_' || ?, ?, 1, '初始会话', 'ACTIVE', 1, ?, ?)")
+        .run(role, role, Date.now(), Date.now());
       this.db
         .prepare('insert into bindings values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
         .run(
@@ -134,6 +152,35 @@ export class Management {
           Date.now(),
         );
       this.db.prepare('insert into role_slots(role_id) values(?)').run(role);
+      if (this.v11RoleSessions()) {
+        const sessionId = 'rsess_' + role;
+        const now = Date.now();
+        const bindingRow = this.row('select epoch from bindings where id=?', binding) as { epoch: number };
+        this.db
+          .prepare(
+            'update role_sessions set binding_id=?,binding_epoch=?,harness=?,driver_id=?,workspace_affinity_json=? where id=?',
+          )
+          .run(binding, bindingRow.epoch, input.harness, input.harness, JSON.stringify({ workspace_id: input.workspaceId }), sessionId);
+        this.db
+          .prepare(
+            "insert into role_session_activations(id,role_id,role_session_id,binding_id,binding_epoch,activation_epoch,state,operation_id,created_at_ms,activated_at_ms) values(?,?,?,?,?,1,'ACTIVE','role-create',?,?)",
+          )
+          .run(id('activation'), role, sessionId, binding, bindingRow.epoch, now, now);
+      }
+      if (this.row("select 1 as ok from sqlite_master where type='table' and name='work_session_slots'")) {
+        const sessionId = 'rsess_' + role;
+        const now = Date.now();
+        this.db
+          .prepare(
+            "insert into work_session_slots(id,role_id,seq,name,participant_kind,state,work_session_id,binding_generation,created_at_ms) values(?,?,1,'managed','MANAGED_HARNESS','BOUND',?,1,?)",
+          )
+          .run('wslot_' + role, role, sessionId, now);
+        this.db
+          .prepare(
+            "insert into participant_bindings(id,slot_id,role_id,work_session_id,principal,participant_kind,generation,state,request_key,created_at_ms) values(?,?,?,?,?,'MANAGED_HARNESS',1,'ACTIVE',?,?)",
+          )
+          .run('pbind_managed_' + role, 'wslot_' + role, role, sessionId, 'managed_harness', 'managed:' + role, now);
+      }
     })();
     return { role, binding };
   }
@@ -151,6 +198,29 @@ export class Management {
     )
       throw new RouteError('ROLE_HAS_ACTIVE_RUN', 'CONFLICT');
     this.db.prepare('update roles set status=? where id=?').run(status, role);
+  }
+  /** 显式降级登记(Kimi 配额等→指定 harness)。仅策略声明,不自动改写任务或绑定。 */
+  setProfileFallback(role: string, fallback: unknown) {
+    if (!this.row('select role_id from execution_profiles where role_id=?', role))
+      throw new RouteError('INVALID_ROLE');
+    if (fallback === null || fallback === undefined) {
+      this.db.prepare('update execution_profiles set fallback_json=null where role_id=?').run(role);
+      return;
+    }
+    const f = fallback as { harness?: unknown; reason_codes?: unknown };
+    if (
+      typeof f !== 'object' ||
+      typeof f.harness !== 'string' ||
+      !/^[a-z][a-z0-9_]{1,40}$/.test(f.harness) ||
+      !Array.isArray(f.reason_codes) ||
+      !f.reason_codes.length ||
+      !f.reason_codes.every((c) => typeof c === 'string' && /^[A-Z][A-Z0-9_]{1,39}$/.test(c)) ||
+      Object.keys(f).some((k) => !['harness', 'reason_codes'].includes(k))
+    )
+      throw new RouteError('INVALID_FALLBACK_CONFIG');
+    this.db
+      .prepare('update execution_profiles set fallback_json=? where role_id=?')
+      .run(JSON.stringify({ harness: f.harness, reason_codes: f.reason_codes }), role);
   }
   publishPolicy(project: string, content: Data) {
     validatePolicy(content);

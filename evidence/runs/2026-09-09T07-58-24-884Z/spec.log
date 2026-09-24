@@ -1,3 +1,0 @@
-$ D:\Software\nodejs\node.exe tools/spec-check.mjs
-Spec checks: 36 passed; 0 failed. Report: evidence\M00\spec-validation.json
-

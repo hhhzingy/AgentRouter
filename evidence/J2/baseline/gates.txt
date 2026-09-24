@@ -1,0 +1,40 @@
+C1 generation verified
+C1 frozen sources: PASS
+C1R1 generation verified
+C1R1 frozen sources: PASS
+C1R1P1 generation verified
+C1R1P1 frozen sources: PASS
+{"redacted":true,"status":"PASS","files":1460,"findings":[]}
+{"redacted":true,"status":"PASS","files":1541,"findings":[]}
+
+ RUN  v5.0.0 E:/AgentRouter/.local/w11a/integration
+
+
+ Test Files  26 passed (26)
+      Tests  199 passed (199)
+   Start at  13:42:04
+   Duration  42.79s (tests 72%, import 19%, transform 9%)
+
+E:\AgentRouter\.local\w11a\integration\.local\w11-core
+E:\AgentRouter\.local\w11a\integration\.local\desktop-w11
+[{"id":"B0_PRELOAD_REAL_ELECTRON","status":"PASS","revision":"C1R1P1","mock":true,"roles":6,"models":6,"bootstrap":"PENDING","node":"undefined","keys":["close","connect"],"oldDenied":true,"newLease":true,"mode":"PREVIEW_MOCK"},{"id":"B0_RENDERER_RELOAD","status":"PASS"}]
+launch
+launched
+inspect
+connected
+close
+closed
+cleanup
+[{"id":"LOCAL_CORE_MAIN_PRELOAD","status":"PASS"},{"id":"RELOAD_HIDE_KEEP_CORE","status":"PASS"},{"id":"RENDERER_CRASH_KEEP_CORE","status":"PASS"},{"id":"WINDOW_CLOSE_REOPEN_ATTACH_SAME_CORE","status":"PASS"}]
+J1_HOME_OBSERVER
+J1_NATIVE_PICKER_CORE_GRANT_PROJECT
+J1_ROLEPLAN_ATOMIC_PENDING_TWO_GROUPS
+J1_CROSS_GROUP_TARGETS_AND_MODAL_KEYBOARD
+J1_PIPELINE_HELD_NATIVE_BARRIER
+J1_ARTIFACT_VERIFIED_SAVE
+J1_TIMEOUT_RELOAD_EXPLICIT_RETRY
+J1_UI_FIFO
+J1_UNKNOWN_VISIBLE_CAPABILITY_GATED
+J1_CORE_RESTART_PERSISTENCE
+J1_RENDERER_RELOAD_NO_REPLAY
+J1_RENDERER_NO_NODE_ERRORS

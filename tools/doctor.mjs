@@ -1,3 +1,4 @@
+import { redactLocation } from '../packages/security/diagnostics.mjs';
 import { piEntry } from './pi-location.mjs';
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -52,6 +53,18 @@ for (const [id, p, args] of entries) {
 lock.runtime.node = report.node;
 lock.runtime.windows_build = os.release();
 mkdirSync('evidence/M00', { recursive: true });
-writeFileSync('evidence/M00/environment.json', JSON.stringify(report, null, 2) + '\n');
-writeFileSync('compatibility-lock.json', JSON.stringify(lock, null, 2) + '\n');
-console.log(JSON.stringify(report, null, 2));
+mkdirSync('.local', { recursive: true });
+writeFileSync('.local/runtime-locations.json', JSON.stringify(lock, null, 2));
+const safe = JSON.parse(JSON.stringify(lock, (_key, value) => redactLocation(value)));
+writeFileSync(
+  'evidence/M00/environment.json',
+  JSON.stringify(
+    { redacted: true, os: report.os, node: safe.runtime.node, harnesses: safe.harnesses },
+    null,
+    2,
+  ),
+);
+writeFileSync('compatibility-lock.json', JSON.stringify(safe, null, 2) + '\n');
+console.log(
+  JSON.stringify({ redacted: true, status: 'PASS', harness_count: report.harnesses.length }),
+);

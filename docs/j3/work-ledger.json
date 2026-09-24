@@ -1,0 +1,405 @@
+[
+  {
+    "id": "J3-00",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "DONE_WITH_PENDING_H01",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "J3-A01",
+      "J3-A02"
+    ],
+    "record": "docs/j3/work-packages/J3-00.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "README.md",
+      "docs/progress.md",
+      "docs/api/J3-current.md",
+      "docs/执行包/AgentRouter_V1.0_最后一轮执行包_J3/"
+    ]
+  },
+  {
+    "id": "J3-01",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "IN_PROGRESS",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T002",
+      "T018",
+      "T019",
+      "T021",
+      "T024",
+      "T026",
+      "T027",
+      "T029",
+      "J3-A03",
+      "J3-A04",
+      "J3-A19"
+    ],
+    "record": "docs/j3/work-packages/J3-01.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/core-service/",
+      "packages/runtime/",
+      "packages/storage/",
+      "apps/core-daemon/",
+      "tests/"
+    ]
+  },
+  {
+    "id": "J3-02",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "IN_PROGRESS",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T017",
+      "T033",
+      "T042",
+      "T069",
+      "T071",
+      "T073",
+      "T074",
+      "J3-A05",
+      "J3-A06",
+      "J3-A07",
+      "J3-A08",
+      "J3-A52"
+    ],
+    "record": "docs/j3/work-packages/J3-02.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/platform/",
+      "packages/security/",
+      "tools/",
+      "tests/",
+      "native/windows-supervisor/",
+      "native/windows-isolation/"
+    ]
+  },
+  {
+    "id": "J3-03",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "IN_PROGRESS",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T007",
+      "T010",
+      "T078",
+      "J3-A16"
+    ],
+    "record": "docs/j3/work-packages/J3-03.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/adapters/",
+      "tests/"
+    ]
+  },
+  {
+    "id": "J3-04",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T008",
+      "T011",
+      "T077",
+      "J3-A17"
+    ],
+    "record": "docs/j3/work-packages/J3-04.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/adapters/",
+      "tests/"
+    ]
+  },
+  {
+    "id": "J3-05",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T009",
+      "T012",
+      "T056",
+      "T072",
+      "T075",
+      "T076",
+      "J3-A15",
+      "J3-A18"
+    ],
+    "record": "docs/j3/work-packages/J3-05.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/adapters/",
+      "tests/"
+    ]
+  },
+  {
+    "id": "J3-06",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T049",
+      "T050",
+      "T051",
+      "T052",
+      "T053",
+      "T054",
+      "T055",
+      "J3-A09",
+      "J3-A10",
+      "J3-A11",
+      "J3-A12",
+      "J3-A13",
+      "J3-A14"
+    ],
+    "record": "docs/j3/work-packages/J3-06.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/accounts/",
+      "packages/core-service/",
+      "tests/"
+    ]
+  },
+  {
+    "id": "J3-07",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T003",
+      "T004",
+      "T005",
+      "T006",
+      "T013",
+      "T015",
+      "T016",
+      "T035",
+      "T036",
+      "T037",
+      "T038",
+      "T039",
+      "T041",
+      "T043",
+      "J3-A22",
+      "J3-A23",
+      "J3-A24",
+      "J3-A25",
+      "J3-A26",
+      "J3-A27"
+    ],
+    "record": "docs/j3/work-packages/J3-07.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/core-service/",
+      "packages/workspace/",
+      "tests/"
+    ]
+  },
+  {
+    "id": "J3-08",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T047",
+      "J3-A28",
+      "J3-A29",
+      "J3-A30",
+      "J3-A31",
+      "J3-A32",
+      "J3-A33",
+      "J3-A34",
+      "J3-A35"
+    ],
+    "record": "docs/j3/work-packages/J3-08.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "packages/platform/",
+      "apps/core-daemon/",
+      "tools/",
+      "tests/"
+    ]
+  },
+  {
+    "id": "J3-09",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T022",
+      "T023",
+      "T028",
+      "T044",
+      "T045",
+      "T046",
+      "T048",
+      "T060",
+      "T061",
+      "T063",
+      "J2-A01",
+      "J2-A02",
+      "J2-A03",
+      "J2-A04",
+      "J2-A05",
+      "J2-A06",
+      "J2-A07",
+      "J2-A08",
+      "J2-A09",
+      "J2-A10",
+      "J2-A11",
+      "J2-A12",
+      "J2-A13",
+      "J2-A14",
+      "J2-A15",
+      "J2-A16",
+      "J2-A17",
+      "J2-A18",
+      "J2-A19",
+      "J2-A20",
+      "J2-A21",
+      "J2-A22",
+      "J2-A23",
+      "J2-A24",
+      "J2-A25",
+      "J2-A26",
+      "J2-A27",
+      "J2-A28",
+      "J2-A29",
+      "J2-A30",
+      "J2-A31",
+      "J2-A32",
+      "J2-A33",
+      "J2-A34",
+      "J2-A35",
+      "J2-A36",
+      "J2-A37",
+      "J2-A38",
+      "J2-A39",
+      "J2-A40",
+      "J2-A41",
+      "J2-A42",
+      "J2-A43",
+      "J2-A44",
+      "J2-A45",
+      "J2-A46",
+      "J3-A20",
+      "J3-A21",
+      "J3-A36",
+      "J3-A38",
+      "J3-A39",
+      "J3-A40",
+      "J3-A41"
+    ],
+    "record": "docs/j3/work-packages/J3-09.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "apps/desktop/",
+      "tests/ui/",
+      "tools/"
+    ]
+  },
+  {
+    "id": "J3-10",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T014",
+      "T020",
+      "T025",
+      "T030",
+      "T031",
+      "T032",
+      "T034",
+      "T040",
+      "T057",
+      "T058",
+      "T059",
+      "T062",
+      "T064",
+      "T065",
+      "T067",
+      "T080",
+      "J3-A37",
+      "J3-A46",
+      "J3-A47",
+      "J3-A48"
+    ],
+    "record": "docs/j3/work-packages/J3-10.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "tests/",
+      "tools/"
+    ]
+  },
+  {
+    "id": "J3-11",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "T001",
+      "T066",
+      "T068",
+      "T070",
+      "T079",
+      "T081",
+      "J3-A42",
+      "J3-A43",
+      "J3-A44",
+      "J3-A45"
+    ],
+    "record": "docs/j3/work-packages/J3-11.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "tools/",
+      "package.json",
+      "pnpm-lock.yaml",
+      ".github/"
+    ]
+  },
+  {
+    "id": "J3-12",
+    "owner": "integration-lead",
+    "branch": "feat/v1-finalization-j3",
+    "status": "PLANNED",
+    "baseline_sha": "62b2e187285aeb0fd73926cdc47c8d830502fb97",
+    "test_ids": [
+      "J3-A49",
+      "J3-A50",
+      "J3-A51"
+    ],
+    "record": "docs/j3/work-packages/J3-12.md",
+    "allowed_paths": [
+      "docs/j3/",
+      "evidence/J3/",
+      "docs/",
+      "evidence/"
+    ]
+  }
+]

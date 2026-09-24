@@ -1,0 +1,128 @@
+{
+  "runId": "562b42780b204552a587c7a59c9a4172",
+  "at": "2026-09-11T02:14:02.1128496Z",
+  "sourceHash": "86cdc811e488c65b49d1e9e20a1bab81ce70a02b78541a56e41a8583ad399525",
+  "binaryHash": "bbfa8ab8aef6540ec37b4eb31f0775aa2133b666d55c8b471cf995ee47fc65cb",
+  "runnerHash": "50499ba89ad2bfc8e94d9afea1454390a90c73bfdbbbf9fd7ac7e94bdbb8baae",
+  "elapsedMs": 492,
+  "watchdogTimedOut": false,
+  "outputCompleted": true,
+  "stderrPresent": false,
+  "exitCode": 1,
+  "status": "BLOCKED_ENV_OR_CHECK_FAILED",
+  "fullIsolationCertified": false,
+  "realAccountsRead": false,
+  "events": [
+    {
+      "stage": "create-new-root",
+      "ok": true,
+      "elapsedMs": 2,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "metadata": true,
+      "ntfs": true,
+      "fixedVolume": true,
+      "ownerMatchesPrincipal": true,
+      "groupCount": 10,
+      "administratorEnabled": false,
+      "daclProtected": false,
+      "aceCount": 10
+    },
+    {
+      "stage": "volume-principal-acl-metadata",
+      "ok": true,
+      "elapsedMs": 16,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "open-own-token",
+      "ok": true,
+      "elapsedMs": 0,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "integrityRid": 8192
+    },
+    {
+      "stage": "integrity-metadata",
+      "ok": true,
+      "elapsedMs": 2,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "ordinary-dummy-read-write",
+      "ok": true,
+      "elapsedMs": 13,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "dacl-only-protection",
+      "ok": true,
+      "elapsedMs": 3,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "owner-only-same-owner",
+      "ok": false,
+      "elapsedMs": 21,
+      "hresult": -2147024891,
+      "win32Error": 5,
+      "errorType": "UnauthorizedAccessException"
+    },
+    {
+      "stage": "dummy-workspace-dacl",
+      "ok": true,
+      "elapsedMs": 1,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "create-restricted-token",
+      "ok": true,
+      "elapsedMs": 0,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "impersonate",
+      "ok": true,
+      "elapsedMs": 0,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "restricted-dummy-read-write",
+      "ok": true,
+      "elapsedMs": 1,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "stage": "restricted-canary-denials",
+      "ok": false,
+      "elapsedMs": 4,
+      "hresult": -2146233079,
+      "win32Error": 5385,
+      "errorType": "InvalidOperationException"
+    },
+    {
+      "stage": "restricted-broker-memory-denial",
+      "ok": true,
+      "elapsedMs": 1,
+      "hresult": 0,
+      "win32Error": 0
+    },
+    {
+      "restrictedToken": true,
+      "scope": "THREAD_ACCESS_CHECK_ONLY",
+      "fullIsolationCertified": false
+    }
+  ]
+}

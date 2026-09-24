@@ -1,0 +1,15 @@
+import validate from './role-plan-validator.cjs';
+import type {RolePlanInput,PlanGroup,PlanRole,ModelDescriptorVM} from '../../../packages/client-contract/c1r1p1/generated.ts';
+export const lines=(text:string)=>text.split('\n').map(s=>s.trim()).filter(Boolean);
+export function blankPlan(projectId:string):RolePlanInput{return {schema_version:'agentrouter-role-plan/1',project_id:projectId,title:'协作方案',source:'human',goals:['建立职责明确、权限受控的协作角色'],non_goals:[],assumptions:[],groups:[],roles:[],review:{requires_user_confirmation:true,known_risks:[]}};}
+export function newGroup(workspace:string,index:number):PlanGroup{return {group_key:'group_'+crypto.randomUUID(),display_name:'小组 '+index,purpose:'共同完成明确范围的工作',communication_boundary:'within_group_only',workspace_strategy:'shared_read_only',workspace_ref:workspace,rules:{handoff_requirements:['交付可核验的结果'],completion_definition:['满足约定成果'],parallelism_notes:'遵循 Core 资源租约，不并发占用同一写工作区'}};}
+export function modelSelection(model:ModelDescriptorVM):PlanRole['runtime']{return {harness:model.harness,provider_profile_id:model.provider_profile_id,model_id:model.model_id,reasoning_effort:model.reasoning.default??model.reasoning.levels[0]??'none',selection_source:model.source==='RUNTIME'?'runtime':model.source==='VERIFIED_CACHE'?'verified_cache':'seed'};}
+export function newRole(group:PlanGroup,model:ModelDescriptorVM|undefined,index:number):PlanRole{return {role_key:'role_'+crypto.randomUUID(),group_key:group.group_key,display_name:'角色 '+index,role_kind:'analyst',mission:'阅读资料并提供有依据的分析',responsibilities:['核对资料并指出证据与未知项'],out_of_scope:['不自行扩大权限或执行未授权操作'],accepted_inputs:['用户任务与明确引用'],required_outputs:['可核验的分析结论'],default_completion_target:{type:'user'},problem_target:{type:'user'},workspace_ref:group.workspace_ref??'',requested_permissions:{workspace_access:'read_only',allowed_paths:[],tool_profiles:[],network_profile:'none'},runtime:model?modelSelection(model):{harness:'codex',model_id:'unconfigured',reasoning_effort:'none',selection_source:'seed'},bootstrap_notes:'初始化成功不代表业务任务已完成'};}
+export function parsePlan(text:string):RolePlanInput{
+ if(new TextEncoder().encode(text).byteLength>131072)throw Error('方案超过 128 KiB，请拆分后导入。');
+ let value:unknown;try{value=JSON.parse(text);}catch{throw Error('JSON 语法错误，请检查引号、逗号和括号；本轮不支持 YAML。');}
+ if(!validate(value))throw Error((validate.errors??[]).slice(0,8).map(e=>`${e.instancePath||'/'}：${e.message}`).join('；'));
+ return value as RolePlanInput;
+}
+export function mappingRequired(plan:RolePlanInput,projectId:string,workspaceIds:string[]){return plan.project_id!==projectId||[...plan.roles.map(r=>r.workspace_ref),...plan.groups.flatMap(g=>g.workspace_ref?[g.workspace_ref]:[])].some(id=>!workspaceIds.includes(id));}
+export function mapPlan(plan:RolePlanInput,projectId:string,mapping:Record<string,string>):RolePlanInput{return {...plan,project_id:projectId,groups:plan.groups.map(g=>({...g,...(g.workspace_ref?{workspace_ref:mapping[g.workspace_ref]??g.workspace_ref}:{})})),roles:plan.roles.map(r=>({...r,workspace_ref:mapping[r.workspace_ref]??r.workspace_ref}))};}

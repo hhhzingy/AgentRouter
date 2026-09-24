@@ -1,0 +1,33 @@
+name: W11 integration and P1 gates
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.14.0'
+      - name: Exact package installation with bundled native prebuild
+        shell: pwsh
+        run: |
+          $env:npm_config_cache = "$pwd/.local/npm-cache"
+          npm install --prefix .local/ci-tools --ignore-scripts pnpm@11.19.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node .local/ci-tools/node_modules/pnpm/bin/pnpm.cjs install --frozen-lockfile --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:ELECTRON_CACHE = "$pwd/.local/electron-cache"
+          node node_modules/electron/install.js
+          exit $LASTEXITCODE
+      - name: Contract, security and process gates
+        shell: pwsh
+        run: |
+          & ./tools/build-supervisor.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/check-w11.mjs
+          exit $LASTEXITCODE

@@ -1,0 +1,34 @@
+{
+  "scenario_id": "sc-04",
+  "title": "SSH 项目卡与远程路径",
+  "description": "SSH 项目卡：远程路径简写、Capabilities 驱动的功能降级、Controller 徽标。",
+  "ui_surfaces": ["首页", "顶栏"],
+  "snapshot": {
+    "cursor": 3200,
+    "hello": {
+      "serverInstanceId": "core-prod-01:a91f",
+      "protocol": "agentrouter-client/1",
+      "schemaVersion": 1,
+      "platform": "linux",
+      "connectionState": "CONNECTED_CONTROLLER",
+      "health": "OK",
+      "capabilities": { "methods": ["project.list", "space.list", "role.list", "filesystem.listRoots", "filesystem.listDirectory"], "remote_filesystem": true, "event_stream": true, "controller_lease": true, "mock": true }
+    },
+    "projects": [
+      { "id": "proj_atlas", "name": "支付中台重构", "status": "ACTIVE", "hostLabel": "SSH · core-prod-01", "displayRoot": "~/work/pay-core", "spacesCount": 2, "activeRunsCount": 1, "issuesCount": 0, "revision": 40 }
+    ]
+  },
+  "x_proposal": {
+    "ccr": ["CCR-UI-12"],
+    "card_summaries": [
+      { "project_id": "proj_atlas", "last_activity": { "at_ms": 1788931200000, "actor_role_id": "r_zhou", "summary": "周实现 开始处理「登录接口」" } }
+    ]
+  },
+  "expected_ui": [
+    "项目卡位置行：SSH 徽标(图标+文字) + 『core-prod-01』 + 路径中间省略为 『~/work/pay…』，hover 显示全路径",
+    "顶栏连接徽标为『⌁ SSH · core-prod-01 · Controller』，健康 ●",
+    "remote_filesystem=true 时创建项目向导使用 Core 远端目录浏览器；为 false 时目录选择步禁用并说明",
+    "路径不经过任何本地分隔符拼接处理",
+    "最近活动行显示相对时间『30 分钟前 · 周实现 开始处理「登录接口」』"
+  ]
+}
