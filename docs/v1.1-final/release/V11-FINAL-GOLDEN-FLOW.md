@@ -32,7 +32,7 @@ Web 与手机按执行包应在机器端 Golden Flow/测试对象就绪后再发
 
 ## 失败分母与环境边界
 
-- Codex 首次脚本默认二进制路径已不存在（启动前 `ENOENT`）；第二次默认 DUT 根指向本 worktree 空目录，隔离沙箱里原生 `account/read` 报 `workspace routing discovery failed`；指向既有批准 DUT 并在正常网络上下文重跑后真实 Bootstrap/Artifact 成功。未使用 Codex reset credit。
+- Codex 首次脚本默认二进制路径已不存在（启动前 `ENOENT`）；随后使用本 worktree 的空 DUT 根得到 Bootstrap `UNKNOWN`；改为既有批准 DUT 后，在隔离沙箱原生 `account/read` 报 `workspace routing discovery failed`；同一 DUT 在正常网络上下文重跑后真实 Bootstrap/Artifact 成功。未使用 Codex reset credit。
 - `run-wmA2Hz` 的 cold restart 断言通过，后续组合脚本访问已关闭的 MCP 客户端而失败；这是脚本组合缺陷，不作为 Artifact 产品失败或 Golden PASS。
 - `run-xdPqzV` 的 cold restart 断言通过，清理阶段控制租约过期使总状态 FAIL；保留这条失败，不把它改写为完整 ZCode cold smoke PASS。
 - 本机受限进程上下文执行 `tools/check-w11.mjs` 时 114 个测试通过，但 Playwright Electron 在进程启动处被拒绝；同 SHA Windows GitHub Actions W11 全流程 success。云端自动 Electron 不能替代本机 REAL_CORE Golden UI 或实体手机。

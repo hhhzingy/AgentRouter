@@ -64,4 +64,4 @@ ZIP 名称满足执行包约定，但仅是待验收候选物；不可因构建�
 
 按本次执行包，签名安装器、完整 Windows Narrator、11 个 P0 页面逐页人工截图、全 DPI/主题、干净卸载矩阵与未受影响 Harness Level B 全量重跑归 V1.1.1；账号切换是 `EXCLUDED_BY_USER`，Linux 在 Windows V1.1 正式发布后另行收口。不能把延后项写为 PASS，也不能把 Kimi 的一次 UNKNOWN 抹去。
 
-本轮未使用 Codex reset credit，未复制或改写生产 HOME/账号文件，未触碰用户既有 Project/Role/WS。未授权 merge、tag、release；**当前不建议发布**。只有所有硬门和用户手机/桌面 smoke 均通过、用户再明确批准时，才可提出 `V1.1.0_READY_FOR_MERGE_TAG_RELEASE`。
+本轮未使用 Codex reset credit；测试走隔离 DUT / ZCode Existing Account Broker，未主动复制或编辑生产 HOME/账号文件，也未触碰用户既有 Project/Role/WS。未对所有生产凭据文件做前后全量字节比对，因此不作“绝对未变化”声明。未授权 merge、tag、release；**当前不建议发布**。只有所有硬门和用户手机/桌面 smoke 均通过、用户再明确批准时，才可提出 `V1.1.0_READY_FOR_MERGE_TAG_RELEASE`。
