@@ -1,24 +1,24 @@
-# V1.1.0 Windows 最终影响图（进行中）
+# V1.1.0 Windows 发布前影响图（2026-09-24）
 
-基线：`84b1ef2b0021bd48c5ac7d0e3f5a42dad7f595be`。起始审计 HEAD：`10513b4f84f9f362ee4b1e94ceedb6d4674981e7`，`git diff --name-only 84b1ef2..10513b4` 只有两份 `docs/v1.1-final/codex/` 复核文档。本图按 **最终产品 diff** 更新；`FINAL_PRODUCT_SHA` 尚未冻结。任何新改动必须更新 touched_files 与重测决策，不能从 SHA 不同机械推出五家完整 live 重跑。
+已测试产品 SHA：`ea4bad0a74277883c40087920383c76527d56ca8`，分支 `codex/v1.1-core-ui-candidate`，工作树 `E:\AgentRouter\.worktrees\v1.1-core-ui-candidate`。基线：`84b1ef2b0021bd48c5ac7d0e3f5a42dad7f595be`。`84b1..ea4bad0` 的运行时代码仅改握手版本投影；构建/校验脚本改版本一致性；另外两份旧复核文档和本图是文档差异。下表按实际 diff 收口，不能从 SHA 不同机械推出五家完整 live 重跑。
 
 | 域 | touched_files（当前/计划） | affected_capabilities | required_reruns | historical_evidence_reusable 与理由 |
 |---|---|---|---|---|
-| UI_ONLY | `apps/desktop/workbench.tsx`（仅 clientVersion 读取根版本） | 握手展示产品版本，不改页面布局/行为；黄金链若发现主路径 blocker 才补 | UI 自动测试、真实 Electron 连接 | 现有真实 Electron 与 UI 自动测试可作为历史依据；不能覆盖最终新交互。 |
+| UI_ONLY | `apps/desktop/workbench.tsx`（仅 clientVersion 读取根版本） | 握手版本，不改页面布局/行为 | UI 自动套件、W11 云端 Electron；真实黄金链仍单列阻塞 | 旧证据只支持未改交互，不能覆盖本轮真实黄金链。 |
 | REMOTE_UI | 当前无 | 无 | 若改远程页面，Remote/390px 定向 smoke | 旧 Tailscale backend 和 Chrome 手机尺寸证据仅证明各自 SHA。 |
-| CORE_DOMAIN | `packages/core-service/application.ts`（仅 serverVersion 读取根版本） | 握手显示的产品版本，不改合同 revision/状态语义 | typecheck、合同/集成、黄金链 Core/Electron | 旧业务流程支持证据可复用；版本文案本身须最终包核对。 |
-| WORKSESSION_CONTEXT | 当前无 | 无 | 黄金链真实 Codex→ZCode 迁移和 cold restart 必跑 | 旧 Codex/ZCode marker/continuity 作为支持证据，不能替代本轮黄金链。 |
+| CORE_DOMAIN | `packages/core-service/application.ts`（仅 serverVersion 读取根版本） | 握手产品版本，不改合同 revision/状态语义 | typecheck、合同/集成、打包 Core | 旧业务流程证据可支持；新版本已在打包校验核对。 |
+| WORKSESSION_CONTEXT | 无 | 原有 Codex 跨端导出端口明确不支持，`history_export=UNKNOWN` | 真实 Codex→ZCode 继承迁移必须单列阻塞；Codex/ZCode 各自冷续已核对 | 同 Harness marker/冷续不是跨 Harness 完整历史迁移。 |
 | PARTICIPANT | 当前无 | 无 | 网页 ChatGPT `participant.join` 新路径必跑一次 | 旧网页 Task→Artifact→Result 真实证据可支持未改业务环，不能证明 Join。 |
 | RESULT_ARTIFACT | 当前无 | 无 | 黄金链真实 Artifact、Result Evidence、Request Changes 必跑 | 旧真实 Artifact 哈希与 Fixture UI 证据支持已实现语义；不能替代同一黄金链。 |
-| HARNESS_SHARED | 当前无 | 无 | 若 shared RPC/native backend/role bridge/tool lifecycle 变化，则受影响 Harness 短 live；否则 Codex/ZCode 黄金链即可 | `84b1ef2` 五家同包 Level A 与旧深度 DUT 可继承为支持证据，须继续核对文件级 diff。 |
-| HARNESS_CODEX | 当前无 | 无 | 最终包 Codex bootstrap、Artifact/output、native ref、continuation 必跑 | 旧 `6e75e93` 深度证据支持，但不冒称最终 SHA PASS。 |
-| HARNESS_ZCODE | 当前无 | 无 | 最终包 ZCode 新 WS、continuation、transfer、old WS read-only、Result 必跑 | 旧 `6e75e93` 深度证据支持，但不冒称最终 SHA PASS。 |
+| HARNESS_SHARED | 无 | shared RPC、native backend、role bridge、profile/runtime 未改 | Codex/ZCode final live；Pi/Kimi/DSH 允许按旧证据继承 | `84b1ef2` 同包五家 Level A，文件级 diff 未触及后三家或共享执行链；保留 Kimi 首次 UNKNOWN 分母。 |
+| HARNESS_CODEX | 无 | 原适配器未变 | 已测最终包 bootstrap、Artifact/output、native ref、cold continuation；跨端迁移仍阻塞 | `run-LxxCLh` Artifact PASS、`run-wmA2Hz` 冷续核心断言 PASS（后续 Artifact 因旧测试脚本已关闭客户端而失败）。 |
+| HARNESS_ZCODE | 无 | 原适配器未变 | 已测最终包 bootstrap、Artifact/output、native ref、cold continuation；跨端迁移仍阻塞 | `run-2bH3zd` Artifact PASS；`run-xdPqzV` 冷续断言 PASS，但最终清理步骤租约过期使报告总状态 FAIL，不把总状态冒写 PASS。 |
 | HARNESS_KIMI | 当前无 | 无 | 若其 adapter/shared lifecycle 未动且自动门无相关失败，可不新增 live；否则短 smoke | `84b1ef2` 首次 UNKNOWN、隔离复测 PASS，失败分母永久保留；不能写长期稳定。 |
 | HARNESS_DSH | 当前无 | 无 | 同上 | `84b1ef2` 同包最小任务首跑 PASS。 |
 | HARNESS_PI | 当前无 | 无 | 同上 | `84b1ef2` 同包最小任务首跑 PASS。 |
 | STORAGE_MIGRATION | 当前无；001–020 不改 | 无 | 迁移/freeze/backup、包内 SQLite 检查 | 旧迁移测试可支持；最终自动门仍直接运行。 |
-| PACKAGING | `package.json`、`tools/build-win.mjs`、`tools/packaged-test.mjs`；后续 ZIP 脚本仅在实际需要时增加 | 根版本 1.1.0 作为唯一发行权威，manifest/Electron app 与之核对；私有 workspace 包版本和历史 fixture 不批量替换 | 最终 clean package、fresh unpack、packaged smoke、ZIP/hash/安全扫描 | `84b1ef2` 旧目录包仅支持构建链存在，不能用作 1.1.0 发布包。 |
-| SECURITY | 当前无 | 无 | final SHA 暂存/历史/包目录敏感扫描 | 可发布 refs 旧扫描为 0 findings；最终 SHA 必须重扫。 |
-| DOCS_ONLY | `docs/v1.1-final/codex/V11-CORE-UI-COMBINED-REVIEW-20260923.md`、`docs/v1.1-final/codex/V11-WINDOWS-REMAINING-CLOSEOUT-AUDIT-20260924.md`；本图及后续交接 | 无运行时影响 | 文档链接/事实复核 | 不因 docs-only 提交机械重跑 live；区分 `tested_product_sha` 与 `release_document_sha`。 |
+| PACKAGING | `package.json`、`tools/build-win.mjs`、`tools/packaged-test.mjs` | 根版本 1.1.0 为发行元数据权威，manifest/Electron app 与之核对；私有 workspace 包版本和历史 fixture 未批量替换 | 干净源码构建、ZIP、全新解包、packaged smoke 与包扫描已执行 | 旧目录包不被用作 1.1.0 发布包；当前 ZIP 仅为阻塞状态下的候选物。 |
+| SECURITY | 无 | 无 | 本 SHA 暂存索引、publish refs 历史、构建目录与解包目录扫描均已执行且 0 findings | 只报告扫描范围与结果，不声称所有本机 Git 对象从未含秘密。 |
+| DOCS_ONLY | 两份 `docs/v1.1-final/codex/` 旧复核文档；本图及同目录门禁/黄金链/交接文档 | 无运行时影响 | 文档事实与链接复核 | 文档提交与 `tested_product_sha` 分开报告，运行时 diff 为 0。 |
 
-风险规则：若黄金链暴露 P0/P1 而修改上述运行时代码，只对受影响 live 项补测，并重跑全自动门；不得因本图的“当前无”提前宣告最终代码无影响。用户资产、登录态、旧 WorkSession 与历史迁移均不删除或改写。
+风险规则：若后续修复跨端历史迁移而修改运行时代码，本 SHA 的门禁和包必须按影响范围重跑并产生新产品 SHA；不能沿用本 ZIP 宣称修复通过。用户资产、登录态、旧 WorkSession 与历史迁移均未删除或改写。

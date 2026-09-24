@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "product": "AgentRouter V1.1.0 Windows",
+  "tested_product_sha": "ea4bad0a74277883c40087920383c76527d56ca8",
+  "branch": "codex/v1.1-core-ui-candidate",
+  "verdict": "V1.1_WINDOWS_RELEASE_BLOCKED",
+  "statuses": ["PASS", "PASS_BY_UNAFFECTED_PRIOR_EVIDENCE", "PARTIAL", "BLOCKED", "EXCLUDED_BY_USER", "DEFERRED_TO_1_1_1", "NOT_RUN"],
+  "hard_gates": {
+    "single_final_product_sha": "PASS",
+    "golden_real_flow": "BLOCKED",
+    "web_participant_join": "NOT_RUN",
+    "phone_smoke": "NOT_RUN",
+    "codex_final_live": "PASS",
+    "zcode_final_live": "PARTIAL",
+    "automated_full_suite": "PASS",
+    "c1": "PASS",
+    "w11": "PASS",
+    "publish_refs_sensitive_scan": "PASS",
+    "final_zip_fresh_unpack": "PASS",
+    "packaged_smoke": "PASS",
+    "no_open_p0_p1": "BLOCKED"
+  },
+  "conditional_harness_gates": {
+    "pi": "PASS_BY_UNAFFECTED_PRIOR_EVIDENCE",
+    "kimi": "PASS_BY_UNAFFECTED_PRIOR_EVIDENCE",
+    "dsh": "PASS_BY_UNAFFECTED_PRIOR_EVIDENCE"
+  },
+  "additional_gates": {
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "unit": "PASS",
+    "integration": "PASS",
+    "contract": "PASS",
+    "chaos": "PASS",
+    "ui_automated": "PASS",
+    "freeze_checks": "PASS",
+    "migration_checks": "PASS",
+    "sensitive_staged": "PASS",
+    "package_sensitive_scan": "PASS",
+    "result_evidence_real": "NOT_RUN",
+    "request_changes_electron_real": "NOT_RUN",
+    "codex_to_zcode_full_history": "BLOCKED",
+    "real_core_electron_golden": "NOT_RUN",
+    "fresh_unpacked_desktop_user_smoke": "NOT_RUN"
+  },
+  "explicit_deferred": {
+    "signed_installer": "DEFERRED_TO_1_1_1",
+    "windows_narrator_full_certification": "DEFERRED_TO_1_1_1",
+    "exhaustive_11_p0_manual_visual_matrix": "DEFERRED_TO_1_1_1",
+    "full_dpi_theme_matrix": "DEFERRED_TO_1_1_1",
+    "clean_uninstall_matrix": "DEFERRED_TO_1_1_1",
+    "account_switching": "EXCLUDED_BY_USER",
+    "linux_v1_1_closeout": "DEFERRED_TO_1_1_1"
+  },
+  "evidence": {
+    "automated_suite": "114 files; 654 passed; 2 skipped; 2026-09-24 local run",
+    "c1": "https://github.com/hhhzingy/AgentRouter/actions/runs/35944527756",
+    "w11": "https://github.com/hhhzingy/AgentRouter/actions/runs/35944527662",
+    "codex_artifact": ".local/j3-production-pi/run-LxxCLh/report.json",
+    "codex_cold_restart": ".local/j3-production-pi/run-wmA2Hz/report.json; coreRestart checks passed, composite script later failed",
+    "zcode_artifact": ".local/j3-production-pi/run-2bH3zd/report.json",
+    "zcode_cold_restart": ".local/j3-production-pi/run-xdPqzV/report.json; coreRestart checks passed, cleanup lease expired",
+    "package_hash": "362f91b111d2e3acf48cbe41989ede497ee1c84fdfeebc1e5527d82da8a2a526",
+    "zip_sha256": "7a5e0927d1836da2704f02d7fd39011295926a2e7005471307c25f115cd74366",
+    "publish_refs_history_findings": 0,
+    "package_findings": 0
+  },
+  "blockers": [
+    "Codex 跨 Harness exportContext 明确拒绝，history_export=UNKNOWN，无法完成 Codex→ZCode 完整历史迁移与旧 WS read-only 黄金链。",
+    "同一真实 REAL_CORE+Electron 黄金链的 Evidence、Request Changes、Web Participant join 尚未验收。",
+    "实体手机 HTTPS/WSS 操作与全新解包后的用户桌面 smoke 尚待用户执行。"
+  ]
+}
