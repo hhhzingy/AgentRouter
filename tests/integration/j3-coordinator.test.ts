@@ -225,6 +225,74 @@ it('Bootstrap 安全诊断码写入 delivery reason，不保存原生正文', as
 });
 
 it.each([
+  { name: 'missing→success', diagnostics: ['BOOTSTRAP_ACK_MISSING', ''] },
+  { name: 'missing→missing', diagnostics: ['BOOTSTRAP_ACK_MISSING', 'BOOTSTRAP_ACK_MISSING'] },
+  { name: '其它诊断不重试', diagnostics: ['BOOTSTRAP_TIMEOUT'] },
+] as const)('Native Bootstrap $name；持久尝试上限在 Core restart 后仍生效', async ({ diagnostics }) => {
+  const f = await fixture();
+  let coordinator: ExecutionCoordinator | undefined;
+  let restarted: ExecutionCoordinator | undefined;
+  let launches = 0;
+  try {
+    const validation = await f.s.request('rolePlan.validate', { plan: f.plan });
+    await f.write('rolePlan.apply',
+      { plan: f.plan, plan_hash: validation.planHash, confirmed: true, permission_grants: [] },
+      { project_id: f.project.id });
+    const role = (await f.s.request('system.snapshot', {})).roles[0];
+    f.db.prepare("insert into execution_profiles(role_id,source,scenario_json,verified) values(?,'NATIVE','{}',1)").run(role.id);
+    const backend: ExecutionBackend = {
+      launch(_key, packet, frame, exit) {
+        const diagnostic = diagnostics[launches++] ?? 'BOOTSTRAP_ACK_MISSING';
+        setImmediate(() => {
+          if (diagnostic) frame({ kind: 'diagnostic', epoch: packet.epoch, code: diagnostic });
+          else frame({ kind: 'charter', epoch: packet.epoch, charterHash: packet.charterHash });
+          frame({ kind: 'terminal', epoch: packet.epoch });
+          exit({ code: 0, stop: {
+            kind: 'supervisor-tree-empty', epoch: packet.epoch, containmentId: 'TEST_PROVEN_NATIVE_STOP',
+          } });
+        });
+        return {};
+      },
+      cancel: () => false,
+      stop: async () => {},
+    };
+    const app = new ApplicationService(f.db, [f.dir], false);
+    app.nativeAuthorization = () => true;
+    coordinator = new ExecutionCoordinator(app, backend);
+    coordinator.kick();
+    const expected = diagnostics.length;
+    for (let i = 0; i < 100; i++) {
+      const attempts = f.db.prepare('select count(*) as count from initialization_attempts').get() as { count: number };
+      const delivery = f.db.prepare('select state from bootstrap_deliveries').get() as { state: string };
+      if (attempts.count === expected && delivery.state !== 'PENDING' && delivery.state !== 'DELIVERING') break;
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(launches).toBe(expected);
+    expect(f.db.prepare('select state from bootstrap_deliveries').get()).toEqual({
+      state: diagnostics.at(-1) === '' ? 'DELIVERED' : 'FAILED',
+    });
+    expect(f.db.prepare("select count(*) as count from client_events where kind='BootstrapAckRetryScheduled'").get())
+      .toEqual({ count: diagnostics.length === 2 ? 1 : 0 });
+    expect(f.db.prepare('select count(*) as count from initialization_leases').get()).toEqual({ count: 0 });
+    if (diagnostics.length === 2) {
+      expect(f.db.prepare('select state from initialization_attempts order by created_at_ms, rowid').all())
+        .toEqual([{ state: 'FAILED' }, { state: diagnostics[1] === '' ? 'DELIVERED' : 'FAILED' }]);
+    }
+    await coordinator.stop();
+    const afterRestart = new ApplicationService(f.db, [f.dir], false);
+    afterRestart.nativeAuthorization = () => true;
+    restarted = new ExecutionCoordinator(afterRestart, backend);
+    restarted.kick();
+    await new Promise((r) => setTimeout(r, 25));
+    expect(launches).toBe(expected);
+  } finally {
+    await restarted?.stop();
+    await coordinator?.stop();
+    await f.close();
+  }
+});
+
+it.each([
   'unknown',
   'no-terminal',
   'stale',

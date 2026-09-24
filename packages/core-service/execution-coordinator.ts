@@ -14,6 +14,22 @@ function safeModel(modelJson: unknown): unknown {
     return null;
   }
 }
+export function retryMissingBootstrapAck(input: {
+  native: boolean;
+  stopped: boolean;
+  broken: boolean;
+  exitCode: number | null;
+  terminal: boolean;
+  delivered: boolean;
+  currentEpoch: boolean;
+  diagnostic: string;
+  otherDiagnostic: boolean;
+  attempts: number;
+}): boolean {
+  return input.native && input.stopped && !input.broken && input.exitCode === 0 &&
+    input.terminal && !input.delivered && input.currentEpoch &&
+    input.diagnostic === 'BOOTSTRAP_ACK_MISSING' && !input.otherDiagnostic && input.attempts === 1;
+}
 export class ExecutionCoordinator {
   private scheduled = false;
   private retryTimer?: ReturnType<typeof setTimeout>;
@@ -143,6 +159,14 @@ export class ExecutionCoordinator {
   private initialize(role: string, b: any, charter: any, d: any, scenario: any) {
     const a = this.app,
       resources = this.resources(b);
+    if (!a.fixtureMode && Number(a.one('select count(*) as count from initialization_attempts where delivery_id=?', d.id)?.count ?? 0) >= 2) {
+      a.db.transaction(() => {
+        a.db.prepare("update bootstrap_deliveries set state='FAILED',reason='BOOTSTRAP_ACK_RETRY_EXHAUSTED',updated_at_ms=? where id=? and state='PENDING'").run(a.clock(), d.id);
+        a.event(charter.project_id, 'BootstrapRetryExhausted', role);
+      }).immediate();
+      a.notify();
+      return;
+    }
     if (
       a.one(
         'select active_run_id from role_slots where role_id=? and active_run_id is not null',
@@ -178,7 +202,8 @@ export class ExecutionCoordinator {
     let delivered = false,
       terminal = false,
       broken = false,
-      lastDiagnostic = '';
+      lastDiagnostic = '',
+      otherDiagnostic = false;
     const child = this.launch(
       attempt,
       { mode: 'bootstrap', bindingId:b.id, roleId:role, epoch: b.epoch, charterHash: charter.hash, charter:JSON.parse(charter.spec_json), scenario },
@@ -188,8 +213,10 @@ export class ExecutionCoordinator {
           return;
         }
         if (event.kind === 'diagnostic') {
-          if (typeof event.code === 'string' && /^[A-Z][A-Z0-9_]{1,95}$/.test(event.code))
+          if (typeof event.code === 'string' && /^[A-Z][A-Z0-9_]{1,95}$/.test(event.code)) {
             lastDiagnostic = event.code;
+            if (event.code !== 'BOOTSTRAP_ACK_MISSING') otherDiagnostic = true;
+          }
           this.audit(charter.project_id, 'NATIVE_' + event.code);
         }
         if (event.kind === 'charter' && event.charterHash === charter.hash) delivered = true;
@@ -210,6 +237,19 @@ export class ExecutionCoordinator {
               delivered &&
               terminal &&
               current?.epoch === b.epoch;
+            const attempts = Number(a.one('select count(*) as count from initialization_attempts where delivery_id=?', d.id)?.count ?? 0);
+            const retry = !success && retryMissingBootstrapAck({
+              native: !a.fixtureMode,
+              stopped,
+              broken,
+              exitCode: exit.code,
+              terminal,
+              delivered,
+              currentEpoch: current?.epoch === b.epoch,
+              diagnostic: lastDiagnostic,
+              otherDiagnostic,
+              attempts,
+            });
             a.db
               .prepare('update initialization_attempts set state=?,completed_at_ms=? where id=?')
               .run(success ? 'DELIVERED' : stopped ? 'FAILED' : 'UNKNOWN', a.clock(), attempt);
@@ -218,9 +258,11 @@ export class ExecutionCoordinator {
                 'update bootstrap_deliveries set state=?,reason=?,updated_at_ms=? where id=?',
               )
               .run(
-                success ? 'DELIVERED' : 'FAILED',
+                success ? 'DELIVERED' : retry ? 'PENDING' : 'FAILED',
                 success
                   ? null
+                  : retry
+                    ? 'BOOTSTRAP_ACK_RETRY_SCHEDULED'
                   : stopped
                     ? lastDiagnostic || 'BOOTSTRAP_EXECUTION_FAILED'
                     : 'BOOTSTRAP_STOP_UNPROVEN',
@@ -233,7 +275,7 @@ export class ExecutionCoordinator {
               a.db
                 .prepare("update initialization_leases set state='QUARANTINED' where attempt_id=?")
                 .run(attempt);
-            a.event(charter.project_id, success ? 'BootstrapDelivered' : 'BootstrapFailed', role);
+            a.event(charter.project_id, success ? 'BootstrapDelivered' : retry ? 'BootstrapAckRetryScheduled' : 'BootstrapFailed', role);
           })
           .immediate();
         a.notify();
