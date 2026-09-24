@@ -1,8 +1,0 @@
-{
-  "at": "2026-09-09T11:47:48.177Z",
-  "scope": "开发机上 PATH 为空、私有 Node + 打包 Core/SQLite；非无开发工具目标机",
-  "status": "PASS",
-  "exit_code": 0,
-  "node": "v24.14.0",
-  "sqlite": "3.53.4"
-}

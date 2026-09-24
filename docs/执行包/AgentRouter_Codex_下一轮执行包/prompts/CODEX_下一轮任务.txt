@@ -1,9 +1,0 @@
-请在私人仓库 hhhzingy/AgentRouter 中，以提交 16370d3971740c80ca9ccec7a6d9b3553e896545 为复核基线，读取“AgentRouter_16370d3_复核与下一轮执行包”中的全部文件，尤其是《05_Codex下一轮执行包》。
-
-你的职责是 Core、Client API、传输、SSH/Linux、存储、安全、Harness Adapter 和最终集成；不要负责 Renderer 的视觉与产品组件。UIAI 将从你冻结的 Client API C1 独立开发。
-
-先只执行 W10：修复复核报告中的 P0/P1 合同问题，冻结 agentrouter-client/1 C1，提交 Schema、生成类型、Mock、ViewModel、错误码、事件游标、controller lease、Secret 日志策略和 ADR。完成后停止，不进入真实账号联调，不创建或读取任何真实凭据，不自行继续 W11。
-
-严格保留静默成功、显式结果去向、通知不唤醒、同角色独立任务 FIFO、关联结果续办、HELD 收尾屏障、UNKNOWN 不自动重跑、旧 epoch 不影响现态等语义。
-
-汇报时给出基线提交、新提交、修改文件、测试命令、真实/模拟范围、安全 Gate、未测试、阻断和下一步。不得把 Probe、Mock 或事件 mapper 计为真实 Harness 支持。

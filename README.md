@@ -1,24 +1,127 @@
-> 当前执行阶段：J3（2026-09-10）。见 [J3执行与恢复入口](docs/j3/README.md)。以下旧阶段状态保留为历史；J3真实联调与完整V1.0目标覆盖旧等待要求，但不替代账号、费用、部署与发布授权。
-
 # AgentRouter
 
-Windows 本地多 Harness 协作工作台，目标版本 V1.0。
+AgentRouter 是一个 Windows 本地多 Harness AI 协作工作台。它把长期 **Role**、一次真实会话对应的 **WorkSession**、Task / Run / Result / Artifact，以及本地/远程控制统一到一个本地权威 Core 中。
 
-**当前是开发预览，不是 V1.0 完整交付。** 三家 Harness 的版本和无账号握手已探测，真实业务工具、模型执行、取消和账号切换验收尚未完成；正式支持计数为 0。
+当前稳定发布：**V1.1.0 Windows x64**
 
-- 开发依据：`docs/执行包/AgentRouter_V1.0功能与开发手册包/08_Codex实施入口.md`
-- 阶段状态：`docs/progress.md`
-- 需求追踪：`docs/implementation-plan.md`
-- 复现步骤：`REPRODUCTION.md`
-- 兼容性：`compatibility-lock.json`
-- 测试证据：`evidence/`
+## 下载
 
-开发、下载缓存和临时目录位于本仓库内；pi 按用户要求安装到 Windows 用户目录。`.local/`、`.worktrees/`、`release/` 不提交；不在 E 盘根目录生成工作区。原始开发包保留原样。
+从 [GitHub Release v1.1.0](https://github.com/hhhzingy/AgentRouter/releases/tag/v1.1.0) 下载 `AgentRouter-v1.1.0-windows-x64-268fc71.zip`。
 
-当前桌面预览提供项目登记/归档、角色创建/暂停、只读状态投影和兼容性展示。核心库已有部分协议、事务、调度、恢复、内部桥、不可变文件和备份实现，尚未全部接入桌面。
+SHA-256：
 
-运行 `pnpm build:win` 后，从 `release/AgentRouter-preview/electron.exe` 启动。GPU 受限环境可先设置 `AGENTROUTER_SOFTWARE_RENDERING=1`。这是受测开发机上的便携预览目录，不是干净 Windows 安装认证。
+```text
+6cd14621d24348c00d46c5995444e07ff7264e9591b8214ad8c9bdc0ac603604
+```
 
-本私人仓库不授权公开再分发（UNLICENSED）。第三方软件遵循各自许可证，正式发行前仍需完成许可清单审查。
+PowerShell 校验：
 
-本轮 W10/C1 已形成待复核合同基线，详见 [交付报告](docs/reports/W10-C1.md) 与 [UIAI 接入指南](docs/api/README.md)。C1 Mock 不是生产 Core，真实 Harness 支持仍为0。
+```powershell
+Get-FileHash .\AgentRouter-v1.1.0-windows-x64-268fc71.zip -Algorithm SHA256
+```
+
+## 启动
+
+V1.1.0 是 **portable ZIP**，不是安装器。
+
+1. 把 ZIP 解压到普通用户可写目录；
+2. 双击包根目录的：
+
+```text
+electron.exe
+```
+
+3. 不要直接启动内部的：
+   - `resources/app/core-node.exe`
+   - `resources/w11-core/windows-supervisor.exe`
+
+它们是 AgentRouter 内部组件。
+
+> V1.1.0 包内的 `候选包说明.txt` 是构建阶段遗留文本，部分措辞仍使用旧开发阶段名称。V1.1.0 的权威发布状态与使用方法以 GitHub Release 和本 README 为准。
+
+详细步骤见 [Windows Quick Start](docs/QUICKSTART-WINDOWS.md)。
+
+## V1.1.0 能做什么
+
+- 本地 Windows Core 与 Electron Workbench
+- Project / Role / WorkSession
+- Task / Run / Result / Artifact
+- 历史 WorkSession 永久只读
+- Result Evidence / Accept / Request Changes
+- Codex
+- ZCode
+- Kimi Code
+- DeepSeek Harness (DSH)
+- Pi
+- ChatGPT Web Participant
+- Management MCP / Participant MCP
+- Tailscale HTTPS/WSS 手机远程控制
+- Context / WorkSession 连续性与受控迁移能力（按 Harness 实际能力）
+
+### Harness 支持边界
+
+V1.1.0 已真实验证五个 Harness 的受管 Artifact → Result 基本链路。
+
+Codex 与 ZCode 是 V1.1.0 的主要真实验收路径。
+
+Kimi / DSH 的历史测试保留过瞬态失败分母，因此“已支持”不等于承诺长期零波动。
+
+完整配置见 [Harness Setup](docs/HARNESS-SETUP.md)。
+
+## 一个重要限制
+
+**Codex → ZCode 的跨 Harness 完整历史迁移不属于 V1.1.0。**
+
+V1.1.0 切换 Harness 时可以使用安全的 `Start blank` 路径。跨 Harness 完整可见历史迁移计划在 V1.2 重新设计。
+
+## Web Participant
+
+网页 ChatGPT 可以通过 Participant MCP 认领受控 Role/Slot，并：
+
+- 获取 Role Identity
+- 读取批准的 Task / Artifact
+- 提交 Result
+
+参见 [MCP & Participant](docs/MCP-AND-PARTICIPANT.md)。
+
+## 手机与远程
+
+AgentRouter Core 可以 opt-in 启用 Remote Gateway，再通过 Tailscale Serve 暴露 HTTPS/WSS 给手机浏览器。
+
+参见 [Remote & Mobile](docs/REMOTE-AND-MOBILE.md)。
+
+## 数据与安全
+
+AgentRouter V1.1.0 是 local-authoritative 设计：
+
+- Project/Role/Task/Run/Result 状态由本地 Core 保存；
+- API key、登录凭据和 Remote token 不应提交到 Git；
+- 发行 ZIP 不携带用户账号、密钥或用户数据；
+- Harness 二进制和账号状态由用户自己准备。
+
+参见 [安全说明](SECURITY.md)、[更新记录](CHANGELOG.md)和[本版验证边界](docs/releases/v1.1.0/VALIDATION.md)。
+
+## 已知延期
+
+以下不属于 V1.1.0 发布阻断，计划在后续版本继续完善：
+
+- signed installer
+- 品牌化 `AgentRouter.exe`
+- 完整 Windows Narrator 认证
+- 全 DPI/主题人工矩阵
+- clean uninstall matrix
+- Codex → ZCode 完整历史迁移
+- Linux 最终收口
+- account switching（未纳入 V1.1 验收）
+
+## 开发
+
+仓库保留 source、tests、fixtures、contracts、migrations、build / CI / security tooling。
+
+V1.2 开始时从最新 `main` 创建新的开发分支，不继续复用 V1.1 feature branch。
+
+## License
+
+当前仓库元数据为 `UNLICENSED`。
+
+公开可见不等于自动授予开源再分发许可证。后续如需正式开源许可证，由项目所有者单独决定。

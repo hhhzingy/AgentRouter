@@ -1,8 +1,0 @@
-
- RUN  v5.0.0 E:/AgentRouter/.local/w11a/integration
-
-
- Test Files  2 passed (2)
-      Tests  20 passed (20)
-   Start at  09:23:12
-   Duration  503ms (import 69%, transform 21%, tests 8%, worker 2%)

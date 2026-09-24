@@ -1,9 +1,0 @@
-{
-  "redacted": true,
-  "marker": "REDACTED",
-  "source_sha256": "bbd89146f891cd6dec8cd2bd137b971a497be91873e20d10f4c0ad26357b8f7a",
-  "at": "2026-09-09T07:15:13.155Z",
-  "exit_code": 0,
-  "received_handshake": true,
-  "mode": "PROBED_NO_ACCOUNT_NO_MODEL"
-}

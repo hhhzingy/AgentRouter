@@ -1,8 +1,0 @@
-{
-  "redacted": true,
-  "status": "PASS",
-  "test": "C1_ACTUAL_PRECOMMIT_NEGATIVE",
-  "commit_blocked": true,
-  "created_commit": false,
-  "real_credential": false
-}
