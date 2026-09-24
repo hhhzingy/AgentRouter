@@ -148,6 +148,21 @@ export class ParticipantExtension {
     if (!task) throw Error('TASK_SCOPE_DENIED');
     return task;
   }
+  /** 只允许任务请求显式列出的同项目 Artifact 跨任务传递；不能凭 ID 探测其他任务的产物。 */
+  private hasExplicitArtifactInput(taskId: string, artifactId: string) {
+    const row = this.db.prepare('select request_json from tasks where id=?').get(taskId) as
+      | { request_json: string }
+      | undefined;
+    if (!row) return false;
+    try {
+      const request = JSON.parse(row.request_json) as { inputs?: Array<{ kind?: string; type?: string; artifact_id?: string; id?: string }> };
+      return Array.isArray(request.inputs) && request.inputs.some((ref) =>
+        (ref.kind ?? ref.type) === 'artifact' && (ref.artifact_id ?? ref.id) === artifactId,
+      );
+    } catch {
+      return false;
+    }
+  }
   /** 参与者认领任务:QUEUED→ACTIVE,或 WAITING_INPUT(等待用户输入且已就绪)→ACTIVE 继续推进。 */
   private claim(roleId: string, taskId: string, requestKey: string) {
     if (!taskId) throw Error('INVALID_PARAMS');
@@ -289,7 +304,7 @@ export class ParticipantExtension {
             { id: string; source_json: string } | undefined;
           if (!a) throw Error('ARTIFACT_UNAVAILABLE');
           const meta = JSON.parse(a.source_json) as { task_id?: string };
-          if (meta.task_id !== undefined && meta.task_id !== taskId)
+          if (meta.task_id !== undefined && meta.task_id !== taskId && !this.hasExplicitArtifactInput(taskId, ref.artifact_id))
             throw Error('TASK_SCOPE_DENIED');
           return { kind: 'artifact', artifact_id: ref.artifact_id };
         });
@@ -510,7 +525,8 @@ export class ParticipantExtension {
       .get(artifactId) as { project_id: string } | undefined;
     if (!artifactProject || artifactProject.project_id !== role.project_id)
       throw Error('TASK_SCOPE_DENIED');
-    if (meta.task_id !== taskId && meta.task_id !== undefined) throw Error('TASK_SCOPE_DENIED');
+    if (meta.task_id !== taskId && meta.task_id !== undefined && !this.hasExplicitArtifactInput(taskId, artifactId))
+      throw Error('TASK_SCOPE_DENIED');
     if (row.state !== 'AVAILABLE') throw Error('ARTIFACT_NOT_READABLE');
     if (!meta.path || !existsSync(meta.path)) throw Error('ARTIFACT_FILE_MISSING');
     const bytes = readFileSync(meta.path);

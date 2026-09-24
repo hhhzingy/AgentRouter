@@ -239,6 +239,18 @@ it(
           task_id: t2.id,
         },
       });
+      const t3 = await createTask(
+        'wl_task3_explicit_input',
+        '跨任务显式输入 Artifact 可以读取及转交。',
+        [{ kind: 'artifact', artifact_id: cross.artifact_id }],
+      );
+      const t4 = await createTask('wl_task4_no_input', '不得探测未列为输入的他任务 Artifact。');
+      expect((await call('participant_read_artifact', {
+        params: { task_id: t3.id, artifact_id: cross.artifact_id },
+      })).content).toBe('挂在t2上');
+      await expect(call('participant_read_artifact', {
+        params: { task_id: t4.id, artifact_id: cross.artifact_id },
+      })).rejects.toThrow('TASK_SCOPE_DENIED');
       await expect(
         call('participant_submit_result', {
           params: {
@@ -294,6 +306,17 @@ it(
         },
       });
       expect(submittedReplay).toMatchObject({ result_id: submitted.result_id, replayed: true });
+      await call('participant_claim_task', { params: { task_id: t3.id, request_key: 'wl-ck-3' } });
+      expect(await call('participant_submit_result', {
+        params: {
+          task_id: t3.id,
+          outcome: 'succeeded',
+          summary: '显式输入 Artifact 已核对',
+          body: '仅转交任务请求显式引用的同项目 Artifact。',
+          outputs: [{ kind: 'artifact', artifact_id: cross.artifact_id }],
+          request_key: 'wl-sr-3',
+        },
+      })).toMatchObject({ state: 'DELIVERED', publication_state: 'PUBLISHED' });
       // 同键异内容 → 冲突
       await expect(
         call('participant_submit_result', {
