@@ -4,6 +4,7 @@
  * 纯浏览器静态预览时回退到 packages/ui-mocks 的预览会话（?scenario=<id>）。
  */
 import React, { useEffect, useState } from 'react';
+import productPackage from '../../package.json' with { type: 'json' };
 import { createRoot } from 'react-dom/client';
 import type { ClientSession } from '../../packages/client-transport/p1/types.ts';
 import { connectPreview } from '../../packages/ui-mocks/client.ts';
@@ -78,7 +79,7 @@ async function connect(): Promise<ClientSession> {
     const mode = params.get('mode');
     return window.agentrouterClient.connect({
       clientId: 'workbench',
-      clientVersion: '1.0.0-dev.0',
+      clientVersion: productPackage.version,
       requestedMode: params.get('as') === 'observer' ? 'observer' : 'controller',
       contractRevision: 'C1R1P1',
       ...(mode === 'PREVIEW_MOCK' || mode === 'LOCAL_CORE' ? { mode } : {}),

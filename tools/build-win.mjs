@@ -22,6 +22,8 @@ const git = (...args) =>
     windowsHide: true,
   }).trim();
 const sourceSHA = git('rev-parse', 'HEAD');
+const productVersion = JSON.parse(readFileSync('package.json', 'utf8')).version;
+if (productVersion !== '1.1.0') throw Error('V11_RELEASE_VERSION_REQUIRED');
 const sourceDirty = Boolean(
   git(
     'status',
@@ -58,7 +60,7 @@ writeFileSync(
   resolve(app, 'package.json'),
   JSON.stringify({
     name: 'agentrouter',
-    version: '1.0.0-dev.0',
+    version: productVersion,
     main: 'p1-main.mjs',
     type: 'module',
     private: true,
@@ -184,6 +186,7 @@ index(dest);
 files.sort((a, b) => a.path.localeCompare(b.path));
 const manifest = {
   at: new Date().toISOString(),
+  version: productVersion,
   sourceSHA,
   sourceDirty,
   status: 'CANDIDATE_NOT_CERTIFIED',

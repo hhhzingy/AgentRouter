@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import productPackage from '../../package.json' with { type: 'json' };
 import { realpathSync, statSync, readdirSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 import type Database from 'better-sqlite3';
@@ -868,7 +869,7 @@ export class ApplicationService extends Plans {
         // (可信本地 provisioning;initialize 冻结 schema 不容新字段,故不在协议面声明)。
         result = {
           serverInstanceId: this.instanceId,
-          serverVersion: '1.0.0-dev.0',
+          serverVersion: productPackage.version,
           protocol: 'agentrouter-client/1',
           schemaVersion: c.revision === 'C1R1P1' ? 3 : c.revision === 'C1R1' ? 2 : 1,
           contractRevision: c.revision,

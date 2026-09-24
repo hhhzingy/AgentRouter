@@ -9,6 +9,10 @@ const packagePath = process.argv[2];
 if (!packagePath) throw Error('EXPLICIT_PACKAGE_PATH_REQUIRED');
 const dest = resolve(packagePath),
   manifest = JSON.parse(readFileSync(resolve(dest, 'manifest.json'), 'utf8'));
+const expectedVersion = JSON.parse(readFileSync('package.json', 'utf8')).version;
+assert.equal(expectedVersion, '1.1.0');
+assert.equal(manifest.version, expectedVersion);
+assert.equal(JSON.parse(readFileSync(resolve(dest, 'resources/app/package.json'), 'utf8')).version, expectedVersion);
 for (const file of manifest.files) {
   const path = resolve(dest, file.path),
     rel = relative(dest, path);
